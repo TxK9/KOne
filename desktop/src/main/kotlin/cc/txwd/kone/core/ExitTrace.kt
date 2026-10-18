@@ -12,8 +12,15 @@ object ExitTrace {
     private val client = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY).connectTimeout(Duration.ofSeconds(4))
         .followRedirects(HttpClient.Redirect.NEVER).build()
 
-    /** Through the tunnel once it is up: Cloudflare's trace gives the exit address in one short reply. */
-    fun detect(): String? = runCatching {
+    /**
+     * Through the tunnel once it is up: Cloudflare's trace gives the exit address in one short
+     * reply. Connected as the system proxy, the App's own requests do not follow Windows' proxy,
+     * so they go through KOne's local port ([viaPort]) instead.
+     */
+    fun detect(viaPort: Int? = null): String? = runCatching {
+        val client = if (viaPort == null) client else HttpClient.newBuilder()
+            .proxy(java.net.ProxySelector.of(java.net.InetSocketAddress("127.0.0.1", viaPort))).connectTimeout(Duration.ofSeconds(4))
+            .followRedirects(HttpClient.Redirect.NEVER).build()
         val request = HttpRequest.newBuilder(URI("https://www.cloudflare.com/cdn-cgi/trace")).timeout(Duration.ofSeconds(4))
             .header("Accept", "text/plain").GET().build()
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
