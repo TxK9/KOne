@@ -272,7 +272,15 @@ fun main(args: Array<String>) {
                                       )
                                       else -> DashboardView(
                                           model.dashboard,
-                                          DashboardActions(onTab = model::pickTab, onNode = model::pickNode, onPower = model::power),
+                                          DashboardActions(
+                                              onTab = model::pickTab, onNode = model::pickNode, onPower = model::power, onRemove = model::removeImported,
+                                              onMenu = { item ->
+                                                  when (item) {
+                                                      cc.txwd.kone.ui.MenuItem.Clipboard -> model.importText(clipboardText().orEmpty())
+                                                      cc.txwd.kone.ui.MenuItem.File -> pickText(this@Window.window)?.let(model::importText)
+                                                  }
+                                              },
+                                          ),
                                           menu, { menu = it },
                                           moving = inSight,
                                           cities = settings.state.backdrop == Backdrop.City,
@@ -425,6 +433,14 @@ private fun pickProgram(owner: java.awt.Frame): String? {
         isVisible = true
     }
     return dialog.file?.takeIf { it.endsWith(".exe", ignoreCase = true) }
+}
+
+/** The text of a file the person picks (a list of share links, a subscription), 2 MB at most. */
+private fun pickText(owner: java.awt.Frame): String? {
+    val dialog = java.awt.FileDialog(owner, "KOne", java.awt.FileDialog.LOAD).apply { isVisible = true }
+    val file = java.io.File(dialog.directory ?: return null, dialog.file ?: return null)
+    if (!file.isFile || file.length() > 2L * 1024 * 1024) return null
+    return runCatching { file.readText() }.getOrNull()
 }
 
 /** Whether a window put at [place] would show its title bar on one of the screens there are now. */

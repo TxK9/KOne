@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,7 +38,11 @@ import java.time.Instant
  * A node as the dashboard shows it. Delay is the last test in milliseconds, null when it did not
  * answer; a node not tested yet rests (Z) rather than showing as cut off.
  */
-data class Node(val id: String, val name: String, val country: String?, val category: String, val delay: Int?, val tested: Boolean = true) {
+data class Node(
+    val id: String, val name: String, val country: String?, val category: String, val delay: Int?, val tested: Boolean = true,
+    /** Imported by the person (⋮), and so theirs to take out. */
+    val imported: Boolean = false,
+) {
     val weather: NodeWeather get() = if (tested) NodeWeather.of(delay) else NodeWeather.Rest
 }
 
@@ -59,7 +64,9 @@ data class DashboardState(
     val seconds: Long = 0,
     /** One line about what just went wrong (the prompt declined, the service paused), until the next try. */
     val notice: String? = null,
-    /** Whether the ⋮ menu's imports are there; hidden while the App has none. */
+    /** One line on something that went well (Imported 3 nodes), for a few seconds. */
+    val hint: String? = null,
+    /** Whether the ⋮ menu's imports are there: once a key is in. */
     val canImport: Boolean = false,
     /** How soon this person's use ends, in its last week (3 days remaining); otherwise null. */
     val expiry: String? = null,
@@ -74,9 +81,11 @@ class DashboardActions(
     val onNode: (String) -> Unit = {},
     val onPower: () -> Unit = {},
     val onMenu: (MenuItem) -> Unit = {},
+    /** Take out an imported node. */
+    val onRemove: (String) -> Unit = {},
 )
 
-enum class MenuItem(val title: String) { Clipboard("Import from clipboard"), File("Import from file"), Manual("Add manually"), Category("Add category") }
+enum class MenuItem(val title: String) { Clipboard("Import from clipboard"), File("Import from file") }
 
 /**
  * Dashboard: the handscroll fills the page (the ink one, or with [cities] those of the node's country,
@@ -133,6 +142,11 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions) {
                     WeatherGlyph(node.weather)
                     Label(delayText(node.delay), 14.sp, color, tabular = true)
                     if (on) Glyph(Glyphs.check, color, 18.dp, strokeWidth = 2.2f)
+                    if (on && node.imported) {
+                        Box(Modifier.height(32.dp).press(bleed = 4.dp) { actions.onRemove(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                            Label("×", 16.sp, ink.soft)
+                        }
+                    }
                 }
             }
         }
@@ -172,6 +186,7 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
                         Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 14.sp, ink.soft, tabular = true)
                         Label(clock(state.seconds), 14.sp, ink.soft, tabular = true)
                         state.expiry?.let { Label(it, 14.sp, NodeWeather.Mist.ink(ink.dark)) }
+                        state.hint?.let { Label(it, 14.sp, ink.soft) }
                     }
                 }
             } else {
@@ -183,6 +198,7 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
                     }
                     when {
                         state.notice != null -> Label(state.notice, 14.sp, NodeWeather.Cut.ink(ink.dark))
+                        state.hint != null -> Label(state.hint, 14.sp, ink.soft)
                         state.expiry != null -> Label(state.expiry, 14.sp, NodeWeather.Mist.ink(ink.dark))
                     }
                 }
@@ -227,12 +243,13 @@ private fun BoxScope.More(open: Boolean, onOpen: (Boolean) -> Unit, onPick: (Men
         if (open) {
             val shape = RoundedCornerShape(12.dp)
             Column(
-                Modifier.widthIn(min = 168.dp).shadow(14.dp, shape, ambientColor = Color(0x2E141C19), spotColor = Color(0x2E141C19))
+                // As wide as its longest item, so no title is cut whatever the language.
+                Modifier.width(IntrinsicSize.Max).widthIn(min = 168.dp).shadow(14.dp, shape, ambientColor = Color(0x2E141C19), spotColor = Color(0x2E141C19))
                     .background(ink.menu, shape).padding(6.dp),
             ) {
                 MenuItem.entries.forEach { item ->
                     Box(
-                        Modifier.width(156.dp).height(40.dp).clip(RoundedCornerShape(8.dp)).press { onOpen(false); onPick(item) }.padding(horizontal = 14.dp),
+                        Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(8.dp)).press { onOpen(false); onPick(item) }.padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) { Label(item.title, 14.sp) }
                 }

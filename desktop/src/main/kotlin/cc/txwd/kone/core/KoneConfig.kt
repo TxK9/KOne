@@ -41,7 +41,7 @@ object KoneConfig {
     )
 
     /** Tags the template uses itself; a source outbound with one of these is renamed. */
-    private val RESERVED = setOf(PROXY_TAG, AUTO_TAG, "direct", "block", "dns", "local-dns", "proxy-dns", "tun-in", "mixed-in")
+    val RESERVED = setOf(PROXY_TAG, AUTO_TAG, "direct", "block", "dns", "local-dns", "proxy-dns", "tun-in", "mixed-in")
 
     class Built(val config: JsonObject, val nodes: List<SourceNode>)
 

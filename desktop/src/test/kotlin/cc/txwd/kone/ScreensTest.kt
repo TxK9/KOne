@@ -106,6 +106,13 @@ class ScreensTest {
             tab = "Auto", selected = "auto",
         )
         shoot("dashboard-auto", dark = false) { WithRail(Page.Dashboard, {}) { DashboardView(auto, DashboardActions(), false, {}, moving = false) } }
+        // Nodes the person imported, one of them chosen (its × takes it out), with ⋮ open.
+        val imported = sample.copy(
+            categories = sample.categories + "Imported",
+            nodes = sample.nodes + Node("i1", "Friend's node", null, "Imported", 220, imported = true) + Node("i2", "Imported 2", null, "Imported", null, tested = false, imported = true),
+            tab = "Imported", selected = "i1", hint = "Imported 2 nodes",
+        )
+        shoot("dashboard-imported", dark = false) { WithRail(Page.Dashboard, {}) { DashboardView(imported, DashboardActions(), true, {}, moving = false) } }
         // The smallest the window goes.
         shoot("dashboard-smallest", dark = false, width = 960, height = 620) {
             WithRail(Page.Dashboard, {}) { DashboardView(online, DashboardActions(), false, {}, moving = false) }

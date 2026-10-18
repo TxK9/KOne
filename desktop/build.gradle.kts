@@ -52,6 +52,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     // DPAPI for the device credential, the registry for dark mode, the pipe to the KOne service.
     implementation("net.java.dev.jna:jna-platform:5.19.1")
+    // Share links read as the phone reads them (node/ShareLinks.kt, ported as it is).
+    implementation("org.json:json:20250517")
 
     testImplementation(kotlin("test"))
 }

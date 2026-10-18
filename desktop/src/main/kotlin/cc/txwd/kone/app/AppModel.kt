@@ -17,6 +17,8 @@ import cc.txwd.kone.core.RuleSets
 import cc.txwd.kone.core.ServiceLink
 import cc.txwd.kone.core.SourceNode
 import cc.txwd.kone.node.Countries
+import cc.txwd.kone.node.SharedNode
+import cc.txwd.kone.node.ShareLinks
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
 import cc.txwd.kone.ui.KeyState
@@ -29,6 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.io.File
 import java.net.InetAddress
@@ -51,6 +54,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** The core KOne runs itself, as the system proxy, when the service cannot make the adapter. */
     private val local: LocalCore? = Places.core?.let { core -> LocalCore(core, ::log) }
+
+    /** The nodes the person imported (⋮), joined to the console's. */
+    private val imports = Imports(File(Places.data, "imported.bin"), Vault.forThisComputer())
+    private var importedTags: Set<String> = emptySet()
 
     /** How much the core has carried, today and this month (Tools → Usage). */
     private val usage = Usage(File(Places.data, "usage.properties"))
@@ -82,6 +89,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private var rates = 0L to 0L
     private var seconds = 0L
     private var notice: String? = null
+    private var hint: String? = null
 
     private var service: ServiceLink? = null
     private var clash: ClashApi? = null
@@ -219,7 +227,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     private fun connect() {
         val binding = account.binding ?: return
-        val source = binding.source ?: return
+        val source = source() ?: return
         connection = Connection.Connecting
         notice = null
         refresh()
@@ -303,7 +311,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
      */
     private fun connectByProxy(fellBack: Boolean = false) {
         val core = local
-        val source = account.binding?.source
+        val source = source()
         if (core == null || source == null) {
             ended("no service")
             return
@@ -400,6 +408,55 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         notice = Ends.message(end)
         refresh()
         startProbe()
+    }
+
+    /**
+     * The share links in [text] (from the clipboard or a file), each read as the phone reads it and
+     * checked by sing-box, added to the person's own nodes. Says how it went on the dashboard.
+     */
+    fun importText(text: String) {
+        val source = account.binding?.source ?: return
+        scope.launch {
+            val (message, good) = withContext(Dispatchers.IO) {
+                val links = ShareLinks.findAll(text).take(100)
+                if (links.isEmpty()) return@withContext "No node links found" to false
+                var refusal: String? = null
+                val read = links.mapNotNull { link ->
+                    runCatching { ShareLinks.parse(link) }.onFailure { refusal = refusal ?: it.message }.getOrNull()
+                }
+                fun fits(found: List<SharedNode>): Boolean =
+                    accepts(Imports.into(source, found.map { Json.parseToJsonElement(it.outbound.toString()) as JsonObject }).first)
+                // All at once when they all fit; one by one only to find which do not.
+                val fitting = if (read.isEmpty() || fits(read)) read else read.filter { fits(listOf(it)) }.also {
+                    if (it.size < read.size) refusal = refusal ?: "sing-box does not accept some nodes"
+                }
+                val added = imports.add(fitting)
+                when {
+                    added > 0 -> "Imported $added nodes" to true
+                    fitting.isNotEmpty() -> "These nodes are already here" to true
+                    else -> (refusal ?: "No usable nodes") to false
+                }
+            }
+            loadNodes()
+            if (good) {
+                notice = null
+                hint(message)
+            } else {
+                say(message)
+            }
+            restart()
+        }
+    }
+
+    /** Takes an imported node out; the console's are the console's to take. */
+    fun removeImported(tag: String) {
+        if (tag !in importedTags) return
+        scope.launch {
+            withContext(Dispatchers.IO) { imports.remove(tag) }
+            delays.remove(tag)
+            loadNodes()
+            restart()
+        }
     }
 
     // Tools
@@ -554,7 +611,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** While not connected, the core without TUN carries the nodes so their delays can be tested. */
     private fun startProbe() {
         val probe = probe ?: return
-        val source = account.binding?.source ?: return
+        val source = source() ?: return
         val api = CoreApi(freePort(), token())
         val config = runCatching { KoneConfig.build(source, rules, api, tun = false).config.toString() }.getOrNull() ?: return
         scope.launch {
@@ -615,17 +672,22 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         return process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0
     }
 
+    /** The console's source with the person's imported nodes after its own; null until the console has sent one. */
+    private fun source(): JsonObject? = account.binding?.source?.let { Imports.into(it, imports.all).first }
+
     private fun loadNodes() {
         val binding = account.binding
-        val source = binding?.source
-        nodes = source?.let { runCatching { KoneConfig.build(it, rules, CoreApi(9090, "list")).nodes }.getOrNull() }.orEmpty()
+        val merged = binding?.source?.let { Imports.into(it, imports.all) }
+        importedTags = merged?.second.orEmpty()
+        nodes = merged?.first?.let { runCatching { KoneConfig.build(it, rules, CoreApi(9090, "list")).nodes }.getOrNull() }.orEmpty()
         if (tab !in categories()) {
             tab = if (binding?.selected == KoneConfig.AUTO_TAG && auto) AUTO_NAME else categoryOf(nodes.firstOrNull { it.tag == binding?.selected } ?: nodes.firstOrNull())
         }
         refresh()
     }
 
-    private fun categoryOf(node: SourceNode?): String = node?.country?.let { Countries.byCode(it)?.zh } ?: "Node"
+    private fun categoryOf(node: SourceNode?): String =
+        node?.country?.let { Countries.byCode(it)?.zh } ?: if (node != null && node.tag in importedTags) IMPORTED_NAME else "Node"
 
     /** Automatic first when there is a choice to make, then the countries. */
     private fun categories(): List<String> = (if (auto) listOf(AUTO_NAME) else emptyList()) + nodes.map(::categoryOf).distinct()
@@ -648,6 +710,19 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         return Node(KoneConfig.AUTO_TAG, if (pick != null) "$AUTO_NAME · ${pick.name}" else AUTO_NAME, pick?.country, AUTO_NAME, pick?.let { delays[it.tag] }, tested = pick != null)
     }
 
+    /** Says [message] softly for a few seconds. */
+    private fun hint(message: String) {
+        hint = message
+        refresh()
+        scope.launch {
+            delay(6_000)
+            if (hint == message) {
+                hint = null
+                refresh()
+            }
+        }
+    }
+
     private fun say(message: String?) {
         notice = message
         refresh()
@@ -665,7 +740,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         dashboard = DashboardState(
             categories = categories(),
             nodes = (if (auto) listOf(autoNode()) else emptyList()) +
-                nodes.map { Node(it.tag, it.name, it.country, categoryOf(it), delays[it.tag], tested = it.tag in delays) },
+                nodes.map { Node(it.tag, it.name, it.country, categoryOf(it), delays[it.tag], tested = it.tag in delays, imported = it.tag in importedTags) },
             tab = tab,
             selected = selected,
             connection = connection,
@@ -676,12 +751,15 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             notice = notice,
             expiry = Expiry.hint(account.binding?.expiresAt),
             proxied = proxied != null,
+            hint = hint,
+            canImport = account.binding != null,
         )
     }
 
     companion object {
         private const val SLEPT_MILLIS = 20_000L
         private const val AUTO_NAME = "Automatic"
+        private const val IMPORTED_NAME = "Imported"
 
         /** How KOne connects: through its own adapter (TUN), or through Windows' proxy. */
         const val WAY_ADAPTER = "Adapter"
