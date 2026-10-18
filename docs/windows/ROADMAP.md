@@ -116,8 +116,9 @@ of addresses (geoip) match the destination only.
   leaves out rules naming a list it does not have, so a missing list never stops a
   connection. The core reads the lists as local files; it never fetches them.
 - **Applying.** A list ready for the first time restarts a running connection so its rules
-  apply; an update to a list already in use applies at the next connection, so active
-  connections are not cut for it.
+  apply. An update to a list already in use is read by the running core itself when the
+  service renames the new copy into place (sing-box watches its local lists), so no
+  connection is cut for it; checked with sing-box on Linux, not yet on Windows.
 - **Uninstall.** `core\rules\sets\` is removed with KOne; the end-to-end test hands the
   service a list, connects with a rule on it, and then checks nothing is left.
 - **Security note.** The list bytes are parsed by sing-box running as SYSTEM. That was

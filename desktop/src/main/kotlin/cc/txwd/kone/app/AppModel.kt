@@ -1171,7 +1171,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
      * Looks at the lists the rules name: each due (or every one, when [force]) is downloaded if it
      * changed and checked; then the service is handed what it lacks. A list that is ready for the
      * first time starts a running connection afresh, so its rules take effect; an update to a
-     * list already in use waits for the next connection rather than interrupting this one.
+     * list already in use is read by the running core itself as the file is replaced (sing-box
+     * watches its local lists), so no connection is cut for it.
      */
     fun updateLists(force: Boolean = false) {
         if (updatingLists?.isActive == true) return
@@ -1212,7 +1213,13 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             val sha = lists.digest(name)
             val target = File(folder, "$name.srs")
             if (sha != null && (!target.isFile || CategoryLists.sha256(target.readBytes()) != sha)) {
-                runCatching { folder.mkdirs(); lists.bytes(name)?.let(target::writeBytes) }
+                // Beside it, then into place: a running core reloads the list as it changes.
+                runCatching {
+                    folder.mkdirs()
+                    val fresh = File(folder, "$name.srs.new")
+                    lists.bytes(name)?.let(fresh::writeBytes)
+                    java.nio.file.Files.move(fresh.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                }
             }
             target.isFile
         }.toSet()
