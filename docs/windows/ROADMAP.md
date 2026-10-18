@@ -54,14 +54,31 @@ lacks, where it can do better, and the order of work. Status is updated as items
 
 | # | Work | Status |
 | --- | --- | --- |
-| P1 | Subscriptions: HTTPS URL sealed with DPAPI; share links, base64 and sing-box JSON; `subscription-userinfo`; sing-box check; keep last good; auto update | Planned |
-| P1 | Clash/mihomo YAML subscriptions converted to sing-box outbounds | Planned |
-| P1 | Nodes page: every source, subscription usage and expiry, update/edit/remove, test now | Planned |
-| P2 | Routing rules: ordered domain, keyword, suffix, IP CIDR, process and port rules to Proxy, Direct or Block; ad-block rule set | Planned |
-| P2 | DNS presets and validated custom servers; IPv6 | Planned |
-| P3 | Smart selection with health history; failover and return | Planned |
-| P3 | Diagnostics page | Planned |
-| P4 | Traffic graph, connection search/sort/filter, log level filter and pause, per-node usage | Planned |
+| P1 | Subscriptions: HTTPS URL sealed with DPAPI; share links, base64 and sing-box JSON; `subscription-userinfo`, name and update interval from headers; sing-box check (halving to find bad nodes); keep last good; quiet auto update | Done |
+| P1 | Clash/mihomo YAML subscriptions converted to sing-box outbounds (Shadowsocks with obfs/v2ray-plugin, VMess, VLESS with Reality, Trojan, Hysteria2 with port hopping, TUIC, AnyTLS, SOCKS, HTTP); safe YAML loader with alias limit | Done |
+| P1 | Nodes page: every source, subscription usage and expiry, update/edit/remove, test all (eight at a time), kind and loss per node | Done |
+| P2 | Rules page: ordered domain, suffix, keyword, IP range, app and port rules to Proxy, Direct or Block; Block ads (v2fly category-ads-all, bundled); existing app and site lists | Done |
+| P2 | DNS presets and validated custom servers (DoH remote, plain direct); IPv6 | Done |
+| P3 | Health history (median, spread, loss); Automatic steered with patience; failover from a chosen node and back, with its dead connections closed | Done |
+| P3 | Diagnostics in Tools: key, service, node, DNS, four sites, exit, with one suggestion | Done |
+| P4 | Traffic sparkline, connection search and sort, log search, level filter and pause | Done |
+
+Every item above has unit tests; changes to the service template keep the Go/Kotlin
+byte-for-byte test passing and are checked by `sing-box check`. Windows CI installs,
+connects and uninstalls on x64 and ARM64 for each push. None of it has been tried on a
+real Windows PC yet.
+
+## Next
+
+- **Node export and manual add.** Copy a node as a share link (and QR); add or edit one
+  by protocol without a link.
+- **Bandwidth test.** Download through a chosen node for a few seconds and report the rate.
+- **Remote rule sets.** Rule-set URLs (sing-box `.srs`) as rules, fetched through the node.
+- **Hosts.** Fixed answers for chosen names.
+- **Backup and restore.** Settings, rules and subscriptions to a file the person keeps.
+- **Per-node traffic.** Usage by node and by app over the day.
+- **Cost of Automatic over large subscriptions.** The template's url-test still tests every
+  node every three minutes; with KOne steering Automatic it could test less often.
 
 ## Not planned, and why
 
