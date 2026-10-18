@@ -147,6 +147,8 @@ func (s *server) session(pipe windows.Handle) {
 			Bypass   []string       `json:"bypass"`
 			Direct   []string       `json:"direct"`
 			Proxied  []string       `json:"proxied"`
+			Routes   []Rule         `json:"routes"`
+			BlockAds bool           `json:"blockAds"`
 			Since    int64          `json:"since"`
 		}
 		decoder := json.NewDecoder(strings.NewReader(line))
@@ -160,7 +162,8 @@ func (s *server) session(pipe windows.Handle) {
 		case "hello":
 			reply = map[string]any{"ok": true, "version": version}
 		case "connect":
-			reply = s.connect(id, request.Source, request.Selected, request.Mode, request.Bypass, request.Direct, request.Proxied)
+			reply = s.connect(id, request.Source, Options{Selected: request.Selected, Mode: request.Mode, Bypass: request.Bypass,
+				Direct: request.Direct, Proxied: request.Proxied, Routes: request.Routes, BlockAds: request.BlockAds})
 		case "status":
 			reply = s.core.status(id, request.Since)
 		case "disconnect":
@@ -176,8 +179,9 @@ func (s *server) session(pipe windows.Handle) {
 }
 
 // connect builds the configuration from the source itself, the fixed template with only the
-// nodes and the Claude block taken from the source, and starts the core on it.
-func (s *server) connect(id uint64, source map[string]any, selected, mode string, bypass, direct, proxied []string) map[string]any {
+// nodes and the Claude block taken from the source and the person's choices in [chosen] (all
+// checked again in Build), and starts the core on it.
+func (s *server) connect(id uint64, source map[string]any, chosen Options) map[string]any {
 	port, err := freePort()
 	if err != nil {
 		return map[string]any{"ok": false, "error": err.Error()}
@@ -186,7 +190,12 @@ func (s *server) connect(id uint64, source map[string]any, selected, mode string
 	if _, err := rand.Read(secret); err != nil {
 		return map[string]any{"ok": false, "error": err.Error()}
 	}
-	options := Options{Selected: selected, Rules: filepath.ToSlash(filepath.Join(s.home, "rules")), Port: port, Secret: hex.EncodeToString(secret), Tun: true, Mode: mode, Bypass: bypass, Direct: direct, Proxied: proxied}
+	options := chosen
+	options.Rules = filepath.ToSlash(filepath.Join(s.home, "rules"))
+	options.Port = port
+	options.Secret = hex.EncodeToString(secret)
+	options.Tun = true
+	options.Mixed = 0
 	config, _, err := Build(source, options)
 	if err != nil {
 		return map[string]any{"ok": false, "error": "config_invalid"}

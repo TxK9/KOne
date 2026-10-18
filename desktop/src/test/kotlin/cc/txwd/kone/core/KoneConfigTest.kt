@@ -130,15 +130,32 @@ class KoneConfigTest {
         val cases = listOf(Triple("Japan 2", "Rule", emptyList()), Triple("auto", "Global", bypass), Triple("Japan 2", "Everything", bypass))
         val direct = listOf("Example.CN", "example.cn", "com", "https://x.example/", "a.example.org")
         val proxied = listOf("example.com", "*.bad.example", "203.0.113.7")
+        // Everything the rules editor could send, and things it should never let through.
+        val routes = listOf(
+            UserRule("suffix", " Example.COM ", "direct"), UserRule("domain", "*.example.com", "block"), UserRule("keyword", "Ads", "block"),
+            UserRule("cidr", "192.168.1.77/24", "direct"), UserRule("cidr", "10.0.0.1", "proxy"), UserRule("cidr", "2001:DB8:0:0:1::5/64", "block"),
+            UserRule("cidr", "fe80::/10", "direct"), UserRule("cidr", "::", "block"), UserRule("cidr", "1:2:3:4:5:6:7::", "proxy"),
+            UserRule("cidr", "::ffff:102:304", "block"), UserRule("cidr", "010.0.0.1/8", "block"), UserRule("cidr", "fe80::1%eth0", "block"),
+            UserRule("cidr", "1::2::3", "block"), UserRule("cidr", "10.0.0.0/0", "block"), UserRule("program", "Steam.exe", "proxy"),
+            UserRule("program", "C:\\x\\cmd.exe", "direct"), UserRule("port", "443", "block"), UserRule("port", "1000:2000", "direct"),
+            UserRule("port", "2000-1000", "direct"), UserRule("port", "0443", "direct"), UserRule("port", "\u0661\u0662", "direct"),
+            UserRule("suffix", "example.org", "reject"), UserRule("geoip", "cn", "direct"), UserRule("suffix", "claude.ai", "direct"),
+        )
         for (source in sources) for ((tun, mixed) in listOf(true to 0, false to 0, false to 7890)) for ((selected, mode, straight) in cases) {
             val sites = if (straight.isEmpty()) emptyList() else direct
             val through = if (mode == "Rule") emptyList() else proxied
-            val ours = KoneConfig.build(source, rules, api, selected = selected, tun = tun, mode = mode, bypass = straight, mixed = mixed, direct = sites, proxied = through).config
+            val own = if (mode == "Global") emptyList() else routes
+            val ads = mode != "Rule"
+            val ours = KoneConfig.build(
+                source, rules, api, selected = selected, tun = tun, mode = mode, bypass = straight, mixed = mixed, direct = sites, proxied = through,
+                routes = own, blockAds = ads,
+            ).config
             val request = buildJsonObject {
                 put("source", source); put("selected", selected); put("rules", rules)
                 put("port", api.port); put("secret", api.secret); put("tun", tun)
                 put("mode", mode); putJsonArray("bypass") { straight.forEach { add(it) } }; put("mixed", mixed)
                 putJsonArray("direct") { sites.forEach { add(it) } }; putJsonArray("proxied") { through.forEach { add(it) } }
+                putJsonArray("routes") { own.forEach { add(it.toJson()) } }; put("blockAds", ads)
             }
             val process = ProcessBuilder(found!!.path, "build-config").start()
             process.outputStream.use { it.write(request.toString().toByteArray()) }
@@ -158,6 +175,11 @@ class KoneConfigTest {
         val built = KoneConfig.build(
             FakeConsole.source(blockClaude = true), rules, api, bypass = listOf("WeChat.exe"), mixed = 7890,
             direct = listOf("example.cn"), proxied = listOf("example.com"),
+            routes = listOf(
+                UserRule("keyword", "tracker", "block"), UserRule("cidr", "2001:db8::/32", "direct"), UserRule("port", "1000-2000", "proxy"),
+                UserRule("port", "8443", "block"), UserRule("program", "Steam.exe", "proxy"), UserRule("domain", "www.example.org", "direct"),
+            ),
+            blockAds = true,
         )
         val file = File(folder, "config.json").apply { writeText(built.config.toString()) }
         val process = ProcessBuilder(core.path, "check", "-c", file.path).redirectErrorStream(true).start()
@@ -194,6 +216,30 @@ class KoneConfigTest {
             val through = rules.indexOfFirst { "domain_suffix" in it && it["clash_mode"]?.jsonPrimitive?.content == "Rule" }
             assertTrue(block in 0 until straight && straight < through, "$section: the Claude block, then the sites straight out, then those through the node")
         }
+    }
+
+    @Test
+    fun rulesAreCheckedAndWrittenAsTheServiceWritesThem() {
+        val got = UserRules.clean(
+            listOf(
+                UserRule("suffix", " Example.COM ", "direct"), UserRule("suffix", "example.com", "direct"), UserRule("domain", "*.example.com", "block"),
+                UserRule("keyword", "Ads", "block"), UserRule("keyword", "a", "block"), UserRule("cidr", "192.168.1.77/24", "direct"),
+                UserRule("cidr", "10.0.0.1", "proxy"), UserRule("cidr", "2001:DB8:0:0:1::5/64", "block"), UserRule("cidr", "::ffff:102:304", "block"),
+                UserRule("cidr", "010.0.0.1/8", "block"), UserRule("cidr", "10.0.0.0/08", "block"), UserRule("cidr", "fe80::1%eth0", "block"),
+                UserRule("program", "Steam.exe", "proxy"), UserRule("program", "C:\\x\\cmd.exe", "direct"), UserRule("port", "443", "block"),
+                UserRule("port", "1000:2000", "direct"), UserRule("port", "2000-1000", "direct"), UserRule("port", "0443", "direct"),
+                UserRule("port", "70000", "direct"), UserRule("suffix", "example.org", "reject"), UserRule("geoip", "cn", "direct"),
+            ),
+        )
+        assertEquals(
+            listOf(
+                UserRule("suffix", "example.com", "direct"), UserRule("keyword", "ads", "block"), UserRule("cidr", "192.168.1.0/24", "direct"),
+                UserRule("cidr", "10.0.0.1/32", "proxy"), UserRule("cidr", "2001:db8::/64", "block"), UserRule("program", "Steam.exe", "proxy"),
+                UserRule("port", "443", "block"), UserRule("port", "1000-2000", "direct"),
+            ),
+            got,
+        )
+        assertEquals(UserRules.MOST, UserRules.clean((0 until 300).map { UserRule("suffix", "s$it.example", "direct") }).size)
     }
 
     @Test

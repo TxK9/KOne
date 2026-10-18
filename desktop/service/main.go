@@ -44,7 +44,7 @@ func exit(err error) {
 	}
 }
 
-// buildConfig reads {"source": …, "selected", "rules", "port", "secret", "tun", "mode", "bypass", "direct", "proxied", "mixed"} and prints the
+// buildConfig reads {"source": …, "selected", "rules", "port", "secret", "tun", "mode", "bypass", "direct", "proxied", "routes", "blockAds", "mixed"} and prints the
 // configuration the service would run, so the App's tests can check they build the same.
 func buildConfig(in io.Reader, out io.Writer) error {
 	var request struct {
@@ -58,6 +58,8 @@ func buildConfig(in io.Reader, out io.Writer) error {
 		Bypass   []string       `json:"bypass"`
 		Direct   []string       `json:"direct"`
 		Proxied  []string       `json:"proxied"`
+		Routes   []Rule         `json:"routes"`
+		BlockAds bool           `json:"blockAds"`
 		Mixed    int            `json:"mixed"`
 	}
 	decoder := json.NewDecoder(io.LimitReader(in, maxMessage))
@@ -65,7 +67,7 @@ func buildConfig(in io.Reader, out io.Writer) error {
 	if err := decoder.Decode(&request); err != nil {
 		return err
 	}
-	config, _, err := Build(request.Source, Options{Selected: request.Selected, Rules: request.Rules, Port: request.Port, Secret: request.Secret, Tun: request.Tun, Mode: request.Mode, Bypass: request.Bypass, Direct: request.Direct, Proxied: request.Proxied, Mixed: request.Mixed})
+	config, _, err := Build(request.Source, Options{Selected: request.Selected, Rules: request.Rules, Port: request.Port, Secret: request.Secret, Tun: request.Tun, Mode: request.Mode, Bypass: request.Bypass, Direct: request.Direct, Proxied: request.Proxied, Routes: request.Routes, BlockAds: request.BlockAds, Mixed: request.Mixed})
 	if err != nil {
 		return err
 	}

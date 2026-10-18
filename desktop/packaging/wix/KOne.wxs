@@ -69,6 +69,10 @@
                 <File Id="GeositeCn" Source="$(var.CoreDir)\rules\geosite-cn.srs" KeyPath="yes" />
                 <File Id="GeoipCn" Source="$(var.CoreDir)\rules\geoip-cn.srs" />
               </Component>
+              <!-- A component of its own, so an upgrade from a KOne without it follows the component rules. -->
+              <Component Id="AdsRules" Guid="1c7233d4-c8c7-45b3-8fbc-2ecf873e2408" Win64="yes">
+                <File Id="GeositeAds" Source="$(var.CoreDir)\rules\geosite-category-ads-all.srs" KeyPath="yes" />
+              </Component>
             </Directory>
           </Directory>
         </Directory>
@@ -82,6 +86,7 @@
       <ComponentRef Id="Service" />
       <ComponentRef Id="SingBox" />
       <ComponentRef Id="Rules" />
+      <ComponentRef Id="AdsRules" />
       <ComponentGroupRef Id="AppFiles" />
     </Feature>
 

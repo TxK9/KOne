@@ -24,6 +24,9 @@ var proxyTypes = map[string]bool{
 	"hysteria": true, "hysteria2": true, "tuic": true, "ssh": true, "anytls": true, "shadowtls": true,
 }
 
+// adsRuleSet is the ad-blocking rule set carried beside the China ones (v2fly's category-ads-all).
+const adsRuleSet = "geosite-category-ads-all"
+
 // reserved are the tags the template uses itself; a source outbound with one of them is renamed.
 var reserved = map[string]bool{proxyTag: true, autoTag: true, "direct": true, "block": true, "dns": true, "local-dns": true, "proxy-dns": true, "tun-in": true, "mixed-in": true}
 
@@ -40,6 +43,8 @@ type Options struct {
 	Bypass   []string // programs sent straight out, by file name (WeChat.exe)
 	Direct   []string // sites sent straight out, in every mode, by domain (example.cn and what is under it)
 	Proxied  []string // sites through the node in Rule too, by domain
+	Routes   []Rule   // the person's own rules, in order, after the lists above
+	BlockAds bool     // refuse the domains of the ad-blocking rule set
 	Mixed    int      // a local proxy port on 127.0.0.1 for the system proxy, when not 0 (the App's own, never the service's)
 }
 
@@ -248,6 +253,17 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		dnsRules = append(dnsRules, map[string]any{"clash_mode": "Rule", "domain_suffix": proxied, "server": "proxy-dns"})
 		routeRules = append(routeRules, map[string]any{"clash_mode": "Rule", "domain_suffix": proxied, "outbound": proxyTag})
 	}
+	for _, rule := range UserRules(options.Routes) {
+		if dns := dnsRule(rule); dns != nil {
+			dnsRules = append(dnsRules, dns)
+		}
+		routeRules = append(routeRules, routeRule(rule))
+	}
+	// Ads are refused in every mode, after the person's own rules so a site they let through stays reachable.
+	if options.BlockAds {
+		dnsRules = append(dnsRules, map[string]any{"rule_set": []any{adsRuleSet}, "action": "reject"})
+		routeRules = append(routeRules, map[string]any{"rule_set": []any{adsRuleSet}, "action": "reject"})
+	}
 	dnsRules = append(dnsRules,
 		map[string]any{"clash_mode": "Direct", "server": "local-dns"},
 		map[string]any{"clash_mode": "Global", "server": "proxy-dns"},
@@ -261,7 +277,11 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		map[string]any{"clash_mode": "Rule", "outbound": proxyTag},
 	)
 	ruleSets := []any{}
-	for _, set := range [][2]string{{"geosite-cn", "sing-geosite"}, {"geoip-cn", "sing-geoip"}} {
+	sets := [][2]string{{"geosite-cn", "sing-geosite"}, {"geoip-cn", "sing-geoip"}}
+	if options.BlockAds {
+		sets = append(sets, [2]string{adsRuleSet, "sing-geosite"})
+	}
+	for _, set := range sets {
 		ruleSets = append(ruleSets, map[string]any{
 			"type": "remote", "tag": set[0], "format": "binary",
 			"url":          "https://raw.githubusercontent.com/SagerNet/" + set[1] + "/rule-set/" + set[0] + ".srs",

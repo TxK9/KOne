@@ -1,0 +1,10 @@
+Rule sets carried in rules/ and refreshed by the core from the same places:
+
+geosite-cn.srs, geosite-category-ads-all.srs
+  Compiled by SagerNet/sing-geosite (https://github.com/SagerNet/sing-geosite)
+  from v2fly/domain-list-community (https://github.com/v2fly/domain-list-community),
+  under the MIT License (see that project's LICENSE file).
+
+geoip-cn.srs
+  Compiled by SagerNet/sing-geoip (https://github.com/SagerNet/sing-geoip).
+  See that project for the sources of its address data and their terms.

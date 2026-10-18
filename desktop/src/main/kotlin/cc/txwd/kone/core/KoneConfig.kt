@@ -60,6 +60,7 @@ object KoneConfig {
         source: JsonObject, rules: String, api: CoreApi, selected: String? = null, tun: Boolean = true,
         mode: String = "Rule", bypass: List<String> = emptyList(), mixed: Int = 0,
         direct: List<String> = emptyList(), proxied: List<String> = emptyList(),
+        routes: List<UserRule> = emptyList(), blockAds: Boolean = false,
     ): Built {
         // An outbound that names a file is never carried: the service, which runs the core as
         // SYSTEM, refuses it the same way (desktop/service/plan.go).
@@ -112,6 +113,7 @@ object KoneConfig {
         val straight = programs(bypass)
         val straightSites = sites(direct)
         val proxiedSites = sites(proxied)
+        val own = UserRules.clean(routes)
 
         val config = buildJsonObject {
             putJsonObject("log") { put("level", "warn"); put("timestamp", true) }
@@ -127,6 +129,8 @@ object KoneConfig {
                     if (proxiedSites.isNotEmpty()) add(buildJsonObject {
                         put("clash_mode", "Rule"); putJsonArray("domain_suffix") { proxiedSites.forEach { add(it) } }; put("server", "proxy-dns")
                     })
+                    own.forEach { rule -> UserRules.dns(rule)?.let { add(it) } }
+                    if (blockAds) add(buildJsonObject { putJsonArray("rule_set") { add(ADS_RULE_SET) }; put("action", "reject") })
                     add(buildJsonObject { put("clash_mode", "Direct"); put("server", "local-dns") })
                     add(buildJsonObject { put("clash_mode", "Global"); put("server", "proxy-dns") })
                     add(buildJsonObject { putJsonArray("rule_set") { add("geosite-cn") }; put("server", "local-dns") })
@@ -171,6 +175,9 @@ object KoneConfig {
                     if (proxiedSites.isNotEmpty()) add(buildJsonObject {
                         put("clash_mode", "Rule"); putJsonArray("domain_suffix") { proxiedSites.forEach { add(it) } }; put("outbound", PROXY_TAG)
                     })
+                    // The person's own rules, in order; then ads, refused in every mode, so a site they let through stays reachable.
+                    own.forEach { add(UserRules.route(it)) }
+                    if (blockAds) add(buildJsonObject { putJsonArray("rule_set") { add(ADS_RULE_SET) }; put("action", "reject") })
                     add(buildJsonObject { put("clash_mode", "Direct"); put("outbound", "direct") })
                     add(buildJsonObject { put("clash_mode", "Global"); put("outbound", PROXY_TAG) })
                     add(buildJsonObject { put("ip_is_private", true); put("outbound", "direct") })
@@ -178,7 +185,8 @@ object KoneConfig {
                     add(buildJsonObject { put("clash_mode", "Rule"); put("outbound", PROXY_TAG) })
                 }
                 putJsonArray("rule_set") {
-                    for ((tag, repo) in listOf("geosite-cn" to "sing-geosite", "geoip-cn" to "sing-geoip")) {
+                    val sets = listOf("geosite-cn" to "sing-geosite", "geoip-cn" to "sing-geoip") + if (blockAds) listOf(ADS_RULE_SET to "sing-geosite") else emptyList()
+                    for ((tag, repo) in sets) {
                         add(buildJsonObject {
                             put("type", "remote"); put("tag", tag); put("format", "binary")
                             put("url", "https://raw.githubusercontent.com/SagerNet/$repo/rule-set/$tag.srs")
@@ -236,6 +244,13 @@ object KoneConfig {
     }
 
     private val SITE = Regex("""([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?""")
+
+    fun isSite(text: String) = SITE.matches(text)
+
+    fun isProgram(text: String) = PROGRAM.matches(text)
+
+    /** The ad-blocking rule set carried beside the China ones (v2fly's category-ads-all). */
+    const val ADS_RULE_SET = "geosite-category-ads-all"
 
     private val PROGRAM = Regex("""[^\\/:*?"<>|\u0000-\u001f]{1,128}\.exe""", RegexOption.IGNORE_CASE)
 
