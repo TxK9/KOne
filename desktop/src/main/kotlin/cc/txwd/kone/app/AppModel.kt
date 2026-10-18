@@ -15,9 +15,6 @@ import cc.txwd.kone.core.ExitTrace
 import cc.txwd.kone.core.Host
 import cc.txwd.kone.core.Hosts
 import cc.txwd.kone.core.KoneConfig
-import cc.txwd.kone.core.NetworkReach
-import cc.txwd.kone.core.Reach
-import cc.txwd.kone.core.ReachCheck
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.Probe
 import cc.txwd.kone.core.RuleSets
@@ -36,7 +33,6 @@ import cc.txwd.kone.node.ShareLinks
 import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
-import cc.txwd.kone.ui.SignInState
 import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.DnsLookupState
 import cc.txwd.kone.ui.SiteCheckState
@@ -136,20 +132,18 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** How much each node and each program carried, day by day (Tools → Usage → Details). */
     private val traffic = Traffic(File(Places.data, "traffic.properties"))
 
-    /**
-     * The category lists the rules name, downloaded and checked by the App, then handed to the
-     * service, which checks and keeps its own copy. sing-box reads each the way the template will
-     * before it is kept; without an installed core only its header is checked.
-     */
-    private val lists = CategoryLists(
-        File(Places.data, "rule-sets"),
-        fetch = { url, etag -> CategoryLists.download(url, etag, proxied) },
-        parses = { file -> Places.core?.let { CategoryLists.singBoxReads(it, file) } ?: true },
-    )
-    private var updatingLists: Job? = null
-
-    /** The lists the running connection was started with; one that becomes ready later starts it afresh. */
-    private var runningLists: Set<String> = emptySet()
+    /** The category lists the rules name: see ListKeeper. */
+    private val keeper: ListKeeper = ListKeeper(scope, object : ListKeeper.Host {
+        override val rules get() = preferences.rules
+        override val folder get() = this@AppModel.rules
+        override val service get() = this@AppModel.service
+        override val proxied get() = this@AppModel.proxied
+        override val online get() = connection == Connection.Online
+        override fun restart() = this@AppModel.restart()
+        override fun changed() {
+            rulesPage = rulesNow()
+        }
+    })
 
     var screen by mutableStateOf(if (account.binding != null) Screen.Dashboard else Screen.Key)
         private set
@@ -325,8 +319,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun power() {
         when (connection) {
             Connection.Idle -> {
-                waitingSignIn?.cancel()
-                signIn = null
+                signIns.connecting()
                 wanted = true
                 preferences.connected = true
                 attempts = 0
@@ -376,7 +369,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 if (Places.launcher != null && Places.service == null) null else ServiceLink.open(Places.service)
             }
             val refused = if (link == null) "no service" else withContext(Dispatchers.IO) {
-                runningLists = deliverLists(link)
+                keeper.running = keeper.deliver(link)
                 runCatching {
                     link.connect(
                         source, binding.selected, preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
@@ -464,11 +457,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             probeApi = null
             val api = CoreApi(freePort(), token())
             val port = freePort()
-            val listed = withContext(Dispatchers.IO) { listsReady() }
-            runningLists = listed
+            val listed = withContext(Dispatchers.IO) { keeper.ready() }
+            keeper.running = listed
             val config = runCatching {
                 KoneConfig.build(source, rules, api, account.binding?.selected, tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
-                    direct = preferences.direct, proxied = preferences.proxied, routes = routesWith(listed), blockAds = preferences.blockAds,
+                    direct = preferences.direct, proxied = preferences.proxied, routes = keeper.routesWith(listed), blockAds = preferences.blockAds,
                     remoteDns = preferences.remoteDns, directDns = preferences.directDns, ipv6 = preferences.ipv6, hosts = preferences.hosts,
                     unmatchedDirect = preferences.unmatchedDirect,
                 ).config.toString()
@@ -536,7 +529,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         // quietly, a little later each time. One that never came up says why at once.
         val wait = if (wanted) Reconnection.after(end, held, attempts) else null
         if (wait != null) {
-            if (attempts == 0) lookForSignIn()
+            if (attempts == 0) signIns.look()
             attempts++
             if (attempts == 1 && end != "restart") {
                 onNotice("Connection interrupted; reconnecting")
@@ -976,7 +969,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 tools = tools.copy(checks = checks.toList() + listOfNotNull(running?.let { Check(it, Outcome.Running) }), checking = running != null, advice = null)
             }
             show("Network")
-            checks += when (val reached = reach()) {
+            checks += when (val reached = signIns.reach()) {
                 null -> Check("Network", Outcome.Warn, "Could not check")
                 else -> Diagnosis.network(reached)
             }
@@ -1032,95 +1025,26 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         if (!tools.checking) tools = tools.copy(checks = emptyList(), advice = null)
     }
 
-    // Sign-in networks (hotels, airports, cafés)
+    // Sign-in networks (hotels, airports, cafés): see SignInNetworks.
 
-    /** The network holding traffic for its sign-in page, and whether KOne is waiting for the person to sign in. */
-    private var signIn: SignInState? = null
-    private var waitingSignIn: Job? = null
-    private var reachAsked = 0L
-
-    /**
-     * Asks the network itself whether it is open. While KOne's adapter carries everything, through
-     * a core of KOne's own that the template sends straight out; otherwise straight from the App.
-     * Null when it could not ask.
-     */
-    private suspend fun reach(): ReachCheck? = withContext(Dispatchers.IO) {
-        val core = Places.core
-        if (service == null) return@withContext NetworkReach.check()
-        if (core == null) return@withContext null
-        val port = freePort()
-        val helper = Probe(core)
-        try {
-            val config = """{"log":{"level":"error"},"inbounds":[{"type":"mixed","listen":"127.0.0.1","listen_port":$port}],"outbounds":[{"type":"direct"}]}"""
-            if (!helper.start(config)) return@withContext null
-            var up = false
-            for (i in 0 until 30) {
-                up = runCatching { java.net.Socket("127.0.0.1", port).close() }.isSuccess
-                if (up) break
-                Thread.sleep(100)
-            }
-            if (up) NetworkReach.check(port) else null
-        } finally {
-            helper.stop()
+    private val signIns = SignInNetworks(scope, object : SignInNetworks.Host {
+        override val adapterOn get() = service != null
+        override val idle get() = connection == Connection.Idle
+        override val wanted get() = this@AppModel.wanted
+        override fun power() = this@AppModel.power()
+        override fun refresh() = this@AppModel.refresh()
+        override fun log(line: String) = this@AppModel.log(line)
+        override fun notify(text: String) = onNotice(text)
+        override fun hint(text: String) = this@AppModel.hint(text)
+        override fun notice(text: String) {
+            notice = text
         }
-    }
+        override fun browse(page: String) = onBrowse(page)
+    })
 
-    /** After a failure: whether the network wants a sign-in, at most once a minute; said once, with the way to sign in. */
-    private fun lookForSignIn() {
-        val now = System.currentTimeMillis()
-        if (now - reachAsked < 60_000 || waitingSignIn?.isActive == true) return
-        reachAsked = now
-        scope.launch {
-            val check = reach() ?: return@launch
-            if (check.reach == Reach.SignIn) {
-                if (signIn == null) {
-                    log("The network is holding traffic for its sign-in page")
-                    onNotice("This network needs you to sign in")
-                }
-                signIn = SignInState(check.page ?: NetworkReach.ANY_PAGE, waiting = false)
-            } else if (signIn?.waiting == false) {
-                signIn = null
-            }
-            refresh()
-        }
-    }
+    fun signIn() = signIns.signIn()
 
-    /**
-     * Sign in: KOne steps aside (its tunnel would carry the sign-in page away), opens the page,
-     * and once the network is open, connects again if it was connected, for up to 15 minutes.
-     */
-    fun signIn() {
-        val state = signIn ?: return
-        val reconnect = wanted || connection != Connection.Idle
-        if (connection != Connection.Idle) power()
-        signIn = state.copy(waiting = true)
-        refresh()
-        onBrowse(state.page)
-        waitingSignIn?.cancel()
-        waitingSignIn = scope.launch {
-            val until = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15)
-            delay(3_000)
-            while (System.currentTimeMillis() < until) {
-                if (withContext(Dispatchers.IO) { NetworkReach.check() }.reach == Reach.Open) {
-                    signIn = null
-                    hint("Signed in to the network")
-                    refresh()
-                    if (reconnect && connection == Connection.Idle) power()
-                    return@launch
-                }
-                delay(5_000)
-            }
-            signIn = null
-            notice = "The network is still waiting for a sign-in"
-            refresh()
-        }
-    }
-
-    fun cancelSignIn() {
-        waitingSignIn?.cancel()
-        signIn = null
-        refresh()
-    }
+    fun cancelSignIn() = signIns.cancel()
 
     /**
      * Looks [input] up every way KOne can, at once, showing each as it answers: as programs see it,
@@ -1359,9 +1283,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     // Rules
 
-    private fun rulesNow() = RulesState(
+    private fun rulesNow(): RulesState = RulesState(
         preferences.bypass, preferences.direct, preferences.proxied, preferences.rules, preferences.blockAds,
-        lists = namedLists().associateWith { lists.status(it) }, listsBusy = listsBusy, unmatchedDirect = preferences.unmatchedDirect,
+        lists = keeper.named().associateWith { keeper.lists.status(it) }, listsBusy = keeper.busy, unmatchedDirect = preferences.unmatchedDirect,
     )
 
     /** What nothing matched, in Rule mode: straight out ([direct]) or through the node. */
@@ -1385,95 +1309,19 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         val before = preferences.rules
         if (before.size >= UserRules.MOST) return false
         val added = UserRule(rule.kind, value, rule.action)
-        if (added.kind == "set" && value !in namedLists() && namedLists().size >= UserRules.MOST_SETS) return false
+        if (added.kind == "set" && value !in keeper.named() && keeper.named().size >= UserRules.MOST_SETS) return false
         preferences.rules = before + added
         if (preferences.rules != before) {
             rulesPage = rulesNow()
             // A list not kept yet is downloaded first; the connection starts afresh once it is ready.
-            if (added.kind == "set" && lists.digest(value) == null) updateLists() else restart()
+            if (added.kind == "set" && keeper.lists.digest(value) == null) updateLists() else restart()
         }
         return true
     }
 
-    // Category lists (Rules)
+    // Category lists (Rules): see ListKeeper.
 
-    /** The lists the person's rules name, each once. */
-    private fun namedLists() = UserRules.sets(UserRules.clean(preferences.rules))
-
-    /**
-     * Looks at the lists the rules name: each due (or every one, when [force]) is downloaded if it
-     * changed and checked; then the service is handed what it lacks. A list that is ready for the
-     * first time starts a running connection afresh, so its rules take effect; an update to a
-     * list already in use is read by the running core itself as the file is replaced (sing-box
-     * watches its local lists), so no connection is cut for it.
-     */
-    fun updateLists(force: Boolean = false) {
-        if (updatingLists?.isActive == true) return
-        val names = namedLists()
-        updatingLists = scope.launch {
-            listsBusy = true
-            rulesPage = rulesNow()
-            withContext(Dispatchers.IO) {
-                lists.keepOnly(names.toSet())
-                val now = System.currentTimeMillis()
-                names.filter { force || lists.due(it, now) }.forEach { lists.update(it, now) }
-            }
-            val ready = withContext(Dispatchers.IO) { listsReady() }
-            listsBusy = false
-            rulesPage = rulesNow()
-            if (connection == Connection.Online && !runningLists.containsAll(ready)) restart()
-        }
-    }
-
-    private var listsBusy = false
-
-    /**
-     * Makes the kept lists available to the core that will run, and says which are: handed to the
-     * service over [link] (it checks each again, and keeps only what passes), or, with no service
-     * (a development run), copied into the App's own rules folder.
-     */
-    private fun deliverLists(link: ServiceLink?): Set<String> {
-        val names = namedLists()
-        if (link != null) {
-            val kept = link.ruleSets() ?: return emptySet()
-            return names.filter { name ->
-                val sha = lists.digest(name) ?: return@filter kept.containsKey(name)
-                kept[name] == sha || (lists.bytes(name)?.let { link.putRuleSet(name, it, sha) } ?: false) || kept.containsKey(name)
-            }.toSet()
-        }
-        val folder = File(rules, "sets")
-        return names.filter { name ->
-            val sha = lists.digest(name)
-            val target = File(folder, "$name.srs")
-            if (sha != null && (!target.isFile || CategoryLists.sha256(target.readBytes()) != sha)) {
-                // Beside it, then into place: a running core reloads the list as it changes.
-                runCatching {
-                    folder.mkdirs()
-                    val fresh = File(folder, "$name.srs.new")
-                    lists.bytes(name)?.let(fresh::writeBytes)
-                    java.nio.file.Files.move(fresh.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-                }
-            }
-            target.isFile
-        }.toSet()
-    }
-
-    /**
-     * Hands the kept lists to whoever keeps them for the core, and says which the core can read:
-     * the service (over the connection's pipe, or one opened for this) when KOne is installed, as
-     * its core and the App's own both read the service's rules folder; the App's own rules folder
-     * in a development run. Blocks; not on the main thread.
-     */
-    private fun listsReady(): Set<String> {
-        if (Places.rules == null) return deliverLists(null)
-        service?.let { return deliverLists(it) }
-        val opened = runCatching { ServiceLink.open(Places.service) }.getOrNull()
-        return opened?.use { deliverLists(it) } ?: namedLists().filter { File(rules, "sets/$it.srs").isFile }.toSet()
-    }
-
-    /** The rules for a core the App runs itself: those naming a list not in [ready] are left out, as the service does. */
-    private fun routesWith(ready: Set<String>): List<UserRule> =
-        preferences.rules.filter { rule -> rule.kind != "set" || UserRules.value("set", rule.value) in ready }
+    fun updateLists(force: Boolean = false) = keeper.update(force)
 
     fun removeRule(index: Int) {
         val rules = preferences.rules
@@ -1628,8 +1476,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             if (chosen == KoneConfig.AUTO_TAG && auto) steerAutomatic(api) else if (chosen != null) guard(api, chosen)
             // The node in use not answering may be the network, not the node: a sign-in page.
             inUse()?.let { tag ->
-                if (health.failing(tag) >= Health.FAILED) lookForSignIn()
-                else if (health.answering(tag) >= Health.RECOVERED && signIn?.waiting == false) { signIn = null; refresh() }
+                if (health.failing(tag) >= Health.FAILED) signIns.look()
+                else if (health.answering(tag) >= Health.RECOVERED) signIns.answered()
             }
             // Every 15 seconds, or at once when real traffic through the node in use stalls.
             withTimeoutOrNull(15_000) { nudges.receive() }
@@ -1908,7 +1756,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             canImport = account.binding != null,
             standIn = standIn?.let(::nameOf),
             trail = trail.toList(),
-            signIn = signIn,
+            signIn = signIns.state,
         )
         nodesPage = NodesState(
             sections = buildList {
