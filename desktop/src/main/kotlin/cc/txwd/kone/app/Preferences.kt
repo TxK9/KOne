@@ -1,5 +1,6 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.core.Dns
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules
@@ -102,6 +103,30 @@ class Preferences(folder: File) {
         get() = values.getProperty("blockAds") == "true"
         set(value) {
             values.setProperty("blockAds", value.toString())
+            save()
+        }
+
+    /** The DNS server asked through the node: "" for the default (Cloudflare), a preset's name, or a DNS-over-HTTPS address. */
+    var remoteDns: String
+        get() = Dns.remoteChoice(values.getProperty("remoteDns").orEmpty())
+        set(value) {
+            values.setProperty("remoteDns", Dns.remoteChoice(value))
+            save()
+        }
+
+    /** The DNS server asked straight out: "" for the default (AliDNS), a preset's name, or an address. */
+    var directDns: String
+        get() = Dns.directChoice(values.getProperty("directDns").orEmpty())
+        set(value) {
+            values.setProperty("directDns", Dns.directChoice(value))
+            save()
+        }
+
+    /** Whether names are answered with IPv6 addresses too (IPv4 first); off until the person turns it on. */
+    var ipv6: Boolean
+        get() = values.getProperty("ipv6") == "true"
+        set(value) {
+            values.setProperty("ipv6", value.toString())
             save()
         }
 

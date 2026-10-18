@@ -61,6 +61,7 @@ import cc.txwd.kone.ui.LocalAmbient
 import cc.txwd.kone.ui.LocalSoftware
 import cc.txwd.kone.ui.LogView
 import cc.txwd.kone.ui.NodeWeather
+import cc.txwd.kone.ui.NetworkActions
 import cc.txwd.kone.ui.NodesActions
 import cc.txwd.kone.ui.NodesView
 import cc.txwd.kone.ui.RulesActions
@@ -296,6 +297,8 @@ fun main(args: Array<String>) {
                                               onCheck = settings::check,
                                               onUpdate = settings::update,
                                           ),
+                                          model.network,
+                                          NetworkActions(onRemoteDns = model::setRemoteDns, onDirectDns = model::setDirectDns, onIpv6 = model::setIpv6),
                                       )
                                       else -> DashboardView(
                                           model.dashboard,

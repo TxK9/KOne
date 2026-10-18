@@ -15,7 +15,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,11 +88,29 @@ class SettingsActions(
     val onUpdate: () -> Unit = {},
 )
 
-/** Settings: Appearance, Background (with Ambient sound for the cities), Start with Windows, Keyboard shortcut, and the version with its update, one line each on the paper. */
+/** How names are answered: the DNS server through the node, the one straight out, and IPv6. */
+data class NetworkState(val remoteDns: String = "", val directDns: String = "", val ipv6: Boolean = false)
+
+class NetworkActions(
+    /** A remote DNS choice: a preset's name or a DNS-over-HTTPS address; false when it is not one. */
+    val onRemoteDns: (String) -> Boolean = { true },
+    /** A direct DNS choice: a preset's name or an address; false when it is not one. */
+    val onDirectDns: (String) -> Boolean = { true },
+    val onIpv6: (Boolean) -> Unit = {},
+)
+
+private val REMOTE_DNS = listOf("" to "Cloudflare", "google" to "Google", "quad9" to "Quad9")
+private val DIRECT_DNS = listOf("" to "AliDNS", "dnspod" to "DNSPod")
+
+/**
+ * Settings: Appearance, Background (with Ambient sound for the cities), Start with Windows,
+ * Keyboard shortcut, the DNS servers and IPv6, and the version with its update, one line each on the paper.
+ */
 @Composable
-fun SettingsView(state: SettingsState, actions: SettingsActions) {
+fun SettingsView(state: SettingsState, actions: SettingsActions, network: NetworkState = NetworkState(), networkActions: NetworkActions = NetworkActions()) {
     val ink = LocalInk.current
-    Column(Modifier.padding(horizontal = 40.dp, vertical = 26.dp).widthIn(max = 640.dp).fillMaxWidth()) {
+    // Scrolls when the window is too short for every line.
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 40.dp, vertical = 26.dp).widthIn(max = 640.dp).fillMaxWidth()) {
         Line("Appearance") { Choices(Appearance.entries, state.appearance, Appearance::title, actions.onAppearance) }
         Line("Background") { Choices(Backdrop.entries, state.backdrop, Backdrop::title, actions.onBackdrop) }
         if (state.backdrop == Backdrop.City) Line("Ambient sound") { Switch(state.sound) { actions.onSound(!state.sound) } }
@@ -90,6 +126,9 @@ fun SettingsView(state: SettingsState, actions: SettingsActions) {
                 }
             }
         }
+        DnsLine("Remote DNS", REMOTE_DNS, network.remoteDns, "https://dns.example.com/dns-query", networkActions.onRemoteDns)
+        DnsLine("Direct DNS", DIRECT_DNS, network.directDns, "203.0.113.53", networkActions.onDirectDns)
+        Line("IPv6") { Switch(network.ipv6) { networkActions.onIpv6(!network.ipv6) } }
         Line("Version") {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 Label(state.version, 14.sp, ink.soft, tabular = true)
@@ -143,6 +182,64 @@ private fun <T> Choices(choices: List<T>, chosen: T, title: (T) -> String, onPic
                 Label(title(choice), 14.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
             }
         }
+    }
+}
+
+/**
+ * A DNS server: the presets, and Custom, which opens a field for an address of the person's own;
+ * Enter keeps it when it is one, Esc closes it.
+ */
+@Composable
+private fun DnsLine(title: String, presets: List<Pair<String, String>>, chosen: String, hint: String, onChoose: (String) -> Boolean) {
+    val ink = LocalInk.current
+    val custom = presets.none { it.first == chosen }
+    var editing by remember(chosen) { mutableStateOf(false) }
+    Column {
+        Line(title) {
+            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                presets.forEach { (value, name) ->
+                    Choice(name, !editing && value == chosen) { editing = false; onChoose(value) }
+                }
+                Choice("Custom", editing || custom) { editing = true }
+            }
+        }
+        if (editing || custom) {
+            var text by remember(chosen) { mutableStateOf(if (custom) chosen else "") }
+            var wrong by remember(chosen) { mutableStateOf(false) }
+            Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                BasicTextField(
+                    text,
+                    { text = it; wrong = false },
+                    Modifier.weight(1f).height(36.dp)
+                        .onPreviewKeyEvent { if (it.key == Key.Escape && it.type == KeyEventType.KeyDown) { editing = false; true } else false }
+                        .hairline(if (wrong) NodeWeather.Cut.ink(ink.dark) else ink.hair, bottom = true, width = 1.5.dp),
+                    singleLine = true,
+                    textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.mono, fontSize = 13.sp),
+                    cursorBrush = SolidColor(ink.ink),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (onChoose(text)) editing = false else wrong = true }),
+                    decorationBox = { field ->
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                            if (text.isEmpty()) Label(hint, 13.sp, ink.soft)
+                            field()
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Choice(name: String, on: Boolean, onClick: () -> Unit) {
+    val ink = LocalInk.current
+    Box(
+        Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClick)
+            .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
+            .padding(horizontal = 2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Label(name, 14.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 

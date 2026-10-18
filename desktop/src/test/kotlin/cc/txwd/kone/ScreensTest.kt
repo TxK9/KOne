@@ -36,6 +36,7 @@ import cc.txwd.kone.ui.Page
 import cc.txwd.kone.ui.SettingsActions
 import cc.txwd.kone.ui.SettingsState
 import cc.txwd.kone.ui.SettingsView
+import cc.txwd.kone.ui.NetworkState
 import cc.txwd.kone.ui.NodeSection
 import cc.txwd.kone.ui.NodeWeather
 import cc.txwd.kone.ui.NodesActions
@@ -302,7 +303,7 @@ class ScreensTest {
         for (dark in listOf(false, true)) {
             shoot("settings", dark) {
                 WithRail(Page.Settings, {}, listOf(Page.Dashboard, Page.Log, Page.Settings), marked = setOf(Page.Settings)) {
-                    SettingsView(state, SettingsActions())
+                    SettingsView(state, SettingsActions(), NetworkState(remoteDns = "https://dns.example.com:443/dns-query", directDns = "dnspod", ipv6 = true))
                 }
             }
         }

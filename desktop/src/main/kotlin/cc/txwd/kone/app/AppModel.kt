@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import cc.txwd.kone.console.ClaimLink
 import cc.txwd.kone.console.ConsoleException
 import cc.txwd.kone.core.ClashApi
+import cc.txwd.kone.core.Dns
 import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.Ends
 import cc.txwd.kone.core.ExitTrace
@@ -27,6 +28,7 @@ import cc.txwd.kone.ui.DashboardState
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
 import cc.txwd.kone.ui.NodeSection
+import cc.txwd.kone.ui.NetworkState
 import cc.txwd.kone.ui.NodesState
 import cc.txwd.kone.ui.RulesState
 import cc.txwd.kone.ui.SourceKind
@@ -300,7 +302,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 runCatching {
                     link.connect(
                         source, binding.selected, preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
-                        preferences.rules, preferences.blockAds,
+                        preferences.rules, preferences.blockAds, preferences.remoteDns, preferences.directDns, preferences.ipv6,
                     )
                 }.getOrElse { "failed" }
             }
@@ -386,6 +388,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             val config = runCatching {
                 KoneConfig.build(source, rules, api, account.binding?.selected, tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
                     direct = preferences.direct, proxied = preferences.proxied, routes = preferences.rules, blockAds = preferences.blockAds,
+                    remoteDns = preferences.remoteDns, directDns = preferences.directDns, ipv6 = preferences.ipv6,
                 ).config.toString()
             }.getOrNull()
             if (config == null || !withContext(Dispatchers.IO) { core.start(config) }) {
@@ -709,6 +712,40 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         preferences.direct -= site
         preferences.proxied -= site
         rulesPage = rulesNow()
+        restart()
+    }
+
+    // Network (Settings)
+
+    /** The DNS servers and IPv6, as kept. */
+    var network by mutableStateOf(NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6))
+        private set
+
+    /** A remote DNS choice; false when it is neither a preset nor a DNS-over-HTTPS address KOne takes. */
+    fun setRemoteDns(choice: String): Boolean {
+        val clean = Dns.remoteChoice(choice)
+        if (clean.isEmpty() && choice.isNotBlank()) return false
+        if (clean == preferences.remoteDns) return true
+        preferences.remoteDns = clean
+        network = network.copy(remoteDns = clean)
+        restart()
+        return true
+    }
+
+    /** A direct DNS choice; false when it is neither a preset nor an address. */
+    fun setDirectDns(choice: String): Boolean {
+        val clean = Dns.directChoice(choice)
+        if (clean.isEmpty() && choice.isNotBlank()) return false
+        if (clean == preferences.directDns) return true
+        preferences.directDns = clean
+        network = network.copy(directDns = clean)
+        restart()
+        return true
+    }
+
+    fun setIpv6(on: Boolean) {
+        preferences.ipv6 = on
+        network = network.copy(ipv6 = on)
         restart()
     }
 
