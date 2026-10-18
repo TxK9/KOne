@@ -146,9 +146,16 @@ class KoneConfigTest {
             val through = if (mode == "Rule") emptyList() else proxied
             val own = if (mode == "Global") emptyList() else routes
             val ads = mode != "Rule"
+            // The DNS choices: defaults, presets, custom addresses, and ones the template must refuse.
+            val (remote, direct) = when (mode) {
+                "Rule" -> "" to ""
+                "Global" -> "https://[2001:DB8::53]:853/dns" to "2001:DB8::1"
+                else -> "http://evil.example.com" to "dns.example"
+            }
+            val ipv6 = mode == "Global"
             val ours = KoneConfig.build(
                 source, rules, api, selected = selected, tun = tun, mode = mode, bypass = straight, mixed = mixed, direct = sites, proxied = through,
-                routes = own, blockAds = ads,
+                routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6,
             ).config
             val request = buildJsonObject {
                 put("source", source); put("selected", selected); put("rules", rules)
@@ -156,6 +163,7 @@ class KoneConfigTest {
                 put("mode", mode); putJsonArray("bypass") { straight.forEach { add(it) } }; put("mixed", mixed)
                 putJsonArray("direct") { sites.forEach { add(it) } }; putJsonArray("proxied") { through.forEach { add(it) } }
                 putJsonArray("routes") { own.forEach { add(it.toJson()) } }; put("blockAds", ads)
+                put("remoteDns", remote); put("directDns", direct); put("ipv6", ipv6)
             }
             val process = ProcessBuilder(found!!.path, "build-config").start()
             process.outputStream.use { it.write(request.toString().toByteArray()) }
@@ -179,7 +187,7 @@ class KoneConfigTest {
                 UserRule("keyword", "tracker", "block"), UserRule("cidr", "2001:db8::/32", "direct"), UserRule("port", "1000-2000", "proxy"),
                 UserRule("port", "8443", "block"), UserRule("program", "Steam.exe", "proxy"), UserRule("domain", "www.example.org", "direct"),
             ),
-            blockAds = true,
+            blockAds = true, remoteDns = "https://dns.example.com:8443/q", directDns = "2001:db8::1", ipv6 = true,
         )
         val file = File(folder, "config.json").apply { writeText(built.config.toString()) }
         val process = ProcessBuilder(core.path, "check", "-c", file.path).redirectErrorStream(true).start()
@@ -240,6 +248,28 @@ class KoneConfigTest {
             got,
         )
         assertEquals(UserRules.MOST, UserRules.clean((0 until 300).map { UserRule("suffix", "s$it.example", "direct") }).size)
+    }
+
+    @Test
+    fun dnsChoicesAreCheckedAsTheServiceChecksThem() {
+        val remote = mapOf(
+            "" to "", "google" to "google", "https://dns.example.com" to "https://dns.example.com:443/dns-query",
+            " https://DNS.Example.com:8443/q " to "https://dns.example.com:8443/q", "https://203.0.113.53/dns-query" to "https://203.0.113.53:443/dns-query",
+            "https://[2001:DB8::53]:853/dns" to "https://[2001:db8::53]:853/dns", "http://dns.example.com" to "", "https://dns.example.com/a?b=c" to "",
+            "https://user@dns.example.com" to "", "https://localhost" to "", "https://dns.example.com:0" to "", "https://[203.0.113.53]" to "", "tls://1.1.1.1" to "",
+        )
+        remote.forEach { (given, wanted) -> assertEquals(wanted, Dns.remoteChoice(given), "remote $given") }
+        val direct = mapOf(
+            "" to "", "dnspod" to "dnspod", " 203.0.113.1 " to "203.0.113.1", "2001:DB8::1" to "2001:db8::1", "10.0.0.0/8" to "", "dns.example" to "", "cloudflare" to "",
+        )
+        direct.forEach { (given, wanted) -> assertEquals(wanted, Dns.directChoice(given), "direct $given") }
+        val dns = KoneConfig.build(FakeConsole.source(blockClaude = true), rules, api, remoteDns = "https://dns.example.com:8443/q", directDns = "2001:db8::1", ipv6 = true)
+            .config["dns"]!!.jsonObject
+        val servers = dns["servers"]!!.jsonArray.map { it.jsonObject }
+        assertEquals("2001:db8::1", servers[0]["server"]!!.jsonPrimitive.content)
+        assertEquals("dns.example.com", servers[1]["server"]!!.jsonPrimitive.content)
+        assertEquals("local-dns", servers[1]["domain_resolver"]!!.jsonPrimitive.content)
+        assertEquals("prefer_ipv4", dns["strategy"]!!.jsonPrimitive.content)
     }
 
     @Test

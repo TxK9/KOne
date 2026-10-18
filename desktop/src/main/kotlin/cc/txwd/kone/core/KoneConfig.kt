@@ -61,6 +61,7 @@ object KoneConfig {
         mode: String = "Rule", bypass: List<String> = emptyList(), mixed: Int = 0,
         direct: List<String> = emptyList(), proxied: List<String> = emptyList(),
         routes: List<UserRule> = emptyList(), blockAds: Boolean = false,
+        remoteDns: String = "", directDns: String = "", ipv6: Boolean = false,
     ): Built {
         // An outbound that names a file is never carried: the service, which runs the core as
         // SYSTEM, refuses it the same way (desktop/service/plan.go).
@@ -119,8 +120,8 @@ object KoneConfig {
             putJsonObject("log") { put("level", "warn"); put("timestamp", true) }
             putJsonObject("dns") {
                 putJsonArray("servers") {
-                    add(buildJsonObject { put("type", "udp"); put("tag", "local-dns"); put("server", "223.5.5.5") })
-                    add(buildJsonObject { put("type", "https"); put("tag", "proxy-dns"); put("server", "1.1.1.1"); put("detour", PROXY_TAG) })
+                    add(Dns.direct(directDns))
+                    add(Dns.remote(remoteDns))
                 }
                 putJsonArray("rules") {
                     refused.forEach { add(it) }
@@ -136,7 +137,7 @@ object KoneConfig {
                     add(buildJsonObject { putJsonArray("rule_set") { add("geosite-cn") }; put("server", "local-dns") })
                 }
                 put("final", "proxy-dns")
-                put("strategy", "ipv4_only")
+                put("strategy", Dns.strategy(ipv6))
             }
             putJsonArray("inbounds") {
                 if (mixed > 0) add(buildJsonObject { put("type", "mixed"); put("tag", "mixed-in"); put("listen", "127.0.0.1"); put("listen_port", mixed) })

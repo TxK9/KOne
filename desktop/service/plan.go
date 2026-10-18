@@ -45,6 +45,9 @@ type Options struct {
 	Proxied  []string // sites through the node in Rule too, by domain
 	Routes   []Rule   // the person's own rules, in order, after the lists above
 	BlockAds bool     // refuse the domains of the ad-blocking rule set
+	Remote   string   // the DNS server asked through the node: a preset or a DNS-over-HTTPS address; "" Cloudflare
+	Domestic string   // the DNS server asked straight out: a preset or an address; "" AliDNS
+	IPv6     bool     // answer names with IPv6 addresses too (IPv4 first)
 	Mixed    int      // a local proxy port on 127.0.0.1 for the system proxy, when not 0 (the App's own, never the service's)
 }
 
@@ -305,13 +308,10 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 	config := map[string]any{
 		"log": map[string]any{"level": "warn", "timestamp": true},
 		"dns": map[string]any{
-			"servers": []any{
-				map[string]any{"type": "udp", "tag": "local-dns", "server": "223.5.5.5"},
-				map[string]any{"type": "https", "tag": "proxy-dns", "server": "1.1.1.1", "detour": proxyTag},
-			},
+			"servers":  []any{directDNS(options.Domestic), remoteDNS(options.Remote)},
 			"rules":    dnsRules,
 			"final":    "proxy-dns",
-			"strategy": "ipv4_only",
+			"strategy": dnsStrategy(options.IPv6),
 		},
 		"inbounds":  inbounds,
 		"outbounds": outbounds,

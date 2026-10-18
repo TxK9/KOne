@@ -64,7 +64,7 @@ object UserRules {
     private val IPV6 = Regex("""[0-9a-f:]{2,39}""")
 
     /** An address range from its first address ("192.168.1.0/24"); an address alone is that one address. */
-    private fun network(text: String): String? {
+    internal fun network(text: String): String? {
         val lower = text.lowercase()
         val address = lower.substringBefore('/')
         val bits = if ('/' in lower) lower.substringAfter('/') else null
@@ -131,7 +131,7 @@ object UserRules {
         return "$from-$to"
     }
 
-    private fun portNumber(text: String): Int? {
+    internal fun portNumber(text: String): Int? {
         val digits = text.trim()
         if (digits.isEmpty() || digits.length > 5 || (digits.length > 1 && digits[0] == '0') || !digits.all { it in '0'..'9' }) return null
         return digits.toInt().takeIf { it in 1..65535 }

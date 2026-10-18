@@ -95,6 +95,7 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
         source: JsonObject, selected: String?, mode: String = "Rule", bypass: List<String> = emptyList(),
         direct: List<String> = emptyList(), proxied: List<String> = emptyList(),
         routes: List<UserRule> = emptyList(), blockAds: Boolean = false,
+        remoteDns: String = "", directDns: String = "", ipv6: Boolean = false,
     ): String? {
         val reply = request(buildJsonObject {
             put("op", "connect")
@@ -106,6 +107,9 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
             putJsonArray("proxied") { proxied.forEach { add(it) } }
             putJsonArray("routes") { routes.forEach { add(it.toJson()) } }
             put("blockAds", blockAds)
+            put("remoteDns", remoteDns)
+            put("directDns", directDns)
+            put("ipv6", ipv6)
         })
         return if (reply.ok) null else reply["error"]?.text() ?: "failed"
     }

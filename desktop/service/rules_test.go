@@ -70,8 +70,13 @@ func TestRulesComeAfterTheClaudeBlockAndAdsAfterThem(t *testing.T) {
 		}
 		return -1
 	}
-	block := index(func(r map[string]any) bool { return r["action"] == "reject" && r["domain_suffix"] != nil && r["domain_suffix"].([]any)[0] != "claude.ai" })
-	claude := index(func(r map[string]any) bool { s, _ := r["domain_suffix"].([]any); return len(s) == 1 && s[0] == "claude.ai" })
+	block := index(func(r map[string]any) bool {
+		return r["action"] == "reject" && r["domain_suffix"] != nil && r["domain_suffix"].([]any)[0] != "claude.ai"
+	})
+	claude := index(func(r map[string]any) bool {
+		s, _ := r["domain_suffix"].([]any)
+		return len(s) == 1 && s[0] == "claude.ai"
+	})
 	cidr := index(func(r map[string]any) bool { return r["ip_cidr"] != nil })
 	ads := index(func(r map[string]any) bool { s, _ := r["rule_set"].([]any); return len(s) == 1 && s[0] == adsRuleSet })
 	if block < 0 || claude < 0 || cidr < 0 || ads < 0 || !(block < claude && claude < cidr && cidr < ads) {

@@ -149,6 +149,9 @@ func (s *server) session(pipe windows.Handle) {
 			Proxied  []string       `json:"proxied"`
 			Routes   []Rule         `json:"routes"`
 			BlockAds bool           `json:"blockAds"`
+			Remote   string         `json:"remoteDns"`
+			Domestic string         `json:"directDns"`
+			IPv6     bool           `json:"ipv6"`
 			Since    int64          `json:"since"`
 		}
 		decoder := json.NewDecoder(strings.NewReader(line))
@@ -163,7 +166,8 @@ func (s *server) session(pipe windows.Handle) {
 			reply = map[string]any{"ok": true, "version": version}
 		case "connect":
 			reply = s.connect(id, request.Source, Options{Selected: request.Selected, Mode: request.Mode, Bypass: request.Bypass,
-				Direct: request.Direct, Proxied: request.Proxied, Routes: request.Routes, BlockAds: request.BlockAds})
+				Direct: request.Direct, Proxied: request.Proxied, Routes: request.Routes, BlockAds: request.BlockAds,
+				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6})
 		case "status":
 			reply = s.core.status(id, request.Since)
 		case "disconnect":
