@@ -167,7 +167,7 @@ class KoneConfigTest {
             val fixed = if (mode == "Global") emptyList() else hosts
             val ours = KoneConfig.build(
                 source, rules, api, selected = selected, tun = tun, mode = mode, bypass = straight, mixed = mixed, direct = sites, proxied = through,
-                routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6, hosts = fixed,
+                routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6, hosts = fixed, unmatchedDirect = !tun,
             ).config
             val request = buildJsonObject {
                 put("source", source); put("selected", selected); put("rules", rules)
@@ -177,6 +177,7 @@ class KoneConfigTest {
                 putJsonArray("routes") { own.forEach { add(it.toJson()) } }; put("blockAds", ads)
                 put("remoteDns", remote); put("directDns", direct); put("ipv6", ipv6)
                 putJsonArray("hosts") { fixed.forEach { add(it.toJson()) } }
+                put("unmatchedDirect", !tun)
             }
             val process = ProcessBuilder(found!!.path, "build-config").start()
             process.outputStream.use { it.write(request.toString().toByteArray()) }

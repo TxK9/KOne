@@ -316,3 +316,25 @@ func TestTestCoresGoStraightOutOnlyWithTheTunnelAndAfterTheClaudeBlock(t *testin
 		}
 	}
 }
+
+func TestWhatNothingMatchesGoesStraightOutWhenAsked(t *testing.T) {
+	options := options
+	config, _, _ := Build(source(t, true), options)
+	route := config["route"].(map[string]any)["rules"].([]any)
+	if last := route[len(route)-1].(map[string]any); last["outbound"] != proxyTag || last["clash_mode"] != "Rule" {
+		t.Fatalf("by default what nothing matches goes through the node: %v", last)
+	}
+	options.UnmatchedDirect = true
+	config, _, _ = Build(source(t, true), options)
+	route = config["route"].(map[string]any)["rules"].([]any)
+	if last := route[len(route)-1].(map[string]any); last["outbound"] != "direct" || last["clash_mode"] != "Rule" {
+		t.Fatalf("asked, it goes straight out in Rule mode: %v", last)
+	}
+	dns := config["dns"].(map[string]any)["rules"].([]any)
+	if last := dns[len(dns)-1].(map[string]any); last["server"] != "local-dns" || last["clash_mode"] != "Rule" {
+		t.Fatalf("and its names are answered straight out: %v", last)
+	}
+	if route[2].(map[string]any)["action"] != "reject" {
+		t.Fatal("the Claude block still comes first")
+	}
+}

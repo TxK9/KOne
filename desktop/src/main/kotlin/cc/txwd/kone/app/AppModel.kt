@@ -381,7 +381,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     link.connect(
                         source, binding.selected, preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
                         preferences.rules, preferences.blockAds, preferences.remoteDns, preferences.directDns, preferences.ipv6,
-                        preferences.hosts,
+                        preferences.hosts, preferences.unmatchedDirect,
                     )
                 }.getOrElse { "failed" }
             }
@@ -470,6 +470,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 KoneConfig.build(source, rules, api, account.binding?.selected, tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
                     direct = preferences.direct, proxied = preferences.proxied, routes = routesWith(listed), blockAds = preferences.blockAds,
                     remoteDns = preferences.remoteDns, directDns = preferences.directDns, ipv6 = preferences.ipv6, hosts = preferences.hosts,
+                    unmatchedDirect = preferences.unmatchedDirect,
                 ).config.toString()
             }.getOrNull()
             if (config == null || !withContext(Dispatchers.IO) { core.start(config) }) {
@@ -1235,7 +1236,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun backup(): String = Backup(
         mode = preferences.mode, way = preferences.way, bypass = preferences.bypass, direct = preferences.direct, proxied = preferences.proxied,
         rules = preferences.rules, blockAds = preferences.blockAds, remoteDns = preferences.remoteDns, directDns = preferences.directDns,
-        ipv6 = preferences.ipv6, failover = preferences.failover, hosts = preferences.hosts,
+        ipv6 = preferences.ipv6, failover = preferences.failover, hosts = preferences.hosts, unmatchedDirect = preferences.unmatchedDirect,
         subscriptions = subscriptions.all.map { Triple(it.name, it.url, it.hours) },
         imported = imports.all,
     ).write()
@@ -1265,6 +1266,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         backup.ipv6?.let { preferences.ipv6 = it }
         backup.failover?.let { preferences.failover = it }
         if (backup.hosts.isNotEmpty()) preferences.hosts = preferences.hosts + backup.hosts
+        backup.unmatchedDirect?.let { preferences.unmatchedDirect = it }
         tools = tools.copy(bypass = preferences.bypass)
         rulesPage = rulesNow()
         if (backup.rules.any { it.kind == "set" }) updateLists()
@@ -1359,8 +1361,16 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     private fun rulesNow() = RulesState(
         preferences.bypass, preferences.direct, preferences.proxied, preferences.rules, preferences.blockAds,
-        lists = namedLists().associateWith { lists.status(it) }, listsBusy = listsBusy,
+        lists = namedLists().associateWith { lists.status(it) }, listsBusy = listsBusy, unmatchedDirect = preferences.unmatchedDirect,
     )
+
+    /** What nothing matched, in Rule mode: straight out ([direct]) or through the node. */
+    fun setUnmatched(direct: Boolean) {
+        if (preferences.unmatchedDirect == direct) return
+        preferences.unmatchedDirect = direct
+        rulesPage = rulesNow()
+        restart()
+    }
 
     fun setBlockAds(on: Boolean) {
         preferences.blockAds = on

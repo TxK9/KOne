@@ -111,6 +111,14 @@ class Preferences(folder: File) {
         }
 
     /** Whether ads are refused (Rules → Block ads); off until the person turns it on. */
+    /** Rule mode sends what nothing matched straight out rather than through the node (Rules). */
+    var unmatchedDirect: Boolean
+        get() = values.getProperty("unmatchedDirect") == "true"
+        set(value) {
+            values.setProperty("unmatchedDirect", value.toString())
+            save()
+        }
+
     var blockAds: Boolean
         get() = values.getProperty("blockAds") == "true"
         set(value) {

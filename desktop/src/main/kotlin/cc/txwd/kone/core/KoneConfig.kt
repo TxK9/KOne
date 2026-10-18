@@ -63,6 +63,8 @@ object KoneConfig {
         routes: List<UserRule> = emptyList(), blockAds: Boolean = false,
         remoteDns: String = "", directDns: String = "", ipv6: Boolean = false,
         hosts: List<Host> = emptyList(),
+        /** What no rule, list or category matched goes straight out in Rule mode, not through the node. */
+        unmatchedDirect: Boolean = false,
     ): Built {
         // An outbound that names a file is never carried: the service, which runs the core as
         // SYSTEM, refuses it the same way (desktop/service/plan.go).
@@ -139,6 +141,7 @@ object KoneConfig {
                     add(buildJsonObject { put("clash_mode", "Direct"); put("server", "local-dns") })
                     add(buildJsonObject { put("clash_mode", "Global"); put("server", "proxy-dns") })
                     add(buildJsonObject { putJsonArray("rule_set") { add("geosite-cn") }; put("server", "local-dns") })
+                    if (unmatchedDirect) add(buildJsonObject { put("clash_mode", "Rule"); put("server", "local-dns") })
                 }
                 put("final", "proxy-dns")
                 put("strategy", Dns.strategy(ipv6))
@@ -193,7 +196,7 @@ object KoneConfig {
                     add(buildJsonObject { put("clash_mode", "Global"); put("outbound", PROXY_TAG) })
                     add(buildJsonObject { put("ip_is_private", true); put("outbound", "direct") })
                     add(buildJsonObject { put("clash_mode", "Rule"); putJsonArray("rule_set") { add("geosite-cn"); add("geoip-cn") }; put("outbound", "direct") })
-                    add(buildJsonObject { put("clash_mode", "Rule"); put("outbound", PROXY_TAG) })
+                    add(buildJsonObject { put("clash_mode", "Rule"); put("outbound", if (unmatchedDirect) "direct" else PROXY_TAG) })
                 }
                 putJsonArray("rule_set") {
                     val sets = listOf("geosite-cn" to "sing-geosite", "geoip-cn" to "sing-geoip") + if (blockAds) listOf(ADS_RULE_SET to "sing-geosite") else emptyList()

@@ -286,6 +286,7 @@ fun main(args: Array<String>) {
                                               onAddRule = model::addRule,
                                               onRemoveRule = model::removeRule,
                                               onMoveRule = model::moveRule,
+                                              onUnmatched = model::setUnmatched,
                                               onUpdateLists = { model.updateLists(force = true) },
                                           ),
                                       )

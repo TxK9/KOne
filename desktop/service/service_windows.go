@@ -145,23 +145,24 @@ func (s *server) session(pipe windows.Handle) {
 			return
 		}
 		var request struct {
-			Op       string         `json:"op"`
-			Source   map[string]any `json:"source"`
-			Selected string         `json:"selected"`
-			Mode     string         `json:"mode"`
-			Bypass   []string       `json:"bypass"`
-			Direct   []string       `json:"direct"`
-			Proxied  []string       `json:"proxied"`
-			Routes   []Rule         `json:"routes"`
-			BlockAds bool           `json:"blockAds"`
-			Remote   string         `json:"remoteDns"`
-			Domestic string         `json:"directDns"`
-			IPv6     bool           `json:"ipv6"`
-			Hosts    []Host         `json:"hosts"`
-			Since    int64          `json:"since"`
-			Name     string         `json:"name"`
-			Data     []byte         `json:"data"` // base64 in the JSON
-			Digest   string         `json:"sha256"`
+			Op        string         `json:"op"`
+			Source    map[string]any `json:"source"`
+			Selected  string         `json:"selected"`
+			Mode      string         `json:"mode"`
+			Bypass    []string       `json:"bypass"`
+			Direct    []string       `json:"direct"`
+			Proxied   []string       `json:"proxied"`
+			Routes    []Rule         `json:"routes"`
+			BlockAds  bool           `json:"blockAds"`
+			Remote    string         `json:"remoteDns"`
+			Domestic  string         `json:"directDns"`
+			IPv6      bool           `json:"ipv6"`
+			Hosts     []Host         `json:"hosts"`
+			Unmatched bool           `json:"unmatchedDirect"`
+			Since     int64          `json:"since"`
+			Name      string         `json:"name"`
+			Data      []byte         `json:"data"` // base64 in the JSON
+			Digest    string         `json:"sha256"`
 		}
 		decoder := json.NewDecoder(strings.NewReader(line))
 		decoder.UseNumber()
@@ -176,7 +177,7 @@ func (s *server) session(pipe windows.Handle) {
 		case "connect":
 			reply = s.connect(id, request.Source, Options{Selected: request.Selected, Mode: request.Mode, Bypass: request.Bypass,
 				Direct: request.Direct, Proxied: request.Proxied, Routes: s.sets.Usable(request.Routes), BlockAds: request.BlockAds,
-				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Hosts: request.Hosts})
+				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Hosts: request.Hosts, UnmatchedDirect: request.Unmatched})
 		case "status":
 			reply = s.core.status(id, request.Since)
 		case "ruleSets":

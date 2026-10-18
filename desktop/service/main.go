@@ -44,27 +44,28 @@ func exit(err error) {
 	}
 }
 
-// buildConfig reads {"source": …, "selected", "rules", "port", "secret", "tun", "mode", "bypass", "direct", "proxied", "routes", "blockAds", "remoteDns", "directDns", "ipv6", "mixed", "hosts"} and prints the
+// buildConfig reads {"source": …, "selected", "rules", "port", "secret", "tun", "mode", "bypass", "direct", "proxied", "routes", "blockAds", "remoteDns", "directDns", "ipv6", "mixed", "hosts", "unmatchedDirect"} and prints the
 // configuration the service would run, so the App's tests can check they build the same.
 func buildConfig(in io.Reader, out io.Writer) error {
 	var request struct {
-		Source   map[string]any `json:"source"`
-		Selected string         `json:"selected"`
-		Rules    string         `json:"rules"`
-		Port     int            `json:"port"`
-		Secret   string         `json:"secret"`
-		Tun      bool           `json:"tun"`
-		Mode     string         `json:"mode"`
-		Bypass   []string       `json:"bypass"`
-		Direct   []string       `json:"direct"`
-		Proxied  []string       `json:"proxied"`
-		Routes   []Rule         `json:"routes"`
-		BlockAds bool           `json:"blockAds"`
-		Remote   string         `json:"remoteDns"`
-		Domestic string         `json:"directDns"`
-		IPv6     bool           `json:"ipv6"`
-		Mixed    int            `json:"mixed"`
-		Hosts    []Host         `json:"hosts"`
+		Source    map[string]any `json:"source"`
+		Selected  string         `json:"selected"`
+		Rules     string         `json:"rules"`
+		Port      int            `json:"port"`
+		Secret    string         `json:"secret"`
+		Tun       bool           `json:"tun"`
+		Mode      string         `json:"mode"`
+		Bypass    []string       `json:"bypass"`
+		Direct    []string       `json:"direct"`
+		Proxied   []string       `json:"proxied"`
+		Routes    []Rule         `json:"routes"`
+		BlockAds  bool           `json:"blockAds"`
+		Remote    string         `json:"remoteDns"`
+		Domestic  string         `json:"directDns"`
+		IPv6      bool           `json:"ipv6"`
+		Mixed     int            `json:"mixed"`
+		Hosts     []Host         `json:"hosts"`
+		Unmatched bool           `json:"unmatchedDirect"`
 	}
 	decoder := json.NewDecoder(io.LimitReader(in, maxMessage))
 	decoder.UseNumber()
@@ -72,7 +73,7 @@ func buildConfig(in io.Reader, out io.Writer) error {
 		return err
 	}
 	config, _, err := Build(request.Source, Options{Selected: request.Selected, Rules: request.Rules, Port: request.Port, Secret: request.Secret, Tun: request.Tun, Mode: request.Mode, Bypass: request.Bypass, Direct: request.Direct, Proxied: request.Proxied, Routes: request.Routes, BlockAds: request.BlockAds,
-		Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Mixed: request.Mixed, Hosts: request.Hosts})
+		Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Mixed: request.Mixed, Hosts: request.Hosts, UnmatchedDirect: request.Unmatched})
 	if err != nil {
 		return err
 	}

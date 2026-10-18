@@ -50,6 +50,9 @@ type Options struct {
 	IPv6     bool     // answer names with IPv6 addresses too (IPv4 first)
 	Mixed    int      // a local proxy port on 127.0.0.1 for the system proxy, when not 0 (the App's own, never the service's)
 	Hosts    []Host   // fixed answers for chosen names, after the Claude block
+	// UnmatchedDirect sends what no rule, list or category matched straight out in Rule mode
+	// (and answers its names from the direct DNS), instead of through the node.
+	UnmatchedDirect bool
 }
 
 // modes are the clash modes the core can start in.
@@ -286,12 +289,17 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		map[string]any{"clash_mode": "Global", "server": "proxy-dns"},
 		map[string]any{"rule_set": []any{"geosite-cn"}, "server": "local-dns"},
 	)
+	unmatched := proxyTag
+	if options.UnmatchedDirect {
+		dnsRules = append(dnsRules, map[string]any{"clash_mode": "Rule", "server": "local-dns"})
+		unmatched = "direct"
+	}
 	routeRules = append(routeRules,
 		map[string]any{"clash_mode": "Direct", "outbound": "direct"},
 		map[string]any{"clash_mode": "Global", "outbound": proxyTag},
 		map[string]any{"ip_is_private": true, "outbound": "direct"},
 		map[string]any{"clash_mode": "Rule", "rule_set": []any{"geosite-cn", "geoip-cn"}, "outbound": "direct"},
-		map[string]any{"clash_mode": "Rule", "outbound": proxyTag},
+		map[string]any{"clash_mode": "Rule", "outbound": unmatched},
 	)
 	ruleSets := []any{}
 	sets := [][2]string{{"geosite-cn", "sing-geosite"}, {"geoip-cn", "sing-geoip"}}

@@ -62,6 +62,8 @@ data class RulesState(
     /** How each category list the rules name stands, and whether KOne is looking at them now. */
     val lists: Map<String, ListStatus> = emptyMap(),
     val listsBusy: Boolean = false,
+    /** Rule mode sends what nothing matched straight out rather than through the node. */
+    val unmatchedDirect: Boolean = false,
     /** The time now, for "updated 3 h ago". */
     val now: Long = System.currentTimeMillis(),
 )
@@ -82,6 +84,8 @@ class RulesActions(
     val onMoveRule: (Int, Boolean) -> Unit = { _, _ -> },
     /** Downloads every category list again if it changed. */
     val onUpdateLists: () -> Unit = {},
+    /** What nothing matched: straight out (true) or through the node. */
+    val onUnmatched: (Boolean) -> Unit = {},
 )
 
 /** The kinds and actions as the page names them. */
@@ -104,6 +108,13 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
     var adding by remember { mutableStateOf(openWith != null) }
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
+            // What everything below leaves over: the node by default, or straight out, so only what is chosen goes through.
+            Line("When nothing matches") {
+                Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                    Choice("Through the node", !state.unmatchedDirect) { actions.onUnmatched(false) }
+                    Choice("Straight out", state.unmatchedDirect) { actions.onUnmatched(true) }
+                }
+            }
             Line("Block ads") { Switch(state.blockAds) { actions.onBlockAds(!state.blockAds) } }
             Line("Direct apps") {
                 Chips(state.bypass, { actions.onBypass(it, false) }) {
