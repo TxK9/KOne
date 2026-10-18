@@ -93,7 +93,7 @@ real Windows PC yet.
 | Each connection's reason shown in the person's terms | Done |
 | Memory and CPU measured in CI on x64 and ARM64 | Done |
 | Bandwidth test through a chosen node | Done |
-| Hosts: fixed answers for chosen names | Planned |
+| Hosts: fixed answers for chosen names (after the Claude block; resolved before routing) | Done |
 | Per-node and per-app traffic over the day | Done |
 | Automatic over large subscriptions: the template's url-test sweep now runs every ten minutes, as KOne steers and tests often itself | Done |
 | GEOSITE and GEOIP category rules (e.g. a streaming category to Proxy) | Done (Option B, below) |

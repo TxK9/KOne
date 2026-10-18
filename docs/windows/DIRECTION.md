@@ -89,6 +89,8 @@ Done this round (unit tested; CI as noted in the roadmap):
   the person's terms (their direct sites, a category, the China list, the mode, everything
   else), read from the rule the core matched.
 - **QR export** of the person's own nodes, for KOne on a phone.
+- **Hosts**: fixed answers for chosen names, after the Claude block, resolved before routing
+  so a node is never asked for a name only this computer knows; Go and Kotlin held identical.
 
 Next:
 
@@ -96,7 +98,6 @@ Next:
    probe less.
 2. **AppModel in parts.** About 2,000 lines in one class is where bugs will hide; split into
    connection, nodes, rules and tools controllers, a part at a time, each with tests.
-3. **Hosts.** Fixed answers for chosen names; a typed template field in Go and Kotlin.
 
 ### Needing the owner
 
