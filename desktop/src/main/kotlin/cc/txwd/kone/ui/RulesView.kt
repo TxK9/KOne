@@ -64,6 +64,8 @@ data class RulesState(
     val listsBusy: Boolean = false,
     /** Rule mode sends what nothing matched straight out rather than through the node. */
     val unmatchedDirect: Boolean = false,
+    /** One line on what just happened (an import), for a few seconds. */
+    val notice: String? = null,
     /** The time now, for "updated 3 h ago". */
     val now: Long = System.currentTimeMillis(),
 )
@@ -84,6 +86,8 @@ class RulesActions(
     val onMoveRule: (Int, Boolean) -> Unit = { _, _ -> },
     /** Downloads every category list again if it changed. */
     val onUpdateLists: () -> Unit = {},
+    /** Rules pasted from a Clash profile (the clipboard). */
+    val onImportRules: () -> Unit = {},
     /** What nothing matched: straight out (true) or through the node. */
     val onUnmatched: (Boolean) -> Unit = {},
 )
@@ -153,10 +157,15 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                 }
                 Spacer(Modifier.width(22.dp))
             }
+            Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onImportRules), contentAlignment = Alignment.Center) {
+                Label("Import", 14.sp, ink.soft)
+            }
+            Spacer(Modifier.width(22.dp))
             Box(Modifier.height(34.dp).press(bleed = 8.dp) { adding = !adding }, contentAlignment = Alignment.Center) {
                 Label("Add rule", 14.sp, weight = FontWeight.SemiBold)
             }
         }
+        state.notice?.let { Label(it, 13.sp, ink.soft, modifier = Modifier.padding(bottom = 6.dp)) }
         if (adding) NewRule(openWith ?: "suffix", onAdd = { rule -> actions.onAddRule(rule).also { if (it) adding = false } }, onCancel = { adding = false })
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
             itemsIndexed(state.rules) { index, rule ->

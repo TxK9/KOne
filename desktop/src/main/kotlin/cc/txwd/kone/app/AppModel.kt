@@ -15,6 +15,7 @@ import cc.txwd.kone.core.ExitTrace
 import cc.txwd.kone.core.Host
 import cc.txwd.kone.core.Hosts
 import cc.txwd.kone.core.KoneConfig
+import cc.txwd.kone.core.RuleImport
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.Probe
 import cc.txwd.kone.core.RuleSets
@@ -1351,6 +1352,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun rulesNow(): RulesState = RulesState(
         preferences.bypass, preferences.direct, preferences.proxied, preferences.rules, preferences.blockAds,
         lists = keeper.named().associateWith { keeper.lists.status(it) }, listsBusy = keeper.busy, unmatchedDirect = preferences.unmatchedDirect,
+        notice = rulesNotice,
     )
 
     /** What nothing matched, in Rule mode: straight out ([direct]) or through the node. */
@@ -1382,6 +1384,40 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             if (added.kind == "set" && keeper.lists.digest(value) == null) updateLists() else restart()
         }
         return true
+    }
+
+    /**
+     * Rules pasted from a Clash profile, added after the person's own in one go (one reconnection,
+     * not one a rule), each checked as any rule is. What happened, in a line.
+     */
+    fun importRules(text: String): String {
+        val read = RuleImport.read(text)
+        if (read.rules.isEmpty()) return if (read.left > 0) "None of these ${read.left} rules is one KOne takes" else "No rules in the clipboard"
+        val before = preferences.rules
+        preferences.rules = UserRules.clean(before + read.rules)
+        val added = preferences.rules.size - UserRules.clean(before).size
+        rulesPage = rulesNow()
+        if (added > 0) {
+            if (read.rules.any { it.kind == "set" }) updateLists() else restart()
+        }
+        val skipped = read.rules.size - added + read.left
+        return "$added rules added" + if (skipped > 0) "; $skipped left out" else ""
+    }
+
+    /** One line on the Rules page for a few seconds (what an import did). */
+    private var rulesNotice: String? = null
+
+    fun importRulesFrom(text: String) {
+        val said = importRules(text)
+        rulesNotice = said
+        rulesPage = rulesNow()
+        scope.launch {
+            delay(6_000)
+            if (rulesNotice == said) {
+                rulesNotice = null
+                rulesPage = rulesNow()
+            }
+        }
     }
 
     // Category lists (Rules): see ListKeeper.

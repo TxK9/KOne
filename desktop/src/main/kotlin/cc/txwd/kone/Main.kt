@@ -296,6 +296,8 @@ fun main(args: Array<String>) {
                                               onRemoveRule = model::removeRule,
                                               onMoveRule = model::moveRule,
                                               onUnmatched = model::setUnmatched,
+                                              // Clash rules from the clipboard; what happened is said on the page.
+                                              onImportRules = { model.importRulesFrom(clipboardText().orEmpty()) },
                                               onUpdateLists = { model.updateLists(force = true) },
                                           ),
                                       )
@@ -570,6 +572,7 @@ private fun commands(model: AppModel, query: String, go: (Page) -> Unit): List<c
     add(cc.txwd.kone.ui.Command("Test all nodes", "Nodes") { go(Page.Nodes); model.testAll() })
     add(cc.txwd.kone.ui.Command("Update category lists", "Rules") { go(Page.Rules); model.updateLists(force = true) })
     add(cc.txwd.kone.ui.Command("Import from clipboard", "Nodes") { model.importText(clipboardText().orEmpty()) })
+    add(cc.txwd.kone.ui.Command("Import Clash rules from clipboard", "Rules") { go(Page.Rules); model.importRulesFrom(clipboardText().orEmpty()) })
     for (target in listOf(Page.Dashboard, Page.Nodes, Page.Rules, Page.Log, Page.Tools, Page.Settings)) {
         add(cc.txwd.kone.ui.Command("Go to ${target.title}", "Page") { go(target) })
     }
