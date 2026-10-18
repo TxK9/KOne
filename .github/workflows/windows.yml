@@ -386,33 +386,50 @@ jobs:
           $app = Start-Process "$env:ProgramFiles\KOne\KOne.exe" -PassThru
           Start-Sleep -Seconds 20
           if ($app.HasExited) { Write-Error "KOne.exe quit by itself with $($app.ExitCode)"; exit 1 }
+          # Everything KOne.exe started, however deep (the launcher may hand over to a child): measured together.
+          function Tree([int] $root) {
+            $all = Get-CimInstance Win32_Process
+            $ids = @($root); $added = $true
+            while ($added) {
+              $added = $false
+              foreach ($p in $all) { if ($ids -contains $p.ParentProcessId -and -not ($ids -contains $p.ProcessId)) { $ids += $p.ProcessId; $added = $true } }
+            }
+            return @($ids | ForEach-Object { Get-Process -Id $_ -ErrorAction SilentlyContinue } | Where-Object { $_ })
+          }
+          function Cpu([object[]] $processes) { ($processes | ForEach-Object { $_.Refresh(); $_.TotalProcessorTime.TotalSeconds } | Measure-Object -Sum).Sum }
           # CPU as a share of one core over [seconds]: shown (drawn in software here, no GPU), then minimised.
-          function Busy([System.Diagnostics.Process] $process, [int] $seconds) {
-            $process.Refresh(); $before = $process.TotalProcessorTime.TotalSeconds
+          function Busy([int] $root, [int] $seconds) {
+            $before = Cpu (Tree $root)
             Start-Sleep -Seconds $seconds
-            $process.Refresh(); $after = $process.TotalProcessorTime.TotalSeconds
+            $after = Cpu (Tree $root)
             return [math]::Round(100 * ($after - $before) / $seconds, 1)
           }
-          $shown = Busy $app 30
+          $tree = Tree $app.Id
+          Write-Host "Measured: $(($tree | ForEach-Object { "$($_.ProcessName)($($_.Id))" }) -join ', ')"
+          $shown = Busy $app.Id 30
           Add-Type -Namespace KOne -Name Window -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr window, int show);'
-          $app.Refresh()
+          $window = (Tree $app.Id | ForEach-Object { $_.Refresh(); $_ } | Where-Object { $_.MainWindowHandle -ne [System.IntPtr]::Zero } | Select-Object -First 1)
           $minimised = "n/a"
-          if ($app.MainWindowHandle -ne [System.IntPtr]::Zero) {
-            [KOne.Window]::ShowWindow($app.MainWindowHandle, 6) | Out-Null
+          if ($window) {
+            [KOne.Window]::ShowWindow($window.MainWindowHandle, 6) | Out-Null
             Start-Sleep -Seconds 5
-            $minimised = Busy $app 30
+            $minimised = Busy $app.Id 30
           }
-          $app.Refresh()
-          $working = [math]::Round($app.WorkingSet64 / 1MB)
-          $private = [math]::Round($app.PrivateMemorySize64 / 1MB)
-          $threads = $app.Threads.Count
-          $line = "| ${{ matrix.arch }} | $working MB | $private MB | $threads | $shown % | $minimised % |"
-          Write-Host "Working set, private, threads, CPU shown, CPU minimised: $line"
-          "### What KOne costs, idle with no key (one core = 100 %)`n`n| Arch | Working set | Private | Threads | CPU shown (software drawing) | CPU minimised |`n| --- | --- | --- | --- | --- | --- |`n$line" >> $env:GITHUB_STEP_SUMMARY
-          Stop-Process -Id $app.Id -Force
+          $tree = Tree $app.Id
+          $tree | ForEach-Object { $_.Refresh() }
+          $working = [math]::Round((($tree | Measure-Object -Property WorkingSet64 -Sum).Sum) / 1MB)
+          $private = [math]::Round((($tree | Measure-Object -Property PrivateMemorySize64 -Sum).Sum) / 1MB)
+          $threads = ($tree | ForEach-Object { $_.Threads.Count } | Measure-Object -Sum).Sum
+          $names = ($tree | ForEach-Object { $_.ProcessName }) -join " + "
+          $line = "| ${{ matrix.arch }} | $names | $working MB | $private MB | $threads | $shown % | $minimised % |"
+          Write-Host "Processes, working set, private, threads, CPU shown, CPU minimised: $line"
+          "### What KOne costs, idle with no key (one core = 100 %)`n`n| Arch | Processes | Working set | Private | Threads | CPU shown (software drawing) | CPU minimised |`n| --- | --- | --- | --- | --- | --- | --- |`n$line" >> $env:GITHUB_STEP_SUMMARY
+          $tree | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+          # A measurement of a launcher alone is no measurement: the App's window must be found.
+          if (-not $window) { Write-Error "KOne's window was not found among $names"; exit 1 }
           # Ceilings for what would be a real regression, not targets.
           if ($private -gt 1024) { Write-Error "KOne uses $private MB of private memory idle"; exit 1 }
-          if ($minimised -ne "n/a" -and $minimised -gt 10) { Write-Error "KOne keeps $minimised % of a core busy while minimised"; exit 1 }
+          if ($minimised -gt 10) { Write-Error "KOne keeps $minimised % of a core busy while minimised"; exit 1 }
       - name: The service turns away anything but KOne.exe
         run: ./gradlew.bat --no-daemon test --tests "cc.txwd.kone.ServiceEndToEndTest" "-Pkone.e2e=reject"
       - name: Key, connection, Claude block, disconnection
