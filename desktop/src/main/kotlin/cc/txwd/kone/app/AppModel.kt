@@ -1443,7 +1443,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 val api = clash
                 val carried = if (api == null) null else withContext(Dispatchers.IO) { api.connections() }
                 carried?.let(::count)
-                tools = tools.copy(carried = carried)
+                // Why each went its way, in the person's terms.
+                val lists = Why.Lists(preferences.bypass, preferences.direct, preferences.proxied)
+                tools = tools.copy(carried = carried?.let { it.copy(connections = it.connections.map { one -> one.copy(why = Why.explain(one.rule, lists)) }) })
                 delay(1000)
             }
         }

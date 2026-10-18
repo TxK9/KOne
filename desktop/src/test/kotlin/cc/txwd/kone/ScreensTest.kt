@@ -299,11 +299,11 @@ class ScreensTest {
         val carried = Carried(
             down = 1_288_490_188, up = 31_457_280,
             connections = listOf(
-                CoreConnection("1", "chrome.exe", "www.example.com:443", "United States", 3_481_600, 52_224),
-                CoreConnection("2", "Code.exe", "api.example.org:443", "United States", 802_816, 31_744),
-                CoreConnection("3", "WeChat.exe", "203.0.113.40:8080", "direct", 120_832, 9_216),
-                CoreConnection("4", "svchost.exe", "time.example.net:123", "direct", 96, 96),
-                CoreConnection("5", null, "203.0.113.77:53", "United States", 512, 128),
+                CoreConnection("1", "chrome.exe", "www.example.com:443", "United States", 3_481_600, 52_224, why = "Your proxied sites"),
+                CoreConnection("2", "Code.exe", "api.example.org:443", "United States", 802_816, 31_744, why = "Everything else"),
+                CoreConnection("3", "WeChat.exe", "203.0.113.40:8080", "direct", 120_832, 9_216, why = "Your direct apps"),
+                CoreConnection("4", "svchost.exe", "time.example.net:123", "direct", 96, 96, why = "China list"),
+                CoreConnection("5", null, "203.0.113.77:53", "United States", 512, 128, why = "Category Netflix"),
             ),
         )
         val state = ToolsState(

@@ -13,8 +13,15 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-/** A connection the core carries now: the program behind it, where to, through which node, how much so far. */
-data class CoreConnection(val id: String, val program: String?, val target: String, val via: String, val down: Long, val up: Long)
+/**
+ * A connection the core carries now: the program behind it, where to, through which node, how much
+ * so far, the rule the core matched ("domain_suffix=[example.cn] => route(direct)"), and why in
+ * the person's terms (filled in by the App, see Why).
+ */
+data class CoreConnection(
+    val id: String, val program: String?, val target: String, val via: String, val down: Long, val up: Long,
+    val rule: String? = null, val why: String? = null,
+)
 
 /** All the core carries now, and how much it has carried since it started. */
 data class Carried(val down: Long, val up: Long, val connections: List<CoreConnection>)
@@ -81,6 +88,7 @@ class ClashApi(private val api: CoreApi) {
                 via = chain,
                 down = connection.number("download"),
                 up = connection.number("upload"),
+                rule = connection.word("rule"),
             ) to (connection.word("start") ?: "")
         }.sortedByDescending { it.second }.map { it.first }
         Carried(json.number("downloadTotal"), json.number("uploadTotal"), list)

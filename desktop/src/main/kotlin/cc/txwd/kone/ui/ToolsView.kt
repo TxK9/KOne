@@ -361,7 +361,7 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
     var order by remember { mutableStateOf(Order.Recent) }
     val needle = query.trim()
     val shown = carried.connections
-        .filter { needle.isEmpty() || listOfNotNull(it.program, it.target, it.via).any { field -> field.contains(needle, ignoreCase = true) } }
+        .filter { needle.isEmpty() || listOfNotNull(it.program, it.target, it.via, it.why).any { field -> field.contains(needle, ignoreCase = true) } }
         .let { list ->
             when (order) {
                 Order.Recent -> list
@@ -409,7 +409,11 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
             ) {
                 Box(Modifier.width(170.dp)) { Wrapped(connection.program ?: "—", 13.sp, ink.ink) }
                 Box(Modifier.weight(1f)) { Wrapped(connection.target, 13.sp, ink.ink) }
-                Box(Modifier.width(120.dp)) { Wrapped(if (connection.via == "direct") "Direct" else connection.via, 13.sp, ink.soft) }
+                // The way it went, and beneath it why: which list, rule, category or mode sent it there.
+                Column(Modifier.width(150.dp)) {
+                    Wrapped(if (connection.via == "direct") "Direct" else connection.via, 13.sp, ink.soft)
+                    connection.why?.let { Wrapped(it, 11.sp, ink.soft.copy(alpha = 0.75f)) }
+                }
                 // Fixed widths from here, so every row's columns stand in line.
                 Row(Modifier.width(96.dp), horizontalArrangement = Arrangement.End) { Label("↓ ${size(connection.down)}", 12.sp, ink.soft, tabular = true) }
                 Row(Modifier.width(90.dp), horizontalArrangement = Arrangement.End) { Label("↑ ${size(connection.up)}", 12.sp, ink.soft, tabular = true) }
