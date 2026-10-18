@@ -63,6 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.io.File
@@ -1516,6 +1517,33 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun count(carried: Carried) {
         traffic.sample(carried.connections, ::nameOf)
         tools.details?.let { tools = tools.copy(details = details(it.span)) }
+        val now = System.currentTimeMillis()
+        watched.sample(carried.connections, now)
+        // Passive health: stalling connections through the node in use count against it, and it is tested now.
+        inUse()?.let { tag ->
+            if (watched.stalling(tag, now) && now - nudgedAt >= 20_000) {
+                nudgedAt = now
+                health.record(tag, null)
+                log("Connections through ${nameOf(tag)} are stalling; testing it now")
+                nudges.trySend(Unit)
+            }
+        }
+        // Sites failing straight out, in Rule mode, where sending them through the node is the person's to choose.
+        val advice = if (preferences.mode == "Rule") watched.advice().take(3) else emptyList()
+        advice.filter { advised.add(it.site) }.forEach { onNotice("${it.site} does not answer straight out; Tools can send it through the node") }
+        if (advice != tools.siteAdvice) tools = tools.copy(siteAdvice = advice)
+    }
+
+    /** Takes an advice: the site goes on Proxied sites (Rules), so Rule mode sends it through the node. */
+    fun takeAdvice(site: String) {
+        watched.dismiss(site)
+        if (addSite(site, direct = false)) hint("$site now goes through the node")
+        tools = tools.copy(siteAdvice = tools.siteAdvice.filter { it.site != site })
+    }
+
+    fun dismissAdvice(site: String) {
+        watched.dismiss(site)
+        tools = tools.copy(siteAdvice = tools.siteAdvice.filter { it.site != site })
     }
 
     /** Usage by node, by program and by day over [span] days, or put away for null. */
@@ -1593,9 +1621,18 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 if (health.failing(tag) >= Health.FAILED) lookForSignIn()
                 else if (health.answering(tag) >= Health.RECOVERED && signIn?.waiting == false) { signIn = null; refresh() }
             }
-            delay(15_000)
+            // Every 15 seconds, or at once when real traffic through the node in use stalls.
+            withTimeoutOrNull(15_000) { nudges.receive() }
         }
     }
+
+    /** What real traffic says about sites and nodes (see ConnectionWatch). */
+    private val watched = ConnectionWatch()
+
+    /** Wakes the watchdog early: the node in use is stalling. */
+    private val nudges = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
+    private var nudgedAt = 0L
+    private val advised = HashSet<String>()
 
     private suspend fun steerAutomatic(api: ClashApi) {
         val current = drivenPick ?: withContext(Dispatchers.IO) { api.now(KoneConfig.AUTO_TAG) }

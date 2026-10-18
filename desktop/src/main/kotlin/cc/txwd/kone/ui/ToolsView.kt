@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cc.txwd.kone.app.Check
+import cc.txwd.kone.app.ConnectionWatch
 import cc.txwd.kone.app.SiteCheck
 import cc.txwd.kone.app.Outcome
 import cc.txwd.kone.app.Used
@@ -80,6 +81,8 @@ data class ToolsState(
     val details: UsageDetails? = null,
     /** The last site check: the site, each way it was tried, and which way to keep. */
     val site: SiteCheckState? = null,
+    /** Sites real traffic shows failing straight out, to send through the node. */
+    val siteAdvice: List<ConnectionWatch.Advice> = emptyList(),
 )
 
 data class SiteCheckState(val site: String, val checks: List<Check>, val running: Boolean, val verdict: String? = null, val way: SiteCheck.Way? = null)
@@ -114,6 +117,9 @@ class ToolsActions(
     /** Keeps a site check's answer: straight out (true) or through the node. */
     val onKeepSite: (Boolean) -> Unit = {},
     val onClearSite: () -> Unit = {},
+    /** Sends an advised site through the node, or lets the advice go. */
+    val onTakeAdvice: (String) -> Unit = {},
+    val onDismissAdvice: (String) -> Unit = {},
 )
 
 private val MODE_NAMES = listOf("Rule" to "Rule", "Global" to "Global", "Direct" to "Direct")
@@ -128,6 +134,7 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
     val top = if (state.carried != null) maxHeight * 0.6f else maxHeight
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(max = top).verticalScroll(rememberScrollState())) {
+            state.siteAdvice.forEach { Advised(it, actions) }
             Line("Mode") {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                     MODE_NAMES.forEach { (mode, name) -> Choice(name, mode == state.mode) { actions.onMode(mode) } }
@@ -258,6 +265,28 @@ private fun Shares(title: String, list: List<Pair<String, Used>>, modifier: Modi
 }
 
 private const val SHOWN = 6
+
+/** A site real traffic shows failing straight out: what was seen, and the two answers. */
+@Composable
+private fun Advised(advice: ConnectionWatch.Advice, actions: ToolsActions) {
+    val ink = LocalInk.current
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).hairline(ink.hair, bottom = true),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Label("${advice.site} does not answer straight out", 14.sp, NodeWeather.Mist.ink(ink.dark), FontWeight.SemiBold)
+            Label("${advice.failures} tries in the last minutes got nothing back", 12.sp, ink.soft)
+        }
+        Box(Modifier.height(34.dp).press(bleed = 8.dp) { actions.onDismissAdvice(advice.site) }, contentAlignment = Alignment.Center) {
+            Label("Not now", 14.sp, ink.soft)
+        }
+        Box(Modifier.height(34.dp).press(bleed = 8.dp) { actions.onTakeAdvice(advice.site) }, contentAlignment = Alignment.Center) {
+            Label("Send through the node", 14.sp, weight = FontWeight.SemiBold)
+        }
+    }
+}
 
 /** DNS lookup: a name, then one row for each way it was asked, and a sentence on what they add up to. */
 @Composable
