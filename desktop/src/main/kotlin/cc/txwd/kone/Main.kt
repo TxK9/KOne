@@ -61,6 +61,8 @@ import cc.txwd.kone.ui.LocalAmbient
 import cc.txwd.kone.ui.LocalSoftware
 import cc.txwd.kone.ui.LogView
 import cc.txwd.kone.ui.NodeWeather
+import cc.txwd.kone.ui.NodesActions
+import cc.txwd.kone.ui.NodesView
 import cc.txwd.kone.ui.Page
 import cc.txwd.kone.ui.SettingsActions
 import cc.txwd.kone.ui.SettingsView
@@ -237,10 +239,23 @@ fun main(args: Array<String>) {
                                   moving = inSight,
                               )
                               Screen.Dashboard -> WithRail(
-                                  page, { page = it }, listOf(Page.Dashboard, Page.Log, Page.Tools, Page.Settings),
+                                  page, { page = it }, listOf(Page.Dashboard, Page.Nodes, Page.Log, Page.Tools, Page.Settings),
                                   marked = if (settings.state.update is UpdateState.Available) setOf(Page.Settings) else emptySet(),
                               ) {
                                   when (page) {
+                                      Page.Nodes -> NodesView(
+                                          model.nodesPage,
+                                          NodesActions(
+                                              onUse = model::pickNode,
+                                              onTest = model::testAll,
+                                              onAddSubscription = model::addSubscription,
+                                              onUpdate = model::updateSubscription,
+                                              onEdit = model::editSubscription,
+                                              onRemoveSubscription = model::removeSubscription,
+                                              onRemoveNode = model::removeImported,
+                                              onImport = { model.importText(clipboardText().orEmpty()) },
+                                          ),
+                                      )
                                       Page.Log -> LogView(
                                           model.logs,
                                           onCopy = { copyText(model.logs.joinToString("\n")) },

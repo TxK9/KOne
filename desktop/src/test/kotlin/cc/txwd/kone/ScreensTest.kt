@@ -16,6 +16,7 @@ import cc.txwd.kone.core.Carried
 import cc.txwd.kone.core.CoreConnection
 import cc.txwd.kone.ink.InkGallery
 import cc.txwd.kone.node.Countries
+import cc.txwd.kone.node.UserInfo
 import cc.txwd.kone.ui.Appearance
 import cc.txwd.kone.ui.CityScroll
 import cc.txwd.kone.ui.Backdrop
@@ -34,7 +35,12 @@ import cc.txwd.kone.ui.Page
 import cc.txwd.kone.ui.SettingsActions
 import cc.txwd.kone.ui.SettingsState
 import cc.txwd.kone.ui.SettingsView
+import cc.txwd.kone.ui.NodeSection
 import cc.txwd.kone.ui.NodeWeather
+import cc.txwd.kone.ui.NodesActions
+import cc.txwd.kone.ui.NodesState
+import cc.txwd.kone.ui.NodesView
+import cc.txwd.kone.ui.SourceKind
 import cc.txwd.kone.ui.TitleBar
 import cc.txwd.kone.ui.ToolsActions
 import cc.txwd.kone.ui.ToolsState
@@ -218,6 +224,35 @@ class ScreensTest {
             shoot("dashboard-hover", dark, pointer = Offset(390f, 672f)) {
                 WithRail(Page.Dashboard, {}) { DashboardView(sample, DashboardActions(), false, {}, moving = false) }
             }
+        }
+    }
+
+    /** Nodes: the console's, one imported, a subscription with its use and expiry, and one whose update failed. */
+    @Test
+    fun nodes() {
+        val now = 1_800_000_000_000L
+        val state = NodesState(
+            sections = listOf(
+                NodeSection("managed", SourceKind.Managed, "Managed", listOf(
+                    Node("us1", "United States", "US", "United States", 245, protocol = "vless"),
+                    Node("jp1", "Japan", "JP", "Japan", 186, protocol = "trojan"),
+                )),
+                NodeSection("imported", SourceKind.Imported, "Imported", listOf(Node("i1", "Friend's node", null, "Imported", 220, imported = true, protocol = "hysteria2"))),
+                NodeSection(
+                    "s1", SourceKind.Subscription, "Example Cloud", listOf(
+                        Node("s1a", "Hong Kong 01", "HK", "Hong Kong", 42, protocol = "shadowsocks"),
+                        Node("s1b", "Singapore 02", "SG", "Singapore", 1040, protocol = "vmess"),
+                        Node("s1c", "Germany 03", "DE", "Germany", null, protocol = "tuic"),
+                    ),
+                    info = UserInfo(2_000_000_000, 11_000_000_000, 107_374_182_400, (now / 1000) + 40L * 86_400),
+                    updated = now - 3 * 3_600_000L, hours = 12, url = "https://example.com/sub",
+                ),
+                NodeSection("s2", SourceKind.Subscription, "Backup", emptyList(), error = "The provider cannot be reached", hours = 24, url = "https://example.net/sub"),
+            ),
+            selected = "jp1",
+        )
+        for (dark in listOf(false, true)) {
+            shoot("nodes", dark) { WithRail(Page.Nodes, {}) { NodesView(state, NodesActions(), now) } }
         }
     }
 

@@ -14,7 +14,7 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
 /** A node of the console's source as the dashboard lists it: its tag in the selector, its name, the country its name says. */
-data class SourceNode(val tag: String, val name: String, val country: String?)
+data class SourceNode(val tag: String, val name: String, val country: String?, val type: String? = null)
 
 /** Where the App talks to the running core: clash_api on loopback, with a secret made for this run. */
 data class CoreApi(val port: Int, val secret: String)
@@ -98,7 +98,7 @@ object KoneConfig {
             val name = outbound.text("tag").orEmpty()
             val tag = claim(name)
             if (name.isNotBlank()) renamed[name] = tag
-            SourceNode(tag, name.ifBlank { tag }, Countries.all.filter { it.matches(name) }.singleOrNull()?.code)
+            SourceNode(tag, name.ifBlank { tag }, Countries.all.filter { it.matches(name) }.singleOrNull()?.code, outbound.text("type"))
         }
         val supportTags = support.keys.associateWith { claim(it).also { tag -> renamed[it] = tag } }
         fun retag(outbound: JsonObject, tag: String) = JsonObject(

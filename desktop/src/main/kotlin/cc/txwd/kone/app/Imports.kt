@@ -1,6 +1,5 @@
 package cc.txwd.kone.app
 
-import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.node.SharedNode
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -64,26 +63,6 @@ class Imports(private val file: File, private val vault: Vault) {
 
     companion object {
         private const val MOST = 200
-
-        /**
-         * [source] with [imported] after its own outbounds, and the tags they went in under: one
-         * the source already uses, or the template, moves aside, so the console's names stay as they are.
-         */
-        fun into(source: JsonObject, imported: List<JsonObject>): Pair<JsonObject, Set<String>> {
-            if (imported.isEmpty()) return source to emptySet()
-            val own = (source["outbounds"] as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
-            val taken = HashSet<String>()
-            own.forEach { outbound -> outbound.tag?.let(taken::add); outbound.text("detour")?.let(taken::add) }
-            taken += KoneConfig.RESERVED
-            val tags = LinkedHashSet<String>()
-            val added = imported.map { outbound ->
-                val tag = unique(outbound.tag ?: "Imported", taken)
-                taken += tag
-                tags += tag
-                JsonObject(outbound + ("tag" to JsonPrimitive(tag)))
-            }
-            return JsonObject(source + ("outbounds" to JsonArray(own + added))) to tags
-        }
 
         private fun unique(base: String, taken: Set<String>): String {
             if (base !in taken) return base

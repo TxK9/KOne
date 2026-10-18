@@ -19,17 +19,26 @@ import cc.txwd.kone.core.SourceNode
 import cc.txwd.kone.node.Countries
 import cc.txwd.kone.node.SharedNode
 import cc.txwd.kone.node.ShareLinks
+import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
+import cc.txwd.kone.ui.NodeSection
+import cc.txwd.kone.ui.NodesState
+import cc.txwd.kone.ui.SourceKind
 import cc.txwd.kone.ui.ToolsState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -59,6 +68,24 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private val imports = Imports(File(Places.data, "imported.bin"), Vault.forThisComputer())
     private var importedTags: Set<String> = emptySet()
 
+    /** The person's subscriptions (Nodes), fetched in the background and joined after the imported nodes. */
+    private val subscriptions = Subscriptions(File(Places.data, "subscriptions.bin"), Vault.forThisComputer())
+
+    /** The subscription each listed node came from, by tag. */
+    private var subscribed: Map<String, Subscription> = emptyMap()
+
+    /** Subscriptions being fetched now. */
+    private val updating = HashSet<String>()
+
+    /** The node tags the running core was started with: choosing one outside them starts it afresh. */
+    private var runningTags: Set<String> = emptySet()
+
+    /** Every node's delay is being tested at the person's asking. */
+    private var testing = false
+
+    /** One line for the Nodes page, and whether it says something went wrong. */
+    private var nodesNotice: Pair<String, Boolean>? = null
+
     /** How much the core has carried, today and this month (Tools → Usage). */
     private val usage = Usage(File(Places.data, "usage.properties"))
 
@@ -67,6 +94,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     var key by mutableStateOf(KeyState())
         private set
     var dashboard by mutableStateOf(DashboardState(emptyList(), emptyList(), "", null))
+        private set
+
+    /** Nodes: every source with its nodes, the subscriptions' state, and what just happened. */
+    var nodesPage by mutableStateOf(NodesState())
         private set
 
     /** The core's last lines, for Logs. */
@@ -138,6 +169,17 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             scope.launch { syncNow() }
         }
         scope.launch {
+            // Subscriptions due for their update are fetched quietly; a failure keeps their last good nodes.
+            delay(20_000)
+            while (isActive) {
+                if (account.binding != null) {
+                    val now = System.currentTimeMillis()
+                    subscriptions.all.filter { it.due(now) }.forEach { updateSubscription(it.id, first = false) }
+                }
+                delay(TimeUnit.MINUTES.toMillis(15))
+            }
+        }
+        scope.launch {
             // Every four hours, as the phone does, the nodes are brought in step with the console.
             while (isActive) {
                 delay(TimeUnit.HOURS.toMillis(4))
@@ -187,6 +229,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         account.select(tag)
         val running = clash
         if (running != null) {
+            // A node added since the core started is not in it: the core starts afresh with it.
+            if (tag != KoneConfig.AUTO_TAG && tag !in runningTags) {
+                restart()
+                refresh()
+                return
+            }
             scope.launch(Dispatchers.IO) {
                 if (running.select(tag)) detectExit()
             }
@@ -228,6 +276,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun connect() {
         val binding = account.binding ?: return
         val source = source() ?: return
+        runningTags = tagsOf(source)
         connection = Connection.Connecting
         notice = null
         refresh()
@@ -316,6 +365,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             ended("no service")
             return
         }
+        runningTags = tagsOf(source)
         if (fellBack) noAdapter = true
         connection = Connection.Connecting
         refresh()
@@ -425,7 +475,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     runCatching { ShareLinks.parse(link) }.onFailure { refusal = refusal ?: it.message }.getOrNull()
                 }
                 fun fits(found: List<SharedNode>): Boolean =
-                    accepts(Imports.into(source, found.map { Json.parseToJsonElement(it.outbound.toString()) as JsonObject }).first)
+                    accepts(Merge.into(source, listOf(found.map { Json.parseToJsonElement(it.outbound.toString()) as JsonObject })).source)
                 // All at once when they all fit; one by one only to find which do not.
                 val fitting = if (read.isEmpty() || fits(read)) read else read.filter { fits(listOf(it)) }.also {
                     if (it.size < read.size) refusal = refusal ?: "sing-box does not accept some nodes"
@@ -437,14 +487,14 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     else -> (refusal ?: "No usable nodes") to false
                 }
             }
-            loadNodes()
+            nodesChanged()
+            tell(message, error = !good)
             if (good) {
                 notice = null
                 hint(message)
             } else {
                 say(message)
             }
-            restart()
         }
     }
 
@@ -454,8 +504,153 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         scope.launch {
             withContext(Dispatchers.IO) { imports.remove(tag) }
             delays.remove(tag)
-            loadNodes()
-            restart()
+            nodesChanged()
+            if (account.binding?.selected == tag) restart()
+        }
+    }
+
+    // Nodes
+
+    /** A subscription link typed or pasted: kept and fetched at once. False when it is not one KOne fetches (https only). */
+    fun addSubscription(text: String): Boolean {
+        val url = text.trim()
+        if (!SubscriptionContent.acceptable(url)) return false
+        val added = subscriptions.add(url, SubscriptionContent.name(url, null))
+        if (added == null) {
+            tell(if (subscriptions.all.size >= Subscriptions.MOST) "No more subscriptions can be added" else "This subscription is already here", error = true)
+            return true
+        }
+        refresh()
+        updateSubscription(added.id, first = true)
+        return true
+    }
+
+    fun updateSubscription(id: String) = updateSubscription(id, first = false)
+
+    private fun updateSubscription(id: String, first: Boolean) {
+        val managed = account.binding?.source ?: return
+        if (!updating.add(id)) return
+        refresh()
+        scope.launch {
+            val outcome = withContext(Dispatchers.IO) { runCatching { fetchSubscription(id, managed, first) }.getOrNull() }
+            updating.remove(id)
+            nodesChanged()
+            outcome?.let { (message, error) -> tell(message, error) }
+        }
+    }
+
+    /**
+     * Fetches, reads and checks one subscription, and keeps what sing-box accepts. A failure keeps
+     * the last good nodes and is shown on the subscription; a partial success is told in one line.
+     */
+    private fun fetchSubscription(id: String, managed: JsonObject, first: Boolean): Pair<String, Boolean>? {
+        val subscription = subscriptions.all.firstOrNull { it.id == id } ?: return null
+        val now = System.currentTimeMillis()
+        val fetched = try {
+            SubscriptionFetch.fetch(subscription.url, proxied)
+        } catch (failure: Exception) {
+            subscriptions.change(id) { it.copy(tried = now, error = SubscriptionFetch.reason(failure)) }
+            return null
+        }
+        val read = SubscriptionContent.read(fetched.body)
+        val kept = acceptedNodes(managed, read.nodes)
+        if (kept.isEmpty()) {
+            subscriptions.change(id) { it.copy(tried = now, info = fetched.info ?: it.info, error = read.refusal ?: "No usable nodes") }
+            return null
+        }
+        // A name KOne made up gives way to the provider's own.
+        val madeUp = subscription.name == SubscriptionContent.name(subscription.url, null)
+        subscriptions.change(id) {
+            it.copy(
+                name = if (madeUp) fetched.name else it.name,
+                hours = if (first) fetched.hours ?: it.hours else it.hours,
+                nodes = kept, info = fetched.info ?: it.info, updated = now, tried = now, error = null,
+            )
+        }
+        val left = read.nodes.size - kept.size + read.refused
+        return if (left > 0) "${kept.size} nodes kept, $left left out" to false else null
+    }
+
+    /**
+     * The nodes sing-box accepts alongside the managed ones: all at once when they all pass, else
+     * halves of halves, so one bad node in hundreds costs a few checks, not hundreds.
+     */
+    private fun acceptedNodes(managed: JsonObject, nodes: List<JsonObject>): List<JsonObject> {
+        fun fits(part: List<JsonObject>) = accepts(Merge.into(managed, listOf(part)).source)
+        fun keep(part: List<JsonObject>): List<JsonObject> = when {
+            part.isEmpty() || fits(part) -> part
+            part.size == 1 -> emptyList()
+            else -> keep(part.subList(0, part.size / 2)) + keep(part.subList(part.size / 2, part.size))
+        }
+        return keep(nodes)
+    }
+
+    /** A subscription's name, link and interval; false when the link is not one KOne fetches. A new link is fetched at once. */
+    fun editSubscription(id: String, name: String, url: String, hours: Int): Boolean {
+        if (!SubscriptionContent.acceptable(url) || hours !in 0..720) return false
+        val before = subscriptions.all.firstOrNull { it.id == id } ?: return false
+        subscriptions.change(id) { it.copy(name = name.ifBlank { it.name }.take(32), url = url, hours = hours) }
+        loadNodes()
+        if (url != before.url) updateSubscription(id, first = false)
+        return true
+    }
+
+    fun removeSubscription(id: String) {
+        val used = account.binding?.selected?.let { subscribed[it]?.id } == id
+        if (!subscriptions.remove(id)) return
+        nodesChanged()
+        if (used) restart()
+    }
+
+    /** Every node's delay, now, several at a time. */
+    fun testAll() {
+        val api = clash ?: probeApi?.let(::ClashApi) ?: return
+        if (testing) return
+        testing = true
+        refresh()
+        scope.launch {
+            measure(api) { true }
+            testing = false
+            refresh()
+        }
+    }
+
+    /** Tests every node through [api], eight at a time, while [current] says the results still matter. */
+    private suspend fun measure(api: ClashApi, current: () -> Boolean) {
+        val gate = Semaphore(8)
+        coroutineScope {
+            nodes.map { node ->
+                async {
+                    val measured = gate.withPermit { withContext(Dispatchers.IO) { api.delay(node.tag) } }
+                    if (current()) {
+                        delays[node.tag] = measured
+                        refresh()
+                    }
+                }
+            }.awaitAll()
+        }
+    }
+
+    /** Once a minute for a few nodes; for many, every ten minutes, as each test is a real connection. */
+    private fun testEvery(): Long = if (nodes.size <= 30) 60_000 else 600_000
+
+    /** After the person's nodes changed: the list, and the probe's nodes while not connected. */
+    private fun nodesChanged() {
+        loadNodes()
+        if (connection == Connection.Idle) startProbe()
+    }
+
+    /** Says [message] on the Nodes page for a few seconds. */
+    private fun tell(message: String, error: Boolean) {
+        val said = message to error
+        nodesNotice = said
+        refresh()
+        scope.launch {
+            delay(6_000)
+            if (nodesNotice === said) {
+                nodesNotice = null
+                refresh()
+            }
         }
     }
 
@@ -597,14 +792,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** Tests every node through [api] now and then each minute, while it is the one in use. */
     private suspend fun testDelays(api: ClashApi) {
-        while (true) {
-            for (node in nodes) {
-                val measured = withContext(Dispatchers.IO) { api.delay(node.tag) }
-                if (clash !== api) return
-                delays[node.tag] = measured
-                refresh()
-            }
-            delay(60_000)
+        while (clash === api) {
+            measure(api) { clash === api }
+            delay(testEvery())
         }
     }
 
@@ -624,13 +814,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 false
             }
             while (ready && isActive && probeApi === api && connection == Connection.Idle) {
-                for (node in nodes) {
-                    val measured = withContext(Dispatchers.IO) { clash.delay(node.tag) }
-                    if (probeApi !== api) return@launch
-                    delays[node.tag] = measured
-                    refresh()
-                }
-                delay(60_000)
+                measure(clash) { probeApi === api }
+                delay(testEvery())
             }
         }
     }
@@ -672,14 +857,33 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         return process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0
     }
 
-    /** The console's source with the person's imported nodes after its own; null until the console has sent one. */
-    private fun source(): JsonObject? = account.binding?.source?.let { Imports.into(it, imports.all).first }
+    /**
+     * The console's source with the person's own nodes after its own: the imported ones, then each
+     * subscription's. Should a group stop it building, the person's groups are left out rather
+     * than the managed nodes. Null until the console has sent a source.
+     */
+    private fun merged(): Merge.Merged? {
+        val managed = account.binding?.source ?: return null
+        val groups = listOf(imports.all) + subscriptions.all.map { it.nodes }
+        return sequenceOf(groups, listOf(imports.all) + subscriptions.all.map { emptyList() }, groups.map { emptyList() })
+            .map { Merge.into(managed, it) }
+            .firstOrNull { builds(it.source) } ?: Merge.into(managed, groups.map { emptyList() })
+    }
+
+    private fun builds(source: JsonObject) = runCatching { KoneConfig.build(source, rules, CoreApi(9090, "list")) }.isSuccess
+
+    private fun source(): JsonObject? = merged()?.source
+
+    /** The nodes [source] carries, by tag. */
+    private fun tagsOf(source: JsonObject): Set<String> =
+        runCatching { KoneConfig.build(source, rules, CoreApi(9090, "list")).nodes.map { it.tag }.toSet() }.getOrDefault(emptySet())
 
     private fun loadNodes() {
         val binding = account.binding
-        val merged = binding?.source?.let { Imports.into(it, imports.all) }
-        importedTags = merged?.second.orEmpty()
-        nodes = merged?.first?.let { runCatching { KoneConfig.build(it, rules, CoreApi(9090, "list")).nodes }.getOrNull() }.orEmpty()
+        val merged = merged()
+        importedTags = merged?.groups?.firstOrNull().orEmpty().toSet()
+        subscribed = merged?.let { all -> subscriptions.all.zip(all.groups.drop(1)).flatMap { (subscription, tags) -> tags.map { it to subscription } }.toMap() }.orEmpty()
+        nodes = merged?.source?.let { runCatching { KoneConfig.build(it, rules, CoreApi(9090, "list")).nodes }.getOrNull() }.orEmpty()
         if (tab !in categories()) {
             tab = if (binding?.selected == KoneConfig.AUTO_TAG && auto) AUTO_NAME else categoryOf(nodes.firstOrNull { it.tag == binding?.selected } ?: nodes.firstOrNull())
         }
@@ -687,7 +891,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     }
 
     private fun categoryOf(node: SourceNode?): String =
-        node?.country?.let { Countries.byCode(it)?.zh } ?: if (node != null && node.tag in importedTags) IMPORTED_NAME else "Node"
+        node?.country?.let { Countries.byCode(it)?.zh } ?: when {
+            node == null -> "Node"
+            node.tag in importedTags -> IMPORTED_NAME
+            else -> subscribed[node.tag]?.name ?: "Node"
+        }
 
     /** Automatic first when there is a choice to make, then the countries. */
     private fun categories(): List<String> = (if (auto) listOf(AUTO_NAME) else emptyList()) + nodes.map(::categoryOf).distinct()
@@ -735,12 +943,18 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
     }
 
+    /** A node as the screens show it. */
+    private fun shown(node: SourceNode) = Node(
+        node.tag, node.name, node.country, categoryOf(node), delays[node.tag], tested = node.tag in delays,
+        imported = node.tag in importedTags, protocol = node.type,
+    )
+
     private fun refresh() {
         val selected = account.binding?.selected?.takeIf { tag -> (tag == KoneConfig.AUTO_TAG && auto) || nodes.any { it.tag == tag } } ?: nodes.firstOrNull()?.tag
+        val listed = nodes.map(::shown)
         dashboard = DashboardState(
             categories = categories(),
-            nodes = (if (auto) listOf(autoNode()) else emptyList()) +
-                nodes.map { Node(it.tag, it.name, it.country, categoryOf(it), delays[it.tag], tested = it.tag in delays, imported = it.tag in importedTags) },
+            nodes = (if (auto) listOf(autoNode()) else emptyList()) + listed,
             tab = tab,
             selected = selected,
             connection = connection,
@@ -753,6 +967,24 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             proxied = proxied != null,
             hint = hint,
             canImport = account.binding != null,
+        )
+        nodesPage = NodesState(
+            sections = buildList {
+                add(NodeSection("managed", SourceKind.Managed, "Managed", listed.filter { it.id !in importedTags && it.id !in subscribed }))
+                if (importedTags.isNotEmpty()) add(NodeSection("imported", SourceKind.Imported, "Imported", listed.filter { it.id in importedTags }))
+                subscriptions.all.forEach { subscription ->
+                    add(
+                        NodeSection(
+                            subscription.id, SourceKind.Subscription, subscription.name, listed.filter { subscribed[it.id]?.id == subscription.id },
+                            subscription.info, subscription.updated, subscription.error, subscription.hours, subscription.url, subscription.id in updating,
+                        ),
+                    )
+                }
+            },
+            selected = selected,
+            testing = testing,
+            notice = nodesNotice?.first,
+            noticeIsError = nodesNotice?.second == true,
         )
     }
 

@@ -50,7 +50,9 @@ class ImportsTest {
         )
         assertEquals(8, imports.add(links.map(ShareLinks::parse)))
         val source = FakeConsole.source(blockClaude = true)
-        val (merged, tags) = Imports.into(source, imports.all)
+        val joined = Merge.into(source, listOf(imports.all))
+        val merged = joined.source
+        val tags = joined.groups.single()
         val own = (source["outbounds"] as JsonArray).map { (it as JsonObject)["tag"]!!.jsonPrimitive.content }
         assertTrue(tags.none { it in own || it in KoneConfig.RESERVED }, "imported tags never take the console's or the template's: $tags")
         assertTrue("proxy 2" in tags, "a name the template uses moves aside")

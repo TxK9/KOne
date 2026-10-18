@@ -42,6 +42,8 @@ data class Node(
     val id: String, val name: String, val country: String?, val category: String, val delay: Int?, val tested: Boolean = true,
     /** Imported by the person (⋮), and so theirs to take out. */
     val imported: Boolean = false,
+    /** The kind of node as sing-box names it (vless, trojan, hysteria2…). */
+    val protocol: String? = null,
 ) {
     val weather: NodeWeather get() = if (tested) NodeWeather.of(delay) else NodeWeather.Rest
 }

@@ -124,6 +124,7 @@ private fun Cap(glyph: List<String>, onClick: () -> Unit, closes: Boolean = fals
 
 enum class Page(val title: String, val glyph: List<String>) {
     Dashboard("Dashboard", Glyphs.dashboard),
+    Nodes("Nodes", Glyphs.nodes),
     Log("Logs", Glyphs.log),
     Tools("Tools", Glyphs.tools),
     Settings("Settings", Glyphs.settings),
