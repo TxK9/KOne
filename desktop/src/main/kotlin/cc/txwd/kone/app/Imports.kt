@@ -42,6 +42,18 @@ class Imports(private val file: File, private val vault: Vault) {
         return added
     }
 
+    /** Puts [outbound] in place of the node at [index], under [name] (unique among the rest); false when there is none, or it is another's twin. */
+    @Synchronized
+    fun replace(index: Int, outbound: JsonObject, name: String): Boolean {
+        if (index !in all.indices) return false
+        val others = all.filterIndexed { i, _ -> i != index }
+        val clean = JsonObject(outbound - "tag")
+        if (others.any { key(it) == key(clean) }) return false
+        val tag = unique(name.ifBlank { "Imported ${index + 1}" }, others.mapNotNullTo(HashSet()) { it.tag })
+        save(all.toMutableList().also { it[index] = JsonObject(clean + ("tag" to JsonPrimitive(tag))) })
+        return true
+    }
+
     @Synchronized
     fun remove(tag: String): Boolean {
         val kept = all.filterNot { it.tag == tag }

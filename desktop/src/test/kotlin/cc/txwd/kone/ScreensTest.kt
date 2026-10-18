@@ -19,6 +19,7 @@ import cc.txwd.kone.core.CoreConnection
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.ink.InkGallery
 import cc.txwd.kone.node.Countries
+import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.node.UserInfo
 import cc.txwd.kone.ui.Appearance
 import cc.txwd.kone.ui.CityScroll
@@ -39,6 +40,7 @@ import cc.txwd.kone.ui.SettingsActions
 import cc.txwd.kone.ui.SettingsState
 import cc.txwd.kone.ui.SettingsView
 import cc.txwd.kone.ui.NetworkState
+import cc.txwd.kone.ui.NodeEditing
 import cc.txwd.kone.ui.NodeSection
 import cc.txwd.kone.ui.NodeWeather
 import cc.txwd.kone.ui.NodesActions
@@ -268,6 +270,13 @@ class ScreensTest {
         for (dark in listOf(false, true)) {
             shoot("nodes", dark) { WithRail(Page.Nodes, {}) { NodesView(state, NodesActions(), now) } }
         }
+        // A node written by hand: VLESS with Reality over WebSocket, the save refused once.
+        val draft = NodeDraft(
+            type = "vless", name = "My node", server = "203.0.113.30", uuid = "00000000-0000-0000-0000-000000000001", flow = "xtls-rprx-vision",
+            security = "reality", sni = "www.example.com", fingerprint = "safari", shortId = "ab", transport = "ws", host = "cdn.example.com", path = "/ws",
+        )
+        val editing = state.copy(sections = state.sections.take(1), editing = NodeEditing(null, draft, error = "Enter the Reality public key"))
+        shoot("nodes-editor", dark = false, height = 1000) { WithRail(Page.Nodes, {}) { NodesView(editing, NodesActions(), now) } }
     }
 
     /** Tools while connected: the mode, two programs sent straight out, and what the core carries (example sites only). */

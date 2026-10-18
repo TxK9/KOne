@@ -258,6 +258,14 @@ fun main(args: Array<String>) {
                                               onRemoveNode = model::removeImported,
                                               onImport = { model.importText(clipboardText().orEmpty()) },
                                               onCopyLink = { tag -> model.copyLink(tag, ::copyText) },
+                                              onAddNode = model::addNode,
+                                              onEditNode = model::editNode,
+                                              onSaveNode = model::saveNode,
+                                              onCancelNode = model::cancelNode,
+                                              onExport = {
+                                                  val links = model.exportLinks()
+                                                  if (links.isEmpty()) model.onNotice("No nodes of yours to export") else saveText(this@Window.window, "kone-nodes.txt", links)
+                                              },
                                           ),
                                       )
                                       Page.Log -> LogView(

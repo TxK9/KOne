@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.node.UserInfo
 import java.time.Instant
 import java.time.LocalDate
@@ -68,8 +69,12 @@ data class NodeSection(
     val updating: Boolean = false,
 )
 
+/** A node being written by hand: which imported node it replaces (null for a new one), its fields, and how saving went. */
+data class NodeEditing(val tag: String?, val draft: NodeDraft, val error: String? = null, val saving: Boolean = false)
+
 data class NodesState(
     val sections: List<NodeSection> = emptyList(),
+    val editing: NodeEditing? = null,
     val selected: String? = null,
     /** Every node's delay is being tested now. */
     val testing: Boolean = false,
@@ -89,8 +94,31 @@ class NodesActions(
     val onRemoveNode: (String) -> Unit = {},
     /** Copies an imported or subscribed node as a share link. */
     val onCopyLink: (String) -> Unit = {},
+    val onAddNode: () -> Unit = {},
+    val onEditNode: (String) -> Unit = {},
+    val onSaveNode: (NodeDraft) -> Unit = {},
+    val onCancelNode: () -> Unit = {},
+    /** Saves every imported and subscribed node as share links to a file. */
+    val onExport: () -> Unit = {},
     val onImport: () -> Unit = {},
 )
+
+/** How nodes are listed within each source. */
+private enum class NodeOrder(val title: String) { Listed("As listed"), Delay("Delay"), Name("Name") }
+
+/** The nodes of a source that match [query] (name or kind), without failing ones when [hideFailing], in [order]. */
+private fun List<Node>.shown(query: String, order: NodeOrder, hideFailing: Boolean): List<Node> {
+    val needle = query.trim()
+    val kept = filter { node ->
+        (needle.isEmpty() || node.name.contains(needle, ignoreCase = true) || node.protocol?.contains(needle, ignoreCase = true) == true) &&
+            !(hideFailing && node.tested && node.delay == null)
+    }
+    return when (order) {
+        NodeOrder.Listed -> kept
+        NodeOrder.Delay -> kept.sortedBy { it.delay ?: Int.MAX_VALUE }
+        NodeOrder.Name -> kept.sortedBy { it.name.lowercase() }
+    }
+}
 
 /** The intervals a subscription can update at, in hours; 0 only when asked. */
 private val INTERVALS = listOf(0 to "Manual", 6 to "6 h", 12 to "12 h", 24 to "24 h")
@@ -106,14 +134,28 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
     var adding by remember { mutableStateOf(false) }
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
     var editing by remember { mutableStateOf<String?>(null) }
+    var query by remember { mutableStateOf("") }
+    var order by remember { mutableStateOf(NodeOrder.Listed) }
+    var hideFailing by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             state.notice?.let { Label(it, 13.sp, if (state.noticeIsError) NodeWeather.Cut.ink(ink.dark) else ink.soft) }
             Spacer(Modifier.weight(1f))
             Action(if (state.testing) "Testing" else "Test all", enabled = !state.testing, onClick = actions.onTest)
+            Action("Add node", onClick = actions.onAddNode)
             Action("Import", onClick = actions.onImport)
+            Action("Export", onClick = actions.onExport)
             Action("Add subscription") { adding = !adding }
         }
+        // Finding a node among hundreds: by name or kind, in an order, without the ones not answering.
+        Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            Text(query, { query = it }, Modifier.width(240.dp), hint = "Search nodes")
+            Spacer(Modifier.width(4.dp))
+            NodeOrder.entries.forEach { choice -> Choice(choice.title, choice == order) { order = choice } }
+            Spacer(Modifier.width(4.dp))
+            Choice("Hide failing", hideFailing) { hideFailing = !hideFailing }
+        }
+
         if (adding) {
             Field(
                 "https://",
@@ -123,6 +165,12 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
             )
         }
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
+            // The form scrolls with the list, so a long one is never cut off.
+            state.editing?.let { open ->
+                item(key = "editor") {
+                    NodeEditor(open.draft, editing = open.tag != null, error = open.error, saving = open.saving, onSave = actions.onSaveNode, onCancel = actions.onCancelNode)
+                }
+            }
             for (section in state.sections) {
                 val open = collapsed[section.id] != true
                 item(key = "head:" + section.id) {
@@ -136,7 +184,7 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
                     }
                 }
                 if (open) {
-                    items(section.nodes, key = { section.id + ":" + it.id }) { node ->
+                    items(section.nodes.shown(query, order, hideFailing), key = { section.id + ":" + it.id }) { node ->
                         NodeRow(node, node.id == state.selected, removable = section.kind == SourceKind.Imported, copyable = section.kind != SourceKind.Managed, actions)
                     }
                 }
@@ -225,6 +273,13 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
                 }
             }
         }
+        Box(Modifier.width(32.dp), contentAlignment = Alignment.Center) {
+            if (removable) {
+                Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onEditNode(node.id) }.padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
+                    Label("Edit", 12.sp, ink.soft)
+                }
+            }
+        }
         Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
             if (removable) {
                 Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onRemoveNode(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
@@ -269,7 +324,7 @@ private fun EditLine(title: String, content: @Composable RowScope.() -> Unit) {
 }
 
 @Composable
-private fun Text(value: String, onChange: (String) -> Unit, modifier: Modifier, wrong: Boolean = false) {
+private fun Text(value: String, onChange: (String) -> Unit, modifier: Modifier, wrong: Boolean = false, hint: String = "") {
     val ink = LocalInk.current
     BasicTextField(
         value, onChange,
@@ -277,7 +332,12 @@ private fun Text(value: String, onChange: (String) -> Unit, modifier: Modifier, 
         singleLine = true,
         textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.ui, fontSize = 13.sp),
         cursorBrush = SolidColor(ink.ink),
-        decorationBox = { field -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) { field() } },
+        decorationBox = { field ->
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                if (value.isEmpty() && hint.isNotEmpty()) Label(hint, 13.sp, ink.soft)
+                field()
+            }
+        },
     )
 }
 

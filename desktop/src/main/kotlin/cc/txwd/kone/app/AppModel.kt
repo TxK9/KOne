@@ -21,6 +21,8 @@ import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules
 import cc.txwd.kone.node.Countries
 import cc.txwd.kone.node.SharedNode
+import cc.txwd.kone.node.NodeDraft
+import cc.txwd.kone.node.NodeForm
 import cc.txwd.kone.node.ShareLinkWriter
 import cc.txwd.kone.node.ShareLinks
 import cc.txwd.kone.node.SubscriptionContent
@@ -28,6 +30,7 @@ import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
+import cc.txwd.kone.ui.NodeEditing
 import cc.txwd.kone.ui.NodeSection
 import cc.txwd.kone.ui.NetworkState
 import cc.txwd.kone.ui.NodesState
@@ -73,6 +76,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** The nodes the person imported (⋮), joined to the console's. */
     private val imports = Imports(File(Places.data, "imported.bin"), Vault.forThisComputer())
     private var importedTags: Set<String> = emptySet()
+
+    /** The imported nodes' tags in the order they are kept, so a listed node finds its place in [imports]. */
+    private var importedOrder: List<String> = emptyList()
+
+    /** A node being written by hand on the Nodes page. */
+    private var editing: NodeEditing? = null
 
     /** The person's subscriptions (Nodes), fetched in the background and joined after the imported nodes. */
     private val subscriptions = Subscriptions(File(Places.data, "subscriptions.bin"), Vault.forThisComputer())
@@ -651,6 +660,77 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         tell("Link copied", error = false)
     }
 
+    /** Opens the form for a new node. */
+    fun addNode() {
+        editing = NodeEditing(null, NodeDraft())
+        refresh()
+    }
+
+    /** Opens an imported node in the form; subscribed nodes are their provider's, the console's the owner's. */
+    fun editNode(tag: String) {
+        val outbound = imports.all.getOrNull(importedOrder.indexOf(tag)) ?: return
+        val draft = NodeForm.read(JsonObject(outbound - "tag"), nameOf(tag))
+        if (draft == null) {
+            tell("This node has settings the form cannot show", error = true)
+            return
+        }
+        editing = NodeEditing(tag, draft)
+        refresh()
+    }
+
+    fun cancelNode() {
+        editing = null
+        refresh()
+    }
+
+    /**
+     * Saves the node in the form, once sing-box accepts it beside the console's: a new one joins
+     * the imported nodes, an edited one takes its old place. A running connection on the edited
+     * node starts afresh with it.
+     */
+    fun saveNode(draft: NodeDraft) {
+        val open = editing ?: return
+        val outbound = NodeForm.build(draft).getOrElse { failure ->
+            editing = open.copy(draft = draft, error = failure.message ?: "The node is not complete")
+            refresh()
+            return
+        }
+        val managed = account.binding?.source ?: run {
+            editing = open.copy(draft = draft, error = "Waiting for the console's nodes")
+            refresh()
+            return
+        }
+        editing = open.copy(draft = draft, error = null, saving = true)
+        refresh()
+        scope.launch {
+            val clean = JsonObject(outbound - "tag")
+            val name = (outbound["tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
+            val accepted = withContext(Dispatchers.IO) { accepts(Merge.into(managed, listOf(listOf(outbound))).source) }
+            val saved = accepted && withContext(Dispatchers.IO) {
+                if (open.tag == null) imports.addOutbounds(listOf(clean to name)) > 0 else imports.replace(importedOrder.indexOf(open.tag), clean, name)
+            }
+            if (!saved) {
+                editing = editing?.copy(saving = false, error = if (accepted) "This node is already here" else "sing-box does not accept this node")
+                refresh()
+                return@launch
+            }
+            editing = null
+            nodesChanged()
+            tell(if (open.tag == null) "Node added" else "Node saved", error = false)
+            if (open.tag != null && (account.binding?.selected == open.tag || inUse() == open.tag)) restart()
+        }
+    }
+
+    /** Every imported and subscribed node as share links, one a line; never the console's. */
+    fun exportLinks(): String {
+        val outbounds = (merged()?.source?.get("outbounds") as? kotlinx.serialization.json.JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
+        return outbounds.mapNotNull { outbound ->
+            val tag = (outbound["tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: return@mapNotNull null
+            if (tag !in importedTags && tag !in subscribed) return@mapNotNull null
+            ShareLinkWriter.write(JsonObject(outbound - "tag"), nameOf(tag))
+        }.joinToString("\n")
+    }
+
     /** Every node's delay, now, several at a time. */
     fun testAll() {
         val api = clash ?: probeApi?.let(::ClashApi) ?: return
@@ -1226,7 +1306,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun loadNodes() {
         val binding = account.binding
         val merged = merged()
-        importedTags = merged?.groups?.firstOrNull().orEmpty().toSet()
+        importedOrder = merged?.groups?.firstOrNull().orEmpty()
+        importedTags = importedOrder.toSet()
         subscribed = merged?.let { all -> subscriptions.all.zip(all.groups.drop(1)).flatMap { (subscription, tags) -> tags.map { it to subscription } }.toMap() }.orEmpty()
         nodes = merged?.source?.let { runCatching { KoneConfig.build(it, rules, CoreApi(9090, "list")).nodes }.getOrNull() }.orEmpty()
         health.forget(nodes.mapTo(HashSet()) { it.tag })
@@ -1329,6 +1410,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     )
                 }
             },
+            editing = editing,
             selected = selected,
             testing = testing,
             notice = nodesNotice?.first,
