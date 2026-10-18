@@ -305,6 +305,15 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         drivenPick = null
         standIn = null
         val running = clash
+        // A country's Automatic: the core is moved to that country's pick, and steered among its nodes from here.
+        regionOf(tag)?.let { region ->
+            val pick = regionPick(region)?.tag
+            if (running != null && pick != null) {
+                if (pick !in runningTags) restart() else scope.launch(Dispatchers.IO) { if (running.select(pick)) detectExit() }
+            }
+            refresh()
+            return
+        }
         if (running != null) {
             // A node added since the core started is not in it: the core starts afresh with it.
             if (tag != KoneConfig.AUTO_TAG && tag !in runningTags) {
@@ -375,7 +384,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 keeper.running = keeper.deliver(link)
                 runCatching {
                     link.connect(
-                        source, binding.selected, preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
+                        source, startTag(binding.selected), preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
                         preferences.rules, preferences.blockAds, preferences.remoteDns, preferences.directDns, preferences.ipv6,
                         preferences.hosts, preferences.unmatchedDirect,
                     )
@@ -421,7 +430,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 asked = now
                 val running = clash
                 if (slept && running != null && !restarting) {
-                    val node = account.binding?.selected ?: nodes.firstOrNull()?.tag
+                    val node = inUse() ?: nodes.firstOrNull()?.tag
                     val answers = node != null && withContext(Dispatchers.IO) { running.delay(node) != null || running.delay(node) != null }
                     if (!answers) {
                         restarting = true
@@ -463,7 +472,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             val listed = withContext(Dispatchers.IO) { keeper.ready() }
             keeper.running = listed
             val config = runCatching {
-                KoneConfig.build(source, rules, api, account.binding?.selected, tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
+                KoneConfig.build(source, rules, api, startTag(account.binding?.selected), tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
                     direct = preferences.direct, proxied = preferences.proxied, routes = keeper.routesWith(listed), blockAds = preferences.blockAds,
                     remoteDns = preferences.remoteDns, directDns = preferences.directDns, ipv6 = preferences.ipv6, hosts = preferences.hosts,
                     unmatchedDirect = preferences.unmatchedDirect,
@@ -958,7 +967,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun inUse(): String? {
         standIn?.let { return it }
         val chosen = account.binding?.selected ?: return nodes.firstOrNull()?.tag
-        return if (chosen == KoneConfig.AUTO_TAG) drivenPick ?: autoNow ?: autoPick()?.tag else chosen
+        if (chosen == KoneConfig.AUTO_TAG) return drivenPick ?: autoNow ?: autoPick()?.tag
+        return regionOf(chosen)?.let { regionPick(it)?.tag } ?: chosen
     }
 
     /**
@@ -1483,7 +1493,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         delay(5_000)
         while (clash === api) {
             val chosen = account.binding?.selected
-            if (chosen == KoneConfig.AUTO_TAG && auto) steerAutomatic(api) else if (chosen != null) guard(api, chosen)
+            val region = regionOf(chosen)
+            when {
+                chosen == KoneConfig.AUTO_TAG && auto -> steerAutomatic(api)
+                region != null -> steerRegion(api, region)
+                chosen != null -> guard(api, chosen)
+            }
             // The node in use not answering may be the network, not the node: a sign-in page.
             inUse()?.let { tag ->
                 if (health.failing(tag) >= Health.FAILED) signIns.look()
@@ -1514,6 +1529,55 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
         autoNow = drivenPick ?: current
         refresh()
+    }
+
+    /** A country's Automatic: the same patient steering as Automatic, among that country's nodes only. */
+    private suspend fun steerRegion(api: ClashApi, region: String) {
+        val members = regionNodes(region).map { it.tag }
+        val current = drivenPick?.takeIf { it in members } ?: withContext(Dispatchers.IO) { api.now(KoneConfig.PROXY_TAG) }?.takeIf { it in members }
+        if (current != null) testOne(api, current)
+        if (clash !== api || regionOf(account.binding?.selected) != region) return
+        // The others are tested now and then too, so there is someone to move to.
+        if (members.count { health.tested(it) } < 2) measureSome(api, (members - setOfNotNull(current)).take(4))
+        val next = steer.next(current, members)
+        if (next != null && withContext(Dispatchers.IO) { api.select(next) }) {
+            if (current != null && health.failing(current) >= Health.FAILED) closeVia(api, current)
+            drivenPick = next
+            log("Automatic in $region: ${nameOf(next)}")
+        } else if (current == null) {
+            drivenPick = null
+        } else {
+            drivenPick = current
+        }
+        refresh()
+    }
+
+    // Automatic within a country
+
+    /** The country (category) of a country's Automatic as the selection keeps it ("auto@Japan"), if it still has two nodes or more. */
+    private fun regionOf(selected: String?): String? =
+        selected?.takeIf { it.startsWith(REGION_AUTO) }?.removePrefix(REGION_AUTO)?.takeIf { it in regions() }
+
+    /** The countries with two nodes or more, each of which has an Automatic of its own. */
+    private fun regions(): Set<String> = nodes.groupBy(::categoryOf).filter { it.value.size >= 2 }.keys
+
+    private fun regionNodes(region: String) = nodes.filter { categoryOf(it) == region }
+
+    /** The node a country's Automatic is on or starts on: KOne's pick, else the healthiest, else the fastest last test, else the first. */
+    private fun regionPick(region: String): SourceNode? {
+        val members = regionNodes(region)
+        drivenPick?.let { pick -> members.firstOrNull { it.tag == pick }?.let { return it } }
+        health.best(members.map { it.tag })?.let { best -> return members.first { it.tag == best } }
+        return members.filter { delays[it.tag] != null }.minByOrNull { delays[it.tag]!! } ?: members.firstOrNull()
+    }
+
+    /** The node the core starts on for what the person chose: a country's Automatic starts on its pick. */
+    private fun startTag(selected: String?): String? = regionOf(selected)?.let { regionPick(it)?.tag } ?: selected
+
+    /** A country's Automatic as a row at the head of its tab: the node it is on, with that node's flag and delay. */
+    private fun regionNode(region: String): Node {
+        val pick = regionPick(region)
+        return Node(REGION_AUTO + region, if (pick != null) "$AUTO_NAME · ${pick.name}" else AUTO_NAME, pick?.country, region, pick?.let { delays[it.tag] }, tested = pick?.tag in delays)
     }
 
     /** Fails over from [chosen] when it stops answering, and back when it answers again. */
@@ -1682,7 +1746,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         nodes = merged?.source?.let { runCatching { KoneConfig.build(it, rules, CoreApi(9090, "list")).nodes }.getOrNull() }.orEmpty()
         health.forget(nodes.mapTo(HashSet()) { it.tag })
         if (tab !in categories()) {
-            tab = if (binding?.selected == KoneConfig.AUTO_TAG && auto) AUTO_NAME else categoryOf(nodes.firstOrNull { it.tag == binding?.selected } ?: nodes.firstOrNull())
+            tab = when {
+                binding?.selected == KoneConfig.AUTO_TAG && auto -> AUTO_NAME
+                regionOf(binding?.selected) != null -> regionOf(binding?.selected)!!
+                else -> categoryOf(nodes.firstOrNull { it.tag == binding?.selected } ?: nodes.firstOrNull())
+            }
         }
         refresh()
     }
@@ -1747,11 +1815,17 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     )
 
     private fun refresh() {
-        val selected = account.binding?.selected?.takeIf { tag -> (tag == KoneConfig.AUTO_TAG && auto) || nodes.any { it.tag == tag } } ?: nodes.firstOrNull()?.tag
+        val selected = account.binding?.selected?.takeIf { tag -> (tag == KoneConfig.AUTO_TAG && auto) || regionOf(tag) != null || nodes.any { it.tag == tag } }
+            ?: nodes.firstOrNull()?.tag
         val listed = nodes.map(::shown)
+        // Each country with two nodes or more leads its tab with an Automatic of its own.
+        val regional = regions()
+        val withRegions = listed.groupBy { it.category }.flatMap { (category, members) ->
+            if (category in regional) listOf(regionNode(category)) + members else members
+        }
         dashboard = DashboardState(
             categories = categories(),
-            nodes = (if (auto) listOf(autoNode()) else emptyList()) + listed,
+            nodes = (if (auto) listOf(autoNode()) else emptyList()) + withRegions,
             tab = tab,
             selected = selected,
             connection = connection,
@@ -1794,6 +1868,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     companion object {
         private const val SLEPT_MILLIS = 20_000L
         private const val AUTO_NAME = "Automatic"
+        /** How a country's Automatic is kept as the selection: "auto@" and the country's name. */
+        private const val REGION_AUTO = "auto@"
         private const val IMPORTED_NAME = "Imported"
 
         /** How KOne connects: through its own adapter (TUN), or through Windows' proxy. */
