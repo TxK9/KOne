@@ -46,6 +46,8 @@ data class Node(
     val protocol: String? = null,
     /** The share of its recent tests the node did not answer, 0 to 1; null before any. */
     val loss: Double? = null,
+    /** Its last bandwidth test. */
+    val speed: cc.txwd.kone.core.Speed? = null,
 ) {
     val weather: NodeWeather get() = if (tested) NodeWeather.of(delay) else NodeWeather.Rest
 }

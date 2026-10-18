@@ -246,6 +246,10 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		dnsRules = append(dnsRules, rule)
 		routeRules = append(routeRules, rule)
 	}
+	// KOne's own test cores (delays, speed) reach their nodes straight out, not through the tunnel.
+	if options.Tun {
+		routeRules = append(routeRules, map[string]any{"process_name": []any{"sing-box.exe"}, "outbound": "direct"})
+	}
 	if straight := Programs(options.Bypass); len(straight) > 0 {
 		dnsRules = append(dnsRules, map[string]any{"process_name": straight, "server": "local-dns"})
 		routeRules = append(routeRules, map[string]any{"process_name": straight, "outbound": "direct"})

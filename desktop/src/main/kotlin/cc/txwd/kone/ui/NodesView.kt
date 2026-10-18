@@ -75,6 +75,8 @@ data class NodeEditing(val tag: String?, val draft: NodeDraft, val error: String
 data class NodesState(
     val sections: List<NodeSection> = emptyList(),
     val editing: NodeEditing? = null,
+    /** The node whose bandwidth is being tested now. */
+    val speedTesting: String? = null,
     val selected: String? = null,
     /** Every node's delay is being tested now. */
     val testing: Boolean = false,
@@ -100,6 +102,8 @@ class NodesActions(
     val onCancelNode: () -> Unit = {},
     /** Saves every imported and subscribed node as share links to a file. */
     val onExport: () -> Unit = {},
+    /** Tests a node's bandwidth (about 35 MB). */
+    val onSpeed: (String) -> Unit = {},
     val onImport: () -> Unit = {},
 )
 
@@ -185,7 +189,10 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
                 }
                 if (open) {
                     items(section.nodes.shown(query, order, hideFailing), key = { section.id + ":" + it.id }) { node ->
-                        NodeRow(node, node.id == state.selected, removable = section.kind == SourceKind.Imported, copyable = section.kind != SourceKind.Managed, actions)
+                        NodeRow(
+                            node, node.id == state.selected, removable = section.kind == SourceKind.Imported, copyable = section.kind != SourceKind.Managed,
+                            speedTesting = state.speedTesting, actions = actions,
+                        )
                     }
                 }
             }
@@ -242,7 +249,7 @@ private fun Expiry(expire: Long, now: Long) {
 }
 
 @Composable
-private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boolean, actions: NodesActions) {
+private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boolean, speedTesting: String?, actions: NodesActions) {
     val ink = LocalInk.current
     val color = if (on) ink.ink else ink.soft
     Row(
@@ -258,6 +265,19 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
         Box(Modifier.width(72.dp), contentAlignment = Alignment.CenterEnd) {
             node.loss?.takeIf { it > 0 }?.let { loss ->
                 Label("${(loss * 100).toInt()}% lost", 12.sp, if (loss >= 0.3) NodeWeather.Cut.ink(ink.dark) else ink.soft, tabular = true)
+            }
+        }
+        // The last bandwidth test, or the way to run one.
+        Box(Modifier.width(140.dp), contentAlignment = Alignment.CenterEnd) {
+            val speed = node.speed
+            when {
+                speedTesting == node.id -> Label("Testing speed", 12.sp, ink.soft)
+                speed != null -> Box(Modifier.height(28.dp).press(enabled = speedTesting == null, bleed = 4.dp) { if (speedTesting == null) actions.onSpeed(node.id) }, contentAlignment = Alignment.Center) {
+                    Label("↓ ${mbps(speed.down)}  ↑ ${mbps(speed.up)} Mbps", 12.sp, ink.ink, tabular = true)
+                }
+                else -> Box(Modifier.height(28.dp).press(enabled = speedTesting == null, bleed = 4.dp) { if (speedTesting == null) actions.onSpeed(node.id) }, contentAlignment = Alignment.Center) {
+                    Label("Speed", 12.sp, if (speedTesting == null) ink.soft else ink.hair)
+                }
             }
         }
         Row(Modifier.width(96.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
@@ -388,6 +408,13 @@ private fun Choice(name: String, on: Boolean, onClick: () -> Unit) {
     ) {
         Label(name, 13.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
     }
+}
+
+/** Megabits a second as people read them: 85.3, 312, or — when the direction failed. */
+fun mbps(value: Double?): String = when {
+    value == null -> "—"
+    value >= 100 -> "%.0f".format(java.util.Locale.ROOT, value)
+    else -> "%.1f".format(java.util.Locale.ROOT, value)
 }
 
 /** How long ago, in the largest unit that fits: just now, 5 min ago, 3 h ago, 2 days ago. */

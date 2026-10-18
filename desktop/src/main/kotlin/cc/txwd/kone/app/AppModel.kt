@@ -17,6 +17,8 @@ import cc.txwd.kone.core.Probe
 import cc.txwd.kone.core.RuleSets
 import cc.txwd.kone.core.ServiceLink
 import cc.txwd.kone.core.SourceNode
+import cc.txwd.kone.core.Speed
+import cc.txwd.kone.core.SpeedTest
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules
 import cc.txwd.kone.node.Countries
@@ -82,6 +84,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** A node being written by hand on the Nodes page. */
     private var editing: NodeEditing? = null
+
+    /** The last bandwidth test of each node, and the node being tested now (one at a time). */
+    private val speeds = HashMap<String, Speed>()
+    private var speedTesting: String? = null
 
     /** The person's subscriptions (Nodes), fetched in the background and joined after the imported nodes. */
     private val subscriptions = Subscriptions(File(Places.data, "subscriptions.bin"), Vault.forThisComputer())
@@ -658,6 +664,43 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
         copy(link)
         tell("Link copied", error = false)
+    }
+
+    /**
+     * Tests how fast [tag] carries data, through a core of its own, so the live connection is left
+     * alone. Uses about 35 MB; one node at a time.
+     */
+    fun testSpeed(tag: String) {
+        val core = Places.core
+        if (core == null) {
+            tell("Speed tests need KOne installed", error = true)
+            return
+        }
+        val source = source() ?: return
+        if (speedTesting != null || tag == KoneConfig.AUTO_TAG) return
+        speedTesting = tag
+        refresh()
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                val api = CoreApi(freePort(), token())
+                val port = freePort()
+                // Global, on this node alone: every byte of the test goes through it.
+                val config = runCatching { KoneConfig.build(source, rules, api, selected = tag, tun = false, mode = "Global", mixed = port).config.toString() }.getOrNull()
+                    ?: return@withContext null
+                val tester = Probe(core)
+                try {
+                    if (!tester.start(config)) return@withContext null
+                    val clash = ClashApi(api)
+                    if ((0 until 50).none { clash.answers().also { up -> if (!up) Thread.sleep(200) } }) return@withContext null
+                    SpeedTest().run(port)
+                } finally {
+                    tester.stop()
+                }
+            }
+            speedTesting = null
+            if (result == null || (result.down == null && result.up == null)) tell("${nameOf(tag)} did not carry the test", error = true) else speeds[tag] = result
+            refresh()
+        }
     }
 
     /** Opens the form for a new node. */
@@ -1373,7 +1416,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** A node as the screens show it. */
     private fun shown(node: SourceNode) = Node(
         node.tag, node.name, node.country, categoryOf(node), delays[node.tag], tested = node.tag in delays,
-        imported = node.tag in importedTags, protocol = node.type, loss = health.loss(node.tag),
+        imported = node.tag in importedTags, protocol = node.type, loss = health.loss(node.tag), speed = speeds[node.tag],
     )
 
     private fun refresh() {
@@ -1411,6 +1454,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 }
             },
             editing = editing,
+            speedTesting = speedTesting,
             selected = selected,
             testing = testing,
             notice = nodesNotice?.first,

@@ -287,3 +287,32 @@ func TestTheSystemProxyPortListensOnLoopbackOnly(t *testing.T) {
 		t.Fatalf("third rule: %v", first)
 	}
 }
+
+func TestTestCoresGoStraightOutOnlyWithTheTunnelAndAfterTheClaudeBlock(t *testing.T) {
+	config, _, err := Build(source(t, true), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := config["route"].(map[string]any)["rules"].([]any)
+	block, core := -1, -1
+	for i, rule := range rules {
+		r := rule.(map[string]any)
+		if r["action"] == "reject" && block < 0 {
+			block = i
+		}
+		if names, ok := r["process_name"].([]any); ok && len(names) == 1 && names[0] == "sing-box.exe" {
+			core = i
+		}
+	}
+	if block < 0 || core < 0 || block > core {
+		t.Fatalf("the Claude block (%d) must come before the test cores' rule (%d)", block, core)
+	}
+	probe := options
+	probe.Tun = false
+	plain, _, _ := Build(source(t, true), probe)
+	for _, rule := range plain["route"].(map[string]any)["rules"].([]any) {
+		if names, ok := rule.(map[string]any)["process_name"].([]any); ok && names[0] == "sing-box.exe" {
+			t.Fatal("without the tunnel there is nothing to go round")
+		}
+	}
+}

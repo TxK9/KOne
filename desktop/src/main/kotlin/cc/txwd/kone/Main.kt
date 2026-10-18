@@ -259,6 +259,7 @@ fun main(args: Array<String>) {
                                               onImport = { model.importText(clipboardText().orEmpty()) },
                                               onCopyLink = { tag -> model.copyLink(tag, ::copyText) },
                                               onAddNode = model::addNode,
+                                              onSpeed = model::testSpeed,
                                               onEditNode = model::editNode,
                                               onSaveNode = model::saveNode,
                                               onCancelNode = model::cancelNode,

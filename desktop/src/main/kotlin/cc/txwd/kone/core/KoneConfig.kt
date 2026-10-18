@@ -171,6 +171,8 @@ object KoneConfig {
                     add(buildJsonObject { put("action", "sniff") })
                     add(buildJsonObject { put("protocol", "dns"); put("action", "hijack-dns") })
                     refused.forEach { add(it) }
+                    // KOne's own test cores (delays, speed) reach their nodes straight out, not through the tunnel.
+                    if (tun) add(buildJsonObject { putJsonArray("process_name") { add("sing-box.exe") }; put("outbound", "direct") })
                     // Programs the person sent straight out: after the Claude block, so it holds for them too.
                     if (straight.isNotEmpty()) add(buildJsonObject { putJsonArray("process_name") { straight.forEach { add(it) } }; put("outbound", "direct") })
                     // The person's sites, after the Claude block too: straight out in every mode, through the node in Rule.

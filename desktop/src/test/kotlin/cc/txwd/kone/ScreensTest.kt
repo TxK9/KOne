@@ -256,7 +256,7 @@ class ScreensTest {
                 NodeSection("imported", SourceKind.Imported, "Imported", listOf(Node("i1", "Friend's node", null, "Imported", 220, imported = true, protocol = "hysteria2"))),
                 NodeSection(
                     "s1", SourceKind.Subscription, "Example Cloud", listOf(
-                        Node("s1a", "Hong Kong 01", "HK", "Hong Kong", 42, protocol = "shadowsocks"),
+                        Node("s1a", "Hong Kong 01", "HK", "Hong Kong", 42, protocol = "shadowsocks", speed = cc.txwd.kone.core.Speed(186.4, 42.7)),
                         Node("s1b", "Singapore 02", "SG", "Singapore", 1040, protocol = "vmess", loss = 0.1),
                         Node("s1c", "Germany 03", "DE", "Germany", null, protocol = "tuic", loss = 0.6),
                     ),
@@ -266,6 +266,7 @@ class ScreensTest {
                 NodeSection("s2", SourceKind.Subscription, "Backup", emptyList(), error = "The provider cannot be reached", hours = 24, url = "https://example.net/sub"),
             ),
             selected = "jp1",
+            speedTesting = "s1b",
         )
         for (dark in listOf(false, true)) {
             shoot("nodes", dark) { WithRail(Page.Nodes, {}) { NodesView(state, NodesActions(), now) } }
