@@ -4,9 +4,12 @@ import cc.txwd.kone.console.ConsoleException
 import cc.txwd.kone.console.ConsoleFailure
 import cc.txwd.kone.console.FakeConsole
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -86,7 +89,7 @@ class KoneConfigTest {
         val outbounds = built.config["outbounds"]!!.jsonArray.map { it.jsonObject }
         val selector = outbounds.first()
         assertEquals("Japan 2", selector["default"]!!.jsonPrimitive.content)
-        assertEquals(listOf("proxy-2", "Japan 2"), selector["outbounds"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertEquals(listOf("auto", "proxy-2", "Japan 2"), selector["outbounds"]!!.jsonArray.map { it.jsonPrimitive.content })
         // The relay is kept, but not offered as a node of its own.
         assertEquals("relay", outbounds.first { it["tag"]!!.jsonPrimitive.content == "Japan 2" }["detour"]!!.jsonPrimitive.content)
         assertTrue(outbounds.any { it["tag"]!!.jsonPrimitive.content == "relay" })
@@ -123,11 +126,19 @@ class KoneConfigTest {
                 """,
             ) as JsonObject,
         )
-        for (source in sources) for (tun in listOf(true, false)) {
-            val ours = KoneConfig.build(source, rules, api, selected = "Japan 2", tun = tun).config
+        val bypass = listOf("WeChat.exe", "steam.EXE", "wechat.exe", "C:\\x\\cmd.exe", "notes.txt")
+        val cases = listOf(Triple("Japan 2", "Rule", emptyList()), Triple("auto", "Global", bypass), Triple("Japan 2", "Everything", bypass))
+        val direct = listOf("Example.CN", "example.cn", "com", "https://x.example/", "a.example.org")
+        val proxied = listOf("example.com", "*.bad.example", "203.0.113.7")
+        for (source in sources) for ((tun, mixed) in listOf(true to 0, false to 0, false to 7890)) for ((selected, mode, straight) in cases) {
+            val sites = if (straight.isEmpty()) emptyList() else direct
+            val through = if (mode == "Rule") emptyList() else proxied
+            val ours = KoneConfig.build(source, rules, api, selected = selected, tun = tun, mode = mode, bypass = straight, mixed = mixed, direct = sites, proxied = through).config
             val request = buildJsonObject {
-                put("source", source); put("selected", "Japan 2"); put("rules", rules)
+                put("source", source); put("selected", selected); put("rules", rules)
                 put("port", api.port); put("secret", api.secret); put("tun", tun)
+                put("mode", mode); putJsonArray("bypass") { straight.forEach { add(it) } }; put("mixed", mixed)
+                putJsonArray("direct") { sites.forEach { add(it) } }; putJsonArray("proxied") { through.forEach { add(it) } }
             }
             val process = ProcessBuilder(found!!.path, "build-config").start()
             process.outputStream.use { it.write(request.toString().toByteArray()) }
@@ -144,10 +155,61 @@ class KoneConfigTest {
         val found = System.getProperty("kone.singbox")?.let(::File)?.takeIf { it.canExecute() }
         assumeTrue(found != null, "no sing-box binary here (-Pkone.singbox=…, or the workflow's)")
         val core = found!!
-        val file = File(folder, "config.json").apply { writeText(build(FakeConsole.source(blockClaude = true)).config.toString()) }
+        val built = KoneConfig.build(
+            FakeConsole.source(blockClaude = true), rules, api, bypass = listOf("WeChat.exe"), mixed = 7890,
+            direct = listOf("example.cn"), proxied = listOf("example.com"),
+        )
+        val file = File(folder, "config.json").apply { writeText(built.config.toString()) }
         val process = ProcessBuilder(core.path, "check", "-c", file.path).redirectErrorStream(true).start()
         val output = process.inputStream.readBytes().decodeToString()
         assertTrue(process.waitFor(60, TimeUnit.SECONDS), "sing-box check did not finish")
         assertEquals(0, process.exitValue(), output)
+    }
+
+    @Test
+    fun onlyProgramFileNamesAreSentStraightOutAndAfterTheClaudeBlock() {
+        assertEquals(listOf("WeChat.exe", "steam.EXE"), KoneConfig.programs(listOf("WeChat.exe", " steam.EXE ", "wechat.exe", "C:\\Windows\\cmd.exe", "../x.exe", "notes.txt", "a:b.exe", ".exe", "")))
+        assertEquals(64, KoneConfig.programs((0 until 100).map { "p$it.exe" }).size)
+        val config = KoneConfig.build(FakeConsole.source(blockClaude = true), rules, api, bypass = listOf("WeChat.exe")).config
+        val routeRules = (config["route"] as JsonObject)["rules"] as JsonArray
+        val block = routeRules.indexOfFirst { (it as JsonObject)["action"]?.jsonPrimitive?.content == "reject" }
+        val straight = routeRules.indexOfFirst { "process_name" in (it as JsonObject) }
+        assertTrue(block in 0 until straight, "the Claude block comes before the programs sent straight out")
+    }
+
+    @Test
+    fun sitesArePlainDomainsAfterTheClaudeBlock() {
+        assertEquals(listOf("example.cn", "a.b.example.org"), KoneConfig.sites(listOf("Example.CN", " example.cn ", "a.b.example.org", "com", "*.example.com", "https://example.net/", "203.0.113.7", "-bad.example", "")))
+        assertEquals(256, KoneConfig.sites((0 until 300).map { "s$it.example" }).size)
+        assertEquals("www.example.com", KoneConfig.site("https://WWW.Example.com:8443/a/b?c#d"))
+        assertEquals("example.com", KoneConfig.site("*.example.com"))
+        assertEquals("example.com", KoneConfig.site(".example.com."))
+        assertEquals(null, KoneConfig.site("203.0.113.7"))
+        assertEquals(null, KoneConfig.site("localhost"))
+        val config = KoneConfig.build(FakeConsole.source(blockClaude = true), rules, api, direct = listOf("claude.ai", "example.cn"), proxied = listOf("example.com")).config
+        for (section in listOf("route", "dns")) {
+            val rules = config.rules(section)
+            val block = rules.indexOfFirst { it["action"]?.jsonPrimitive?.content == "reject" }
+            val straight = rules.indexOfFirst { "domain_suffix" in it && "action" !in it && "clash_mode" !in it }
+            val through = rules.indexOfFirst { "domain_suffix" in it && it["clash_mode"]?.jsonPrimitive?.content == "Rule" }
+            assertTrue(block in 0 until straight && straight < through, "$section: the Claude block, then the sites straight out, then those through the node")
+        }
+    }
+
+    @Test
+    fun twoNodesOrMoreBringAutoThatPicksTheFastest() {
+        val two = KoneConfig.build(FakeConsole.source(blockClaude = true), rules, api, selected = KoneConfig.AUTO_TAG).config
+        val outbounds = (two["outbounds"] as JsonArray).map { it as JsonObject }
+        val selector = outbounds.first { it["tag"]?.jsonPrimitive?.content == KoneConfig.PROXY_TAG }
+        assertEquals(listOf("auto", "\u7f8e\u56fd", "\u65e5\u672c"), (selector["outbounds"] as JsonArray).map { it.jsonPrimitive.content })
+        assertEquals("auto", selector["default"]?.jsonPrimitive?.content)
+        val auto = outbounds.first { it["tag"]?.jsonPrimitive?.content == KoneConfig.AUTO_TAG }
+        assertEquals("urltest", auto["type"]?.jsonPrimitive?.content)
+        assertEquals(listOf("\u7f8e\u56fd", "\u65e5\u672c"), (auto["outbounds"] as JsonArray).map { it.jsonPrimitive.content })
+
+        val one = Json.parseToJsonElement("""{"outbounds":[{"type":"trojan","tag":"auto","server":"203.0.113.11","server_port":443,"password":"example"}]}""") as JsonObject
+        val single = KoneConfig.build(one, rules, api, selected = KoneConfig.AUTO_TAG)
+        assertEquals(listOf("auto-2"), single.nodes.map { it.tag }, "a node named auto moves aside")
+        assertTrue((single.config["outbounds"] as JsonArray).none { (it as JsonObject)["type"]?.jsonPrimitive?.content == "urltest" }, "one node has no Auto")
     }
 }

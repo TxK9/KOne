@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -27,8 +28,8 @@ func source(t *testing.T, block bool) map[string]any {
 	}
 	return parse(t, `{
 	  "outbounds": [
-	    {"type": "vless", "tag": "\u7f8e\u56fd", "server": "203.0.113.10", "server_port": 443, "uuid": "00000000-0000-0001-0000-000000000001"},
-	    {"type": "trojan", "tag": "\u65e5\u672c", "server": "203.0.113.11", "server_port": 443, "password": "example"},
+	    {"type": "vless", "tag": "United States", "server": "203.0.113.10", "server_port": 443, "uuid": "00000000-0000-0001-0000-000000000001"},
+	    {"type": "trojan", "tag": "Japan", "server": "203.0.113.11", "server_port": 443, "password": "example"},
 	    {"type": "direct", "tag": "direct"}
 	  ],
 	  "route": {"rules": [`+rules+`]}
@@ -90,15 +91,15 @@ func TestOnlyRulesThatRefuseNamesAreKept(t *testing.T) {
 
 func TestOutboundsNamingFilesAreNeverRun(t *testing.T) {
 	config, nodes, err := Build(parse(t, `{"outbounds": [
-	  {"type": "vless", "tag": "\u7f8e\u56fd", "server": "203.0.113.10", "server_port": 443, "uuid": "00000000-0000-0001-0000-000000000001",
+	  {"type": "vless", "tag": "United States", "server": "203.0.113.10", "server_port": 443, "uuid": "00000000-0000-0001-0000-000000000001",
 	   "tls": {"enabled": true, "certificate_path": "C:/Windows/System32/config/SAM"}},
 	  {"type": "ssh", "tag": "Relay", "server": "203.0.113.12", "private_key_path": "C:/Users/x/.ssh/id_ed25519"},
-	  {"type": "trojan", "tag": "\u65e5\u672c", "server": "203.0.113.11", "server_port": 443, "password": "example"}
+	  {"type": "trojan", "tag": "Japan", "server": "203.0.113.11", "server_port": 443, "password": "example"}
 	]}`), options)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(nodes, []string{"\u65e5\u672c"}) {
+	if !reflect.DeepEqual(nodes, []string{"Japan"}) {
 		t.Fatalf("nodes %v", nodes)
 	}
 	text, _ := json.Marshal(config)
@@ -160,5 +161,129 @@ func TestWithoutTunThereIsNoInbound(t *testing.T) {
 	config, _, _ := Build(source(t, true), probe)
 	if len(config["inbounds"].([]any)) != 0 {
 		t.Fatal("a probe has no inbound")
+	}
+}
+
+func TestOnlyProgramFileNamesAreSentStraightOut(t *testing.T) {
+	got := Programs([]string{"WeChat.exe", " steam.EXE ", "wechat.exe", `C:\Windows\cmd.exe`, "../x.exe", "notes.txt", "a:b.exe", ".exe", ""})
+	want := []any{"WeChat.exe", "steam.EXE"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	many := make([]string, 100)
+	for i := range many {
+		many[i] = "p" + strconv.Itoa(i) + ".exe"
+	}
+	if n := len(Programs(many)); n != 64 {
+		t.Fatalf("kept %d programs, want 64", n)
+	}
+}
+
+func TestProgramsSentStraightOutStillMeetTheClaudeBlockFirst(t *testing.T) {
+	config, _, err := Build(source(t, true), Options{Rules: "/r", Port: 9090, Secret: "s", Tun: true, Bypass: []string{"WeChat.exe"}, Mode: "Global"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	route := config["route"].(map[string]any)
+	rules := route["rules"].([]any)
+	block := -1
+	straight := -1
+	for i, rule := range rules {
+		r := rule.(map[string]any)
+		if r["action"] == "reject" && block < 0 {
+			block = i
+		}
+		if _, ok := r["process_name"]; ok {
+			straight = i
+		}
+	}
+	if block < 0 || straight < 0 || block > straight {
+		t.Fatalf("the Claude block (%d) must come before the programs sent straight out (%d): %v", block, straight, rules)
+	}
+	if route["find_process"] != true {
+		t.Fatal("find_process is off")
+	}
+	api := config["experimental"].(map[string]any)["clash_api"].(map[string]any)
+	if api["default_mode"] != "Global" {
+		t.Fatalf("mode %v", api["default_mode"])
+	}
+	again, _, _ := Build(source(t, true), Options{Rules: "/r", Port: 9090, Secret: "s", Mode: "Everything"})
+	if again["experimental"].(map[string]any)["clash_api"].(map[string]any)["default_mode"] != "Rule" {
+		t.Fatal("an unknown mode must start as Rule")
+	}
+}
+
+func TestOnlyPlainDomainsAreKeptAsSites(t *testing.T) {
+	got := Sites([]string{"Example.CN", " example.cn ", "a.b.example.org", "com", "*.example.com", "https://example.net/", "203.0.113.7", "-bad.example", "x_y.example", ""})
+	want := []any{"example.cn", "a.b.example.org"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	many := make([]string, 300)
+	for i := range many {
+		many[i] = "s" + strconv.Itoa(i) + ".example"
+	}
+	if n := len(Sites(many)); n != 256 {
+		t.Fatalf("kept %d sites, want 256", n)
+	}
+}
+
+func TestSitesComeAfterTheClaudeBlockAndProxiedOnlyInRule(t *testing.T) {
+	options := options
+	options.Direct = []string{"example.cn", "claude.ai"}
+	options.Proxied = []string{"example.com"}
+	config, _, err := Build(source(t, true), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, part := range []string{"route", "dns"} {
+		rules := config[part].(map[string]any)["rules"].([]any)
+		block, direct, proxied := -1, -1, -1
+		for i, rule := range rules {
+			r := rule.(map[string]any)
+			if r["action"] == "reject" && block < 0 {
+				block = i
+			}
+			if suffix, ok := r["domain_suffix"].([]any); ok && r["action"] == nil {
+				if suffix[0] == "example.cn" {
+					direct = i
+					if r["clash_mode"] != nil {
+						t.Fatalf("%s: sites sent straight out hold in every mode: %v", part, r)
+					}
+				}
+				if suffix[0] == "example.com" {
+					proxied = i
+					if r["clash_mode"] != "Rule" {
+						t.Fatalf("%s: sites through the node only matter in Rule: %v", part, r)
+					}
+				}
+			}
+		}
+		if block < 0 || direct < 0 || proxied < 0 || block > direct || direct > proxied {
+			t.Fatalf("%s: the Claude block (%d) must come before the sites (%d, %d): %v", part, block, direct, proxied, rules)
+		}
+	}
+}
+
+func TestTheSystemProxyPortListensOnLoopbackOnly(t *testing.T) {
+	options := options
+	options.Tun = false
+	options.Mixed = 7890
+	config, _, err := Build(source(t, true), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbounds := config["inbounds"].([]any)
+	if len(inbounds) != 1 {
+		t.Fatalf("inbounds: %v", inbounds)
+	}
+	mixed := inbounds[0].(map[string]any)
+	if mixed["type"] != "mixed" || mixed["listen"] != "127.0.0.1" || mixed["listen_port"] != 7890 {
+		t.Fatalf("mixed inbound: %v", mixed)
+	}
+	// The Claude block still comes first, whatever the inbound.
+	first := config["route"].(map[string]any)["rules"].([]any)[2].(map[string]any)
+	if first["action"] != "reject" {
+		t.Fatalf("third rule: %v", first)
 	}
 }

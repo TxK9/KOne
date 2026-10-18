@@ -1,12 +1,16 @@
 package cc.txwd.kone
 
 import cc.txwd.kone.app.Account
+import cc.txwd.kone.app.SystemProxy
 import cc.txwd.kone.app.BindingStore
 import cc.txwd.kone.app.Vault
 import cc.txwd.kone.console.ClaimLink
 import cc.txwd.kone.console.ConsoleApi
 import cc.txwd.kone.console.FakeConsole
 import cc.txwd.kone.core.ClashApi
+import cc.txwd.kone.core.CoreApi
+import cc.txwd.kone.core.KoneConfig
+import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.ServiceLink
 import cc.txwd.kone.core.ServiceStatus
 import kotlinx.serialization.json.Json
@@ -94,7 +98,7 @@ class ServiceEndToEndTest {
             // Before connecting: claude.ai's address, for the TLS check later.
             val claudeAddress = InetAddress.getByName("claude.ai")
 
-            // The key: claimed from a console like the owner's, with the Claude block for this person.
+            // The key: claimed from a console like the release publisher's, with the Claude block for this person.
             val node = """{"type":"shadowsocks","tag":"United States","server":"127.0.0.1","server_port":$port,"method":"aes-128-gcm","password":"kone-e2e"}"""
             val blocked = Json.parseToJsonElement("""{"outbounds":[$node],"route":{"rules":[${FakeConsole.CLAUDE_RULE}]}}""") as JsonObject
             val open = Json.parseToJsonElement("""{"outbounds":[$node],"route":{"rules":[]}}""") as JsonObject
@@ -146,6 +150,76 @@ class ServiceEndToEndTest {
                 second.close()
                 waitFor("the core to stop when its session ends") { !tunnelUp() }
 
+                // The core dying as if it crashed is reported, so KOne connects again.
+                val crashed = assertNotNull(ServiceLink.open(service))
+                assertNull(crashed.connect(source, null))
+                waitForRunning(crashed)
+                // The core is the service's own sing-box.exe child (the test's proxy server is this JVM's).
+                val serviceProcess = ProcessHandle.allProcesses().filter { it.info().command().orElse("").endsWith("kone-service.exe", ignoreCase = true) }.findFirst()
+                val core = serviceProcess.flatMap { it.children().filter { child -> child.info().command().orElse("").endsWith("sing-box.exe", ignoreCase = true) }.findFirst() }
+                assertTrue(core.isPresent, "the service's core: ${serviceProcess.map { it.children().map { c -> c.info().command().orElse("?") }.toList() }}")
+                println(command("taskkill", "/F", "/PID", core.get().pid().toString()))
+                waitFor("the service to see the core gone") { crashed.status(Long.MAX_VALUE).let { it.state == "stopped" && it.end.startsWith("exited") } }
+                assertNull(crashed.connect(source, null), "connecting again on the same session works")
+                waitForRunning(crashed)
+                crashed.disconnect()
+                waitForStopped(crashed)
+                crashed.close()
+
+                // Tools: this very program (the test's java.exe) sent straight out goes past the node,
+                // shows in the connections list by name, and still meets the Claude block.
+                val straight = assertNotNull(ServiceLink.open(service))
+                assertNull(straight.connect(source, null, bypass = listOf("java.exe")))
+                val straightApi = ClashApi(assertNotNull(waitForRunning(straight).api))
+                var mark = serverLog.readText().length
+                flushDns()
+                assertEquals(200, get("https://www.example.net/"))
+                Thread.sleep(1000)
+                assertFalse("example.net" in serverLog.readText().substring(mark), "a program sent straight out does not go through the node")
+                waitFor("the connections list to name java.exe") {
+                    straightApi.connections()?.connections.orEmpty().any { it.program.equals("java.exe", ignoreCase = true) && it.via == "direct" }
+                }
+                flushDns()
+                assertFailsWith<UnknownHostException>("the Claude block holds for a program sent straight out") { InetAddress.getByName("api.anthropic.com") }
+                straight.disconnect()
+                waitForStopped(straight)
+                straight.close()
+
+                // Mode: everything straight out in Direct, the block still first; switched live to Global, all through the node.
+                val modes = assertNotNull(ServiceLink.open(service))
+                assertNull(modes.connect(source, null, mode = "Direct"))
+                val modesApi = ClashApi(assertNotNull(waitForRunning(modes).api))
+                mark = serverLog.readText().length
+                flushDns()
+                assertEquals(200, get("https://www.example.org/?direct"))
+                Thread.sleep(1000)
+                assertFalse("example.org" in serverLog.readText().substring(mark), "in Direct nothing goes through the node")
+                flushDns()
+                assertFailsWith<UnknownHostException>("the Claude block holds in Direct") { InetAddress.getByName("www.claude.com") }
+                assertTrue(modesApi.mode("Global"), "the mode changes while running")
+                modesApi.close(null)
+                flushDns()
+                assertEquals(200, get("https://www.example.org/?global", fresh = true), "a new connection, not one kept from Direct")
+                waitFor("Global to carry example.org through the node") { "example.org" in serverLog.readText().substring(mark) }
+                modes.disconnect()
+                waitForStopped(modes)
+                modes.close()
+
+                // Auto: with a dead node listed first, the core settles on the one that answers.
+                val dead = """{"type":"shadowsocks","tag":"Japan","server":"203.0.113.1","server_port":9,"method":"aes-128-gcm","password":"kone-e2e"}"""
+                val two = Json.parseToJsonElement("""{"outbounds":[$dead,$node],"route":{"rules":[${FakeConsole.CLAUDE_RULE}]}}""") as JsonObject
+                val automatic = assertNotNull(ServiceLink.open(service))
+                assertNull(automatic.connect(two, "auto"))
+                val autoApi = ClashApi(assertNotNull(waitForRunning(automatic).api))
+                waitFor("Auto to settle on the node that answers", seconds = 60) { autoApi.now("auto") == "United States" }
+                mark = serverLog.readText().length
+                flushDns()
+                assertEquals(200, get("https://www.example.com/?auto", fresh = true))
+                waitFor("Auto to carry example.com through the node") { "example.com" in serverLog.readText().substring(mark) }
+                automatic.disconnect()
+                waitForStopped(automatic)
+                automatic.close()
+
                 // Someone without the block reaches Claude's names.
                 val third = assertNotNull(ServiceLink.open(service))
                 assertNull(third.connect(open, null))
@@ -173,6 +247,61 @@ class ServiceEndToEndTest {
             println("proxy server log:\n" + serverLog.takeIf { it.isFile }?.readText()?.takeLast(4000))
         }
     }
+
+    /**
+     * Without the adapter: the core run as KOne runs it itself, Windows' proxy pointed at it.
+     * Windows PowerShell follows that proxy as browsers do; its traffic goes through the node,
+     * Claude is refused, and the person's own proxy setting comes back exactly.
+     */
+    @Test
+    fun theSystemProxyCarriesTrafficAndKeepsTheClaudeBlock() {
+        assumeTrue(mode == "full", "runs on the Windows runner after the MSI is installed")
+        val folder = Files.createTempDirectory("kone-proxy").toFile()
+        val port = ServerSocket(0).use { it.localPort }
+        val serverLog = File(folder, "server.log")
+        val serverConfig = File(folder, "server.json").apply {
+            writeText(
+                """{"log":{"level":"debug"},
+                   "inbounds":[{"type":"shadowsocks","listen":"127.0.0.1","listen_port":$port,"method":"aes-128-gcm","password":"kone-e2e"}],
+                   "outbounds":[{"type":"direct"}],
+                   "route":{"rules":[{"action":"sniff"}]}}""",
+            )
+        }
+        val singBox = File(installed, "sing-box.exe")
+        val server = ProcessBuilder(singBox.path, "run", "-c", serverConfig.path).redirectErrorStream(true).redirectOutput(serverLog).start()
+        val before = assertNotNull(SystemProxy.read(), "Windows' proxy setting reads")
+        val core = LocalCore(singBox) { println("core: $it") }
+        try {
+            waitFor("the proxy server") { runCatching { java.net.Socket("127.0.0.1", port).close() }.isSuccess }
+            val node = """{"type":"shadowsocks","tag":"United States","server":"127.0.0.1","server_port":$port,"method":"aes-128-gcm","password":"kone-e2e"}"""
+            val source = Json.parseToJsonElement("""{"outbounds":[$node],"route":{"rules":[${FakeConsole.CLAUDE_RULE}]}}""") as JsonObject
+            val api = CoreApi(ServerSocket(0).use { it.localPort }, "e2e-secret")
+            val mixed = ServerSocket(0).use { it.localPort }
+            val config = KoneConfig.build(source, File(installed, "rules").path.replace('\\', '/'), api, tun = false, mixed = mixed).config.toString()
+            assertTrue(core.start(config), "the core starts as the person")
+            waitFor("the core to answer") { ClashApi(api).answers() }
+            assertTrue(SystemProxy.point(mixed), "Windows' proxy points at KOne")
+            assertTrue(SystemProxy.pointsAt(mixed))
+
+            // What follows Windows' proxy goes through the node…
+            assertEquals("200", powershell("(Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 https://www.example.com/).StatusCode").trim())
+            waitFor("the server to carry example.com") { "example.com" in serverLog.readText() }
+            // …and Claude does not.
+            val refused = powershell("try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 https://claude.ai/).StatusCode } catch { 'refused' }").trim()
+            assertEquals("refused", refused, "claude.ai through the system proxy")
+            assertFalse("claude.ai" in serverLog.readText(), "nothing of Claude reached the node")
+        } finally {
+            core.stop()
+            SystemProxy.restore()
+            server.destroy()
+            server.waitFor(5, TimeUnit.SECONDS)
+            println("proxy server log:\n" + serverLog.takeIf { it.isFile }?.readText()?.takeLast(3000))
+        }
+        assertEquals(before, SystemProxy.read(), "the person's own proxy setting is back")
+        assertFalse(core.running, "the core stopped")
+    }
+
+    private fun powershell(script: String): String = command("powershell", "-NoProfile", "-Command", script)
 
     private fun waitForRunning(link: ServiceLink): ServiceStatus {
         val deadline = System.currentTimeMillis() + 40_000
@@ -206,8 +335,10 @@ class ServiceEndToEndTest {
         adapter.isUp && adapter.inetAddresses().anyMatch { it.hostAddress == "172.19.0.1" }
     }
 
-    private fun get(url: String): Int =
-        http.send(HttpRequest.newBuilder(URI(url)).timeout(Duration.ofSeconds(20)).GET().build(), HttpResponse.BodyHandlers.discarding()).statusCode()
+    private fun get(url: String, fresh: Boolean = false): Int {
+        val client = if (fresh) HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY).connectTimeout(Duration.ofSeconds(10)).build() else http
+        return client.send(HttpRequest.newBuilder(URI(url)).timeout(Duration.ofSeconds(20)).GET().build(), HttpResponse.BodyHandlers.discarding()).statusCode()
+    }
 
     /** A TLS handshake to [address] that names [host], as a browser connecting by address would. */
     private fun tls(address: InetAddress, host: String) {

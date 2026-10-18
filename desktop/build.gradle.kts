@@ -59,7 +59,11 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     // Each test by name in the log, so a run shows which ran on the real core and which were skipped.
-    testLogging { events("passed", "skipped", "failed") }
+    testLogging {
+        events("passed", "skipped", "failed")
+        // The whole message of a failure, so a Windows run's log says what went wrong.
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
     // The screen tests leave their PNGs here, for comparing with docs/windows/preview.html.
     systemProperty("kone.screens", layout.buildDirectory.dir("screens").get().asFile.path)
     // The core and the service, where the workflow puts them (build/core), or -Pkone.singbox=…
@@ -107,7 +111,7 @@ tasks.register<JavaExec>("updateManifest") {
     argumentProviders.add(CommandLineArgumentProvider { listOf("manifest", msi.get(), url.get(), release, out) })
 }
 
-// A new update key, made once by the owner, into build/update-key (ReleaseTool.kt).
+// A new update key, created once by an authorized release operator, into build/update-key (ReleaseTool.kt).
 tasks.register<JavaExec>("updateKeys") {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("cc.txwd.kone.ReleaseToolKt")
@@ -117,6 +121,9 @@ tasks.register<JavaExec>("updateKeys") {
 compose.desktop {
     application {
         mainClass = "cc.txwd.kone.MainKt"
+        // KOne waits by the clock most of the day: a small heap that gives memory back after use.
+        // The paintings live outside the heap, in Skia.
+        jvmArgs += listOf("-XX:+UseSerialGC", "-Xms16m", "-Xmx256m", "-XX:MinHeapFreeRatio=10", "-XX:MaxHeapFreeRatio=25", "-XX:ReservedCodeCacheSize=96m")
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
             packageName = "KOne"

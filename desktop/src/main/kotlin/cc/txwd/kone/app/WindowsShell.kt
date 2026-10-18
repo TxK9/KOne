@@ -30,9 +30,12 @@ object WindowsShell {
 
     fun startWithWindows(launcher: File, on: Boolean) {
         if (!Places.windows) return
+        // A fresh account may not have its Run key yet.
+        val keyThere = Advapi32Util.registryKeyExists(WinReg.HKEY_CURRENT_USER, RUN)
         if (on) {
+            if (!keyThere) Advapi32Util.registryCreateKey(WinReg.HKEY_CURRENT_USER, RUN)
             Advapi32Util.registrySetStringValue(WinReg.HKEY_CURRENT_USER, RUN, RUN_NAME, runLine(launcher))
-        } else if (Advapi32Util.registryValueExists(WinReg.HKEY_CURRENT_USER, RUN, RUN_NAME)) {
+        } else if (keyThere && Advapi32Util.registryValueExists(WinReg.HKEY_CURRENT_USER, RUN, RUN_NAME)) {
             Advapi32Util.registryDeleteValue(WinReg.HKEY_CURRENT_USER, RUN, RUN_NAME)
         }
     }

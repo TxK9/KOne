@@ -31,10 +31,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.time.Instant
 
 /**
  * A node as the dashboard shows it. Delay is the last test in milliseconds, null when it did not
- * answer; a node not tested yet rests (moon) rather than showing as cut off.
+ * answer; a node not tested yet rests (Z) rather than showing as cut off.
  */
 data class Node(val id: String, val name: String, val country: String?, val category: String, val delay: Int?, val tested: Boolean = true) {
     val weather: NodeWeather get() = if (tested) NodeWeather.of(delay) else NodeWeather.Rest
@@ -60,6 +61,10 @@ data class DashboardState(
     val notice: String? = null,
     /** Whether the ⋮ menu's imports are there; hidden while the App has none. */
     val canImport: Boolean = false,
+    /** How soon this person's use ends, in its last week (3 days remaining); otherwise null. */
+    val expiry: String? = null,
+    /** Connected through Windows' proxy rather than KOne's adapter: only what follows the proxy goes through. */
+    val proxied: Boolean = false,
 ) {
     val current: Node? get() = nodes.firstOrNull { it.id == selected }
 }
@@ -74,21 +79,22 @@ class DashboardActions(
 enum class MenuItem(val title: String) { Clipboard("Import from clipboard"), File("Import from file"), Manual("Add manually"), Category("Add category") }
 
 /**
- * Dashboard: the handscroll fills the page, mist rises over its foot, and on the mist sit the
+ * Dashboard: the handscroll fills the page (the ink one, or with [cities] those of the node's country,
+ * their skies as at [at], or now), mist rises over its foot, and on the mist sit the
  * categories, the nodes of the one chosen, and the status line with the power button.
  */
 @Composable
-fun DashboardView(state: DashboardState, actions: DashboardActions, menuOpen: Boolean, onMenuOpen: (Boolean) -> Unit, moving: Boolean = true) {
+fun DashboardView(state: DashboardState, actions: DashboardActions, menuOpen: Boolean, onMenuOpen: (Boolean) -> Unit, moving: Boolean = true, cities: Boolean = false, at: Instant? = null) {
     val ink = LocalInk.current
     Box(Modifier.fillMaxSize()) {
-        Handscroll(moving = moving)
+        if (cities) CityScroll(state.current?.country, moving = moving, at = at) else Handscroll(moving = moving)
         Box(
             Modifier.align(Alignment.BottomStart).fillMaxWidth().height(300.dp).background(
                 Brush.verticalGradient(0f to ink.veil.copy(alpha = 0f), 0.55f to ink.veil.copy(alpha = 0.84f), 1f to ink.paper),
             ),
         )
         Deck(state, actions)
-        if (state.canImport) More(menuOpen, onMenuOpen, actions.onMenu)
+        if (state.canImport) More(menuOpen, onMenuOpen, actions.onMenu, backed = cities)
     }
 }
 
@@ -162,8 +168,10 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
                                 Label("Home", 14.sp, ink.soft)
                             }
                         }
+                        if (state.proxied) Label("System proxy", 14.sp, ink.soft)
                         Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 14.sp, ink.soft, tabular = true)
                         Label(clock(state.seconds), 14.sp, ink.soft, tabular = true)
+                        state.expiry?.let { Label(it, 14.sp, NodeWeather.Mist.ink(ink.dark)) }
                     }
                 }
             } else {
@@ -173,7 +181,10 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
                         WeatherTag(weather)
                         Label(delayText(node.delay), 18.sp, weight = FontWeight.SemiBold, tabular = true)
                     }
-                    state.notice?.let { Label(it, 14.sp, NodeWeather.Cut.ink(ink.dark)) }
+                    when {
+                        state.notice != null -> Label(state.notice, 14.sp, NodeWeather.Cut.ink(ink.dark))
+                        state.expiry != null -> Label(state.expiry, 14.sp, NodeWeather.Mist.ink(ink.dark))
+                    }
                 }
             }
         } else {
@@ -181,14 +192,14 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
         }
         Spacer(Modifier.weight(1f))
         Row(
-            Modifier.height(48.dp).press(enabled = state.connection != Connection.Connecting, bleed = 6.dp, onClick = onPower).padding(horizontal = 6.dp),
+            Modifier.height(48.dp).press(bleed = 6.dp, onClick = onPower).padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Glyph(Glyphs.power, ink.ink, 22.dp, strokeWidth = 2f)
             Label(
                 when (state.connection) {
-                    Connection.Online -> "Close"
+                    Connection.Online -> "Disconnect"
                     Connection.Connecting -> "Connecting"
                     Connection.Idle -> "Connect"
                 },
@@ -198,16 +209,19 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
     }
 }
 
-/** The ⋮ in the corner and its menu. */
+/** The ⋮ in the corner and its menu; [backed] sets the dots on a disc of paper, for a painting that may be light or dark under them. */
 @Composable
-private fun BoxScope.More(open: Boolean, onOpen: (Boolean) -> Unit, onPick: (MenuItem) -> Unit) {
+private fun BoxScope.More(open: Boolean, onOpen: (Boolean) -> Unit, onPick: (MenuItem) -> Unit, backed: Boolean = false) {
     val ink = LocalInk.current
     Column(
         Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 22.dp),
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(Modifier.size(44.dp).clip(CircleShape).press { onOpen(!open) }, contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(44.dp).clip(CircleShape).then(if (backed) Modifier.background(ink.paper.copy(alpha = 0.72f)) else Modifier).press { onOpen(!open) },
+            contentAlignment = Alignment.Center,
+        ) {
             MoreDots(ink.ink)
         }
         if (open) {

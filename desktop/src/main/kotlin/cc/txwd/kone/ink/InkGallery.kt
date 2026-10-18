@@ -22,6 +22,9 @@ object InkGallery {
 
     /** The same, laid side by side in the handscroll, where neighbours share a stretch of paper. */
     private val scrolled = HashMap<Boolean, List<Image>>()
+
+    /** The Golden Gate for the tray panel, kept even while the rest is let go. */
+    private val bridges = HashMap<Boolean, Image>()
     private val lock = Mutex()
 
     private val brush: Image? by lazy {
@@ -30,6 +33,17 @@ object InkGallery {
 
     /** The paintings for [dark] if they are ready, without waiting. */
     fun ready(dark: Boolean): List<Image>? = synchronized(painted) { painted[dark] }
+
+    /** The tray panel's bridge for [dark] if it is ready, without waiting. */
+    fun readyBridge(dark: Boolean): Image? = synchronized(painted) { bridges[dark] }
+
+    suspend fun bridge(dark: Boolean): Image = readyBridge(dark) ?: paint(dark)[1]
+
+    /** Lets the paintings go while no one looks at them, all but the tray panel's bridge; they are painted again when wanted. */
+    fun rest() = synchronized(painted) {
+        painted.clear()
+        scrolled.clear()
+    }
 
     /** The handscroll's paintings for [dark] if they are ready, without waiting. */
     fun readyScroll(dark: Boolean): List<Image>? = synchronized(painted) { scrolled[dark] }
@@ -58,6 +72,7 @@ object InkGallery {
         synchronized(painted) {
             painted[dark] = alone
             scrolled[dark] = inScroll
+            bridges[dark] = alone[1]
         }
     }
 

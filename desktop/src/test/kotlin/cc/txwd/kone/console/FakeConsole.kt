@@ -18,7 +18,7 @@ import javax.net.ssl.TrustManagerFactory
 
 /**
  * A stand-in for the KOne console's customer interface, as docs/windows/README.md describes it,
- * over HTTPS on 127.0.0.1 with a certificate made for the test. Never the private edition real console.
+ * over HTTPS on 127.0.0.1 with a certificate made for the test. Never a live console.
  */
 class FakeConsole(var source: JsonObject) : AutoCloseable {
     val invites = mutableSetOf<String>()
@@ -29,6 +29,8 @@ class FakeConsole(var source: JsonObject) : AutoCloseable {
     var waiting = false
     var revision = "r1"
     var configRevision = "c1"
+    /** When this person's use ends, as the console states it in the policy; none by default. */
+    var expiresAt: String? = null
     val acks = mutableListOf<JsonObject>()
     val diagnostics = mutableListOf<JsonObject>()
     /** Every Authorization header and every path the console saw, to check where the credential went. */
@@ -76,12 +78,12 @@ class FakeConsole(var source: JsonObject) : AutoCloseable {
             }
             "GET /api/client/config" -> when {
                 credential == null || credential !in devices || credential in revoked -> reply(exchange, 401, error("Device authentication failed"))
-                refused -> reply(exchange, 403, error("\u4f7f\u7528\u671f\u5df2\u7ed3\u675f"))
+                refused -> reply(exchange, 403, error("Service period ended"))
                 waiting -> reply(exchange, 409, error("No configuration assigned"))
                 else -> reply(exchange, 200, buildJsonObject {
-                    put("format", 1); put("configKind", "sing-box-source"); put("configName", "\u7f8e\u56fd"); put("groupName", "Test group")
+                    put("format", 1); put("configKind", "sing-box-source"); put("configName", "United States"); put("groupName", "Test group")
                     put("config", source); put("configRevision", configRevision); put("revision", revision)
-                    put("policy", buildJsonObject { put("quotaBytes", 0); put("deviceLimit", deviceLimit); put("period", "month") })
+                    put("policy", buildJsonObject { put("quotaBytes", 0); put("deviceLimit", deviceLimit); put("period", "month"); expiresAt?.let { put("expiresAt", it) } })
                 })
             }
             "POST /api/client/ack" -> when {
@@ -135,8 +137,8 @@ class FakeConsole(var source: JsonObject) : AutoCloseable {
             """
             {
               "outbounds": [
-                {"type": "vless", "tag": "\u7f8e\u56fd", "server": "203.0.113.10", "server_port": 443, "uuid": "${UUID(1, 1)}"},
-                {"type": "trojan", "tag": "\u65e5\u672c", "server": "203.0.113.11", "server_port": 443, "password": "example"},
+                {"type": "vless", "tag": "United States", "server": "203.0.113.10", "server_port": 443, "uuid": "${UUID(1, 1)}"},
+                {"type": "trojan", "tag": "Japan", "server": "203.0.113.11", "server_port": 443, "password": "example"},
                 {"type": "direct", "tag": "direct"}
               ],
               "route": {"rules": [${if (blockClaude) CLAUDE_RULE else ""}]}

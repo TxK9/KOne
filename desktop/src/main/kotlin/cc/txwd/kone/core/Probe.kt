@@ -17,6 +17,7 @@ class Probe(private val core: File) {
             ProcessBuilder(core.path, "run", "-c", "stdin", "--disable-color").directory(core.parentFile)
                 .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
         }.getOrNull() ?: return false
+        Children.tie(started)
         runCatching { started.outputStream.use { it.write(config.toByteArray()) } }
         process = started
         return true

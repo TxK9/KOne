@@ -143,6 +143,10 @@ func (s *server) session(pipe windows.Handle) {
 			Op       string         `json:"op"`
 			Source   map[string]any `json:"source"`
 			Selected string         `json:"selected"`
+			Mode     string         `json:"mode"`
+			Bypass   []string       `json:"bypass"`
+			Direct   []string       `json:"direct"`
+			Proxied  []string       `json:"proxied"`
 			Since    int64          `json:"since"`
 		}
 		decoder := json.NewDecoder(strings.NewReader(line))
@@ -156,7 +160,7 @@ func (s *server) session(pipe windows.Handle) {
 		case "hello":
 			reply = map[string]any{"ok": true, "version": version}
 		case "connect":
-			reply = s.connect(id, request.Source, request.Selected)
+			reply = s.connect(id, request.Source, request.Selected, request.Mode, request.Bypass, request.Direct, request.Proxied)
 		case "status":
 			reply = s.core.status(id, request.Since)
 		case "disconnect":
@@ -173,7 +177,7 @@ func (s *server) session(pipe windows.Handle) {
 
 // connect builds the configuration from the source itself, the fixed template with only the
 // nodes and the Claude block taken from the source, and starts the core on it.
-func (s *server) connect(id uint64, source map[string]any, selected string) map[string]any {
+func (s *server) connect(id uint64, source map[string]any, selected, mode string, bypass, direct, proxied []string) map[string]any {
 	port, err := freePort()
 	if err != nil {
 		return map[string]any{"ok": false, "error": err.Error()}
@@ -182,7 +186,7 @@ func (s *server) connect(id uint64, source map[string]any, selected string) map[
 	if _, err := rand.Read(secret); err != nil {
 		return map[string]any{"ok": false, "error": err.Error()}
 	}
-	options := Options{Selected: selected, Rules: filepath.ToSlash(filepath.Join(s.home, "rules")), Port: port, Secret: hex.EncodeToString(secret), Tun: true}
+	options := Options{Selected: selected, Rules: filepath.ToSlash(filepath.Join(s.home, "rules")), Port: port, Secret: hex.EncodeToString(secret), Tun: true, Mode: mode, Bypass: bypass, Direct: direct, Proxied: proxied}
 	config, _, err := Build(source, options)
 	if err != nil {
 		return map[string]any{"ok": false, "error": "config_invalid"}

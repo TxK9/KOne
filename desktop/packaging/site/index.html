@@ -84,6 +84,8 @@ svg { display: block; }
 .download:active { transform: translateY(0); box-shadow: none; }
 .download:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .meta { margin: -14px 0 0; color: var(--soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+.other { margin: -16px 0 0; color: var(--soft); font-size: 13px; }
+.other a { color: var(--ink); text-underline-offset: 3px; }
 
 .steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; counter-reset: step; }
 .steps li { display: flex; align-items: baseline; gap: 12px; font-size: 15px; counter-increment: step; }
@@ -130,11 +132,12 @@ code { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12p
     </div>
     <p class="lead">Windows edition</p>
 
-    <a class="download" href="__MSI__" download>
+    <a class="download" id="download" href="__MSI__" download>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10.5 12 15.5 17 10.5"/><path d="M5 19.5h14"/></svg>
       Download KOne
     </a>
     <p class="meta">__VERSION__ · __SIZE__ · Windows 10 / 11 64-bit</p>
+    <p class="other" id="other">For ARM computers (Snapdragon), download the <a href="__MSI_ARM__" download>ARM edition</a></p>
 
     <ol class="steps">
       <li>Install <span>Double-click the downloaded file</span></li>
@@ -149,8 +152,17 @@ code { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12p
     <details>
       <summary>Verify files</summary>
       <code>SHA-256 __SHA256__</code>
+      <code>ARM edition SHA-256 __SHA256_ARM__</code>
     </details>
   </section>
 </main>
+<script>
+  // On an ARM computer (where the browser says so) the button gives the ARM build, the line the other.
+  navigator.userAgentData?.getHighEntropyValues(["architecture"]).then(({ architecture }) => {
+    if (architecture !== "arm") return;
+    document.getElementById("download").href = "__MSI_ARM__";
+    document.getElementById("other").innerHTML = 'For other computers, download the <a href="__MSI__" download>standard edition</a>';
+  }).catch(() => {});
+</script>
 </body>
 </html>

@@ -31,6 +31,9 @@ data class CoreApi(val port: Int, val secret: String)
 object KoneConfig {
     const val PROXY_TAG = "proxy"
 
+    /** The selector's Auto: whichever node answers fastest, tested every few minutes; there only with two nodes or more. */
+    const val AUTO_TAG = "auto"
+
     /** The outbounds kept as nodes. naive is left out: it needs libcronet.dll, which the App does not carry. */
     val PROXY_TYPES = setOf(
         "vless", "vmess", "trojan", "shadowsocks", "socks", "http", "hysteria", "hysteria2",
@@ -38,21 +41,31 @@ object KoneConfig {
     )
 
     /** Tags the template uses itself; a source outbound with one of these is renamed. */
-    private val RESERVED = setOf(PROXY_TAG, "direct", "block", "dns", "local-dns", "proxy-dns", "tun-in")
+    private val RESERVED = setOf(PROXY_TAG, AUTO_TAG, "direct", "block", "dns", "local-dns", "proxy-dns", "tun-in", "mixed-in")
 
     class Built(val config: JsonObject, val nodes: List<SourceNode>)
 
+    /** The modes the core can be in: by the rules, everything through the node, or nothing through it. */
+    val MODES = listOf("Rule", "Global", "Direct")
+
     /**
      * The KOne configuration for [source]: [rules] is the folder holding the bundled rule sets,
-     * [selected] the node to start on if it is still there. With [tun] false the core only
-     * carries the nodes, for testing their delay without administrator rights.
+     * [selected] the node to start on if it is still there, [mode] one of [MODES], [bypass] the
+     * programs that go straight out (by file name, such as WeChat.exe), [direct] the sites that go
+     * straight out in every mode and [proxied] those through the node in Rule too. With [tun] false the core
+     * only carries the nodes, for testing their delay without administrator rights; with [mixed]
+     * it also listens on that port of 127.0.0.1 as the system proxy, when TUN cannot be had.
      */
-    fun build(source: JsonObject, rules: String, api: CoreApi, selected: String? = null, tun: Boolean = true): Built {
+    fun build(
+        source: JsonObject, rules: String, api: CoreApi, selected: String? = null, tun: Boolean = true,
+        mode: String = "Rule", bypass: List<String> = emptyList(), mixed: Int = 0,
+        direct: List<String> = emptyList(), proxied: List<String> = emptyList(),
+    ): Built {
         // An outbound that names a file is never carried: the service, which runs the core as
         // SYSTEM, refuses it the same way (desktop/service/plan.go).
         val all = (source["outbounds"] as? JsonArray)?.mapNotNull { it as? JsonObject }?.filterNot(::namesAFile) ?: throw invalid()
         val proxies = all.filter { it.text("type") in PROXY_TYPES }
-        if (proxies.isEmpty()) throw ConsoleException(ConsoleFailure.ConfigInvalid, "The configuration contains no usable nodes.")
+        if (proxies.isEmpty()) throw ConsoleException(ConsoleFailure.ConfigInvalid, "No usable nodes in the configuration")
         val byTag = all.filter { !it.text("tag").isNullOrBlank() }.associateBy { it.text("tag")!! }
 
         // Whatever a node goes through is kept, however long the chain; a loop or a missing link is refused.
@@ -93,8 +106,12 @@ object KoneConfig {
         )
         val memberOutbounds = members.mapIndexed { index, outbound -> retag(outbound, nodes[index].tag) }
         val supportOutbounds = support.map { (old, outbound) -> retag(outbound, supportTags.getValue(old)) }
-        val start = nodes.firstOrNull { it.tag == selected }?.tag ?: nodes.first().tag
+        val auto = nodes.size >= 2
+        val start = if (auto && selected == AUTO_TAG) AUTO_TAG else nodes.firstOrNull { it.tag == selected }?.tag ?: nodes.first().tag
         val refused = refusals(source)
+        val straight = programs(bypass)
+        val straightSites = sites(direct)
+        val proxiedSites = sites(proxied)
 
         val config = buildJsonObject {
             putJsonObject("log") { put("level", "warn"); put("timestamp", true) }
@@ -105,6 +122,11 @@ object KoneConfig {
                 }
                 putJsonArray("rules") {
                     refused.forEach { add(it) }
+                    if (straight.isNotEmpty()) add(buildJsonObject { putJsonArray("process_name") { straight.forEach { add(it) } }; put("server", "local-dns") })
+                    if (straightSites.isNotEmpty()) add(buildJsonObject { putJsonArray("domain_suffix") { straightSites.forEach { add(it) } }; put("server", "local-dns") })
+                    if (proxiedSites.isNotEmpty()) add(buildJsonObject {
+                        put("clash_mode", "Rule"); putJsonArray("domain_suffix") { proxiedSites.forEach { add(it) } }; put("server", "proxy-dns")
+                    })
                     add(buildJsonObject { put("clash_mode", "Direct"); put("server", "local-dns") })
                     add(buildJsonObject { put("clash_mode", "Global"); put("server", "proxy-dns") })
                     add(buildJsonObject { putJsonArray("rule_set") { add("geosite-cn") }; put("server", "local-dns") })
@@ -113,6 +135,7 @@ object KoneConfig {
                 put("strategy", "ipv4_only")
             }
             putJsonArray("inbounds") {
+                if (mixed > 0) add(buildJsonObject { put("type", "mixed"); put("tag", "mixed-in"); put("listen", "127.0.0.1"); put("listen_port", mixed) })
                 if (tun) add(buildJsonObject {
                     put("type", "tun"); put("tag", "tun-in"); put("interface_name", "KOne")
                     putJsonArray("address") { add("172.19.0.1/30"); add("fdfe:dcba:9876::1/126") }
@@ -124,8 +147,13 @@ object KoneConfig {
             putJsonArray("outbounds") {
                 add(buildJsonObject {
                     put("type", "selector"); put("tag", PROXY_TAG)
-                    putJsonArray("outbounds") { nodes.forEach { add(it.tag) } }
+                    putJsonArray("outbounds") { if (auto) add(AUTO_TAG); nodes.forEach { add(it.tag) } }
                     put("default", start)
+                })
+                if (auto) add(buildJsonObject {
+                    put("type", "urltest"); put("tag", AUTO_TAG)
+                    putJsonArray("outbounds") { nodes.forEach { add(it.tag) } }
+                    put("url", "https://www.gstatic.com/generate_204"); put("interval", "3m"); put("tolerance", 50)
                 })
                 memberOutbounds.forEach { add(it) }
                 supportOutbounds.forEach { add(it) }
@@ -136,6 +164,13 @@ object KoneConfig {
                     add(buildJsonObject { put("action", "sniff") })
                     add(buildJsonObject { put("protocol", "dns"); put("action", "hijack-dns") })
                     refused.forEach { add(it) }
+                    // Programs the person sent straight out: after the Claude block, so it holds for them too.
+                    if (straight.isNotEmpty()) add(buildJsonObject { putJsonArray("process_name") { straight.forEach { add(it) } }; put("outbound", "direct") })
+                    // The person's sites, after the Claude block too: straight out in every mode, through the node in Rule.
+                    if (straightSites.isNotEmpty()) add(buildJsonObject { putJsonArray("domain_suffix") { straightSites.forEach { add(it) } }; put("outbound", "direct") })
+                    if (proxiedSites.isNotEmpty()) add(buildJsonObject {
+                        put("clash_mode", "Rule"); putJsonArray("domain_suffix") { proxiedSites.forEach { add(it) } }; put("outbound", PROXY_TAG)
+                    })
                     add(buildJsonObject { put("clash_mode", "Direct"); put("outbound", "direct") })
                     add(buildJsonObject { put("clash_mode", "Global"); put("outbound", PROXY_TAG) })
                     add(buildJsonObject { put("ip_is_private", true); put("outbound", "direct") })
@@ -153,6 +188,8 @@ object KoneConfig {
                     }
                 }
                 put("auto_detect_interface", true)
+                // Which program each connection is, for Tools's list and the programs sent straight out.
+                put("find_process", true)
                 put("default_domain_resolver", "local-dns")
                 put("final", PROXY_TAG)
             }
@@ -161,12 +198,46 @@ object KoneConfig {
                 putJsonObject("clash_api") {
                     put("external_controller", "127.0.0.1:${api.port}")
                     put("secret", api.secret)
-                    put("default_mode", "Rule")
+                    put("default_mode", mode.takeIf { it in MODES } ?: "Rule")
                 }
             }
         }
         return Built(config, nodes)
     }
+
+    /**
+     * The programs to send straight out, as file names: a name with a path or anything Windows
+     * would not take in a file name is dropped, each name once, 64 at most. The service takes the
+     * same (desktop/service/plan.go).
+     */
+    fun programs(names: List<String>): List<String> {
+        val seen = mutableSetOf<String>()
+        return names.map { it.trim() }
+            .filter { PROGRAM.matches(it) && seen.add(it.lowercase()) }
+            .take(64)
+    }
+
+    /**
+     * The person's sites, as domains: anything but a plain domain name of two labels or more is
+     * dropped, each name once, 256 at most. The service takes the same (desktop/service/plan.go).
+     */
+    fun sites(names: List<String>): List<String> {
+        val seen = mutableSetOf<String>()
+        return names.map { it.trim().lowercase() }
+            .filter { it.length <= 253 && SITE.matches(it) && seen.add(it) }
+            .take(256)
+    }
+
+    /** The site in what the person typed or pasted: a domain, or the one in an address (https://www.example.com/a → www.example.com). */
+    fun site(text: String): String? {
+        val name = text.trim().lowercase().substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#')
+            .substringAfterLast('@').substringBefore(':').removePrefix("*.").removePrefix(".").removeSuffix(".")
+        return sites(listOf(name)).firstOrNull()
+    }
+
+    private val SITE = Regex("""([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?""")
+
+    private val PROGRAM = Regex("""[^\\/:*?"<>|\u0000-\u001f]{1,128}\.exe""", RegexOption.IGNORE_CASE)
 
     /**
      * The source's rules that refuse domain names and do nothing else, as the console writes them

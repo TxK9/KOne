@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -13,6 +14,9 @@ import (
 
 const proxyTag = "proxy"
 
+// autoTag is the selector's Auto: whichever node answers fastest; there only with two nodes or more.
+const autoTag = "auto"
+
 // proxyTypes are the outbounds kept as nodes. naive is left out: it needs libcronet.dll, which
 // the App does not carry.
 var proxyTypes = map[string]bool{
@@ -21,7 +25,7 @@ var proxyTypes = map[string]bool{
 }
 
 // reserved are the tags the template uses itself; a source outbound with one of them is renamed.
-var reserved = map[string]bool{proxyTag: true, "direct": true, "block": true, "dns": true, "local-dns": true, "proxy-dns": true, "tun-in": true}
+var reserved = map[string]bool{proxyTag: true, autoTag: true, "direct": true, "block": true, "dns": true, "local-dns": true, "proxy-dns": true, "tun-in": true, "mixed-in": true}
 
 var errInvalid = errors.New("config_invalid")
 
@@ -31,7 +35,62 @@ type Options struct {
 	Rules    string // the folder holding geosite-cn.srs and geoip-cn.srs
 	Port     int    // clash_api on 127.0.0.1
 	Secret   string
-	Tun      bool // false: the nodes only, for testing delays without rights
+	Tun      bool     // false: the nodes only, for testing delays without rights
+	Mode     string   // Rule, Global or Direct; anything else is Rule
+	Bypass   []string // programs sent straight out, by file name (WeChat.exe)
+	Direct   []string // sites sent straight out, in every mode, by domain (example.cn and what is under it)
+	Proxied  []string // sites through the node in Rule too, by domain
+	Mixed    int      // a local proxy port on 127.0.0.1 for the system proxy, when not 0 (the App's own, never the service's)
+}
+
+// modes are the clash modes the core can start in.
+var modes = map[string]bool{"Rule": true, "Global": true, "Direct": true}
+
+// program is a file name Windows would take, ending in .exe, with no path.
+var program = regexp.MustCompile(`(?i)^[^\\/:*?"<>|\x00-\x1f]{1,128}\.exe$`)
+
+// Programs are the file names to send straight out: anything with a path or that Windows would
+// not take as a file name is dropped, each name once, 64 at most. The App keeps the same
+// (KoneConfig.programs). Sent straight out is all they can be: the Claude block comes first.
+func Programs(names []string) []any {
+	seen := map[string]bool{}
+	var kept []any
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if !program.MatchString(name) || seen[strings.ToLower(name)] {
+			continue
+		}
+		seen[strings.ToLower(name)] = true
+		kept = append(kept, name)
+		if len(kept) == 64 {
+			break
+		}
+	}
+	return kept
+}
+
+// site is a domain name of two labels or more, in lower case, its last starting with a letter:
+// no address, path, port or wildcard.
+var site = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
+// Sites are the person's sites, as domains: anything but a plain domain name of two labels or
+// more is dropped, each name once, 256 at most. The App keeps the same
+// (KoneConfig.sites). The Claude block comes before them, so neither list reaches round it.
+func Sites(names []string) []any {
+	seen := map[string]bool{}
+	var kept []any
+	for _, name := range names {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if len(name) > 253 || !site.MatchString(name) || seen[name] {
+			continue
+		}
+		seen[name] = true
+		kept = append(kept, name)
+		if len(kept) == 256 {
+			break
+		}
+	}
+	return kept
 }
 
 // Build turns the console's source into the configuration the core runs.
@@ -140,6 +199,7 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		}
 		return copied
 	}
+	auto := len(nodes) >= 2
 	start := nodes[0]
 	for _, tag := range nodes {
 		if tag == options.Selected {
@@ -147,7 +207,20 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		}
 	}
 
-	outbounds := []any{map[string]any{"type": "selector", "tag": proxyTag, "outbounds": anyList(nodes), "default": start}}
+	if auto && options.Selected == autoTag {
+		start = autoTag
+	}
+	choices := anyList(nodes)
+	if auto {
+		choices = append([]any{autoTag}, choices...)
+	}
+	outbounds := []any{map[string]any{"type": "selector", "tag": proxyTag, "outbounds": choices, "default": start}}
+	if auto {
+		outbounds = append(outbounds, map[string]any{
+			"type": "urltest", "tag": autoTag, "outbounds": anyList(nodes),
+			"url": "https://www.gstatic.com/generate_204", "interval": "3m", "tolerance": 50,
+		})
+	}
 	for i, member := range members {
 		outbounds = append(outbounds, retag(member, nodes[i]))
 	}
@@ -162,6 +235,18 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 	for _, rule := range refused {
 		dnsRules = append(dnsRules, rule)
 		routeRules = append(routeRules, rule)
+	}
+	if straight := Programs(options.Bypass); len(straight) > 0 {
+		dnsRules = append(dnsRules, map[string]any{"process_name": straight, "server": "local-dns"})
+		routeRules = append(routeRules, map[string]any{"process_name": straight, "outbound": "direct"})
+	}
+	if direct := Sites(options.Direct); len(direct) > 0 {
+		dnsRules = append(dnsRules, map[string]any{"domain_suffix": direct, "server": "local-dns"})
+		routeRules = append(routeRules, map[string]any{"domain_suffix": direct, "outbound": "direct"})
+	}
+	if proxied := Sites(options.Proxied); len(proxied) > 0 {
+		dnsRules = append(dnsRules, map[string]any{"clash_mode": "Rule", "domain_suffix": proxied, "server": "proxy-dns"})
+		routeRules = append(routeRules, map[string]any{"clash_mode": "Rule", "domain_suffix": proxied, "outbound": proxyTag})
 	}
 	dnsRules = append(dnsRules,
 		map[string]any{"clash_mode": "Direct", "server": "local-dns"},
@@ -185,6 +270,9 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		})
 	}
 	inbounds := []any{}
+	if options.Mixed > 0 {
+		inbounds = append(inbounds, map[string]any{"type": "mixed", "tag": "mixed-in", "listen": "127.0.0.1", "listen_port": options.Mixed})
+	}
 	if options.Tun {
 		inbounds = append(inbounds, map[string]any{
 			"type": "tun", "tag": "tun-in", "interface_name": "KOne",
@@ -211,6 +299,7 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 			"rules":                   routeRules,
 			"rule_set":                ruleSets,
 			"auto_detect_interface":   true,
+			"find_process":            true,
 			"default_domain_resolver": "local-dns",
 			"final":                   proxyTag,
 		},
@@ -219,7 +308,7 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 			"clash_api": map[string]any{
 				"external_controller": "127.0.0.1:" + strconv.Itoa(options.Port),
 				"secret":              options.Secret,
-				"default_mode":        "Rule",
+				"default_mode":        mode(options.Mode),
 			},
 		},
 	}
@@ -286,6 +375,13 @@ func namesAFile(value any) bool {
 		}
 	}
 	return false
+}
+
+func mode(wanted string) string {
+	if modes[wanted] {
+		return wanted
+	}
+	return "Rule"
 }
 
 func text(object map[string]any, key string) string {

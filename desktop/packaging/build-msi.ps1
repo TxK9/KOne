@@ -2,7 +2,7 @@
 #
 #   build-msi.ps1 -Wix <folder of heat.exe> -AppDir <Compose app image> -CoreDir <sing-box.exe,
 #                 kone-service.exe, rules\> -ArtDir <dialog.bmp, banner.bmp> -Version 1.0.<build>
-#                 -Out <KOne-1.0.<build>.msi> [-Site https://…]
+#                 -Out <KOne-1.0.<build>.msi> [-Arch x64|arm64] [-Site https://…]
 param(
     [Parameter(Mandatory)] [string] $Wix,
     [Parameter(Mandatory)] [string] $AppDir,
@@ -10,6 +10,7 @@ param(
     [Parameter(Mandatory)] [string] $ArtDir,
     [Parameter(Mandatory)] [string] $Version,
     [Parameter(Mandatory)] [string] $Out,
+    [ValidateSet("x64", "arm64")] [string] $Arch = "x64",
     [string] $Site = ""
 )
 $ErrorActionPreference = "Stop"
@@ -30,10 +31,10 @@ Run "heat.exe" @("dir", $AppDir, "-nologo", "-cg", "AppFiles", "-dr", "INSTALLDI
 
 $defines = @("-dAppDir=$AppDir", "-dCoreDir=$CoreDir", "-dArtDir=$ArtDir", "-dPackaging=$PSScriptRoot", "-dVersion=$Version")
 if ($Site) { $defines += "-dSite=$Site" }
-Run "candle.exe" (@("-nologo", "-arch", "x64", "-ext", "WixUIExtension", "-ext", "WixUtilExtension", "-out", "$work\") + $defines +
+Run "candle.exe" (@("-nologo", "-arch", $Arch, "-ext", "WixUIExtension", "-ext", "WixUtilExtension", "-out", "$work\") + $defines +
     @((Join-Path $wxs "KOne.wxs"), (Join-Path $work "app.wxs")))
 
-Run "light.exe" @("-nologo", "-ext", "WixUIExtension", "-ext", "WixUtilExtension", "-cultures:zh-CN", "-loc", (Join-Path $wxs "KOne.zh-cn.wxl"),
+Run "light.exe" @("-nologo", "-ext", "WixUIExtension", "-ext", "WixUtilExtension", "-cultures:en-US", "-loc", (Join-Path $wxs "KOne.zh-cn.wxl"),
     "-spdb", "-out", $Out, (Join-Path $work "KOne.wixobj"), (Join-Path $work "app.wixobj"))
 
 Write-Host "MSI: $Out ($([math]::Round((Get-Item $Out).Length / 1MB, 1)) MB)"

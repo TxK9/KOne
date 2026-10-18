@@ -60,7 +60,7 @@ private fun fogOf(weather: NodeWeather) = when (weather) {
 
 /**
  * The tray panel, opened from the KOne icon by the clock: the Golden Gate above, under fog that
- * follows the connection (thin when sun, thick when mist, all but hiding it when storm, grey when moon),
+ * follows the connection (thin when S, thick when M, all but hiding it when !, grey when Z),
  * and below it the node, its delay and traffic, and Disconnect / Open KOne / Quit.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -90,14 +90,14 @@ fun TrayPanel(state: DashboardState, onPower: () -> Unit, onOpen: () -> Unit, on
                 if (online) {
                     Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 13.sp, ink.soft, tabular = true)
                     Label(clock(state.seconds), 13.sp, ink.soft, tabular = true)
-                    if (state.home) Label("Home access", 13.sp, ink.soft)
+                    if (state.home) Label("Home", 13.sp, ink.soft)
                 }
             }
             Spacer(Modifier.weight(1f))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 val shape = RoundedCornerShape(22.dp)
                 Row(
-                    Modifier.height(44.dp).clip(shape).background(ink.ink, shape).press(enabled = state.connection != Connection.Connecting, onDark = true, onClick = onPower)
+                    Modifier.height(44.dp).clip(shape).background(ink.ink, shape).press(onDark = true, onClick = onPower)
                         .padding(horizontal = 20.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -107,7 +107,7 @@ fun TrayPanel(state: DashboardState, onPower: () -> Unit, onOpen: () -> Unit, on
                         when (state.connection) {
                             Connection.Online -> "Disconnect"
                             Connection.Connecting -> "Connecting"
-                            Connection.Idle -> "Connection"
+                            Connection.Idle -> "Connect"
                         },
                         15.sp, ink.panel, FontWeight.SemiBold,
                     )
@@ -127,8 +127,8 @@ fun TrayPanel(state: DashboardState, onPower: () -> Unit, onOpen: () -> Unit, on
 @Composable
 private fun Sky(weather: NodeWeather, moving: Boolean) {
     val ink = LocalInk.current
-    var bridge by remember(ink.dark) { mutableStateOf<ImageBitmap?>(InkGallery.ready(ink.dark)?.get(1)?.toComposeImageBitmap()) }
-    LaunchedEffect(ink.dark) { if (bridge == null) bridge = InkGallery.paint(ink.dark)[1].toComposeImageBitmap() }
+    var bridge by remember(ink.dark) { mutableStateOf<ImageBitmap?>(InkGallery.readyBridge(ink.dark)?.toComposeImageBitmap()) }
+    LaunchedEffect(ink.dark) { if (bridge == null) bridge = InkGallery.bridge(ink.dark).toComposeImageBitmap() }
     val fog = fogOf(weather)
     val fogColor = if (ink.dark) Color(0xFF96A2A8) else Color(0xFFF0F2F5)
     val shift = if (moving) {

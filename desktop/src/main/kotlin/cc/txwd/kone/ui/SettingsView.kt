@@ -24,9 +24,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cc.txwd.kone.app.Hotkey
 
 /** Appearance: as Windows is set, or always light, or always dark. */
-enum class Appearance(val title: String) { System("System"), Light("Light"), Dark("Dark") }
+enum class Appearance(val title: String) { System("System default"), Light("Light"), Dark("Dark") }
+
+/** Background: KOne's own ink handscroll, or the cities of the node's country (Codex's scenes). */
+enum class Backdrop(val title: String) { Ink("Ink"), City("Cities") }
 
 /** Where updating stands, as Settings shows it beside the version. */
 sealed interface UpdateState {
@@ -43,41 +47,48 @@ sealed interface UpdateState {
 
 data class SettingsState(
     val appearance: Appearance,
+    val backdrop: Backdrop = Backdrop.Ink,
+    /** The cities' wind, rain and sea heard; offered only with Cities. */
+    val sound: Boolean = false,
     /** Whether KOne starts with Windows; null where it cannot (not installed), and the row is left out. */
     val autostart: Boolean?,
+    /** Whether Ctrl+Alt+K turns the connection on and off; null where it cannot (not Windows), and the row is left out. */
+    val hotkey: Boolean? = null,
+    /** Another program has Ctrl+Alt+K. */
+    val hotkeyTaken: Boolean = false,
     val version: String,
     val update: UpdateState,
 )
 
 class SettingsActions(
     val onAppearance: (Appearance) -> Unit = {},
+    val onBackdrop: (Backdrop) -> Unit = {},
+    val onSound: (Boolean) -> Unit = {},
     val onAutostart: (Boolean) -> Unit = {},
+    val onHotkey: (Boolean) -> Unit = {},
     val onCheck: () -> Unit = {},
     val onUpdate: () -> Unit = {},
 )
 
-/** Settings: Appearance, Start with Windows, and the version with its update, one line each on the paper. */
+/** Settings: Appearance, Background (with Ambient sound for the cities), Start with Windows, Keyboard shortcut, and the version with its update, one line each on the paper. */
 @Composable
 fun SettingsView(state: SettingsState, actions: SettingsActions) {
     val ink = LocalInk.current
     Column(Modifier.padding(horizontal = 40.dp, vertical = 26.dp).widthIn(max = 640.dp).fillMaxWidth()) {
-        Line("Appearance") {
-            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                Appearance.entries.forEach { choice ->
-                    val on = choice == state.appearance
-                    Box(
-                        Modifier.height(34.dp).press(bleed = 8.dp) { actions.onAppearance(choice) }
-                            .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
-                            .padding(horizontal = 2.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Label(choice.title, 14.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
-                    }
-                }
-            }
-        }
+        Line("Appearance") { Choices(Appearance.entries, state.appearance, Appearance::title, actions.onAppearance) }
+        Line("Background") { Choices(Backdrop.entries, state.backdrop, Backdrop::title, actions.onBackdrop) }
+        if (state.backdrop == Backdrop.City) Line("Ambient sound") { Switch(state.sound) { actions.onSound(!state.sound) } }
         state.autostart?.let { on ->
             Line("Start with Windows") { Switch(on) { actions.onAutostart(!on) } }
+        }
+        state.hotkey?.let { on ->
+            Line("Keyboard shortcut") {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    if (state.hotkeyTaken) Label("${Hotkey.KEYS} is already in use", 14.sp, NodeWeather.Cut.ink(ink.dark))
+                    else Label(Hotkey.KEYS, 14.sp, ink.soft)
+                    Switch(on) { actions.onHotkey(!on) }
+                }
+            }
         }
         Line("Version") {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -85,7 +96,7 @@ fun SettingsView(state: SettingsState, actions: SettingsActions) {
                 when (val update = state.update) {
                     UpdateState.Checking -> Label("Checking", 14.sp, ink.soft)
                     UpdateState.Latest -> Label("Up to date", 14.sp, ink.soft)
-                    is UpdateState.Available -> Label("New version ${update.version}", 14.sp, ink.ink)
+                    is UpdateState.Available -> Label("Update available", 14.sp, ink.ink)
                     is UpdateState.Downloading -> Label("Downloading ${update.percent}%", 14.sp, ink.soft, tabular = true)
                     UpdateState.Installing -> Label("Installing", 14.sp, ink.soft)
                     is UpdateState.Failed -> Label(update.message, 14.sp, NodeWeather.Cut.ink(ink.dark))
@@ -99,6 +110,10 @@ fun SettingsView(state: SettingsState, actions: SettingsActions) {
                 }
             }
         }
+        // Open-Meteo's terms: the weather the cities show is credited to it.
+        if (state.backdrop == Backdrop.City) {
+            Label("Weather data: Open-Meteo.com", 12.sp, ink.soft, modifier = Modifier.padding(top = 14.dp))
+        }
     }
 }
 
@@ -109,6 +124,25 @@ private fun Line(title: String, content: @Composable RowScope.() -> Unit) {
         Label(title, 15.sp)
         Spacer(Modifier.weight(1f))
         content()
+    }
+}
+
+/** One of a few, the chosen one underlined in ink. */
+@Composable
+private fun <T> Choices(choices: List<T>, chosen: T, title: (T) -> String, onPick: (T) -> Unit) {
+    val ink = LocalInk.current
+    Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+        choices.forEach { choice ->
+            val on = choice == chosen
+            Box(
+                Modifier.height(34.dp).press(bleed = 8.dp) { onPick(choice) }
+                    .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
+                    .padding(horizontal = 2.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Label(title(choice), 14.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
+            }
+        }
     }
 }
 

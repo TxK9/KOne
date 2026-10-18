@@ -15,7 +15,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -27,12 +29,15 @@ data class ServiceStatus(val state: String, val end: String, val api: CoreApi?, 
 object Ends {
     fun message(end: String): String? = when {
         end.isBlank() || end == "stopped" -> null
-        end == "config_invalid" -> "The received configuration cannot be used."
+        end == "config_invalid" -> "The received configuration is invalid"
         end == "busy" -> "Another session is already connecting"
         end == "untrusted" || end == "no service" -> "KOne service is not running"
-        end.startsWith("exited") -> "Disconnected"
+        end.startsWith("exited") -> "Connection ended"
         else -> "Connection failed"
     }
+
+    /** Whether trying again may help: not for a configuration the core refuses, someone else's connection, or a program the service turns away. */
+    fun passing(end: String): Boolean = end != "stopped" && end != "config_invalid" && end != "busy" && end != "untrusted"
 }
 
 /**
@@ -86,11 +91,18 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
     fun hello(): String? = runCatching { request(buildJsonObject { put("op", "hello") }) }.getOrNull()?.takeIf { it.ok }?.get("version")?.text()
 
     /** Starts the core on the console's [source]; null when it started, else why not. */
-    fun connect(source: JsonObject, selected: String?): String? {
+    fun connect(
+        source: JsonObject, selected: String?, mode: String = "Rule", bypass: List<String> = emptyList(),
+        direct: List<String> = emptyList(), proxied: List<String> = emptyList(),
+    ): String? {
         val reply = request(buildJsonObject {
             put("op", "connect")
             put("source", source)
             selected?.let { put("selected", it) }
+            put("mode", mode)
+            putJsonArray("bypass") { bypass.forEach { add(it) } }
+            putJsonArray("direct") { direct.forEach { add(it) } }
+            putJsonArray("proxied") { proxied.forEach { add(it) } }
         })
         return if (reply.ok) null else reply["error"]?.text() ?: "failed"
     }

@@ -12,6 +12,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.io.File
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.Base64
 
 /** This computer's binding to the console, as the App keeps it between runs. */
@@ -28,6 +32,8 @@ data class Binding(
     val source: JsonObject? = null,
     /** The node chosen last, by its tag. */
     val selected: String? = null,
+    /** When the console says this person's use ends (ISO 8601), if it ends. */
+    val expiresAt: String? = null,
 )
 
 /**
@@ -51,6 +57,7 @@ class BindingStore(private val folder: File, private val vault: Vault) {
             configName = json.string("configName").orEmpty(),
             source = json.string("source")?.let(::open)?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() },
             selected = json.string("selected"),
+            expiresAt = json.string("expiresAt"),
         )
     }
 
@@ -66,13 +73,14 @@ class BindingStore(private val folder: File, private val vault: Vault) {
             put("configName", binding.configName)
             binding.source?.let { put("source", seal(it.toString())) }
             binding.selected?.let { put("selected", it) }
+            binding.expiresAt?.let { put("expiresAt", it) }
         }
         folder.mkdirs()
         val next = File(folder, "binding.json.next")
         next.writeText(json.toString())
         if (!next.renameTo(file)) {
             file.delete()
-            check(next.renameTo(file)) { "Cannot save" }
+            check(next.renameTo(file)) { "Unable to save" }
         }
     }
 
@@ -137,7 +145,15 @@ class Account(
                 else -> Sync.Failed
             }
         }
-        if (delivery.revision == current.revision && current.source != null) return Sync.Unchanged
+        if (delivery.revision == current.revision && current.source != null) {
+            // The same nodes; the terms may still have moved (a renewal).
+            if (delivery.policy.expiresAt != current.expiresAt) {
+                val renewed = current.copy(expiresAt = delivery.policy.expiresAt)
+                store.save(renewed)
+                binding = renewed
+            }
+            return Sync.Unchanged
+        }
         runCatching { console.ack(current.credential, delivery.revision, Report.RECEIVED) }
         if (delivery.configRevision != current.configRevision || current.source == null) {
             val good = runCatching { accepts(delivery.config) }.getOrDefault(false)
@@ -151,6 +167,7 @@ class Account(
             configRevision = delivery.configRevision,
             configName = delivery.configName,
             source = delivery.config,
+            expiresAt = delivery.policy.expiresAt,
         )
         store.save(updated)
         binding = updated
@@ -170,5 +187,20 @@ class Account(
     private fun forget() {
         store.clear()
         binding = null
+    }
+}
+
+/** How soon this person's use ends, as the dashboard says it in its last week; null before then or when it never ends. */
+object Expiry {
+    fun hint(expiresAt: String?, now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): String? {
+        val end = expiresAt?.let { runCatching { OffsetDateTime.parse(it).toInstant() }.getOrNull() } ?: return null
+        if (!end.isAfter(now)) return "Expired"
+        val days = ChronoUnit.DAYS.between(now.atZone(zone).toLocalDate(), end.atZone(zone).toLocalDate())
+        return when {
+            days > 7 -> null
+            days <= 0L -> "Expires today"
+            days == 1L -> "Expires tomorrow"
+            else -> "$days days remaining"
+        }
     }
 }

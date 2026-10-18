@@ -101,13 +101,26 @@ class AccountTest {
     @Test
     fun theChosenNodeIsRemembered() {
         val account = bound()
-        account.select("\u65e5\u672c")
-        assertEquals("\u65e5\u672c", BindingStore(folder, vault).load()!!.selected)
-        assertTrue(account.binding!!.selected == "\u65e5\u672c")
+        account.select("Japan")
+        assertEquals("Japan", BindingStore(folder, vault).load()!!.selected)
+        assertTrue(account.binding!!.selected == "Japan")
     }
 
     private fun bound(): Account {
         console.invites += "invite-bound"
         return account().also { it.claim(ClaimLink.parse(console.link("invite-bound"))!!) }
+    }
+
+    @Test
+    fun theEndOfUseIsKeptAndARenewalWithTheSameNodesToo() {
+        console.invites += "renew-0001"
+        console.expiresAt = "2026-12-01T00:00:00Z"
+        val account = account()
+        account.claim(assertNotNull(ClaimLink.read(console.link("renew-0001"), null)))
+        assertEquals("2026-12-01T00:00:00Z", account.binding?.expiresAt)
+        console.expiresAt = "2027-01-01T00:00:00Z"
+        assertEquals(Sync.Unchanged, account.sync(), "the same nodes")
+        assertEquals("2027-01-01T00:00:00Z", account.binding?.expiresAt)
+        assertEquals("2027-01-01T00:00:00Z", BindingStore(folder, vault).load()?.expiresAt, "kept on disk too")
     }
 }

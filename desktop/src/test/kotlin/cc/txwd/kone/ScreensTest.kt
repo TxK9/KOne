@@ -1,16 +1,30 @@
 package cc.txwd.kone
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import cc.txwd.kone.app.Used
+import cc.txwd.kone.city.Cities
+import cc.txwd.kone.city.CityGallery
+import cc.txwd.kone.city.Sky
+import cc.txwd.kone.city.WeatherProfile
+import cc.txwd.kone.core.Carried
+import cc.txwd.kone.core.CoreConnection
 import cc.txwd.kone.ink.InkGallery
+import cc.txwd.kone.node.Countries
 import cc.txwd.kone.ui.Appearance
+import cc.txwd.kone.ui.CityScroll
+import cc.txwd.kone.ui.Backdrop
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardActions
 import cc.txwd.kone.ui.DashboardState
 import cc.txwd.kone.ui.DashboardView
+import cc.txwd.kone.ui.Flag
+import cc.txwd.kone.ui.Flags
 import cc.txwd.kone.ui.Frame
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.KeyView
@@ -22,6 +36,9 @@ import cc.txwd.kone.ui.SettingsState
 import cc.txwd.kone.ui.SettingsView
 import cc.txwd.kone.ui.NodeWeather
 import cc.txwd.kone.ui.TitleBar
+import cc.txwd.kone.ui.ToolsActions
+import cc.txwd.kone.ui.ToolsState
+import cc.txwd.kone.ui.ToolsView
 import cc.txwd.kone.ui.TrayIcon
 import cc.txwd.kone.ui.TrayPanel
 import cc.txwd.kone.ui.UpdateState
@@ -29,6 +46,8 @@ import cc.txwd.kone.ui.WithRail
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -39,18 +58,18 @@ import kotlin.test.assertTrue
  */
 class ScreensTest {
     private val sample = DashboardState(
-        categories = listOf("\u7f8e\u56fd", "\u65e5\u672c", "\u65b0\u52a0\u5761"),
+        categories = listOf("United States", "Japan", "Singapore"),
         nodes = listOf(
-            Node("us1", "\u7f8e\u56fd", "US", "\u7f8e\u56fd", 245),
-            Node("us2", "United States 2", "US", "\u7f8e\u56fd", 312),
-            Node("jp1", "\u65e5\u672c", "JP", "\u65e5\u672c", 186),
-            Node("sg1", "\u65b0\u52a0\u5761", "SG", "\u65b0\u52a0\u5761", 1040),
+            Node("us1", "United States", "US", "United States", 245),
+            Node("us2", "United States 2", "US", "United States", 312),
+            Node("jp1", "Japan", "JP", "Japan", 186),
+            Node("sg1", "Singapore", "SG", "Singapore", 1040),
         ),
-        tab = "\u7f8e\u56fd",
+        tab = "United States",
         selected = "us1",
         canImport = true,
     )
-    private val online = sample.copy(connection = Connection.Online, exit = "203.0.113.24", home = true, downKbps = 18.6, upKbps = 1.2, seconds = 754)
+    private val online = sample.copy(connection = Connection.Online, exit = "203.0.113.24", home = true, downKbps = 18.6, upKbps = 1.2, seconds = 754, expiry = "3 days remaining")
 
     private val out = File(System.getProperty("kone.screens") ?: "build/screens").apply { mkdirs() }
 
@@ -80,9 +99,108 @@ class ScreensTest {
             shoot("dashboard", dark) { WithRail(Page.Dashboard, {}) { DashboardView(sample, DashboardActions(), false, {}, moving = false) } }
             shoot("dashboard-online", dark) { WithRail(Page.Dashboard, {}) { DashboardView(online, DashboardActions(), false, {}, moving = false) } }
         }
+        // Auto chosen: its own tab, on the fastest node.
+        val auto = sample.copy(
+            categories = listOf("Auto") + sample.categories,
+            nodes = listOf(Node("auto", "Auto · Japan", "JP", "Auto", 186)) + sample.nodes,
+            tab = "Auto", selected = "auto",
+        )
+        shoot("dashboard-auto", dark = false) { WithRail(Page.Dashboard, {}) { DashboardView(auto, DashboardActions(), false, {}, moving = false) } }
         // The smallest the window goes.
         shoot("dashboard-smallest", dark = false, width = 960, height = 620) {
             WithRail(Page.Dashboard, {}) { DashboardView(online, DashboardActions(), false, {}, moving = false) }
+        }
+    }
+
+    /**
+     * Background set to Cities: the cities of the node's country, each in its own daylight. Tokyo at noon
+     * and at nine at night, Texas at sunset, and Hong Kong's own scene first for a Hong Kong node.
+     */
+    @Test
+    fun cities() {
+        val japan = sample.copy(tab = "Japan", selected = "jp1")
+        val hongKong = sample.copy(
+            categories = listOf("Hong Kong"), nodes = listOf(Node("hk1", "Hong Kong", "HK", "Hong Kong", 42)), tab = "Hong Kong", selected = "hk1",
+        )
+        for ((name, state, at) in listOf(
+            Triple("city-japan-day", japan, "2026-10-17T03:00:00Z"),
+            Triple("city-japan-night", japan, "2026-10-17T12:00:00Z"),
+            Triple("city-us-dusk", sample, "2026-10-17T23:50:00Z"),
+            Triple("city-hongkong", hongKong, "2026-10-17T13:00:00Z"),
+        )) {
+            val instant = Instant.parse(at)
+            val country = state.current?.country
+            val scenes = Cities.pick(country, instant.atZone(ZoneId.systemDefault()).toLocalDate())
+            assertTrue(scenes.isNotEmpty(), "no scenes for $country")
+            runBlocking { CityGallery.load(scenes) }
+            for (dark in listOf(false, true)) {
+                shoot(name, dark) {
+                    WithRail(Page.Dashboard, {}) { DashboardView(state, DashboardActions(), false, {}, moving = false, cities = true, at = instant) }
+                }
+            }
+        }
+    }
+
+    /**
+     * The cities' real weather (fixed here, made-up values): Tokyo in a night storm, Oslo under
+     * snow, London in fog, and a city in low warm sun with its light on the facades and water.
+     */
+    @Test
+    fun weather() {
+        val storm = WeatherProfile(cloudCover = .98, rain = .94, fog = .26, wind = 1.7, wetness = 1.0, temperature = 17.0)
+        val snow = WeatherProfile(cloudCover = .87, snow = .7, fog = .21, wind = 1.02, wetness = .3, temperature = -3.0)
+        val fog = WeatherProfile(cloudCover = .65, fog = .76, wind = .59, wetness = .3, temperature = 14.0)
+        val sunny = WeatherProfile(cloudCover = .16, fog = .025, wind = .78, temperature = 23.0)
+        val low = lowSun()
+        for ((name, country, at, profile) in listOf(
+            Shot("weather-storm", "JP", Instant.parse("2026-10-17T12:00:00Z"), storm),
+            Shot("weather-snow", "NO", Instant.parse("2026-12-17T18:00:00Z"), snow),
+            Shot("weather-fog", "GB", Instant.parse("2026-10-17T09:00:00Z"), fog),
+            Shot("weather-low-sun", low.first, low.second, sunny),
+        )) {
+            val scenes = Cities.pick(country, at.atZone(ZoneId.systemDefault()).toLocalDate())
+            runBlocking { CityGallery.load(scenes) }
+            val weather = scenes.associate { it.cityId to profile }
+            for (dark in listOf(false, true)) {
+                shoot(name, dark) { WithRail(Page.Dashboard, {}) { CityScroll(country, moving = false, at = at, weather = weather) } }
+            }
+        }
+    }
+
+    private data class Shot(val name: String, val country: String, val at: Instant, val weather: WeatherProfile)
+
+    /** The first country and time today when the first city on its scroll has the sun low in its painting. */
+    private fun lowSun(): Pair<String, Instant> {
+        val day = Instant.parse("2026-10-17T00:00:00Z")
+        for (country in listOf("JP", "US", "FR", "IT", "AU", "GB", "ES", "TR")) {
+            val scene = Cities.pick(country, day.atZone(ZoneId.systemDefault()).toLocalDate()).first()
+            for (minute in 0 until 24 * 60 step 5) {
+                val at = day.plusSeconds(minute * 60L)
+                val sky = Sky.at(scene, at.toEpochMilli())
+                if (sky.body?.moon == false && sky.sunAltitude in 4.0..20.0) return country to at
+            }
+        }
+        error("no low sun in sight anywhere")
+    }
+
+    /** Every flag, large and at the size a node shows it; Taiwan alone is left without one. */
+    @Test
+    fun flags() {
+        val codes = Countries.all.map { it.code }
+        assertTrue(codes.filter { it != "TW" }.all { it in Flags.drawn }, "no flag for ${codes.filter { it != "TW" && it !in Flags.drawn }}")
+        shoot("flags", dark = false, width = 820, height = 420, framed = false) {
+            androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.padding(16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+                codes.chunked(13).forEach { row ->
+                    androidx.compose.foundation.layout.Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+                        row.forEach { code ->
+                            androidx.compose.foundation.layout.Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                                Flag(code, 48.dp, 34.dp)
+                                Flag(code)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -96,10 +214,30 @@ class ScreensTest {
         }
     }
 
+    /** Tools while connected: the mode, two programs sent straight out, and what the core carries (example sites only). */
+    @Test
+    fun tools() {
+        val carried = Carried(
+            down = 1_288_490_188, up = 31_457_280,
+            connections = listOf(
+                CoreConnection("1", "chrome.exe", "www.example.com:443", "United States", 3_481_600, 52_224),
+                CoreConnection("2", "Code.exe", "api.example.org:443", "United States", 802_816, 31_744),
+                CoreConnection("3", "WeChat.exe", "203.0.113.40:8080", "direct", 120_832, 9_216),
+                CoreConnection("4", "svchost.exe", "time.example.net:123", "direct", 96, 96),
+                CoreConnection("5", null, "203.0.113.77:53", "United States", 512, 128),
+            ),
+        )
+        val state = ToolsState("Rule", listOf("WeChat.exe", "Steam.exe"), carried, today = Used(1_288_490_189, 64_424_509), month = Used(19_756_849_561, 1_073_741_824),
+            direct = listOf("example.cn"), proxied = listOf("example.com", "example.org"))
+        for (dark in listOf(false, true)) {
+            shoot("tools", dark) { WithRail(Page.Tools, {}) { ToolsView(state, ToolsActions()) } }
+        }
+    }
+
     /** Settings with a newer KOne out, and Start with Windows off as it starts. */
     @Test
     fun settings() {
-        val state = SettingsState(Appearance.System, autostart = false, version = "1.0.6", update = UpdateState.Available("1.0.7"))
+        val state = SettingsState(Appearance.System, Backdrop.City, autostart = false, hotkey = true, version = "1.0.0", update = UpdateState.Available("1.0.7"))
         for (dark in listOf(false, true)) {
             shoot("settings", dark) {
                 WithRail(Page.Settings, {}, listOf(Page.Dashboard, Page.Log, Page.Settings), marked = setOf(Page.Settings)) {
@@ -109,7 +247,7 @@ class ScreensTest {
         }
     }
 
-    /** The tray panel in each weather: sun, mist and storm while connected, moon when not. */
+    /** The tray panel in each weather: S, M and ! while connected, Z when not. */
     @Test
     fun trayPanel() {
         val weathers = listOf("qing" to 245, "wu" to 1180, "duan" to null)

@@ -44,7 +44,7 @@ func exit(err error) {
 	}
 }
 
-// buildConfig reads {"source": …, "selected", "rules", "port", "secret", "tun"} and prints the
+// buildConfig reads {"source": …, "selected", "rules", "port", "secret", "tun", "mode", "bypass", "direct", "proxied", "mixed"} and prints the
 // configuration the service would run, so the App's tests can check they build the same.
 func buildConfig(in io.Reader, out io.Writer) error {
 	var request struct {
@@ -54,13 +54,18 @@ func buildConfig(in io.Reader, out io.Writer) error {
 		Port     int            `json:"port"`
 		Secret   string         `json:"secret"`
 		Tun      bool           `json:"tun"`
+		Mode     string         `json:"mode"`
+		Bypass   []string       `json:"bypass"`
+		Direct   []string       `json:"direct"`
+		Proxied  []string       `json:"proxied"`
+		Mixed    int            `json:"mixed"`
 	}
 	decoder := json.NewDecoder(io.LimitReader(in, maxMessage))
 	decoder.UseNumber()
 	if err := decoder.Decode(&request); err != nil {
 		return err
 	}
-	config, _, err := Build(request.Source, Options{Selected: request.Selected, Rules: request.Rules, Port: request.Port, Secret: request.Secret, Tun: request.Tun})
+	config, _, err := Build(request.Source, Options{Selected: request.Selected, Rules: request.Rules, Port: request.Port, Secret: request.Secret, Tun: request.Tun, Mode: request.Mode, Bypass: request.Bypass, Direct: request.Direct, Proxied: request.Proxied, Mixed: request.Mixed})
 	if err != nil {
 		return err
 	}
@@ -71,4 +76,3 @@ func buildConfig(in io.Reader, out io.Writer) error {
 
 // maxMessage bounds one request on the pipe or stdin.
 const maxMessage = 8 << 20
-
