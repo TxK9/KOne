@@ -105,6 +105,8 @@ class ToolsActions(
     /** End one connection, or all of them for null. */
     val onClose: (String?) -> Unit = {},
     val onDiagnose: () -> Unit = {},
+    /** Copies the last diagnosis as plain text, for whoever helps. */
+    val onCopyReport: () -> Unit = {},
     /** Puts the last diagnosis away, giving its room back to the connections. */
     val onClearChecks: () -> Unit = {},
     /** Looks a name up every way KOne can; false when it is not a domain name. */
@@ -161,6 +163,9 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
             Line("Diagnose") {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                     if (state.checks.isNotEmpty() && !state.checking) {
+                        Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onCopyReport), contentAlignment = Alignment.Center) {
+                            Label("Copy report", 14.sp, ink.soft)
+                        }
                         Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onClearChecks), contentAlignment = Alignment.Center) {
                             Label("Clear", 14.sp, ink.soft)
                         }

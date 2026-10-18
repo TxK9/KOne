@@ -273,15 +273,15 @@ class ScreensTest {
         val state = NodesState(
             sections = listOf(
                 NodeSection("managed", SourceKind.Managed, "Managed", listOf(
-                    Node("us1", "United States", "US", "United States", 245, protocol = "vless"),
-                    Node("jp1", "Japan", "JP", "Japan", 186, protocol = "trojan"),
+                    Node("us1", "United States", "US", "United States", 245, protocol = "vless", history = listOf(240, 252, 238, 249, 245, 251, 243, 245)),
+                    Node("jp1", "Japan", "JP", "Japan", 186, protocol = "trojan", history = listOf(180, 420, 190, 175, 560, 186, 192, 186)),
                 )),
                 NodeSection("imported", SourceKind.Imported, "Imported", listOf(Node("i1", "Friend's node", null, "Imported", 220, imported = true, protocol = "hysteria2"))),
                 NodeSection(
                     "s1", SourceKind.Subscription, "Example Cloud", listOf(
                         Node("s1a", "Hong Kong 01", "HK", "Hong Kong", 42, protocol = "shadowsocks", speed = cc.txwd.kone.core.Speed(186.4, 42.7)),
-                        Node("s1b", "Singapore 02", "SG", "Singapore", 1040, protocol = "vmess", loss = 0.1),
-                        Node("s1c", "Germany 03", "DE", "Germany", null, protocol = "tuic", loss = 0.6),
+                        Node("s1b", "Singapore 02", "SG", "Singapore", 1040, protocol = "vmess", loss = 0.1, history = listOf(900, 980, null, 1100, 1020, 1040)),
+                        Node("s1c", "Germany 03", "DE", "Germany", null, protocol = "tuic", loss = 0.6, history = listOf(310, null, null, 330, null, null)),
                     ),
                     info = UserInfo(2_000_000_000, 11_000_000_000, 107_374_182_400, (now / 1000) + 40L * 86_400),
                     updated = now - 3 * 3_600_000L, hours = 12, url = "https://example.com/sub",

@@ -21,6 +21,10 @@ class Health(private val keep: Int = 10) {
         history.keys.retainAll(keepOnly)
     }
 
+    /** The recent tests of [tag], oldest first: a delay, or null for no answer. */
+    @Synchronized
+    fun samples(tag: String): List<Int?> = history[tag]?.toList().orEmpty()
+
     /** The share of recent tests [tag] did not answer, 0 to 1; null before any test. */
     @Synchronized
     fun loss(tag: String): Double? {

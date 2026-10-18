@@ -290,6 +290,8 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
                 }
             }
         }
+        // The last tests as a line: steady low is good, a sawtooth is a node to doubt; misses sit at the foot in the cut ink.
+        Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) { if (node.history.size >= 2) DelayLine(node.history) }
         Row(Modifier.width(96.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
             WeatherGlyph(node.weather, 16.dp)
             Label(delayText(node.delay), 13.sp, color, tabular = true)
@@ -469,3 +471,30 @@ private fun QrPanel(shown: NodeQr, onClose: () -> Unit) {
         }
     }
 }
+
+/** A node's recent delays as a thin line, [samples] oldest first; a test without an answer is a short mark at the foot. */
+@Composable
+private fun DelayLine(samples: List<Int?>) {
+    val ink = LocalInk.current
+    val cut = NodeWeather.Cut.ink(ink.dark)
+    androidx.compose.foundation.Canvas(Modifier.width(56.dp).height(18.dp)) {
+        val answered = samples.filterNotNull()
+        val most = (answered.maxOrNull() ?: 1).coerceAtLeast(100).toFloat()
+        val step = size.width / (samples.size - 1).coerceAtLeast(1)
+        var last: androidx.compose.ui.geometry.Offset? = null
+        samples.forEachIndexed { i, delay ->
+            val x = i * step
+            if (delay == null) {
+                drawLine(cut, androidx.compose.ui.geometry.Offset(x, size.height - 3.dp.toPx()), androidx.compose.ui.geometry.Offset(x, size.height), 1.5.dp.toPx())
+                last = null
+            } else {
+                val point = androidx.compose.ui.geometry.Offset(x, size.height - 2.dp.toPx() - (size.height - 5.dp.toPx()) * (delay / most))
+                last?.let { drawLine(ink.soft, it, point, 1.2.dp.toPx()) }
+                // An answer between misses has no line to sit on: a dot instead.
+                if (last == null && samples.getOrNull(i + 1) == null) drawCircle(ink.soft, 1.4.dp.toPx(), point)
+                last = point
+            }
+        }
+    }
+}
+

@@ -48,6 +48,8 @@ data class Node(
     val loss: Double? = null,
     /** Its last bandwidth test. */
     val speed: cc.txwd.kone.core.Speed? = null,
+    /** Its recent tests, oldest first: a delay, or null for no answer (Nodes draws them as a line). */
+    val history: List<Int?> = emptyList(),
 ) {
     val weather: NodeWeather get() = if (tested) NodeWeather.of(delay) else NodeWeather.Rest
 }
@@ -84,6 +86,8 @@ data class DashboardState(
     val trail: List<Pair<Long, Long>> = emptyList(),
     /** The network is holding traffic for its sign-in page (a hotel, an airport): shown with the way to sign in. */
     val signIn: SignInState? = null,
+    /** Paused by the person, and when KOne comes back on ("14:35"). */
+    val pausedUntil: String? = null,
 ) {
     val current: Node? get() = nodes.firstOrNull { it.id == selected }
 }
@@ -99,6 +103,8 @@ class DashboardActions(
     /** Take out an imported node. */
     val onRemove: (String) -> Unit = {},
     val onSignIn: () -> Unit = {},
+    /** Steps aside for a quarter of an hour, then connects again by itself. */
+    val onPause: () -> Unit = {},
     val onCancelSignIn: () -> Unit = {},
 )
 
@@ -168,7 +174,7 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions) {
             }
         }
         state.signIn?.let { SignInLine(it, actions) }
-        StatusLine(state, actions.onPower)
+        StatusLine(state, actions.onPower, actions.onPause)
     }
 }
 
@@ -200,7 +206,7 @@ private fun SignInLine(signIn: SignInState, actions: DashboardActions) {
 }
 
 @Composable
-private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
+private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -> Unit = {}) {
     val ink = LocalInk.current
     val node = state.current
     Row(
@@ -245,6 +251,7 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
                     }
                     when {
                         state.notice != null -> Label(state.notice, 14.sp, NodeWeather.Cut.ink(ink.dark))
+                        state.pausedUntil != null -> Label("Paused until ${state.pausedUntil}; Connect to come back now", 14.sp, ink.soft)
                         state.hint != null -> Label(state.hint, 14.sp, ink.soft)
                         state.expiry != null -> Label(state.expiry, 14.sp, NodeWeather.Mist.ink(ink.dark))
                     }
@@ -254,6 +261,12 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
             state.notice?.let { Label(it, 14.sp, NodeWeather.Cut.ink(ink.dark)) }
         }
         Spacer(Modifier.weight(1f))
+        // A quarter of an hour without KOne (a bank's app, a sign-in elsewhere), then back by itself.
+        if (state.connection == Connection.Online) {
+            Box(Modifier.height(48.dp).press(bleed = 6.dp, onClick = onPause).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+                Label("Pause 15 min", 14.sp, ink.soft)
+            }
+        }
         Row(
             Modifier.height(48.dp).press(bleed = 6.dp, onClick = onPower).padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,

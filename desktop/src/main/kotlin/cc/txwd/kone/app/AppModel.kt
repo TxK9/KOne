@@ -332,6 +332,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         when (connection) {
             Connection.Idle -> {
                 signIns.connecting()
+                // Connecting during a pause ends it.
+                resuming?.cancel()
+                pausedUntil = null
                 wanted = true
                 preferences.connected = true
                 attempts = 0
@@ -345,6 +348,34 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 preferences.connected = false
                 service?.let { link -> scope.launch(Dispatchers.IO) { link.disconnect() } }
                 if (service == null && proxied == null && attempts > 0) ended("stopped")
+            }
+        }
+    }
+
+    /** Paused by the person: when KOne comes back on, and the wait for it. */
+    private var pausedUntil: Long? = null
+    private var resuming: Job? = null
+
+    /**
+     * Steps aside for [minutes] (a bank's app that refuses VPNs, a sign-in elsewhere) and connects
+     * again by itself; Connect brings it back sooner.
+     */
+    fun pause(minutes: Int = 15) {
+        if (connection == Connection.Idle) return
+        power()
+        val until = System.currentTimeMillis() + minutes * 60_000L
+        pausedUntil = until
+        refresh()
+        resuming?.cancel()
+        resuming = scope.launch {
+            delay(minutes * 60_000L)
+            if (pausedUntil != until) return@launch
+            pausedUntil = null
+            if (connection == Connection.Idle) {
+                onNotice("KOne is on again after the pause")
+                power()
+            } else {
+                refresh()
             }
         }
     }
@@ -1034,6 +1065,25 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             tools = tools.copy(checks = checks.toList(), checking = false, advice = Diagnosis.advice(checks))
             refresh()
         }
+    }
+
+    /** The last diagnosis as plain text, with the version, mode and way, for whoever helps. */
+    fun diagnosisReport(): String = Diagnosis.report(
+        tools.checks, tools.advice,
+        listOf(
+            "Version" to (System.getProperty("jpackage.app-version") ?: "development"),
+            "Windows" to System.getProperty("os.version").orEmpty() + " " + System.getProperty("os.arch").orEmpty(),
+            "Mode" to preferences.mode,
+            "Way" to if (proxied != null) "System proxy" else "Virtual adapter",
+            "Connected" to (connection == Connection.Online).toString(),
+        ),
+    )
+
+    /** Hands the report to [copy] and says so. */
+    fun copyReport(copy: (String) -> Unit) {
+        if (tools.checks.isEmpty()) return
+        copy(diagnosisReport())
+        hint("Diagnosis copied")
     }
 
     fun clearChecks() {
@@ -1812,6 +1862,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun shown(node: SourceNode) = Node(
         node.tag, node.name, node.country, categoryOf(node), delays[node.tag], tested = node.tag in delays,
         imported = node.tag in importedTags, protocol = node.type, loss = health.loss(node.tag), speed = speeds[node.tag],
+        history = health.samples(node.tag),
     )
 
     private fun refresh() {
@@ -1841,6 +1892,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             standIn = standIn?.let(::nameOf),
             trail = trail.toList(),
             signIn = signIns.state,
+            pausedUntil = pausedUntil?.let { java.time.LocalTime.ofInstant(java.time.Instant.ofEpochMilli(it), java.time.ZoneId.systemDefault()).withSecond(0).withNano(0).toString() },
         )
         nodesPage = NodesState(
             sections = buildList {

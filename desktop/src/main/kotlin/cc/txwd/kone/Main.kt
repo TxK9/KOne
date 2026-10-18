@@ -308,6 +308,7 @@ fun main(args: Array<String>) {
                                               onClose = model::closeConnection,
                                               onDiagnose = model::diagnose,
                                               onClearChecks = model::clearChecks,
+                                              onCopyReport = { model.copyReport(::copyText) },
                                               onLookUp = model::lookUp,
                                               onClearLookup = model::clearLookup,
                                               onUsage = model::showUsage,
@@ -342,7 +343,7 @@ fun main(args: Array<String>) {
                                           model.dashboard,
                                           DashboardActions(
                                               onTab = model::pickTab, onNode = model::pickNode, onPower = model::power, onRemove = model::removeImported,
-                                              onSignIn = model::signIn, onCancelSignIn = model::cancelSignIn,
+                                              onSignIn = model::signIn, onCancelSignIn = model::cancelSignIn, onPause = { model.pause() },
                                               onMenu = { item ->
                                                   when (item) {
                                                       cc.txwd.kone.ui.MenuItem.Clipboard -> model.importText(clipboardText().orEmpty())
@@ -555,6 +556,10 @@ private fun commands(model: AppModel, query: String, go: (Page) -> Unit): List<c
         add(cc.txwd.kone.ui.Command("Look up $site", "DNS, every way") { go(Page.Tools); model.lookUp(site) })
     }
     add(cc.txwd.kone.ui.Command(if (state.connection == Connection.Idle) "Connect" else "Disconnect", state.current?.name.orEmpty()) { model.power() })
+    if (state.connection == Connection.Online) {
+        add(cc.txwd.kone.ui.Command("Pause for 15 minutes", "Back on by itself") { model.pause(15) })
+        add(cc.txwd.kone.ui.Command("Pause for an hour", "Back on by itself") { model.pause(60) })
+    }
     state.nodes.forEach { node ->
         add(cc.txwd.kone.ui.Command("Use ${node.name}", listOfNotNull(node.category, node.delay?.let { "$it ms" }).joinToString(" · ")) { go(Page.Dashboard); model.pickNode(node.id) })
     }

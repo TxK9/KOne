@@ -39,3 +39,29 @@ class DiagnosisTest {
         }
     }
 }
+
+class DiagnosisReportTest {
+    @org.junit.jupiter.api.Test
+    fun theReportSaysEachCheckAndLeavesTheExitOut() {
+        val report = Diagnosis.report(
+            listOf(Check("Network", Outcome.Pass, "Open"), Check("Node", Outcome.Fail, "Japan did not answer"), Check("Exit", Outcome.Pass, "203.0.113.45")),
+            "Try another node, or Test all on Nodes",
+            listOf("Version" to "1.0.41", "Mode" to "Rule"),
+        )
+        kotlin.test.assertEquals(
+            """
+            KOne diagnosis
+            Version: 1.0.41
+            Mode: Rule
+
+            ok   Network   Open
+            FAIL Node      Japan did not answer
+            ok   Exit      (left out of the report)
+
+            Suggestion: Try another node, or Test all on Nodes
+            """.trimIndent(),
+            report,
+        )
+        kotlin.test.assertFalse("203.0.113.45" in report)
+    }
+}
