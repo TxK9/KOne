@@ -14,6 +14,7 @@ import cc.txwd.kone.city.Sky
 import cc.txwd.kone.city.WeatherProfile
 import cc.txwd.kone.core.Carried
 import cc.txwd.kone.core.CoreConnection
+import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.ink.InkGallery
 import cc.txwd.kone.node.Countries
 import cc.txwd.kone.node.UserInfo
@@ -40,6 +41,9 @@ import cc.txwd.kone.ui.NodeWeather
 import cc.txwd.kone.ui.NodesActions
 import cc.txwd.kone.ui.NodesState
 import cc.txwd.kone.ui.NodesView
+import cc.txwd.kone.ui.RulesActions
+import cc.txwd.kone.ui.RulesState
+import cc.txwd.kone.ui.RulesView
 import cc.txwd.kone.ui.SourceKind
 import cc.txwd.kone.ui.TitleBar
 import cc.txwd.kone.ui.ToolsActions
@@ -269,10 +273,25 @@ class ScreensTest {
                 CoreConnection("5", null, "203.0.113.77:53", "United States", 512, 128),
             ),
         )
-        val state = ToolsState("Rule", listOf("WeChat.exe", "Steam.exe"), carried, today = Used(1_288_490_189, 64_424_509), month = Used(19_756_849_561, 1_073_741_824),
-            direct = listOf("example.cn"), proxied = listOf("example.com", "example.org"))
+        val state = ToolsState("Rule", listOf("WeChat.exe", "Steam.exe"), carried, today = Used(1_288_490_189, 64_424_509), month = Used(19_756_849_561, 1_073_741_824))
         for (dark in listOf(false, true)) {
             shoot("tools", dark) { WithRail(Page.Tools, {}) { ToolsView(state, ToolsActions()) } }
+        }
+    }
+
+    /** Rules: ads blocked, the lists, and the person's own rules in order (example names only). */
+    @Test
+    fun rules() {
+        val state = RulesState(
+            bypass = listOf("WeChat.exe", "Steam.exe"), direct = listOf("example.cn"), proxied = listOf("example.com", "example.org"),
+            rules = listOf(
+                UserRule("keyword", "tracker", "block"), UserRule("suffix", "example.net", "proxy"), UserRule("cidr", "203.0.113.0/24", "direct"),
+                UserRule("program", "Game.exe", "direct"), UserRule("port", "6881-6889", "direct"),
+            ),
+            blockAds = true,
+        )
+        for (dark in listOf(false, true)) {
+            shoot("rules", dark) { WithRail(Page.Rules, {}) { RulesView(state, RulesActions()) } }
         }
     }
 

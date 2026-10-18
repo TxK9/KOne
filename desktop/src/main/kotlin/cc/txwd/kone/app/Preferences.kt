@@ -1,6 +1,11 @@
 package cc.txwd.kone.app
 
 import cc.txwd.kone.core.KoneConfig
+import cc.txwd.kone.core.UserRule
+import cc.txwd.kone.core.UserRules
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import cc.txwd.kone.ui.Appearance
 import cc.txwd.kone.ui.Backdrop
 import java.io.File
@@ -79,6 +84,24 @@ class Preferences(folder: File) {
         get() = values.getProperty("proxied")?.split('|')?.filter { it.isNotBlank() }.orEmpty()
         set(value) {
             values.setProperty("proxied", KoneConfig.sites(value).joinToString("|"))
+            save()
+        }
+
+    /** The person's own routing rules, in order (Rules), kept as they are checked. */
+    var rules: List<UserRule>
+        get() = values.getProperty("rules")?.let { text ->
+            runCatching { (Json.parseToJsonElement(text) as JsonArray).mapNotNull { (it as? JsonObject)?.let(UserRule::fromJson) } }.getOrNull()
+        }.orEmpty()
+        set(value) {
+            values.setProperty("rules", JsonArray(UserRules.clean(value).map { it.toJson() }).toString())
+            save()
+        }
+
+    /** Whether ads are refused (Rules → Block ads); off until the person turns it on. */
+    var blockAds: Boolean
+        get() = values.getProperty("blockAds") == "true"
+        set(value) {
+            values.setProperty("blockAds", value.toString())
             save()
         }
 

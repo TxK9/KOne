@@ -52,7 +52,7 @@ import androidx.compose.ui.unit.sp
 import cc.txwd.kone.app.Used
 import cc.txwd.kone.core.Carried
 
-/** Tools as the App fills it: the mode, the programs and sites, and what the core carries while connected. */
+/** Tools as the App fills it: the mode, the way KOne connects, usage, and what the core carries while connected. */
 data class ToolsState(
     val mode: String,
     val bypass: List<String>,
@@ -63,29 +63,21 @@ data class ToolsState(
     /** What the core has carried today and this month; Usage shows once there is any. */
     val today: Used = Used(0, 0),
     val month: Used = Used(0, 0),
-    /** Sites sent straight out in every mode, and sites through the node in Rule too. */
-    val direct: List<String> = emptyList(),
-    val proxied: List<String> = emptyList(),
 )
 
 class ToolsActions(
     val onMode: (String) -> Unit = {},
     val onWay: (String) -> Unit = {},
-    /** A program sent straight out (true) or back through KOne (false). */
+    /** A program sent straight out, from the connection list (Rules keeps the list). */
     val onBypass: (String, Boolean) -> Unit = { _, _ -> },
-    /** Pick a program to send straight out. */
-    val onAddProgram: () -> Unit = {},
     /** End one connection, or all of them for null. */
     val onClose: (String?) -> Unit = {},
-    /** What the person typed as a site straight out (true) or through the node (false); false when it is not a site. */
-    val onAddSite: (String, Boolean) -> Boolean = { _, _ -> true },
-    val onRemoveSite: (String) -> Unit = {},
 )
 
 private val MODE_NAMES = listOf("Rule" to "Rule", "Global" to "Global", "Direct" to "Direct")
 private val WAY_NAMES = listOf("Adapter" to "Virtual adapter", "Proxy" to "System proxy")
 
-/** Tools: Mode, Connection method, Usage, the programs and sites, and while connected each connection, with the program behind it. */
+/** Tools: Mode, Connection method, Usage, and while connected each connection, with the program behind it. */
 @Composable
 fun ToolsView(state: ToolsState, actions: ToolsActions) {
     val ink = LocalInk.current
@@ -105,19 +97,6 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
                 Line("Usage") {
                     Label("Today ${size(state.today.total)} · This month ${size(state.month.total)}", 14.sp, ink.soft, tabular = true)
                 }
-            }
-            Line("Direct apps") {
-                Chips(state.bypass, { actions.onBypass(it, false) }) {
-                    Box(Modifier.height(30.dp).press(bleed = 8.dp, onClick = actions.onAddProgram), contentAlignment = Alignment.Center) {
-                        Label("Add", 14.sp, weight = FontWeight.SemiBold)
-                    }
-                }
-            }
-            Line("Direct sites") {
-                Chips(state.direct, actions.onRemoveSite) { AddSite { actions.onAddSite(it, true) } }
-            }
-            Line("Proxied sites") {
-                Chips(state.proxied, actions.onRemoveSite) { AddSite { actions.onAddSite(it, false) } }
             }
         }
         state.carried?.let { carried -> Connections(carried, state.bypass, actions) }
@@ -167,72 +146,6 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
             }
         }
     }
-}
-
-/** Names in pills, each taken out by its ×, and at the end [add]. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun Chips(names: List<String>, onRemove: (String) -> Unit, add: @Composable () -> Unit) {
-    val ink = LocalInk.current
-    FlowRow(
-        Modifier.padding(vertical = 12.dp).widthIn(max = 440.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        names.forEach { name ->
-            Row(
-                Modifier.height(30.dp).clip(RoundedCornerShape(15.dp)).background(ink.press).press { onRemove(name) }.padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Label(name, 13.sp)
-                Label("×", 14.sp, ink.soft)
-            }
-        }
-        add()
-    }
-}
-
-/** Add, which opens into a field for a site: Enter adds it, Esc or leaving it empty closes it. */
-@Composable
-private fun AddSite(onAdd: (String) -> Boolean) {
-    val ink = LocalInk.current
-    var open by remember { mutableStateOf(false) }
-    var text by remember { mutableStateOf("") }
-    var wrong by remember { mutableStateOf(false) }
-    if (!open) {
-        Box(Modifier.height(30.dp).press(bleed = 8.dp) { open = true }, contentAlignment = Alignment.Center) {
-            Label("Add", 14.sp, weight = FontWeight.SemiBold)
-        }
-        return
-    }
-    val focus = remember { FocusRequester() }
-    var focused by remember { mutableStateOf(false) }
-    fun close() {
-        open = false
-        text = ""
-        wrong = false
-    }
-    BasicTextField(
-        text,
-        { text = it; wrong = false },
-        Modifier.width(180.dp).height(30.dp).focusRequester(focus)
-            .onFocusChanged { if (focused && !it.isFocused && text.isBlank()) close(); focused = it.isFocused }
-            .onPreviewKeyEvent { if (it.key == Key.Escape && it.type == KeyEventType.KeyDown) { close(); true } else false }
-            .hairline(if (wrong) NodeWeather.Cut.ink(ink.dark) else ink.ink, bottom = true, width = 1.5.dp),
-        singleLine = true,
-        textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.ui, fontSize = 13.sp),
-        cursorBrush = SolidColor(ink.ink),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { if (text.isBlank() || onAdd(text)) close() else wrong = true }),
-        decorationBox = { field ->
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-                if (text.isEmpty()) Label("example.com", 13.sp, ink.soft)
-                field()
-            }
-        },
-    )
-    LaunchedEffect(Unit) { focus.requestFocus() }
 }
 
 @Composable

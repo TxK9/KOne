@@ -16,6 +16,8 @@ import cc.txwd.kone.core.Probe
 import cc.txwd.kone.core.RuleSets
 import cc.txwd.kone.core.ServiceLink
 import cc.txwd.kone.core.SourceNode
+import cc.txwd.kone.core.UserRule
+import cc.txwd.kone.core.UserRules
 import cc.txwd.kone.node.Countries
 import cc.txwd.kone.node.SharedNode
 import cc.txwd.kone.node.ShareLinks
@@ -26,6 +28,7 @@ import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
 import cc.txwd.kone.ui.NodeSection
 import cc.txwd.kone.ui.NodesState
+import cc.txwd.kone.ui.RulesState
 import cc.txwd.kone.ui.SourceKind
 import cc.txwd.kone.ui.ToolsState
 import kotlinx.coroutines.CoroutineScope
@@ -103,11 +106,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** The core's last lines, for Logs. */
     val logs = mutableStateListOf<String>()
 
-    /** Tools: the mode, the programs sent straight out, and what the core carries while connected. */
-    var tools by mutableStateOf(ToolsState(
-            preferences.mode, preferences.bypass, way = preferences.way, today = usage.today(), month = usage.month(),
-            direct = preferences.direct, proxied = preferences.proxied,
-        ))
+    /** Tools: the mode, the way KOne connects, usage, and what the core carries while connected. */
+    var tools by mutableStateOf(ToolsState(preferences.mode, preferences.bypass, way = preferences.way, today = usage.today(), month = usage.month()))
+        private set
+
+    /** Rules: the programs and sites lists, the person's own rules and ad blocking, as kept. */
+    var rulesPage by mutableStateOf(rulesNow())
         private set
     private var watching: Job? = null
 
@@ -293,7 +297,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 if (Places.launcher != null && Places.service == null) null else ServiceLink.open(Places.service)
             }
             val refused = if (link == null) "no service" else withContext(Dispatchers.IO) {
-                runCatching { link.connect(source, binding.selected, preferences.mode, preferences.bypass, preferences.direct, preferences.proxied) }.getOrElse { "failed" }
+                runCatching {
+                    link.connect(
+                        source, binding.selected, preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
+                        preferences.rules, preferences.blockAds,
+                    )
+                }.getOrElse { "failed" }
             }
             if (link == null || refused != null) {
                 link?.close()
@@ -376,7 +385,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             val port = freePort()
             val config = runCatching {
                 KoneConfig.build(source, rules, api, account.binding?.selected, tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
-                    direct = preferences.direct, proxied = preferences.proxied,
+                    direct = preferences.direct, proxied = preferences.proxied, routes = preferences.rules, blockAds = preferences.blockAds,
                 ).config.toString()
             }.getOrNull()
             if (config == null || !withContext(Dispatchers.IO) { core.start(config) }) {
@@ -671,6 +680,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         preferences.bypass = next
         if (preferences.bypass == now) return
         tools = tools.copy(bypass = preferences.bypass)
+        rulesPage = rulesNow()
         restart()
     }
 
@@ -690,7 +700,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             preferences.proxied = to + site
             preferences.direct = from - site
         }
-        tools = tools.copy(direct = preferences.direct, proxied = preferences.proxied)
+        rulesPage = rulesNow()
         restart()
         return true
     }
@@ -698,7 +708,50 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun removeSite(site: String) {
         preferences.direct -= site
         preferences.proxied -= site
-        tools = tools.copy(direct = preferences.direct, proxied = preferences.proxied)
+        rulesPage = rulesNow()
+        restart()
+    }
+
+    // Rules
+
+    private fun rulesNow() = RulesState(preferences.bypass, preferences.direct, preferences.proxied, preferences.rules, preferences.blockAds)
+
+    fun setBlockAds(on: Boolean) {
+        preferences.blockAds = on
+        rulesPage = rulesNow()
+        restart()
+    }
+
+    /** [rule] at the end, its value written as the template writes it; false when it does not fit its kind. */
+    fun addRule(rule: UserRule): Boolean {
+        val value = UserRules.value(rule.kind, rule.value) ?: return false
+        if (rule.action !in UserRules.ACTIONS) return false
+        val before = preferences.rules
+        if (before.size >= UserRules.MOST) return false
+        preferences.rules = before + UserRule(rule.kind, value, rule.action)
+        if (preferences.rules != before) {
+            rulesPage = rulesNow()
+            restart()
+        }
+        return true
+    }
+
+    fun removeRule(index: Int) {
+        val rules = preferences.rules
+        if (index !in rules.indices) return
+        preferences.rules = rules.filterIndexed { i, _ -> i != index }
+        rulesPage = rulesNow()
+        restart()
+    }
+
+    /** The rule at [index] one place earlier ([up]) or later; order decides which matches first. */
+    fun moveRule(index: Int, up: Boolean) {
+        val rules = preferences.rules.toMutableList()
+        val other = if (up) index - 1 else index + 1
+        if (index !in rules.indices || other !in rules.indices) return
+        rules[index] = rules[other].also { rules[other] = rules[index] }
+        preferences.rules = rules
+        rulesPage = rulesNow()
         restart()
     }
 

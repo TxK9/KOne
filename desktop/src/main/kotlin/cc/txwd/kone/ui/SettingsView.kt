@@ -155,7 +155,7 @@ private fun Action(text: String, onClick: () -> Unit) {
 
 /** A switch drawn in ink: filled with the knob to the right when on, a hairline ring when off. */
 @Composable
-private fun Switch(on: Boolean, onClick: () -> Unit) {
+internal fun Switch(on: Boolean, onClick: () -> Unit) {
     val ink = LocalInk.current
     val track = RoundedCornerShape(11.dp)
     Box(

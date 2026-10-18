@@ -63,6 +63,8 @@ import cc.txwd.kone.ui.LogView
 import cc.txwd.kone.ui.NodeWeather
 import cc.txwd.kone.ui.NodesActions
 import cc.txwd.kone.ui.NodesView
+import cc.txwd.kone.ui.RulesActions
+import cc.txwd.kone.ui.RulesView
 import cc.txwd.kone.ui.Page
 import cc.txwd.kone.ui.SettingsActions
 import cc.txwd.kone.ui.SettingsView
@@ -239,7 +241,7 @@ fun main(args: Array<String>) {
                                   moving = inSight,
                               )
                               Screen.Dashboard -> WithRail(
-                                  page, { page = it }, listOf(Page.Dashboard, Page.Nodes, Page.Log, Page.Tools, Page.Settings),
+                                  page, { page = it }, listOf(Page.Dashboard, Page.Nodes, Page.Rules, Page.Log, Page.Tools, Page.Settings),
                                   marked = if (settings.state.update is UpdateState.Available) setOf(Page.Settings) else emptySet(),
                               ) {
                                   when (page) {
@@ -261,16 +263,26 @@ fun main(args: Array<String>) {
                                           onCopy = { copyText(model.logs.joinToString("\n")) },
                                           onClear = { model.logs.clear() },
                                       )
+                                      Page.Rules -> RulesView(
+                                          model.rulesPage,
+                                          RulesActions(
+                                              onBypass = model::setBypass,
+                                              onAddProgram = { pickProgram(this@Window.window)?.let { model.setBypass(it, true) } },
+                                              onAddSite = model::addSite,
+                                              onRemoveSite = model::removeSite,
+                                              onBlockAds = model::setBlockAds,
+                                              onAddRule = model::addRule,
+                                              onRemoveRule = model::removeRule,
+                                              onMoveRule = model::moveRule,
+                                          ),
+                                      )
                                       Page.Tools -> ToolsView(
                                           model.tools,
                                           ToolsActions(
                                               onMode = model::pickMode,
                                               onWay = model::pickWay,
                                               onBypass = model::setBypass,
-                                              onAddProgram = { pickProgram(this@Window.window)?.let { model.setBypass(it, true) } },
                                               onClose = model::closeConnection,
-                                              onAddSite = model::addSite,
-                                              onRemoveSite = model::removeSite,
                                           ),
                                       )
                                       Page.Settings -> SettingsView(
