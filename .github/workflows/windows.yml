@@ -48,6 +48,11 @@ jobs:
           cache-dependency-path: |
             core/go.sum
             desktop/service/go.sum
+      - name: Test client language messages
+        working-directory: core
+        run: go test ./experimental/locale
+        env:
+          GOTOOLCHAIN: local
       - name: Read the core's version
         id: core
         shell: bash
@@ -195,8 +200,8 @@ jobs:
                        CoreDir = (Resolve-Path build/core).Path; ArtDir = (Resolve-Path build/wix).Path; Site = "${{ vars.KONE_SITE }}" }
           New-Item -ItemType Directory -Force build/msi, build/msi-old | Out-Null
           ./packaging/build-msi.ps1 @common -Arch ${{ matrix.wix }} -Version $env:KONE_VERSION -Out "$PWD\build\msi\KOne-$env:KONE_VERSION${{ matrix.suffix }}.msi"
-          # The same app as an older version, for trying the upgrade on the next job.
-          ./packaging/build-msi.ps1 @common -Arch ${{ matrix.wix }} -Version 1.0.0 -Out "$PWD\build\msi-old\KOne-1.0.0${{ matrix.suffix }}.msi"
+          # A Chinese-language older MSI verifies upgrading to the English default.
+          ./packaging/build-msi.ps1 @common -Arch ${{ matrix.wix }} -Culture zh-CN -Version 1.0.0 -Out "$PWD\build\msi-old\KOne-1.0.0${{ matrix.suffix }}.msi"
       - name: Sign the MSI
         if: env.SIGNING == 'true'
         uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0

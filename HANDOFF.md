@@ -30,11 +30,12 @@ creating public services or paid infrastructure.
 
 Repository documentation, comments, default display resources and development
 conversations use English. The Linux workspace uses an English locale. These
-choices do not permanently restrict the release client's language: preserve
-localization APIs, stable resource keys, formatting placeholders and protocol
-fields. A separately reviewed release language pack may provide Chinese or
-another language during local integration. Do not replace business identifiers,
-country recognition aliases or external user data merely to translate a label.
+choices do not restrict the release client's language. Retain the original
+client language packs and language selection, stable resource keys, formatting
+placeholders and protocol fields. Translation resources may contain their target
+languages. Missing translations fall back to English. Keep development and design
+notes in English. Do not replace business identifiers, country recognition aliases
+or external user data merely to translate a label.
 
 Only explicitly shared project files belong in this repository. Keep private
 conversations, local device information, credentials, signing material, personal

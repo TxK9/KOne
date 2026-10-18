@@ -1,0 +1,8 @@
+<resources>
+    <string name="knine_log_paused">日志已暂停</string>
+    <string name="knine_log_no_matches">没有匹配的日志</string>
+    <string name="knine_log_no_matches_hint">换个关键词，或清除筛选条件。</string>
+    <string name="knine_log_waiting">新日志会显示在这里。</string>
+    <string name="knine_group_empty">暂无节点组</string>
+    <string name="knine_group_empty_hint">当前配置中的节点组会显示在这里。</string>
+</resources>

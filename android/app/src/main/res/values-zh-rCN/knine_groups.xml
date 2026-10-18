@@ -1,0 +1,4 @@
+<resources>
+    <string name="knine_group_type_selector">手动选择</string>
+    <string name="knine_group_type_urltest">自动选择</string>
+</resources>
