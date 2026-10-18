@@ -8,39 +8,110 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/** Which lines Logs shows: all, warnings and errors, or errors only. */
+enum class LogLevel(val title: String) { All("All"), Warnings("Warnings"), Errors("Errors") }
+
+/** How serious a line of the core's is, by the level it names: 2 an error, 1 a warning, 0 anything else. */
+fun severity(line: String): Int = when {
+    Regex("""\b(ERROR|FATAL|PANIC)\b""").containsMatchIn(line) -> 2
+    Regex("""\bWARN\b""").containsMatchIn(line) -> 1
+    else -> 0
+}
+
 /**
- * Logs: the core's last lines, newest at the foot, in Consolas so the columns line up; Copy puts
- * them on the clipboard (for sending to whoever helps), Clear starts afresh. Both only when there is something.
+ * Logs: the core's last lines, newest at the foot, in Consolas so the columns line up. A search
+ * and a level narrow them; Pause holds them still to read; Copy puts what is shown on the
+ * clipboard (for sending to whoever helps), Clear starts afresh.
  */
 @Composable
-fun LogView(lines: List<String>, onCopy: () -> Unit = {}, onClear: () -> Unit = {}) {
+fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: () -> Unit = {}) {
     val ink = LocalInk.current
     val list = rememberLazyListState()
-    LaunchedEffect(lines.size) { if (lines.isNotEmpty()) list.scrollToItem(lines.size - 1) }
+    var level by remember { mutableStateOf(LogLevel.All) }
+    var query by remember { mutableStateOf("") }
+    var held by remember { mutableStateOf<List<String>?>(null) }
+    val source = held ?: lines
+    val shown = source.filter { line ->
+        severity(line) >= level.ordinal && (query.isBlank() || line.contains(query.trim(), ignoreCase = true))
+    }
+    LaunchedEffect(shown.size, held) { if (shown.isNotEmpty() && held == null) list.scrollToItem(shown.size - 1) }
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
-        if (lines.isNotEmpty()) {
-            Row(Modifier.fillMaxWidth().height(34.dp), horizontalArrangement = Arrangement.spacedBy(22.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onCopy), contentAlignment = Alignment.Center) { Label("Copy", 14.sp, weight = FontWeight.SemiBold) }
-                Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClear), contentAlignment = Alignment.Center) { Label("Clear", 14.sp, ink.soft) }
+        if (lines.isNotEmpty() || held != null) {
+            Row(Modifier.fillMaxWidth().height(40.dp), horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.CenterVertically) {
+                BasicTextField(
+                    query, { query = it },
+                    Modifier.width(220.dp).height(32.dp).hairline(ink.hair, bottom = true, width = 1.5.dp),
+                    singleLine = true,
+                    textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.ui, fontSize = 13.sp),
+                    cursorBrush = SolidColor(ink.ink),
+                    decorationBox = { field ->
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                            if (query.isEmpty()) Label("Search", 13.sp, ink.soft)
+                            field()
+                        }
+                    },
+                )
+                LogLevel.entries.forEach { choice -> Choice(choice.title, choice == level) { level = choice } }
+                Box(Modifier.weight(1f))
+                Action(if (held == null) "Pause" else "Resume", ink.soft) { held = if (held == null) lines.toList() else null }
+                Action("Copy") { onCopy(shown) }
+                Action("Clear", ink.soft) {
+                    held = null
+                    onClear()
+                }
             }
         }
         LazyColumn(Modifier.fillMaxSize(), state = list) {
-            items(lines) { line ->
-                BasicText(line, Modifier.padding(vertical = 2.dp), style = TextStyle(color = ink.soft, fontFamily = Fonts.mono, fontSize = 13.sp))
+            items(shown) { line ->
+                val color = when (severity(line)) {
+                    2 -> NodeWeather.Cut.ink(ink.dark)
+                    1 -> NodeWeather.Mist.ink(ink.dark)
+                    else -> ink.soft
+                }
+                BasicText(line, Modifier.padding(vertical = 2.dp), style = TextStyle(color = color, fontFamily = Fonts.mono, fontSize = 13.sp))
             }
         }
+    }
+}
+
+@Composable
+private fun Action(text: String, color: androidx.compose.ui.graphics.Color = LocalInk.current.ink, onClick: () -> Unit) {
+    Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClick), contentAlignment = Alignment.Center) {
+        Label(text, 14.sp, color, if (color == LocalInk.current.ink) FontWeight.SemiBold else FontWeight.Normal)
+    }
+}
+
+@Composable
+private fun Choice(name: String, on: Boolean, onClick: () -> Unit) {
+    val ink = LocalInk.current
+    Box(
+        Modifier.height(32.dp).press(bleed = 6.dp, onClick = onClick)
+            .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
+            .padding(horizontal = 2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Label(name, 13.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
     }
 }

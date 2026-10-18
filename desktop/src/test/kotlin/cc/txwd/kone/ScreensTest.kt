@@ -43,7 +43,9 @@ import cc.txwd.kone.ui.NodeSection
 import cc.txwd.kone.ui.NodeWeather
 import cc.txwd.kone.ui.NodesActions
 import cc.txwd.kone.ui.NodesState
+import cc.txwd.kone.ui.LogView
 import cc.txwd.kone.ui.NodesView
+import cc.txwd.kone.ui.severity
 import cc.txwd.kone.ui.RulesActions
 import cc.txwd.kone.ui.RulesState
 import cc.txwd.kone.ui.RulesView
@@ -62,6 +64,7 @@ import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -82,7 +85,11 @@ class ScreensTest {
         selected = "us1",
         canImport = true,
     )
-    private val online = sample.copy(connection = Connection.Online, exit = "203.0.113.24", home = true, downKbps = 18.6, upKbps = 1.2, seconds = 754, expiry = "3 days remaining")
+    private val online = sample.copy(
+        connection = Connection.Online, exit = "203.0.113.24", home = true, downKbps = 18.6, upKbps = 1.2, seconds = 754, expiry = "3 days remaining",
+        // A minute of browsing: bursts down, a little up.
+        trail = (0 until 60).map { i -> ((kotlin.math.sin(i / 4.0) + 1.2) * 9_000 + (if (i % 13 == 0) 40_000 else 0)).toLong() to (1_000L + (i % 7) * 150L) },
+    )
 
     private val out = File(System.getProperty("kone.screens") ?: "build/screens").apply { mkdirs() }
 
@@ -288,6 +295,22 @@ class ScreensTest {
         for (dark in listOf(false, true)) {
             shoot("tools", dark) { WithRail(Page.Tools, {}) { ToolsView(state, ToolsActions()) } }
         }
+    }
+
+    /** Logs: the core's lines, warnings and errors in their weather's ink (example addresses only). */
+    @Test
+    fun logs() {
+        val lines = listOf(
+            "+0800 2026-10-18 10:00:01 WARN [1001 0ms] outbound/trojan[Japan]: certificate for www.example.com expires in 5 days",
+            "Automatic: Japan",
+            "+0800 2026-10-18 10:00:09 ERROR [1002 5s] dns: exchange failed for www.example.org: context deadline exceeded",
+            "+0800 2026-10-18 10:00:12 WARN [1003 0ms] router: rule-set geosite-cn updated",
+            "Japan is not answering; using United States",
+        )
+        for (dark in listOf(false, true)) {
+            shoot("logs", dark) { WithRail(Page.Log, {}) { LogView(lines) } }
+        }
+        assertEquals(listOf(1, 0, 2, 1, 0), lines.map(::severity))
     }
 
     /** Rules: ads blocked, the lists, and the person's own rules in order (example names only). */

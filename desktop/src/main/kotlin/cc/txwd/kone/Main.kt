@@ -261,7 +261,7 @@ fun main(args: Array<String>) {
                                       )
                                       Page.Log -> LogView(
                                           model.logs,
-                                          onCopy = { copyText(model.logs.joinToString("\n")) },
+                                          onCopy = { shown -> copyText(shown.joinToString("\n")) },
                                           onClear = { model.logs.clear() },
                                       )
                                       Page.Rules -> RulesView(

@@ -78,6 +78,8 @@ data class DashboardState(
     val proxied: Boolean = false,
     /** The node standing in while the chosen one is not answering, by name. */
     val standIn: String? = null,
+    /** The last minute of rates, down and up in bytes a second, oldest first. */
+    val trail: List<Pair<Long, Long>> = emptyList(),
 ) {
     val current: Node? get() = nodes.firstOrNull { it.id == selected }
 }
@@ -190,6 +192,7 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
                         }
                         if (state.proxied) Label("System proxy", 14.sp, ink.soft)
                         Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 14.sp, ink.soft, tabular = true)
+                        if (state.trail.size >= 2) Sparkline(state.trail)
                         Label(clock(state.seconds), 14.sp, ink.soft, tabular = true)
                         state.expiry?.let { Label(it, 14.sp, NodeWeather.Mist.ink(ink.dark)) }
                         state.standIn?.let { Label("Using $it for now", 14.sp, NodeWeather.Mist.ink(ink.dark)) }
@@ -262,6 +265,28 @@ private fun BoxScope.More(open: Boolean, onOpen: (Boolean) -> Unit, onPick: (Men
                 }
             }
         }
+    }
+}
+
+/** The last minute of traffic as two thin lines of ink, down above up, scaled to the busiest second. */
+@Composable
+private fun Sparkline(trail: List<Pair<Long, Long>>) {
+    val ink = LocalInk.current
+    androidx.compose.foundation.Canvas(Modifier.size(84.dp, 20.dp)) {
+        val most = trail.maxOf { maxOf(it.first, it.second) }.coerceAtLeast(1024)
+        val step = size.width / 59f
+        val start = size.width - step * (trail.size - 1)
+        fun line(pick: (Pair<Long, Long>) -> Long, color: Color, width: Float) {
+            val path = androidx.compose.ui.graphics.Path()
+            trail.forEachIndexed { i, rates ->
+                val x = start + i * step
+                val y = size.height - 1f - (pick(rates).toFloat() / most) * (size.height - 2f)
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width))
+        }
+        line({ it.second }, ink.soft.copy(alpha = 0.6f), 1.dp.toPx())
+        line({ it.first }, ink.ink, 1.4.dp.toPx())
     }
 }
 

@@ -149,15 +149,48 @@ private fun Checks(checks: List<Check>, advice: String?) {
     }
 }
 
+/** How the connection list is ordered: newest first, or by bytes down or up. */
+private enum class Order(val title: String) { Recent("Recent"), Down("↓"), Up("↑") }
+
 @Composable
 private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, actions: ToolsActions) {
     val ink = LocalInk.current
+    var query by remember { mutableStateOf("") }
+    var order by remember { mutableStateOf(Order.Recent) }
+    val needle = query.trim()
+    val shown = carried.connections
+        .filter { needle.isEmpty() || listOfNotNull(it.program, it.target, it.via).any { field -> field.contains(needle, ignoreCase = true) } }
+        .let { list ->
+            when (order) {
+                Order.Recent -> list
+                Order.Down -> list.sortedByDescending { it.down }
+                Order.Up -> list.sortedByDescending { it.up }
+            }
+        }
     Row(Modifier.fillMaxWidth().padding(top = 22.dp).height(40.dp), verticalAlignment = Alignment.CenterVertically) {
         Label("Connection", 15.sp)
         Spacer(Modifier.width(14.dp))
-        Label("${carried.connections.size}", 15.sp, ink.soft, tabular = true)
+        Label(if (needle.isEmpty()) "${carried.connections.size}" else "${shown.size} / ${carried.connections.size}", 15.sp, ink.soft, tabular = true)
         Spacer(Modifier.width(22.dp))
         Label("↓ ${size(carried.down)}　↑ ${size(carried.up)}", 13.sp, ink.soft, tabular = true)
+        Spacer(Modifier.width(28.dp))
+        BasicTextField(
+            query, { query = it },
+            Modifier.width(180.dp).height(30.dp).hairline(ink.hair, bottom = true, width = 1.5.dp),
+            singleLine = true,
+            textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.ui, fontSize = 13.sp),
+            cursorBrush = SolidColor(ink.ink),
+            decorationBox = { field ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty()) Label("App, address or node", 13.sp, ink.soft)
+                    field()
+                }
+            },
+        )
+        Spacer(Modifier.width(18.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Order.entries.forEach { choice -> Choice(choice.title, choice == order) { order = choice } }
+        }
         Spacer(Modifier.weight(1f))
         if (carried.connections.isNotEmpty()) {
             Box(Modifier.height(34.dp).press(bleed = 8.dp) { actions.onClose(null) }, contentAlignment = Alignment.Center) {
@@ -166,7 +199,7 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
         }
     }
     LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
-        items(carried.connections, key = { it.id }) { connection ->
+        items(shown, key = { it.id }) { connection ->
             Row(
                 Modifier.fillMaxWidth().heightIn(min = 40.dp).hairline(ink.hair, bottom = true).padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,

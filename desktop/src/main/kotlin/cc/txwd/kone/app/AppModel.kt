@@ -134,6 +134,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private var exit: String? = null
     private var autoNow: String? = null
     private var rates = 0L to 0L
+
+    /** The last minute of rates, down and up in bytes a second, oldest first. */
+    private val trail = ArrayDeque<Pair<Long, Long>>()
     private var seconds = 0L
     private var notice: String? = null
     private var hint: String? = null
@@ -457,6 +460,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         autoNow = null
         drivenPick = null
         standIn = null
+        trail.clear()
         rates = 0L to 0L
         seconds = 0
         // A connection that held, dropped without being asked to, not for good: connect again,
@@ -945,6 +949,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     usage.add(down, up)
                     scope.launch {
                         rates = down to up
+                        trail.addLast(down to up)
+                        while (trail.size > 60) trail.removeFirst()
                         tools = tools.copy(today = usage.today(), month = usage.month())
                         refresh()
                     }
@@ -1233,6 +1239,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             hint = hint,
             canImport = account.binding != null,
             standIn = standIn?.let(::nameOf),
+            trail = trail.toList(),
         )
         nodesPage = NodesState(
             sections = buildList {
