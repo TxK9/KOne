@@ -87,6 +87,8 @@ class NodesActions(
     val onEdit: (id: String, name: String, url: String, hours: Int) -> Boolean = { _, _, _, _ -> true },
     val onRemoveSubscription: (String) -> Unit = {},
     val onRemoveNode: (String) -> Unit = {},
+    /** Copies an imported or subscribed node as a share link. */
+    val onCopyLink: (String) -> Unit = {},
     val onImport: () -> Unit = {},
 )
 
@@ -135,7 +137,7 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
                 }
                 if (open) {
                     items(section.nodes, key = { section.id + ":" + it.id }) { node ->
-                        NodeRow(node, node.id == state.selected, removable = section.kind == SourceKind.Imported, actions)
+                        NodeRow(node, node.id == state.selected, removable = section.kind == SourceKind.Imported, copyable = section.kind != SourceKind.Managed, actions)
                     }
                 }
             }
@@ -192,7 +194,7 @@ private fun Expiry(expire: Long, now: Long) {
 }
 
 @Composable
-private fun NodeRow(node: Node, on: Boolean, removable: Boolean, actions: NodesActions) {
+private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boolean, actions: NodesActions) {
     val ink = LocalInk.current
     val color = if (on) ink.ink else ink.soft
     Row(
@@ -215,6 +217,14 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, actions: NodesA
             Label(delayText(node.delay), 13.sp, color, tabular = true)
         }
         Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) { if (on) Glyph(Glyphs.check, ink.ink, 16.dp, strokeWidth = 2.2f) }
+        // The console's nodes are never copied out: they are the owner's, given to this key only.
+        Box(Modifier.width(40.dp), contentAlignment = Alignment.Center) {
+            if (copyable) {
+                Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onCopyLink(node.id) }.padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
+                    Label("Copy", 12.sp, ink.soft)
+                }
+            }
+        }
         Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
             if (removable) {
                 Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onRemoveNode(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {

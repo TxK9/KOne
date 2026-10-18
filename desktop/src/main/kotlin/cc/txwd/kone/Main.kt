@@ -257,6 +257,7 @@ fun main(args: Array<String>) {
                                               onRemoveSubscription = model::removeSubscription,
                                               onRemoveNode = model::removeImported,
                                               onImport = { model.importText(clipboardText().orEmpty()) },
+                                              onCopyLink = { tag -> model.copyLink(tag, ::copyText) },
                                           ),
                                       )
                                       Page.Log -> LogView(

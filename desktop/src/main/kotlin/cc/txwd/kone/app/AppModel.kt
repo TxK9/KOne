@@ -21,6 +21,7 @@ import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules
 import cc.txwd.kone.node.Countries
 import cc.txwd.kone.node.SharedNode
+import cc.txwd.kone.node.ShareLinkWriter
 import cc.txwd.kone.node.ShareLinks
 import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.ui.Connection
@@ -631,6 +632,23 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         if (!subscriptions.remove(id)) return
         nodesChanged()
         if (used) restart()
+    }
+
+    /**
+     * An imported or subscribed node as a share link, handed to [copy]. The console's nodes are
+     * never written out: they are the owner's, given to this key only.
+     */
+    fun copyLink(tag: String, copy: (String) -> Unit) {
+        if (tag !in importedTags && tag !in subscribed) return
+        val outbound = (merged()?.source?.get("outbounds") as? kotlinx.serialization.json.JsonArray)
+            ?.mapNotNull { it as? JsonObject }?.firstOrNull { (it["tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content == tag }
+        val link = outbound?.let { ShareLinkWriter.write(JsonObject(it - "tag"), nameOf(tag)) }
+        if (link == null) {
+            tell("This node cannot be written as a link", error = true)
+            return
+        }
+        copy(link)
+        tell("Link copied", error = false)
     }
 
     /** Every node's delay, now, several at a time. */
