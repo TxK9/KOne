@@ -48,7 +48,6 @@ fun severity(line: String): Int = when {
 @Composable
 fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: () -> Unit = {}) {
     val ink = LocalInk.current
-    val list = rememberLazyListState()
     var level by remember { mutableStateOf(LogLevel.All) }
     var query by remember { mutableStateOf("") }
     var held by remember { mutableStateOf<List<String>?>(null) }
@@ -56,7 +55,14 @@ fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: (
     val shown = source.filter { line ->
         severity(line) >= level.ordinal && (query.isBlank() || line.contains(query.trim(), ignoreCase = true))
     }
-    LaunchedEffect(shown.size, held) { if (shown.isNotEmpty() && held == null) list.scrollToItem(shown.size - 1) }
+    // Opened at the newest line; afterwards it follows new lines only when it is not already there,
+    // so nothing scrolls (and no layout runs off the frame) when there is nothing to follow.
+    val list = rememberLazyListState(initialFirstVisibleItemIndex = (shown.size - 1).coerceAtLeast(0))
+    LaunchedEffect(shown.size, held) {
+        val newest = shown.size - 1
+        val showing = list.firstVisibleItemIndex == newest || list.layoutInfo.visibleItemsInfo.lastOrNull()?.index == newest
+        if (newest >= 0 && held == null && !showing) list.scrollToItem(newest)
+    }
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
         if (lines.isNotEmpty() || held != null) {
             Row(Modifier.fillMaxWidth().height(40.dp), horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.CenterVertically) {

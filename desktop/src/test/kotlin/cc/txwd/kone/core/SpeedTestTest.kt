@@ -18,8 +18,10 @@ class SpeedTestTest {
         assumeTrue(found != null, "no sing-box binary here (-Pkone.singbox=…, or the workflow's)")
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
             createContext("/down") { exchange ->
-                exchange.sendResponseHeaders(200, 4_000_000)
-                exchange.responseBody.use { out -> repeat(4_000) { out.write(ByteArray(1_000)) } }
+                // Large enough that even loopback under a busy test run takes longer than the
+                // shortest time SpeedTest will divide by (a smaller body made this test flaky).
+                exchange.sendResponseHeaders(200, 16_000_000)
+                exchange.responseBody.use { out -> repeat(16_000) { out.write(ByteArray(1_000)) } }
             }
             createContext("/up") { exchange ->
                 exchange.requestBody.use { it.readAllBytes() }
@@ -35,7 +37,7 @@ class SpeedTestTest {
         try {
             repeat(50) { if (runCatching { java.net.Socket("127.0.0.1", port).close() }.isSuccess) return@repeat; Thread.sleep(100) }
             val base = "http://127.0.0.1:${server.address.port}"
-            val speed = SpeedTest("$base/down", "$base/up", seconds = 5, upBytes = 2_000_000).run(port)
+            val speed = SpeedTest("$base/down", "$base/up", seconds = 5, upBytes = 8_000_000).run(port)
             assertTrue(assertNotNull(speed.down) > 1, "down ${speed.down}")
             assertTrue(assertNotNull(speed.up) > 1, "up ${speed.up}")
         } finally {
