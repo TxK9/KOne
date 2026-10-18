@@ -56,6 +56,7 @@ import cc.txwd.kone.ui.TitleBar
 import cc.txwd.kone.ui.ToolsActions
 import cc.txwd.kone.ui.ToolsState
 import cc.txwd.kone.ui.DnsLookupState
+import cc.txwd.kone.ui.SignInState
 import cc.txwd.kone.app.ListStatus
 import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.ToolsView
@@ -131,6 +132,13 @@ class ScreensTest {
             tab = "Auto", selected = "auto",
         )
         shoot("dashboard-auto", dark = false) { WithRail(Page.Dashboard, {}) { DashboardView(auto, DashboardActions(), false, {}, moving = false) } }
+        // A hotel network holding traffic for its sign-in page, while connected; then waiting for the person.
+        shoot("dashboard-sign-in", dark = false) {
+            WithRail(Page.Dashboard, {}) { DashboardView(online.copy(signIn = SignInState("http://portal.example.net/login", waiting = false)), DashboardActions(), false, {}, moving = false) }
+        }
+        shoot("dashboard-sign-in-waiting", dark = true) {
+            WithRail(Page.Dashboard, {}) { DashboardView(sample.copy(signIn = SignInState("http://portal.example.net/login", waiting = true)), DashboardActions(), false, {}, moving = false) }
+        }
         // Nodes the person imported, one of them chosen (its × takes it out), with ⋮ open.
         val imported = sample.copy(
             categories = sample.categories + "Imported",

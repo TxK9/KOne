@@ -68,9 +68,15 @@ object Diagnosis {
 
     /** One plain suggestion for the first check that failed, or null when nothing did. */
     fun advice(checks: List<Check>): String? {
-        val failed = checks.firstOrNull { it.outcome == Outcome.Fail } ?: return null
+        // The network, the key and the service come first; after them, other VPNs or proxies are the likeliest reason anything else fails.
+        val basic = checks.firstOrNull { it.outcome == Outcome.Fail && it.title in setOf("Network", "Key", "Service") }
+        val others = checks.firstOrNull { it.title == Conflicts.TITLE && it.outcome == Outcome.Warn }
+        if (basic == null && others != null) return "Turn off ${others.detail} while KOne is on: they can take traffic before it"
+        val failed = basic ?: checks.firstOrNull { it.outcome == Outcome.Fail } ?: return null
         val sites = checks.filter { it.title in SITES.map { site -> site.first } }
         return when {
+            failed.title == "Network" && failed.detail == SIGN_IN -> "Sign in to this network: Sign in on the dashboard opens its page"
+            failed.title == "Network" -> "This computer is offline: check Wi-Fi or the cable"
             failed.title == "Key" -> "Enter a key, or wait for the console to send nodes"
             failed.title == "Service" -> "Reinstall KOne, or choose System proxy in Tools"
             failed.title == "Node" -> "Try another node, or Test all on Nodes"
@@ -80,6 +86,15 @@ object Diagnosis {
             else -> null
         }
     }
+
+    /** The network itself, before any node: open, holding traffic for a sign-in page, or offline. */
+    fun network(check: cc.txwd.kone.core.ReachCheck): Check = when (check.reach) {
+        cc.txwd.kone.core.Reach.Open -> Check("Network", Outcome.Pass, "Open")
+        cc.txwd.kone.core.Reach.SignIn -> Check("Network", Outcome.Fail, SIGN_IN)
+        cc.txwd.kone.core.Reach.Offline -> Check("Network", Outcome.Fail, "Nothing answers")
+    }
+
+    const val SIGN_IN = "Wants you to sign in"
 
     /** A delay in milliseconds as a check of [name]. */
     fun node(name: String, delay: Int?): Check = when {

@@ -80,6 +80,8 @@ tasks.test {
     }
     // The end-to-end tests drive the installed service; only the workflow's Windows runner sets this.
     providers.gradleProperty("kone.e2e").orNull?.let { systemProperty("kone.e2e", it) }
+    // -Pkone.live=true: tests that ask real services on the internet (CI's runners have it open).
+    providers.gradleProperty("kone.live").orNull?.let { systemProperty("kone.live", it) }
     jvmArgs("-Dfile.encoding=UTF-8")
 }
 

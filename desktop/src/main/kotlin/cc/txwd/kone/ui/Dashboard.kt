@@ -82,9 +82,14 @@ data class DashboardState(
     val standIn: String? = null,
     /** The last minute of rates, down and up in bytes a second, oldest first. */
     val trail: List<Pair<Long, Long>> = emptyList(),
+    /** The network is holding traffic for its sign-in page (a hotel, an airport): shown with the way to sign in. */
+    val signIn: SignInState? = null,
 ) {
     val current: Node? get() = nodes.firstOrNull { it.id == selected }
 }
+
+/** A network's sign-in page, and whether KOne has stepped aside and is waiting for the person to sign in. */
+data class SignInState(val page: String, val waiting: Boolean)
 
 class DashboardActions(
     val onTab: (String) -> Unit = {},
@@ -93,6 +98,8 @@ class DashboardActions(
     val onMenu: (MenuItem) -> Unit = {},
     /** Take out an imported node. */
     val onRemove: (String) -> Unit = {},
+    val onSignIn: () -> Unit = {},
+    val onCancelSignIn: () -> Unit = {},
 )
 
 enum class MenuItem(val title: String) { Clipboard("Import from clipboard"), File("Import from file") }
@@ -160,7 +167,35 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions) {
                 }
             }
         }
+        state.signIn?.let { SignInLine(it, actions) }
         StatusLine(state, actions.onPower)
+    }
+}
+
+/** The network wants a sign-in: what is happening, in a line, and the one thing to do about it. */
+@Composable
+private fun SignInLine(signIn: SignInState, actions: DashboardActions) {
+    val ink = LocalInk.current
+    Row(
+        Modifier.fillMaxWidth().hairline(ink.hair, top = true).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Label(
+            if (signIn.waiting) "Waiting for you to sign in; KOne connects again once the network is open"
+            else "This network needs you to sign in before anything gets through",
+            14.sp, NodeWeather.Mist.ink(ink.dark),
+        )
+        Spacer(Modifier.weight(1f))
+        if (signIn.waiting) {
+            Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onCancelSignIn), contentAlignment = Alignment.Center) {
+                Label("Cancel", 14.sp, ink.soft)
+            }
+        } else {
+            Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onSignIn), contentAlignment = Alignment.Center) {
+                Label("Sign in", 14.sp, weight = FontWeight.SemiBold)
+            }
+        }
     }
 }
 

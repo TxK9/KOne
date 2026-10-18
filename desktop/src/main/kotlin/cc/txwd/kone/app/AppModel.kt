@@ -13,6 +13,9 @@ import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.Ends
 import cc.txwd.kone.core.ExitTrace
 import cc.txwd.kone.core.KoneConfig
+import cc.txwd.kone.core.NetworkReach
+import cc.txwd.kone.core.Reach
+import cc.txwd.kone.core.ReachCheck
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.Probe
 import cc.txwd.kone.core.RuleSets
@@ -31,6 +34,7 @@ import cc.txwd.kone.node.ShareLinks
 import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
+import cc.txwd.kone.ui.SignInState
 import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.DnsLookupState
 import cc.txwd.kone.ui.KeyState
@@ -198,6 +202,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** One line for a Windows notification: the connection dropped, or came back. Main shows it by the clock. */
     var onNotice: (String) -> Unit = {}
 
+    /** Opens a page in the person's browser (the network's sign-in page). */
+    var onBrowse: (String) -> Unit = {}
+
     /** Set to start the core afresh (the programs sent straight out changed, or the line died in sleep). */
     private var restarting = false
 
@@ -312,6 +319,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun power() {
         when (connection) {
             Connection.Idle -> {
+                waitingSignIn?.cancel()
+                signIn = null
                 wanted = true
                 preferences.connected = true
                 attempts = 0
@@ -472,8 +481,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             }
             proxied = port
             if (fellBack) {
-                log("The adapter is unavailable; switching to the system proxy")
-                onNotice("The adapter is unavailable; using the system proxy")
+                // Another VPN holding the network is the likeliest reason; said by name when there is one.
+                val others = withContext(Dispatchers.IO) { Conflicts.vpns(Conflicts.adapters()) }
+                val why = if (others.isEmpty()) "" else " (${others.joinToString()} is on)"
+                log("The adapter is unavailable$why; switching to the system proxy")
+                onNotice("The adapter is unavailable$why; using the system proxy")
             }
             if (told) onNotice("Reconnected")
             follow(running)
@@ -516,6 +528,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         // quietly, a little later each time. One that never came up says why at once.
         val wait = if (wanted) Reconnection.after(end, held, attempts) else null
         if (wait != null) {
+            if (attempts == 0) lookForSignIn()
             attempts++
             if (attempts == 1 && end != "restart") {
                 onNotice("Connection interrupted; reconnecting")
@@ -930,6 +943,13 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             fun show(running: String?) {
                 tools = tools.copy(checks = checks.toList() + listOfNotNull(running?.let { Check(it, Outcome.Running) }), checking = running != null, advice = null)
             }
+            show("Network")
+            checks += when (val reached = reach()) {
+                null -> Check("Network", Outcome.Warn, "Could not check")
+                else -> Diagnosis.network(reached)
+            }
+            show(Conflicts.TITLE)
+            checks += withContext(Dispatchers.IO) { Conflicts.check(Conflicts.adapters(), SystemProxy.read(), proxied) }
             show("Key")
             val binding = account.binding
             checks += when {
@@ -978,6 +998,96 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     fun clearChecks() {
         if (!tools.checking) tools = tools.copy(checks = emptyList(), advice = null)
+    }
+
+    // Sign-in networks (hotels, airports, cafés)
+
+    /** The network holding traffic for its sign-in page, and whether KOne is waiting for the person to sign in. */
+    private var signIn: SignInState? = null
+    private var waitingSignIn: Job? = null
+    private var reachAsked = 0L
+
+    /**
+     * Asks the network itself whether it is open. While KOne's adapter carries everything, through
+     * a core of KOne's own that the template sends straight out; otherwise straight from the App.
+     * Null when it could not ask.
+     */
+    private suspend fun reach(): ReachCheck? = withContext(Dispatchers.IO) {
+        val core = Places.core
+        if (service == null) return@withContext NetworkReach.check()
+        if (core == null) return@withContext null
+        val port = freePort()
+        val helper = Probe(core)
+        try {
+            val config = """{"log":{"level":"error"},"inbounds":[{"type":"mixed","listen":"127.0.0.1","listen_port":$port}],"outbounds":[{"type":"direct"}]}"""
+            if (!helper.start(config)) return@withContext null
+            var up = false
+            for (i in 0 until 30) {
+                up = runCatching { java.net.Socket("127.0.0.1", port).close() }.isSuccess
+                if (up) break
+                Thread.sleep(100)
+            }
+            if (up) NetworkReach.check(port) else null
+        } finally {
+            helper.stop()
+        }
+    }
+
+    /** After a failure: whether the network wants a sign-in, at most once a minute; said once, with the way to sign in. */
+    private fun lookForSignIn() {
+        val now = System.currentTimeMillis()
+        if (now - reachAsked < 60_000 || waitingSignIn?.isActive == true) return
+        reachAsked = now
+        scope.launch {
+            val check = reach() ?: return@launch
+            if (check.reach == Reach.SignIn) {
+                if (signIn == null) {
+                    log("The network is holding traffic for its sign-in page")
+                    onNotice("This network needs you to sign in")
+                }
+                signIn = SignInState(check.page ?: NetworkReach.ANY_PAGE, waiting = false)
+            } else if (signIn?.waiting == false) {
+                signIn = null
+            }
+            refresh()
+        }
+    }
+
+    /**
+     * Sign in: KOne steps aside (its tunnel would carry the sign-in page away), opens the page,
+     * and once the network is open, connects again if it was connected, for up to 15 minutes.
+     */
+    fun signIn() {
+        val state = signIn ?: return
+        val reconnect = wanted || connection != Connection.Idle
+        if (connection != Connection.Idle) power()
+        signIn = state.copy(waiting = true)
+        refresh()
+        onBrowse(state.page)
+        waitingSignIn?.cancel()
+        waitingSignIn = scope.launch {
+            val until = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15)
+            delay(3_000)
+            while (System.currentTimeMillis() < until) {
+                if (withContext(Dispatchers.IO) { NetworkReach.check() }.reach == Reach.Open) {
+                    signIn = null
+                    hint("Signed in to the network")
+                    refresh()
+                    if (reconnect && connection == Connection.Idle) power()
+                    return@launch
+                }
+                delay(5_000)
+            }
+            signIn = null
+            notice = "The network is still waiting for a sign-in"
+            refresh()
+        }
+    }
+
+    fun cancelSignIn() {
+        waitingSignIn?.cancel()
+        signIn = null
+        refresh()
     }
 
     /**
@@ -1364,6 +1474,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         while (clash === api) {
             val chosen = account.binding?.selected
             if (chosen == KoneConfig.AUTO_TAG && auto) steerAutomatic(api) else if (chosen != null) guard(api, chosen)
+            // The node in use not answering may be the network, not the node: a sign-in page.
+            inUse()?.let { tag ->
+                if (health.failing(tag) >= Health.FAILED) lookForSignIn()
+                else if (health.answering(tag) >= Health.RECOVERED && signIn?.waiting == false) { signIn = null; refresh() }
+            }
             delay(15_000)
         }
     }
@@ -1632,6 +1747,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             canImport = account.binding != null,
             standIn = standIn?.let(::nameOf),
             trail = trail.toList(),
+            signIn = signIn,
         )
         nodesPage = NodesState(
             sections = buildList {

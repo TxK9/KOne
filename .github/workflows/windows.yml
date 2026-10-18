@@ -148,7 +148,7 @@ jobs:
           path: desktop/build/core
       - name: Test and render the screens
         shell: bash
-        run: ./gradlew --no-daemon test "-Pkone.build=${{ github.run_number }}"
+        run: ./gradlew --no-daemon test "-Pkone.build=${{ github.run_number }}" "-Pkone.live=true"
       - name: Build the app image and the installer's pictures
         shell: bash
         run: |

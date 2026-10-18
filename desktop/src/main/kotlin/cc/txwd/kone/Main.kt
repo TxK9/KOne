@@ -327,6 +327,7 @@ fun main(args: Array<String>) {
                                           model.dashboard,
                                           DashboardActions(
                                               onTab = model::pickTab, onNode = model::pickNode, onPower = model::power, onRemove = model::removeImported,
+                                              onSignIn = model::signIn, onCancelSignIn = model::cancelSignIn,
                                               onMenu = { item ->
                                                   when (item) {
                                                       cc.txwd.kone.ui.MenuItem.Clipboard -> model.importText(clipboardText().orEmpty())
@@ -403,6 +404,12 @@ private fun Tray(model: AppModel, windowInSight: () -> Boolean, onOpen: () -> Un
         SystemTray.getSystemTray().add(tray)
         // The connection dropping or coming back, said by the clock while KOne's window is away.
         model.onNotice = { text -> if (!windowInSight()) tray.displayMessage("KOne", text, java.awt.TrayIcon.MessageType.NONE) }
+        // The network's sign-in page, in the person's own browser; only http and https pages.
+        model.onBrowse = { page ->
+            if (page.startsWith("http://") || page.startsWith("https://")) {
+                runCatching { java.awt.Desktop.getDesktop().browse(java.net.URI(page)) }
+            }
+        }
         onDispose {
             model.onNotice = {}
             SystemTray.getSystemTray().remove(tray)
