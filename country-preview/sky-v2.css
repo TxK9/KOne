@@ -1,0 +1,2 @@
+.sky-layer { position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:1; }
+.nyc-sky-canvas { position:absolute; inset:0; display:block; width:100%; height:100%; pointer-events:none; }

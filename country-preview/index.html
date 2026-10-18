@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>KOne · World cities</title>
+  <style>
+    :root { color-scheme:light; --page:#f5f5f3; --text:#27302e; --muted:#74807b; --line:#dce0dc; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--text); background:var(--page); font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+    button,a { -webkit-tap-highlight-color:transparent; }
+    button { font:inherit; color:inherit; cursor:pointer; }
+    button:focus-visible,a:focus-visible { outline:2px solid #678679; outline-offset:4px; }
+    button { border:0; background:none; }
+    .page { max-width:1100px; margin:0 auto; padding:28px 36px 26px; }
+    .page-head { display:flex; justify-content:space-between; gap:20px; align-items:center; border-bottom:1px solid var(--line); padding-bottom:20px; }
+    h1 { margin:0; font-size:20px; font-weight:550; letter-spacing:.03em; }
+    .eyebrow { color:var(--muted); font-size:12px; margin:5px 0 0; }
+    .review-label { color:var(--muted); font-size:11px; white-space:nowrap; }
+    .controls { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:12px 22px; padding:22px 0; }
+    .segments { display:flex; border:1px solid var(--line); border-radius:100px; padding:3px; gap:2px; }
+    .segments button { min-width:65px; padding:6px 17px; border-radius:100px; color:var(--muted); font-size:12px; }
+    .segments button[aria-pressed=true] { color:#f7f8f6; background:#33443d; }
+    .check-button { display:inline-flex; align-items:center; gap:7px; padding:8px 3px; font-size:12px; color:#59665e; }
+    .check-dot { width:13px; height:13px; border:1px solid #a4aea8; border-radius:3px; display:grid; place-items:center; }
+    .check-button[aria-pressed=true] .check-dot { background:#526c5d; border-color:#526c5d; }
+    .check-button .check-dot svg { width:10px; height:10px; color:white; opacity:0; }
+    .check-button[aria-pressed=true] .check-dot svg { opacity:1; }
+    .gallery { display:flex; align-items:flex-start; justify-content:center; gap:44px; }
+    .phone-group { width:min(324px,100%); flex:none; }
+    .caption { display:flex; align-items:baseline; justify-content:space-between; gap:15px; margin:0 3px 10px; }
+    .caption h2 { font-size:14px; font-weight:550; letter-spacing:.09em; margin:0; }
+    .caption span { font-size:11px; color:var(--muted); }
+    .phone { position:relative; width:100%; aspect-ratio:9/19.5; overflow:hidden; border:1px solid rgba(45,59,52,.12); border-radius:29px; box-shadow:0 15px 40px rgba(28,40,34,.055); background:#F0F2F5; container-type:inline-size; }
+    .phone[data-theme=day] { --paper:#F0F2F5; --ink:#1c2622; --soft:#626d67; --faint:rgba(28,38,34,.19); --green:#367c63; }
+    .phone[data-theme=night] { --paper:#181A1F; --ink:#d8e2de; --soft:#a3ada8; --faint:rgba(216,226,222,.17); --green:#85b7a0; background:#181A1F; }
+    .wallpaper { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; }
+    .ui { position:absolute; inset:0; color:var(--ink); font-size:3.6cqw; }
+    .statusbar { position:absolute; top:2.15%; left:6.5%; right:6.5%; display:flex; align-items:center; justify-content:space-between; font-size:3cqw; font-weight:550; letter-spacing:.01em; }
+    .status-icons { display:flex; gap:1.1cqw; align-items:center; }
+    .status-icons svg { width:3.7cqw; height:3.7cqw; }
+    .app-top { position:absolute; top:7.5%; left:6.4%; right:5%; display:flex; justify-content:space-between; align-items:center; }
+    .app-name { font-size:6.4cqw; line-height:1.15; font-weight:600; letter-spacing:.01em; }
+    .app-subtitle { color:var(--soft); font-size:3cqw; margin-top:1.1cqw; }
+    .menu { width:10cqw; height:12cqw; display:grid; place-items:center; }
+    .menu svg { width:5.2cqw; height:5.2cqw; }
+    .dashboard { position:absolute; bottom:13.2%; left:3.6%; right:3.6%; text-shadow:0 0 8px var(--paper); }
+    .panel { padding:1.2cqw 3.6cqw 2cqw; border-radius:7.2cqw; }
+    [data-theme=day] .panel { background:rgba(247,248,249,.42); box-shadow:0 0 20px 8px rgba(240,242,245,.09); }
+    [data-theme=night] .dashboard:before { content:""; position:absolute; z-index:-1; inset:-7cqw -4cqw -11cqw; background:linear-gradient(transparent,rgba(24,26,31,.55)); pointer-events:none; }
+    .dashboard { isolation:isolate; }
+    .fold-handle { width:100%; height:4.3cqw; display:grid; place-items:center; padding:0; }
+    .fold-handle:before { content:""; display:block; width:8cqw; height:.65cqw; border-radius:5px; background:var(--faint); }
+    .statusline { min-height:6.2cqw; display:flex; align-items:center; gap:1.3cqw; font-size:3.05cqw; letter-spacing:.015em; }
+    .status-dot { width:1.4cqw; height:1.4cqw; border-radius:50%; background:var(--green); }
+    .home { display:flex; align-items:center; margin-left:1.4cqw; }
+    .home svg { width:4.1cqw; height:4.1cqw; }
+    .chevron { width:3.6cqw; height:3.6cqw; margin-left:auto; opacity:.6; }
+    .node-summary { display:flex; align-items:center; gap:1.5cqw; min-height:6.2cqw; }
+    .node-name { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; font-size:4.1cqw; }
+    .node-summary>svg { width:3.5cqw; height:3.5cqw; opacity:.6; flex:none; }
+    .traffic { margin-left:auto; white-space:nowrap; font-size:2.85cqw; font-variant-numeric:tabular-nums; }
+    .rule { height:1px; background:var(--faint); margin:2.5cqw 1cqw 1.5cqw; opacity:.8; }
+    .categories { display:flex; align-items:center; gap:5cqw; padding:.8cqw 2cqw; color:var(--soft); font-size:3.25cqw; }
+    .categories .selected { font-weight:600; color:var(--ink); }
+    .categories .selected:after { content:"⌄"; display:inline-block; margin-left:1.5cqw; opacity:.65; }
+    .node-row { display:flex; align-items:center; gap:2cqw; min-height:11.3cqw; border-radius:3.6cqw; padding-left:3cqw; font-size:3.9cqw; }
+    [data-theme=day] .node-row { background:rgba(28,38,34,.035); }
+    .flag { font-size:4.2cqw; line-height:1; width:5cqw; flex:none; }
+    .row-name { font-weight:600; }
+    .latency { font-size:2.75cqw; display:flex; gap:1cqw; align-items:center; color:var(--soft); }
+    .latency svg { width:3cqw; height:3cqw; }
+    .row-check { width:3.8cqw; height:3.8cqw; margin-left:auto; }
+    .row-menu { width:10cqw; height:10cqw; display:grid; place-items:center; }
+    .row-menu svg { width:4.8cqw; height:4.8cqw; }
+    .action-row { display:flex; justify-content:flex-end; align-items:center; min-height:13.7cqw; padding-right:2cqw; gap:4cqw; }
+    .power { display:flex; align-items:center; gap:2.5cqw; padding:2cqw 3cqw; font-weight:600; font-size:3.6cqw; min-height:11cqw; }
+    .power svg { width:5.2cqw; height:5.2cqw; }
+    .compact-summary { display:none; align-items:center; gap:3cqw; margin-right:auto; padding-left:3cqw; font-size:3.5cqw; }
+    .compact-summary>svg { width:4.3cqw; height:4.3cqw; }
+    .compact-summary .latency { font-size:3.4cqw; }
+    .compact-summary .latency svg { width:3.8cqw; height:3.8cqw; }
+    .phone.compact .panel { display:none; }
+    .phone.compact .compact-summary { display:flex; }
+    .bottom-nav { position:absolute; bottom:2.55%; left:1.8%; right:1.8%; height:10.1%; display:grid; grid-template-columns:repeat(4,1fr); }
+    .nav-item { display:flex; justify-content:center; align-items:center; flex-direction:column; gap:1.7cqw; font-size:2.9cqw; color:var(--soft); }
+    .nav-item svg { width:5.8cqw; height:5.8cqw; }
+    .nav-item.active { color:var(--ink); font-weight:600; }
+    .home-indicator { position:absolute; bottom:1.15%; left:38%; width:24%; height:.65cqw; background:var(--ink); opacity:.38; border-radius:10px; }
+    .pure .ui { display:none; }
+    .under-phone { display:flex; justify-content:space-between; align-items:center; min-height:38px; padding:5px 3px 0; font-size:11px; color:var(--muted); }
+    .under-phone a { color:inherit; text-decoration:none; text-underline-offset:3px; }
+    .under-phone a:hover { text-decoration:underline; }
+    .fold-button { padding:6px 0 6px 12px; font-size:11px; color:var(--muted); }
+    .pure .fold-button { visibility:hidden; }
+    .page-foot { text-align:center; margin:16px 0 0; font-size:11px; color:var(--muted); }
+    .single-switch { display:none; }
+    body.single .single-switch { display:flex; }
+    body.single .phone-group:not(.single-active) { display:none; }
+    body.single .phone-group { width:min(360px,100%); }
+    .svg-defs { position:absolute; width:0; height:0; overflow:hidden; }
+    @media(min-width:901px) and (max-height:900px) { .phone-group { width:min(304px,calc((100dvh - 236px)*9/19.5)); min-width:230px; } body.single .phone-group { width:min(340px,calc((100dvh - 236px)*9/19.5)); } }
+    @media(max-width:720px) { .page { padding:22px 20px; } .page-head { padding-bottom:17px; } .gallery { gap:22px; } .phone-group { width:calc((100% - 22px)/2); min-width:0; } .phone { border-radius:22px; } .controls { padding:20px 0; gap:11px 15px; } .segments button { padding:6px 13px; min-width:58px; } .caption { margin-bottom:9px; } .caption span { display:none; } }
+    @media(max-width:520px) { .gallery { flex-direction:column; align-items:center; gap:24px; } .phone-group,body.single .phone-group { width:min(352px,100%); } .page-head { align-items:flex-start; } .review-label { padding-top:5px; font-size:10px; } h1 { font-size:18px; } .phone { border-radius:28px; } .caption span { display:inline; } .controls { gap:10px 14px; } .page-foot { max-width:290px; margin:18px auto 0; } }
+    @media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto!important; } }
+
+    .page { padding-top:24px; }
+    .page-head { padding-bottom:16px; }
+    .scene-selector { display:flex; justify-content:center; gap:10px; padding:18px 0 13px; min-height:90px; }
+    .scene-button { display:flex; align-items:center; gap:11px; width:180px; padding:5px 12px 5px 5px; border:1px solid var(--line); border-radius:13px; background:rgba(255,255,255,.45); text-align:left; transition:background .16s,border-color .16s; }
+    .scene-button:hover { background:#fff; }
+    .scene-button[aria-pressed=true] { background:#e9eeea; border-color:#82968a; }
+    .scene-button img { display:block; width:42px; height:50px; object-fit:cover; object-position:50% 60%; border-radius:8px; }
+    .scene-button span { display:flex; flex-direction:column; gap:1px; font-size:12px; white-space:nowrap; }
+    .scene-button b { color:var(--muted); font-size:10px; letter-spacing:.08em; font-weight:500; }
+    .scene-summary { text-align:center; }
+    #scene-title { font-size:13px; font-weight:550; }
+    #scene-description { font-size:11px; color:var(--muted); margin-left:10px; }
+    .controls { padding:13px 0 19px; }
+    .sky-layer { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+    .ui { z-index:2; }
+    .demo-time { min-height:21px; padding:7px 3px 0; font-size:10px; color:var(--muted); line-height:1.5; text-align:center; }
+    .under-phone { min-height:31px; padding-top:0; }
+    .load-note { color:var(--muted); padding:100px 0; }
+    .page-foot { margin-top:9px; }
+    @media(min-width:901px) and (max-height:1000px) {
+      .phone-group { width:min(306px,calc((100dvh - 338px)*9/19.5)); min-width:205px; }
+      body.single .phone-group { width:min(340px,calc((100dvh - 338px)*9/19.5)); min-width:205px; }
+    }
+    @media(max-width:720px) {
+      .page { padding-top:20px; }
+      .scene-selector { gap:8px; padding:16px 0 12px; }
+      .scene-button { width:170px; gap:8px; }
+      .scene-summary { line-height:1.8; }
+      .controls { padding:12px 0 18px; }
+    }
+    @media(max-width:520px) {
+      .scene-selector { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+      .scene-button { width:100%; padding:5px 5px 7px; flex-direction:column; align-items:stretch; gap:5px; border-radius:11px; }
+      .scene-button img { width:100%; height:44px; object-position:50% 57%; border-radius:7px; }
+      .scene-button span { display:block; text-align:center; font-size:10px; }
+      .scene-button b { display:none; }
+      #scene-description { display:block; margin-left:0; }
+      .scene-summary { line-height:1.7; }
+      .demo-time { font-size:10px; }
+    }
+    .motion-note { margin:-7px 0 15px; color:var(--muted); text-align:center; font-size:10px; min-height:15px; }
+    @media(max-width:520px) { .controls { column-gap:12px; row-gap:6px; } .motion-note { margin-top:-6px; } }
+    .clock-panel{max-width:650px;margin:0 auto 22px;padding:13px 16px 12px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.4)}
+    .clock-row{display:flex;align-items:center;gap:12px;justify-content:space-between;font-size:11px;color:var(--muted)}
+    .clock-row select,.clock-row input{font:inherit;color:var(--text);background:transparent;border:1px solid var(--line);padding:5px 7px;border-radius:7px;min-width:0}
+    #clock-readout{color:var(--text);font-variant-numeric:tabular-nums;text-align:center}#sky-date{width:116px}
+    .time-slider{display:block;width:100%;margin:12px 0 8px;accent-color:#788e80;height:18px;cursor:pointer}
+    .clock-actions button{font-size:11px;padding:4px 7px;color:var(--text);border-radius:6px}.clock-actions button[aria-pressed=true]{background:#dfe8df}
+    .clock-actions>div{display:flex;gap:3px}.clock-actions output{font-size:10px;text-align:right}
+    .wallpaper-day{transition:opacity .5s linear}.phone .wallpaper-day{opacity:var(--daylight,1)}
+    .phone .sky-layer{z-index:3}.phone .ui{z-index:4}
+    .phone[data-theme=night] .wallpaper-day{opacity:var(--daylight,0)}
+    @media(min-width:901px) and (max-height:1000px){.phone-group{width:268px;min-width:230px}body.single .phone-group{width:310px}}
+    @media(max-width:520px){.clock-panel{padding:11px 10px}.clock-row{gap:6px;flex-wrap:wrap}.clock-row select{max-width:115px}#clock-readout{flex:1;font-size:10px}#sky-date{width:109px;font-size:10px}.clock-actions{gap:5px}.clock-actions output{width:100%;text-align:center}.controls{gap:7px 10px}.intensity button{padding:5px 10px;min-width:48px}}
+  </style>
+  <link rel="stylesheet" href="sky-v2.css?v=20261017-nyc-v2">
+  <link rel="stylesheet" href="lighting-v6.css?v=world-cities-v6">
+  <link rel="stylesheet" href="motion-v6.css?v=world-cities-v6">
+  <link rel="stylesheet" href="marine-v6.css?v=world-cities-v6">
+  <link rel="stylesheet" href="city-ui-v9.css?v=world-cities-v9">
+<link rel="stylesheet" href="weather-ui-v11.css?v=world-cities-v11">
+</head>
+<body>
+  <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+    <symbol id="i-more-h" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8M5 10v10h5v-6h4v6h5V10"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-fold" viewBox="0 0 24 24"><path d="m8 7 4-4 4 4M8 17l4 4 4-4"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 2v10M6 5a9 9 0 1 0 12 0"/></symbol>
+    <symbol id="i-dashboard" viewBox="0 0 24 24"><path d="M3 3h7v9H3zM14 3h7v5h-7zM3 16h7v5H3zM14 12h7v9h-7z"/></symbol>
+    <symbol id="i-log" viewBox="0 0 24 24"><path d="M4 3h12l4 4v14H4zM8 11h8M8 15h8M8 7h4"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 5 6 6-6 6M13 18h7"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="m9 3 .7-1h4.6l.7 3 2 1 3-.6 2.3 4-.3 1.6-2.3 2v2l2.3 2 .3 1.6-2.3 4-3-.6-2 1-.7 3H9.7L9 22l-2-1-3 .6-2.3-4 .3-1.6 2.3-2v-2L2 10l-.3-1.6 2.3-4L7 5z" transform="translate(2 1) scale(.82)"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-signal" viewBox="0 0 24 24"><path d="M4 19v-3m5 3v-7m5 7V8m5 11V4"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M9 16a5 5 0 0 1 6 0M12 20h.01"/></symbol>
+    <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2" y="6" width="18" height="12" rx="2"/><path d="M23 10v4M5 9h12v6H5z"/></symbol>
+  </defs></svg>
+  <main class="page">
+    <header class="page-head"><div><h1>KOne · World cities</h1><p class="eyebrow" id="scene-count">Day / Night</p></div><span class="review-label">Sunlight and cities</span></header>
+    <aside class="preview-settings">
+    <div class="catalog-tools"><label class="country-field"><span>Country</span><select id="country-filter" aria-label="Filter countries"><option value="ALL">All countries</option></select></label><label class="city-search"><span>Find a city</span><input id="city-search" type="search" placeholder="City / Country" autocomplete="off"></label><p id="catalog-feedback" aria-live="polite"></p></div>
+    <section class="catalog-inventory" aria-label="Country image balance"><div><output id="catalog-status">Loading gallery…</output><button type="button" id="catalog-refresh">Refresh gallery</button></div><progress id="catalog-progress" max="658" value="102" aria-label="Background production progress"></progress><p id="catalog-balance"></p><small>Original expansion target: 658 images; The completed gallery closes this expansion, motion refinement is next</small></section>
+    <nav class="country-selector" id="country-selector" aria-label="Quick country filter"></nav>
+    <nav class="city-selector" id="city-selector" aria-label="Choose a city"></nav>
+    <nav class="scene-selector" id="scene-selector" aria-label="City views"></nav>
+    <div class="scene-summary"><span id="scene-title">01 · Manhattan looking south</span><span id="scene-description">Original view</span></div>
+    <div class="controls" aria-label="Preview display settings">
+      <div class="segments" aria-label="Preview layout"><button type="button" id="compare" aria-pressed="true">Day and night</button><button type="button" id="single" aria-pressed="false">Single view</button></div>
+      <div class="segments single-switch" aria-label="Single view theme"><button type="button" id="day" aria-pressed="true">Day</button><button type="button" id="night" aria-pressed="false">Night</button></div>
+      <div class="segments intensity" aria-label="Motion intensity"><button type="button" id="soft" aria-pressed="false">Soft</button><button type="button" id="expressive" aria-pressed="false">Expressive</button><button type="button" id="bold" aria-pressed="true">Bold</button></div>
+      <button type="button" id="motion" class="check-button" aria-pressed="true"><span class="check-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><use href="#i-check"/></svg></span>Motion</button>
+      <button type="button" id="overlay" class="check-button" aria-pressed="true"><span class="check-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><use href="#i-check"/></svg></span>Show dashboard</button>
+    </div>
+    <p id="motion-note" class="motion-note" aria-live="polite">Drifting clouds · Rippling water · Passing boats and wakes · Shifting sunlight</p>
+    <section class="clock-panel" aria-label="Time zone and sunlight preview">
+      <div class="clock-row"><select id="sky-zone" aria-label="Sunlight time zone"><option value="DEVICE">Device time zone</option><option value="CITY">Scene city</option></select><output id="clock-readout">Day and night demo</output><input id="sky-date" type="date" aria-label="Preview date"></div>
+      <input id="sky-time" class="time-slider" type="range" min="0" max="1000" step="1" value="500" aria-label="Time of day">
+      <div class="clock-row clock-actions"><div><button id="sky-now" type="button">Now</button><button id="sky-sun" type="button">Show sunlight</button><button id="sky-moon" type="button">Show moonlight</button><button id="sky-play" type="button" aria-pressed="false">Play one day</button></div><output id="sky-source">Representative location for the time zone · Artistic lighting</output></div>
+      <output id="utc-readout" class="utc-readout"></output>
+    </section>
+    <section class="weather-panel" aria-label="Weather and city life">
+      <div class="weather-heading"><strong>Weather and city life</strong><span>Clouds · Wind · Water · Light</span></div>
+      <div class="weather-fields"><label>Weather<select id="weather-mode" aria-label="Weather mode"><option value="story">Weather story</option><option value="clear">Clear</option><option value="cloudy">Cloudy</option><option value="shower">Showers</option><option value="storm">Storm</option><option value="mist">Mist</option><option value="after">Clearing after rain</option><option value="snow">Snow</option><option value="live">City weather</option></select></label><label>Season<select id="weather-season" aria-label="Weather season"><option value="auto">Use date</option><option value="spring">Spring demo</option><option value="summer">Summer demo</option><option value="autumn">Autumn demo</option><option value="winter">Winter demo</option></select></label></div>
+      <p id="weather-readout"></p><p id="weather-detail"></p><p id="weather-coverage"></p>
+      <div class="weather-actions"><button id="weather-live" type="button">Load city weather</button><button id="ambient-audio" type="button" aria-pressed="false">Enable ambient sound</button></div>
+      <p id="weather-feedback" role="status"></p><small>City weather: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> Model estimate · Manual mode is an artistic demonstration</small>
+    </section>
+    </aside>
+    <section class="gallery" aria-label="New York day and night background preview" id="gallery"></section>
+    <p class="page-foot">KOne Dashboard preview · Artistic motion · Demo data</p>
+  </main>
+  <script src="vendor/suncalc-2.1.1.js?v=2.1.1"></script>
+  <script src="sky-v5.js?v=nyc-sun-v5"></script>
+  <script src="environment-v10.js?v=world-cities-v10"></script>
+  <script src="weather-model-v11.js?v=world-cities-v11"></script>
+  <script src="environment-v13.js?v=world-cities-v13"></script>
+  <script src="motion-v13.js?v=world-cities-v13"></script>
+  <script src="lighting-v13.js?v=world-cities-v13"></script>
+  <script src="marine-v13.js?v=world-cities-v13"></script>
+  <script src="weather-v13.js?v=world-cities-v13"></script>
+  <script src="city-life-v13.js?v=world-cities-v13"></script>
+  <script src="ambient-audio-v11.js?v=world-cities-v11"></script>
+  <script src="preview-v13.js?v=world-cities-v13"></script>
+</body>
+</html>
