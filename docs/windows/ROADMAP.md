@@ -97,6 +97,16 @@ real Windows PC yet.
 | Per-node and per-app traffic over the day | Done |
 | Automatic over large subscriptions: the template's url-test sweep now runs every ten minutes, as KOne steers and tests often itself | Done |
 | GEOSITE and GEOIP category rules (e.g. a streaming category to Proxy) | Done (Option B, below) |
+| Learning from real traffic: a site that keeps failing straight out (or stalls) is offered a rule to go through the node, in Rule mode only; a node whose connections stall is tested at once rather than at the next round | Done |
+| What nothing matches: through the node (default) or straight out, for Rule mode | Done |
+| Command palette (Ctrl+K): pages, nodes, modes, imports, and a typed site checked or looked up | Done |
+| Automatic within a country: a region's nodes steered as Automatic is, from the region's own menu entry | Done |
+| Pause for 15 minutes, then connect again; copy a diagnosis report (no key, no node addresses, no exit address) | Done |
+| Each node's last ten delays drawn beside it | Done |
+| Import a Clash profile's rules (domain, suffix, keyword, IP range, process, port, GEOSITE, GEOIP); the rest counted and left out | Done |
+| Import nodes from a pasted or picked Clash profile or sing-box configuration, as well as share links | Done |
+| A connection's site sent straight out or through the node from the connection list | Done |
+| A subscription that has ended, ends within days, or has used 90 % of its data is said once | Done |
 
 **Category rules (Option B, chosen by the owner).** A category is one more rule kind,
 `set`, in the person's ordered rule list: `geosite-netflix → Proxy`, `geoip-jp → Direct`.
