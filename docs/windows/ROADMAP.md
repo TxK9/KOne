@@ -78,7 +78,7 @@ real Windows PC yet.
 | Bandwidth test through a chosen node | Planned |
 | Hosts: fixed answers for chosen names | Planned |
 | Per-node and per-app traffic over the day | Planned |
-| Automatic over large subscriptions: the template's url-test still tests every node every three minutes; with KOne steering it could test less often | Planned |
+| Automatic over large subscriptions: the template's url-test sweep now runs every ten minutes, as KOne steers and tests often itself | Done |
 | GEOSITE and GEOIP category rules (e.g. a streaming category to Proxy) | Needs a decision, below |
 
 **Category rules need a decision.** They use rule-set files the service does not carry.
