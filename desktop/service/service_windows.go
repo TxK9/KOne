@@ -157,6 +157,7 @@ func (s *server) session(pipe windows.Handle) {
 			Remote   string         `json:"remoteDns"`
 			Domestic string         `json:"directDns"`
 			IPv6     bool           `json:"ipv6"`
+			Hosts    []Host         `json:"hosts"`
 			Since    int64          `json:"since"`
 			Name     string         `json:"name"`
 			Data     []byte         `json:"data"` // base64 in the JSON
@@ -175,7 +176,7 @@ func (s *server) session(pipe windows.Handle) {
 		case "connect":
 			reply = s.connect(id, request.Source, Options{Selected: request.Selected, Mode: request.Mode, Bypass: request.Bypass,
 				Direct: request.Direct, Proxied: request.Proxied, Routes: s.sets.Usable(request.Routes), BlockAds: request.BlockAds,
-				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6})
+				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Hosts: request.Hosts})
 		case "status":
 			reply = s.core.status(id, request.Since)
 		case "ruleSets":

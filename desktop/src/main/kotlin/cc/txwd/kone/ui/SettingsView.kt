@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -93,6 +94,8 @@ data class NetworkState(
     val remoteDns: String = "", val directDns: String = "", val ipv6: Boolean = false,
     /** Whether a chosen node that stops answering is stood in for by the best working one. */
     val failover: Boolean = true,
+    /** Fixed answers for chosen names. */
+    val hosts: List<cc.txwd.kone.core.Host> = emptyList(),
 )
 
 class NetworkActions(
@@ -102,6 +105,9 @@ class NetworkActions(
     val onDirectDns: (String) -> Boolean = { true },
     val onIpv6: (Boolean) -> Unit = {},
     val onFailover: (Boolean) -> Unit = {},
+    /** A fixed answer typed as "name address"; false when it is not one. */
+    val onAddHost: (String) -> Boolean = { true },
+    val onRemoveHost: (cc.txwd.kone.core.Host) -> Unit = {},
     /** Saves the setup to a file the person picks, or reads one back. */
     val onExport: () -> Unit = {},
     val onImport: () -> Unit = {},
@@ -136,6 +142,7 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
         }
         DnsLine("Remote DNS", REMOTE_DNS, network.remoteDns, "https://dns.example.com/dns-query", networkActions.onRemoteDns)
         DnsLine("Direct DNS", DIRECT_DNS, network.directDns, "203.0.113.53", networkActions.onDirectDns)
+        HostsLine(network.hosts, networkActions)
         Line("IPv6") { Switch(network.ipv6) { networkActions.onIpv6(!network.ipv6) } }
         Line("Fail over") { Switch(network.failover) { networkActions.onFailover(!network.failover) } }
         Line("Backup") {
@@ -241,6 +248,67 @@ private fun DnsLine(title: String, presets: List<Pair<String, String>>, chosen: 
                     },
                 )
             }
+        }
+    }
+}
+
+/**
+ * Hosts: each fixed answer as a pill (× takes it out), and Add, which opens a field for
+ * "name address" or a hosts file's line. They answer before any DNS server, after the Claude block.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun HostsLine(hosts: List<cc.txwd.kone.core.Host>, actions: NetworkActions) {
+    val ink = LocalInk.current
+    var adding by remember { mutableStateOf(false) }
+    Column {
+        Line("Hosts") {
+            if (hosts.isEmpty() && !adding) Label("None", 14.sp, ink.soft)
+            Spacer(Modifier.width(18.dp))
+            Box(Modifier.height(34.dp).press(bleed = 8.dp) { adding = !adding }, contentAlignment = Alignment.Center) {
+                Label(if (adding) "Done" else "Add", 14.sp, weight = FontWeight.SemiBold)
+            }
+        }
+        if (hosts.isNotEmpty()) {
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                hosts.forEach { host ->
+                    Row(
+                        Modifier.height(30.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(15.dp)).background(ink.press)
+                            .press { actions.onRemoveHost(host) }.padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Label("${host.name}  ${host.address}", 13.sp, tabular = true)
+                        Label("×", 14.sp, ink.soft)
+                    }
+                }
+            }
+        }
+        if (adding) {
+            var text by remember { mutableStateOf("") }
+            var wrong by remember { mutableStateOf(false) }
+            BasicTextField(
+                text,
+                { text = it; wrong = false },
+                Modifier.fillMaxWidth().padding(bottom = 10.dp).height(36.dp)
+                    .onPreviewKeyEvent { if (it.key == Key.Escape && it.type == KeyEventType.KeyDown) { adding = false; true } else false }
+                    .hairline(if (wrong) NodeWeather.Cut.ink(ink.dark) else ink.hair, bottom = true, width = 1.5.dp),
+                singleLine = true,
+                textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.mono, fontSize = 13.sp),
+                cursorBrush = SolidColor(ink.ink),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (actions.onAddHost(text)) text = "" else wrong = true }),
+                decorationBox = { field ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                        if (text.isEmpty()) Label("nas.example.org 192.0.2.10", 13.sp, ink.soft)
+                        field()
+                    }
+                },
+            )
         }
     }
 }

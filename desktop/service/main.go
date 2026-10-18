@@ -44,7 +44,7 @@ func exit(err error) {
 	}
 }
 
-// buildConfig reads {"source": …, "selected", "rules", "port", "secret", "tun", "mode", "bypass", "direct", "proxied", "routes", "blockAds", "remoteDns", "directDns", "ipv6", "mixed"} and prints the
+// buildConfig reads {"source": …, "selected", "rules", "port", "secret", "tun", "mode", "bypass", "direct", "proxied", "routes", "blockAds", "remoteDns", "directDns", "ipv6", "mixed", "hosts"} and prints the
 // configuration the service would run, so the App's tests can check they build the same.
 func buildConfig(in io.Reader, out io.Writer) error {
 	var request struct {
@@ -64,6 +64,7 @@ func buildConfig(in io.Reader, out io.Writer) error {
 		Domestic string         `json:"directDns"`
 		IPv6     bool           `json:"ipv6"`
 		Mixed    int            `json:"mixed"`
+		Hosts    []Host         `json:"hosts"`
 	}
 	decoder := json.NewDecoder(io.LimitReader(in, maxMessage))
 	decoder.UseNumber()
@@ -71,7 +72,7 @@ func buildConfig(in io.Reader, out io.Writer) error {
 		return err
 	}
 	config, _, err := Build(request.Source, Options{Selected: request.Selected, Rules: request.Rules, Port: request.Port, Secret: request.Secret, Tun: request.Tun, Mode: request.Mode, Bypass: request.Bypass, Direct: request.Direct, Proxied: request.Proxied, Routes: request.Routes, BlockAds: request.BlockAds,
-		Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Mixed: request.Mixed})
+		Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Mixed: request.Mixed, Hosts: request.Hosts})
 	if err != nil {
 		return err
 	}

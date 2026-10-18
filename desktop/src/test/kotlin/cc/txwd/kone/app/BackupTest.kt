@@ -13,7 +13,8 @@ class BackupTest {
         val backup = Backup(
             mode = "Global", way = "Proxy", bypass = listOf("Steam.exe"), direct = listOf("example.cn"), proxied = listOf("example.com"),
             rules = listOf(UserRule("keyword", "tracker", "block")), blockAds = true, remoteDns = "google", directDns = "203.0.113.53",
-            ipv6 = true, failover = false, subscriptions = listOf(Triple("Example Cloud", "https://example.com/sub?token=t", 24)),
+            ipv6 = true, failover = false, hosts = listOf(cc.txwd.kone.core.Host("nas.example.org", "192.0.2.10")),
+            subscriptions = listOf(Triple("Example Cloud", "https://example.com/sub?token=t", 24)),
             imported = SubscriptionContent.read("trojan://pw@203.0.113.1:443#Tokyo").nodes,
         )
         val text = backup.write()

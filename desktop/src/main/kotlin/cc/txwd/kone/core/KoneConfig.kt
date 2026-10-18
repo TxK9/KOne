@@ -62,6 +62,7 @@ object KoneConfig {
         direct: List<String> = emptyList(), proxied: List<String> = emptyList(),
         routes: List<UserRule> = emptyList(), blockAds: Boolean = false,
         remoteDns: String = "", directDns: String = "", ipv6: Boolean = false,
+        hosts: List<Host> = emptyList(),
     ): Built {
         // An outbound that names a file is never carried: the service, which runs the core as
         // SYSTEM, refuses it the same way (desktop/service/plan.go).
@@ -115,6 +116,7 @@ object KoneConfig {
         val straightSites = sites(direct)
         val proxiedSites = sites(proxied)
         val own = UserRules.clean(routes)
+        val fixed = Hosts.clean(hosts)
 
         val config = buildJsonObject {
             putJsonObject("log") { put("level", "warn"); put("timestamp", true) }
@@ -125,6 +127,8 @@ object KoneConfig {
                 }
                 putJsonArray("rules") {
                     refused.forEach { add(it) }
+                    // Fixed answers, after the Claude block so none answers for a refused name.
+                    Hosts.dnsRules(fixed).forEach { add(it) }
                     if (straight.isNotEmpty()) add(buildJsonObject { putJsonArray("process_name") { straight.forEach { add(it) } }; put("server", "local-dns") })
                     if (straightSites.isNotEmpty()) add(buildJsonObject { putJsonArray("domain_suffix") { straightSites.forEach { add(it) } }; put("server", "local-dns") })
                     if (proxiedSites.isNotEmpty()) add(buildJsonObject {
@@ -173,6 +177,8 @@ object KoneConfig {
                     refused.forEach { add(it) }
                     // KOne's own test cores (delays, speed) reach their nodes straight out, not through the tunnel.
                     if (tun) add(buildJsonObject { putJsonArray("process_name") { add("sing-box.exe") }; put("outbound", "direct") })
+                    // Names with fixed answers are resolved here before routing: a node is never asked for them.
+                    if (fixed.isNotEmpty()) add(Hosts.resolveRule(fixed))
                     // Programs the person sent straight out: after the Claude block, so it holds for them too.
                     if (straight.isNotEmpty()) add(buildJsonObject { putJsonArray("process_name") { straight.forEach { add(it) } }; put("outbound", "direct") })
                     // The person's sites, after the Claude block too: straight out in every mode, through the node in Rule.

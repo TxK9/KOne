@@ -420,7 +420,13 @@ class ScreensTest {
         for (dark in listOf(false, true)) {
             shoot("settings", dark) {
                 WithRail(Page.Settings, {}, listOf(Page.Dashboard, Page.Log, Page.Settings), marked = setOf(Page.Settings)) {
-                    SettingsView(state, SettingsActions(), NetworkState(remoteDns = "https://dns.example.com:443/dns-query", directDns = "dnspod", ipv6 = true))
+                    SettingsView(
+                        state, SettingsActions(),
+                        NetworkState(
+                            remoteDns = "https://dns.example.com:443/dns-query", directDns = "dnspod", ipv6 = true,
+                            hosts = listOf(cc.txwd.kone.core.Host("nas.example.org", "192.0.2.10"), cc.txwd.kone.core.Host("printer.example.org", "192.0.2.20")),
+                        ),
+                    )
                 }
             }
         }

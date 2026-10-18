@@ -1,6 +1,8 @@
 package cc.txwd.kone.app
 
 import cc.txwd.kone.core.Dns
+import cc.txwd.kone.core.Host
+import cc.txwd.kone.core.Hosts
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules
@@ -85,6 +87,16 @@ class Preferences(folder: File) {
         get() = values.getProperty("proxied")?.split('|')?.filter { it.isNotBlank() }.orEmpty()
         set(value) {
             values.setProperty("proxied", KoneConfig.sites(value).joinToString("|"))
+            save()
+        }
+
+    /** Fixed answers for chosen names (Settings → Hosts), kept as they are checked. */
+    var hosts: List<Host>
+        get() = values.getProperty("hosts")?.let { text ->
+            runCatching { (Json.parseToJsonElement(text) as JsonArray).mapNotNull { (it as? JsonObject)?.let(Host::fromJson) } }.getOrNull()
+        }.orEmpty()
+        set(value) {
+            values.setProperty("hosts", JsonArray(Hosts.flatten(Hosts.clean(value)).map { it.toJson() }).toString())
             save()
         }
 

@@ -49,6 +49,7 @@ type Options struct {
 	Domestic string   // the DNS server asked straight out: a preset or an address; "" AliDNS
 	IPv6     bool     // answer names with IPv6 addresses too (IPv4 first)
 	Mixed    int      // a local proxy port on 127.0.0.1 for the system proxy, when not 0 (the App's own, never the service's)
+	Hosts    []Host   // fixed answers for chosen names, after the Claude block
 }
 
 // modes are the clash modes the core can start in.
@@ -249,6 +250,12 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 	// KOne's own test cores (delays, speed) reach their nodes straight out, not through the tunnel.
 	if options.Tun {
 		routeRules = append(routeRules, map[string]any{"process_name": []any{"sing-box.exe"}, "outbound": "direct"})
+	}
+	// Fixed answers: after the Claude block, so none can answer for a refused name; resolved here
+	// before routing, so a node is never asked for a name only this computer knows.
+	if hosts := Hosts(options.Hosts); len(hosts) > 0 {
+		dnsRules = append(dnsRules, hostRules(hosts)...)
+		routeRules = append(routeRules, map[string]any{"domain": hostNamesOf(hosts), "action": "resolve"})
 	}
 	if straight := Programs(options.Bypass); len(straight) > 0 {
 		dnsRules = append(dnsRules, map[string]any{"process_name": straight, "server": "local-dns"})
