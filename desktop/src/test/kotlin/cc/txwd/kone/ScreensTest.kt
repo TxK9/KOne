@@ -246,8 +246,8 @@ class ScreensTest {
                 NodeSection(
                     "s1", SourceKind.Subscription, "Example Cloud", listOf(
                         Node("s1a", "Hong Kong 01", "HK", "Hong Kong", 42, protocol = "shadowsocks"),
-                        Node("s1b", "Singapore 02", "SG", "Singapore", 1040, protocol = "vmess"),
-                        Node("s1c", "Germany 03", "DE", "Germany", null, protocol = "tuic"),
+                        Node("s1b", "Singapore 02", "SG", "Singapore", 1040, protocol = "vmess", loss = 0.1),
+                        Node("s1c", "Germany 03", "DE", "Germany", null, protocol = "tuic", loss = 0.6),
                     ),
                     info = UserInfo(2_000_000_000, 11_000_000_000, 107_374_182_400, (now / 1000) + 40L * 86_400),
                     updated = now - 3 * 3_600_000L, hours = 12, url = "https://example.com/sub",

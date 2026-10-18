@@ -204,6 +204,12 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, actions: NodesA
         Box(Modifier.weight(1f)) { Label(node.name, 14.sp, ink.ink, if (on) FontWeight.SemiBold else FontWeight.Normal) }
         // Fixed widths from here, so every row's columns stand in line.
         Box(Modifier.width(96.dp)) { Label(node.protocol.orEmpty(), 13.sp, ink.soft) }
+        // How often it has not answered lately, once it has missed at all.
+        Box(Modifier.width(72.dp), contentAlignment = Alignment.CenterEnd) {
+            node.loss?.takeIf { it > 0 }?.let { loss ->
+                Label("${(loss * 100).toInt()}% lost", 12.sp, if (loss >= 0.3) NodeWeather.Cut.ink(ink.dark) else ink.soft, tabular = true)
+            }
+        }
         Row(Modifier.width(96.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
             WeatherGlyph(node.weather, 16.dp)
             Label(delayText(node.delay), 13.sp, color, tabular = true)

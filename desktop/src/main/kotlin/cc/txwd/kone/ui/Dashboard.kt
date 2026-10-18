@@ -44,6 +44,8 @@ data class Node(
     val imported: Boolean = false,
     /** The kind of node as sing-box names it (vless, trojan, hysteria2…). */
     val protocol: String? = null,
+    /** The share of its recent tests the node did not answer, 0 to 1; null before any. */
+    val loss: Double? = null,
 ) {
     val weather: NodeWeather get() = if (tested) NodeWeather.of(delay) else NodeWeather.Rest
 }
@@ -74,6 +76,8 @@ data class DashboardState(
     val expiry: String? = null,
     /** Connected through Windows' proxy rather than KOne's adapter: only what follows the proxy goes through. */
     val proxied: Boolean = false,
+    /** The node standing in while the chosen one is not answering, by name. */
+    val standIn: String? = null,
 ) {
     val current: Node? get() = nodes.firstOrNull { it.id == selected }
 }
@@ -188,6 +192,7 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit) {
                         Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 14.sp, ink.soft, tabular = true)
                         Label(clock(state.seconds), 14.sp, ink.soft, tabular = true)
                         state.expiry?.let { Label(it, 14.sp, NodeWeather.Mist.ink(ink.dark)) }
+                        state.standIn?.let { Label("Using $it for now", 14.sp, NodeWeather.Mist.ink(ink.dark)) }
                         state.hint?.let { Label(it, 14.sp, ink.soft) }
                     }
                 }

@@ -298,7 +298,7 @@ fun main(args: Array<String>) {
                                               onUpdate = settings::update,
                                           ),
                                           model.network,
-                                          NetworkActions(onRemoteDns = model::setRemoteDns, onDirectDns = model::setDirectDns, onIpv6 = model::setIpv6),
+                                          NetworkActions(onRemoteDns = model::setRemoteDns, onDirectDns = model::setDirectDns, onIpv6 = model::setIpv6, onFailover = model::setFailover),
                                       )
                                       else -> DashboardView(
                                           model.dashboard,

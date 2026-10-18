@@ -89,7 +89,11 @@ class SettingsActions(
 )
 
 /** How names are answered: the DNS server through the node, the one straight out, and IPv6. */
-data class NetworkState(val remoteDns: String = "", val directDns: String = "", val ipv6: Boolean = false)
+data class NetworkState(
+    val remoteDns: String = "", val directDns: String = "", val ipv6: Boolean = false,
+    /** Whether a chosen node that stops answering is stood in for by the best working one. */
+    val failover: Boolean = true,
+)
 
 class NetworkActions(
     /** A remote DNS choice: a preset's name or a DNS-over-HTTPS address; false when it is not one. */
@@ -97,6 +101,7 @@ class NetworkActions(
     /** A direct DNS choice: a preset's name or an address; false when it is not one. */
     val onDirectDns: (String) -> Boolean = { true },
     val onIpv6: (Boolean) -> Unit = {},
+    val onFailover: (Boolean) -> Unit = {},
 )
 
 private val REMOTE_DNS = listOf("" to "Cloudflare", "google" to "Google", "quad9" to "Quad9")
@@ -129,6 +134,7 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
         DnsLine("Remote DNS", REMOTE_DNS, network.remoteDns, "https://dns.example.com/dns-query", networkActions.onRemoteDns)
         DnsLine("Direct DNS", DIRECT_DNS, network.directDns, "203.0.113.53", networkActions.onDirectDns)
         Line("IPv6") { Switch(network.ipv6) { networkActions.onIpv6(!network.ipv6) } }
+        Line("Fail over") { Switch(network.failover) { networkActions.onFailover(!network.failover) } }
         Line("Version") {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 Label(state.version, 14.sp, ink.soft, tabular = true)

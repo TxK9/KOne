@@ -130,6 +130,14 @@ class Preferences(folder: File) {
             save()
         }
 
+    /** Whether a chosen node that stops answering is stood in for by the best working one (Settings → Fail over); on unless turned off. */
+    var failover: Boolean
+        get() = values.getProperty("failover") != "false"
+        set(value) {
+            values.setProperty("failover", value.toString())
+            save()
+        }
+
     /** Whether KOne was connected when it last went away without the person ending it (Windows shutting down). */
     var connected: Boolean
         get() = values.getProperty("connected") == "true"

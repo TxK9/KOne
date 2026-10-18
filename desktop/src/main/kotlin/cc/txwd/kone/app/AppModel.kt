@@ -88,6 +88,16 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** Every node's delay is being tested at the person's asking. */
     private var testing = false
 
+    /** Every node's recent tests, which Automatic and failover decide from. */
+    private val health = Health()
+    private val steer = Steer(health)
+
+    /** While Automatic is chosen: the node KOne set the core on; null while the core's own pick stands. */
+    private var drivenPick: String? = null
+
+    /** While a chosen node is not answering (and failover is on): the node standing in for it. */
+    private var standIn: String? = null
+
     /** One line for the Nodes page, and whether it says something went wrong. */
     private var nodesNotice: Pair<String, Boolean>? = null
 
@@ -233,6 +243,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     fun pickNode(tag: String) {
         account.select(tag)
+        // The person's choice replaces whatever KOne picked or stood in with.
+        drivenPick = null
+        standIn = null
         val running = clash
         if (running != null) {
             // A node added since the core started is not in it: the core starts afresh with it.
@@ -442,6 +455,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         clash = null
         exit = null
         autoNow = null
+        drivenPick = null
+        standIn = null
         rates = 0L to 0L
         seconds = 0
         // A connection that held, dropped without being asked to, not for good: connect again,
@@ -635,6 +650,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 async {
                     val measured = gate.withPermit { withContext(Dispatchers.IO) { api.delay(node.tag) } }
                     if (current()) {
+                        health.record(node.tag, measured)
                         delays[node.tag] = measured
                         refresh()
                     }
@@ -718,8 +734,21 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     // Network (Settings)
 
     /** The DNS servers and IPv6, as kept. */
-    var network by mutableStateOf(NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6))
+    var network by mutableStateOf(NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover))
         private set
+
+    /** Whether a chosen node that stops answering is stood in for; a stand-in in place goes back to the chosen node. */
+    fun setFailover(on: Boolean) {
+        preferences.failover = on
+        network = network.copy(failover = on)
+        val api = clash
+        val chosen = account.binding?.selected
+        if (!on && standIn != null && api != null && chosen != null) {
+            standIn = null
+            scope.launch(Dispatchers.IO) { api.select(chosen) }
+            refresh()
+        }
+    }
 
     /** A remote DNS choice; false when it is neither a preset nor a DNS-over-HTTPS address KOne takes. */
     fun setRemoteDns(choice: String): Boolean {
@@ -853,20 +882,94 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             launch { while (isActive && clash === api) { delay(1000); seconds++; refresh() } }
             launch(Dispatchers.IO) { detectExit() }
             launch { testDelays(api) }
-            // Which node Automatic is on, while it is the choice.
-            launch {
-                while (isActive && clash === api) {
-                    if (account.binding?.selected == KoneConfig.AUTO_TAG) {
-                        val now = withContext(Dispatchers.IO) { api.now(KoneConfig.AUTO_TAG) }
-                        if (now != autoNow) {
-                            autoNow = now
-                            refresh()
-                        }
-                    }
-                    delay(5000)
-                }
-            }
+            launch { watch(api) }
         }
+    }
+
+    /**
+     * While connected, every 15 seconds: the node in use is tested; Automatic moves, with
+     * patience, to the best node; and a chosen node that stops answering is stood in for until
+     * it answers again.
+     */
+    private suspend fun watch(api: ClashApi) {
+        delay(5_000)
+        while (clash === api) {
+            val chosen = account.binding?.selected
+            if (chosen == KoneConfig.AUTO_TAG && auto) steerAutomatic(api) else if (chosen != null) guard(api, chosen)
+            delay(15_000)
+        }
+    }
+
+    private suspend fun steerAutomatic(api: ClashApi) {
+        val current = drivenPick ?: withContext(Dispatchers.IO) { api.now(KoneConfig.AUTO_TAG) }
+        if (current != null) testOne(api, current)
+        if (clash !== api || account.binding?.selected != KoneConfig.AUTO_TAG) return
+        val next = steer.next(current, nodes.map { it.tag })
+        if (next != null && withContext(Dispatchers.IO) { api.select(next) }) {
+            if (current != null && health.failing(current) >= Health.FAILED) closeVia(api, current)
+            drivenPick = next
+            log("Automatic: ${nameOf(next)}")
+        }
+        autoNow = drivenPick ?: current
+        refresh()
+    }
+
+    /** Fails over from [chosen] when it stops answering, and back when it answers again. */
+    private suspend fun guard(api: ClashApi, chosen: String) {
+        testOne(api, chosen)
+        standIn?.let { testOne(api, it) }
+        if (clash !== api || account.binding?.selected != chosen) return
+        val stand = standIn
+        if (stand != null && health.answering(chosen) >= Health.RECOVERED) {
+            if (withContext(Dispatchers.IO) { api.select(chosen) }) {
+                standIn = null
+                closeVia(api, stand)
+                tellConnection("Back on ${nameOf(chosen)}")
+            }
+            return
+        }
+        val left = stand ?: chosen
+        if (!preferences.failover || health.failing(left) < Health.FAILED) return
+        val others = nodes.map { it.tag } - chosen - left
+        var best = health.best(others)
+        if (best == null) {
+            // Nothing known to work: a few of the others are tried now.
+            measureSome(api, others.sortedBy { delays[it] ?: Int.MAX_VALUE }.take(5))
+            best = health.best(others)
+        }
+        if (best == null || clash !== api) return
+        if (withContext(Dispatchers.IO) { api.select(best) }) {
+            standIn = best
+            closeVia(api, left)
+            tellConnection("${nameOf(chosen)} is not answering; using ${nameOf(best)}")
+        }
+    }
+
+    /** Tests one node through [api] and keeps the result. */
+    private suspend fun testOne(api: ClashApi, tag: String) {
+        val measured = withContext(Dispatchers.IO) { api.delay(tag) }
+        if (clash !== api) return
+        health.record(tag, measured)
+        delays[tag] = measured
+        refresh()
+    }
+
+    private suspend fun measureSome(api: ClashApi, tags: List<String>) = coroutineScope {
+        tags.map { tag -> async { testOne(api, tag) } }.awaitAll()
+    }
+
+    /** Ends the connections still going through [tag], so the programs behind them reconnect through the new node at once. */
+    private suspend fun closeVia(api: ClashApi, tag: String) = withContext(Dispatchers.IO) {
+        api.connections()?.connections?.filter { it.via == tag }?.forEach { api.close(it.id) }
+    }
+
+    private fun nameOf(tag: String) = nodes.firstOrNull { it.tag == tag }?.name ?: tag
+
+    /** A change of node KOne made itself: said on the dashboard, and by Windows when the window is away. */
+    private fun tellConnection(message: String) {
+        log(message)
+        onNotice(message)
+        hint(message)
     }
 
     private suspend fun detectExit() {
@@ -974,6 +1077,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         importedTags = merged?.groups?.firstOrNull().orEmpty().toSet()
         subscribed = merged?.let { all -> subscriptions.all.zip(all.groups.drop(1)).flatMap { (subscription, tags) -> tags.map { it to subscription } }.toMap() }.orEmpty()
         nodes = merged?.source?.let { runCatching { KoneConfig.build(it, rules, CoreApi(9090, "list")).nodes }.getOrNull() }.orEmpty()
+        health.forget(nodes.mapTo(HashSet()) { it.tag })
         if (tab !in categories()) {
             tab = if (binding?.selected == KoneConfig.AUTO_TAG && auto) AUTO_NAME else categoryOf(nodes.firstOrNull { it.tag == binding?.selected } ?: nodes.firstOrNull())
         }
@@ -1036,7 +1140,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** A node as the screens show it. */
     private fun shown(node: SourceNode) = Node(
         node.tag, node.name, node.country, categoryOf(node), delays[node.tag], tested = node.tag in delays,
-        imported = node.tag in importedTags, protocol = node.type,
+        imported = node.tag in importedTags, protocol = node.type, loss = health.loss(node.tag),
     )
 
     private fun refresh() {
@@ -1057,6 +1161,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             proxied = proxied != null,
             hint = hint,
             canImport = account.binding != null,
+            standIn = standIn?.let(::nameOf),
         )
         nodesPage = NodesState(
             sections = buildList {
