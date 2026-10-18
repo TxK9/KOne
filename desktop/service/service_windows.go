@@ -11,10 +11,12 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -40,7 +42,9 @@ func runService(console bool) error {
 	if err != nil {
 		return err
 	}
-	server := &server{home: filepath.Dir(executable), console: console, core: newCore(filepath.Join(filepath.Dir(executable), "sing-box.exe"))}
+	home := filepath.Dir(executable)
+	server := &server{home: home, console: console, core: newCore(filepath.Join(home, "sing-box.exe")),
+		sets: &ruleSetStore{folder: filepath.Join(home, "rules", "sets"), parse: singBoxParses(filepath.Join(home, "sing-box.exe"))}}
 	if console {
 		go func() {
 			interrupt := make(chan os.Signal, 1)
@@ -84,6 +88,7 @@ type server struct {
 	home     string // the folder of kone-service.exe, sing-box.exe and rules\
 	console  bool
 	core     *core
+	sets     *ruleSetStore // the person's category lists, in rules\sets\
 	sessions atomic.Uint64
 }
 
@@ -153,6 +158,9 @@ func (s *server) session(pipe windows.Handle) {
 			Domestic string         `json:"directDns"`
 			IPv6     bool           `json:"ipv6"`
 			Since    int64          `json:"since"`
+			Name     string         `json:"name"`
+			Data     []byte         `json:"data"` // base64 in the JSON
+			Digest   string         `json:"sha256"`
 		}
 		decoder := json.NewDecoder(strings.NewReader(line))
 		decoder.UseNumber()
@@ -166,10 +174,18 @@ func (s *server) session(pipe windows.Handle) {
 			reply = map[string]any{"ok": true, "version": version}
 		case "connect":
 			reply = s.connect(id, request.Source, Options{Selected: request.Selected, Mode: request.Mode, Bypass: request.Bypass,
-				Direct: request.Direct, Proxied: request.Proxied, Routes: request.Routes, BlockAds: request.BlockAds,
+				Direct: request.Direct, Proxied: request.Proxied, Routes: s.sets.Usable(request.Routes), BlockAds: request.BlockAds,
 				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6})
 		case "status":
 			reply = s.core.status(id, request.Since)
+		case "ruleSets":
+			reply = map[string]any{"ok": true, "sets": s.sets.Kept()}
+		case "putRuleSet":
+			if err := s.sets.Put(request.Name, request.Data, request.Digest); err != nil {
+				reply = map[string]any{"ok": false, "error": "rule_set_invalid"}
+			} else {
+				reply = map[string]any{"ok": true}
+			}
 		case "disconnect":
 			s.core.stop(id, "stopped")
 			reply = map[string]any{"ok": true}
@@ -248,6 +264,11 @@ func allowAnyClient() bool {
 	defer key.Close()
 	value, _, err := key.GetIntegerValue("AllowAnyClient")
 	return err == nil && value == 1
+}
+
+// hideWindow keeps a helper run by the service (sing-box check) from opening a console.
+func hideWindow(command *exec.Cmd) {
+	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}
 }
 
 func freePort() (int, error) {

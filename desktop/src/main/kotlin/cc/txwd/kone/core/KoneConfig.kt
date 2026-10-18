@@ -199,6 +199,10 @@ object KoneConfig {
                             putJsonObject("http_client") { put("detour", PROXY_TAG); put("domain_resolver", "local-dns") }
                         })
                     }
+                    // The person's category lists: local files the App (or the service) keeps, never fetched by the core.
+                    UserRules.sets(own).forEach { name ->
+                        add(buildJsonObject { put("type", "local"); put("tag", name); put("format", "binary"); put("path", "$rules/sets/$name.srs") })
+                    }
                 }
                 put("auto_detect_interface", true)
                 // Which program each connection is, for Tools's list and the programs sent straight out.

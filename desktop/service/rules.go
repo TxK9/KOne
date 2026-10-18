@@ -19,7 +19,7 @@ type Rule struct {
 // The kinds a rule can match on, and the sing-box field each fills.
 var ruleFields = map[string]string{
 	"domain": "domain", "suffix": "domain_suffix", "keyword": "domain_keyword",
-	"cidr": "ip_cidr", "program": "process_name", "port": "port",
+	"cidr": "ip_cidr", "program": "process_name", "port": "port", "set": "rule_set",
 }
 
 var ruleActions = map[string]bool{"proxy": true, "direct": true, "block": true}
@@ -30,11 +30,23 @@ var keyword = regexp.MustCompile(`^[a-z0-9.-]{2,63}$`)
 // mostRules bounds the person's rules.
 const mostRules = 256
 
+// setName is a category list as SagerNet publishes them: geosite-netflix, geosite-geolocation-!cn,
+// geoip-jp. No dots, slashes or spaces, so it is a safe file name and part of a fixed URL.
+var setName = regexp.MustCompile(`^(geosite|geoip)-[a-z0-9][a-z0-9!@_-]{0,63}$`)
+
+// builtInSets are the template's own lists; a rule naming one is dropped, as its tag is taken.
+var builtInSets = map[string]bool{"geosite-cn": true, "geoip-cn": true, adsRuleSet: true}
+
+// mostSets bounds the category lists the rules name, so a connection loads only a few files.
+const mostSets = 32
+
 // UserRules are the person's rules as the template uses them: each checked and written one
 // way (lower-case names, networks from their first address, ports as "a" or "a-b"), anything
-// else dropped, each rule once, 256 at most. The App keeps the same (KoneConfig.rules).
+// else dropped, each rule once, 256 at most, naming 32 category lists at most. The App keeps
+// the same (KoneConfig.rules).
 func UserRules(rules []Rule) []Rule {
 	seen := map[Rule]bool{}
+	sets := map[string]bool{}
 	var kept []Rule
 	for _, rule := range rules {
 		if _, ok := ruleFields[rule.Kind]; !ok || !ruleActions[rule.Action] {
@@ -47,6 +59,12 @@ func UserRules(rules []Rule) []Rule {
 		clean := Rule{Kind: rule.Kind, Value: value, Action: rule.Action}
 		if seen[clean] {
 			continue
+		}
+		if clean.Kind == "set" && !sets[value] {
+			if len(sets) == mostSets {
+				continue
+			}
+			sets[value] = true
 		}
 		seen[clean] = true
 		kept = append(kept, clean)
@@ -72,8 +90,24 @@ func ruleValue(kind, value string) (string, bool) {
 		return network(value)
 	case "port":
 		return portValue(value)
+	case "set":
+		value = strings.ToLower(value)
+		return value, setName.MatchString(value) && !builtInSets[value]
 	}
 	return "", false
+}
+
+// RuleSets are the category lists [rules] name, each once, in the order they first appear.
+func RuleSets(rules []Rule) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, rule := range rules {
+		if rule.Kind == "set" && !seen[rule.Value] {
+			seen[rule.Value] = true
+			names = append(names, rule.Value)
+		}
+	}
+	return names
 }
 
 // plainIPv4 is four decimal numbers without leading zeros; plainIPv6 is hex and colons only,
@@ -168,9 +202,10 @@ func routeRule(rule Rule) map[string]any {
 	return out
 }
 
-// dnsRule answers names the way [rule] routes them; only rules on names and programs have one.
+// dnsRule answers names the way [rule] routes them; only rules on names, programs and lists of
+// names (geosite) have one.
 func dnsRule(rule Rule) map[string]any {
-	if rule.Kind == "cidr" || rule.Kind == "port" {
+	if rule.Kind == "cidr" || rule.Kind == "port" || (rule.Kind == "set" && strings.HasPrefix(rule.Value, "geoip-")) {
 		return nil
 	}
 	out := ruleMatch(rule)

@@ -262,7 +262,8 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		dnsRules = append(dnsRules, map[string]any{"clash_mode": "Rule", "domain_suffix": proxied, "server": "proxy-dns"})
 		routeRules = append(routeRules, map[string]any{"clash_mode": "Rule", "domain_suffix": proxied, "outbound": proxyTag})
 	}
-	for _, rule := range UserRules(options.Routes) {
+	own := UserRules(options.Routes)
+	for _, rule := range own {
 		if dns := dnsRule(rule); dns != nil {
 			dnsRules = append(dnsRules, dns)
 		}
@@ -297,6 +298,11 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 			"initial_path": options.Rules + "/" + set[0] + ".srs",
 			"http_client":  map[string]any{"detour": proxyTag, "domain_resolver": "local-dns"},
 		})
+	}
+	// The person's category lists, kept in the rules folder's sets\ by the service (or the App,
+	// for its own cores): local files, never fetched by the core.
+	for _, name := range RuleSets(own) {
+		ruleSets = append(ruleSets, map[string]any{"type": "local", "tag": name, "format": "binary", "path": options.Rules + "/sets/" + name + ".srs"})
 	}
 	inbounds := []any{}
 	if options.Mixed > 0 {

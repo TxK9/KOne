@@ -140,7 +140,11 @@ class KoneConfigTest {
             UserRule("program", "C:\\x\\cmd.exe", "direct"), UserRule("port", "443", "block"), UserRule("port", "1000:2000", "direct"),
             UserRule("port", "2000-1000", "direct"), UserRule("port", "0443", "direct"), UserRule("port", "\u0661\u0662", "direct"),
             UserRule("suffix", "example.org", "reject"), UserRule("geoip", "cn", "direct"), UserRule("suffix", "claude.ai", "direct"),
-        )
+            // Category lists: written one way, the template's own refused, 32 lists at most.
+            UserRule("set", " GeoSite-Netflix ", "proxy"), UserRule("set", "geoip-jp", "direct"), UserRule("set", "geosite-netflix", "block"),
+            UserRule("set", "geosite-cn", "proxy"), UserRule("set", "geosite-a.b", "proxy"), UserRule("set", "geosite-category-ai-!cn", "proxy"),
+            UserRule("set", "geosite-\u212Aodi", "direct"), UserRule("set", "netflix", "proxy"),
+        ) + (1..36).map { UserRule("set", "geosite-list$it", if (it % 2 == 0) "direct" else "proxy") }
         for (source in sources) for ((tun, mixed) in listOf(true to 0, false to 0, false to 7890)) for ((selected, mode, straight) in cases) {
             val sites = if (straight.isEmpty()) emptyList() else direct
             val through = if (mode == "Rule") emptyList() else proxied

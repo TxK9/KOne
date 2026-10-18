@@ -86,6 +86,8 @@ jobs:
           GOOS: windows
           GOARCH: ${{ matrix.arch }}
           GOTOOLCHAIN: local
+          # The category-list check runs against the sing-box.exe just built (native runner for each arch).
+          KONE_SINGBOX: ${{ github.workspace }}\dist\sing-box.exe
       - name: Check
         shell: bash
         run: |

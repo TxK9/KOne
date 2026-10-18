@@ -32,19 +32,36 @@ object UserRules {
     /** The kinds a rule can match on, and the sing-box field each fills. */
     val FIELDS = linkedMapOf(
         "domain" to "domain", "suffix" to "domain_suffix", "keyword" to "domain_keyword",
-        "cidr" to "ip_cidr", "program" to "process_name", "port" to "port",
+        "cidr" to "ip_cidr", "program" to "process_name", "port" to "port", "set" to "rule_set",
     )
     val ACTIONS = listOf("proxy", "direct", "block")
     const val MOST = 256
 
-    /** Each rule checked and written one way, anything else dropped, each rule once, [MOST] at most. */
+    /** The category lists the rules may name, at most. */
+    const val MOST_SETS = 32
+
+    /** A category list as SagerNet publishes them (geosite-netflix, geoip-jp): a safe file name and part of a fixed URL. */
+    private val SET_NAME = Regex("""(geosite|geoip)-[a-z0-9][a-z0-9!@_-]{0,63}""")
+
+    /** The template's own lists; a rule naming one is dropped, as its tag is taken. */
+    private val BUILT_IN_SETS = setOf("geosite-cn", "geoip-cn", KoneConfig.ADS_RULE_SET)
+
+    fun isSetName(name: String) = SET_NAME.matches(name) && name !in BUILT_IN_SETS
+
+    /** Each rule checked and written one way, anything else dropped, each rule once, [MOST] at most, naming [MOST_SETS] lists at most. */
     fun clean(rules: List<UserRule>): List<UserRule> {
         val seen = HashSet<UserRule>()
+        val sets = HashSet<String>()
         return rules.asSequence().mapNotNull { rule ->
             if (rule.kind !in FIELDS || rule.action !in ACTIONS) return@mapNotNull null
             value(rule.kind, rule.value)?.let { UserRule(rule.kind, it, rule.action) }
-        }.filter(seen::add).take(MOST).toList()
+        }.filter(seen::add).filter { rule ->
+            rule.kind != "set" || rule.value in sets || (sets.size < MOST_SETS && sets.add(rule.value))
+        }.take(MOST).toList()
     }
+
+    /** The category lists [rules] name, each once, in the order they first appear. */
+    fun sets(rules: List<UserRule>): List<String> = rules.filter { it.kind == "set" }.map { it.value }.distinct()
 
     /** [text] as a rule of [kind] writes it, or null when it is not one. */
     fun value(kind: String, text: String): String? {
@@ -55,6 +72,7 @@ object UserRules {
             "program" -> value.takeIf { KoneConfig.isProgram(it) }
             "cidr" -> network(value)
             "port" -> port(value)
+            "set" -> value.lowercase().takeIf(::isSetName)
             else -> null
         }
     }
@@ -158,7 +176,7 @@ object UserRules {
 
     /** How names matching [rule] are answered; rules on addresses and ports have none. */
     fun dns(rule: UserRule): JsonObject? {
-        if (rule.kind == "cidr" || rule.kind == "port") return null
+        if (rule.kind == "cidr" || rule.kind == "port" || (rule.kind == "set" && rule.value.startsWith("geoip-"))) return null
         return JsonObject(
             match(rule) + when (rule.action) {
                 "block" -> mapOf("action" to JsonPrimitive("reject"))

@@ -104,3 +104,51 @@ func TestRulesComeAfterTheClaudeBlockAndAdsAfterThem(t *testing.T) {
 		t.Fatalf("without ad blocking its rule set is not loaded (%d sets)", n)
 	}
 }
+
+func TestCategoryListsAreRulesLikeAnyOther(t *testing.T) {
+	var rules []Rule
+	rules = append(rules, Rule{"set", " GeoSite-Netflix ", "proxy"}, Rule{"set", "geoip-jp", "direct"}, Rule{"set", "geosite-netflix", "block"},
+		Rule{"set", "geosite-cn", "proxy"}, Rule{"set", "geosite-a/b", "proxy"}, Rule{"set", "netflix", "proxy"})
+	for i := 0; i < 40; i++ {
+		rules = append(rules, Rule{"set", "geosite-list" + strconv.Itoa(i), "proxy"})
+	}
+	clean := UserRules(rules)
+	if clean[0] != (Rule{"set", "geosite-netflix", "proxy"}) || clean[1] != (Rule{"set", "geoip-jp", "direct"}) || clean[2] != (Rule{"set", "geosite-netflix", "block"}) {
+		t.Fatalf("written one way, in order: %v", clean[:3])
+	}
+	if names := RuleSets(clean); len(names) != mostSets || names[0] != "geosite-netflix" || names[1] != "geoip-jp" {
+		t.Fatalf("32 lists at most, each once, in order: %d %v", len(names), names[:2])
+	}
+
+	options := options
+	options.Routes = []Rule{{"set", "geosite-netflix", "proxy"}, {"set", "geoip-jp", "direct"}, {"set", "geosite-category-ai-!cn", "proxy"}}
+	options.BlockAds = true
+	config, _, err := Build(source(t, true), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	route := config["route"].(map[string]any)
+	all := route["rules"].([]any)
+	position := func(set string) int {
+		for i, rule := range all {
+			if s, _ := rule.(map[string]any)["rule_set"].([]any); len(s) == 1 && s[0] == set {
+				return i
+			}
+		}
+		return -1
+	}
+	// The Claude block is the third rule, before every list: AI services through the node never reach Claude.
+	if claude := all[2].(map[string]any); claude["action"] != "reject" || position("geosite-category-ai-!cn") < 3 || position(adsRuleSet) < position("geoip-jp") {
+		t.Fatalf("order: %v", all)
+	}
+	sets := route["rule_set"].([]any)
+	want := map[string]any{"type": "local", "tag": "geoip-jp", "format": "binary", "path": options.Rules + "/sets/geoip-jp.srs"}
+	if len(sets) != 6 || !reflect.DeepEqual(sets[4], want) {
+		t.Fatalf("lists: %v", sets)
+	}
+	for _, rule := range config["dns"].(map[string]any)["rules"].([]any) {
+		if s, _ := rule.(map[string]any)["rule_set"].([]any); len(s) == 1 && s[0] == "geoip-jp" {
+			t.Fatal("a list of addresses has no DNS rule")
+		}
+	}
+}
