@@ -56,6 +56,7 @@ import cc.txwd.kone.ui.TitleBar
 import cc.txwd.kone.ui.ToolsActions
 import cc.txwd.kone.ui.ToolsState
 import cc.txwd.kone.ui.DnsLookupState
+import cc.txwd.kone.ui.NodeQr
 import cc.txwd.kone.ui.SiteCheckState
 import cc.txwd.kone.app.SiteCheck
 import cc.txwd.kone.ui.SignInState
@@ -291,6 +292,11 @@ class ScreensTest {
         )
         val editing = state.copy(sections = state.sections.take(1), editing = NodeEditing(null, draft, error = "Enter the Reality public key"))
         shoot("nodes-editor", dark = false, height = 1000) { WithRail(Page.Nodes, {}) { NodesView(editing, NodesActions(), now) } }
+        // One of the person's own nodes as a QR code (an example node, reserved address).
+        val qr = editing.copy(editing = null, qr = NodeQr("Japan · Tokyo", "vless://00000000-0000-4000-8000-000000000001@203.0.113.10:443?encryption=none&security=tls&sni=www.example.com&type=ws&path=%2Fkone#Japan%20%C2%B7%20Tokyo"))
+        for (dark in listOf(false, true)) {
+            shoot("nodes-qr", dark) { WithRail(Page.Nodes, {}) { NodesView(qr, NodesActions(), now) } }
+        }
     }
 
     /** Tools while connected: the mode, two programs sent straight out, and what the core carries (example sites only). */

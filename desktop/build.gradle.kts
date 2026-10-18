@@ -56,6 +56,8 @@ dependencies {
     implementation("org.json:json:20250517")
     // Clash (mihomo) subscriptions, read with the safe constructor only (node/ClashProxies.kt).
     implementation("org.yaml:snakeyaml:2.4")
+    // QR codes for sharing one of the person's own nodes to a phone (Apache-2.0).
+    implementation("com.google.zxing:core:3.5.3")
 
     testImplementation(kotlin("test"))
 }

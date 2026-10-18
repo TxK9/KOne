@@ -258,6 +258,7 @@ fun main(args: Array<String>) {
                                               onRemoveNode = model::removeImported,
                                               onImport = { model.importText(clipboardText().orEmpty()) },
                                               onCopyLink = { tag -> model.copyLink(tag, ::copyText) },
+                                              onQr = model::showQr,
                                               onAddNode = model::addNode,
                                               onSpeed = model::testSpeed,
                                               onEditNode = model::editNode,

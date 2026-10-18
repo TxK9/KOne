@@ -41,6 +41,8 @@ import cc.txwd.kone.ui.SiteCheckState
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
 import cc.txwd.kone.ui.NodeEditing
+import cc.txwd.kone.ui.NodeQr
+import cc.txwd.kone.ui.qrModules
 import cc.txwd.kone.ui.NodeSection
 import cc.txwd.kone.ui.NetworkState
 import cc.txwd.kone.ui.NodesState
@@ -749,6 +751,30 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             refresh()
         }
     }
+
+    /**
+     * Shows an imported or subscribed node as a QR code (null closes it). The console's nodes are
+     * never written out, as for [copyLink].
+     */
+    fun showQr(tag: String?) {
+        if (tag == null) {
+            qr = null
+            refresh()
+            return
+        }
+        if (tag !in importedTags && tag !in subscribed) return
+        val outbound = (merged()?.source?.get("outbounds") as? kotlinx.serialization.json.JsonArray)
+            ?.mapNotNull { it as? JsonObject }?.firstOrNull { (it["tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content == tag }
+        val link = outbound?.let { ShareLinkWriter.write(JsonObject(it - "tag"), nameOf(tag)) }
+        if (link == null || qrModules(link) == null) {
+            tell("This node cannot be shown as a QR code", error = true)
+            return
+        }
+        qr = NodeQr(nameOf(tag), link)
+        refresh()
+    }
+
+    private var qr: NodeQr? = null
 
     /** Opens the form for a new node. */
     fun addNode() {
@@ -1827,6 +1853,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 }
             },
             editing = editing,
+            qr = qr,
             speedTesting = speedTesting,
             selected = selected,
             testing = testing,

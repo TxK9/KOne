@@ -72,9 +72,14 @@ data class NodeSection(
 /** A node being written by hand: which imported node it replaces (null for a new one), its fields, and how saving went. */
 data class NodeEditing(val tag: String?, val draft: NodeDraft, val error: String? = null, val saving: Boolean = false)
 
+/** A node shown as a QR code to move it to a phone: its name and share link. */
+data class NodeQr(val name: String, val link: String)
+
 data class NodesState(
     val sections: List<NodeSection> = emptyList(),
     val editing: NodeEditing? = null,
+    /** One of the person's own nodes shown as a QR code, until closed. */
+    val qr: NodeQr? = null,
     /** The node whose bandwidth is being tested now. */
     val speedTesting: String? = null,
     val selected: String? = null,
@@ -96,6 +101,8 @@ class NodesActions(
     val onRemoveNode: (String) -> Unit = {},
     /** Copies an imported or subscribed node as a share link. */
     val onCopyLink: (String) -> Unit = {},
+    /** Shows an imported or subscribed node as a QR code, or closes it for null. */
+    val onQr: (String?) -> Unit = {},
     val onAddNode: () -> Unit = {},
     val onEditNode: (String) -> Unit = {},
     val onSaveNode: (NodeDraft) -> Unit = {},
@@ -170,6 +177,9 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
         }
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
             // The form scrolls with the list, so a long one is never cut off.
+            state.qr?.let { shown ->
+                item(key = "qr") { QrPanel(shown) { actions.onQr(null) } }
+            }
             state.editing?.let { open ->
                 item(key = "editor") {
                     NodeEditor(open.draft, editing = open.tag != null, error = open.error, saving = open.saving, onSave = actions.onSaveNode, onCancel = actions.onCancelNode)
@@ -290,6 +300,13 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
             if (copyable) {
                 Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onCopyLink(node.id) }.padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
                     Label("Copy", 12.sp, ink.soft)
+                }
+            }
+        }
+        Box(Modifier.width(28.dp), contentAlignment = Alignment.Center) {
+            if (copyable) {
+                Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onQr(node.id) }.padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
+                    Label("QR", 12.sp, ink.soft)
                 }
             }
         }
@@ -425,5 +442,30 @@ fun ago(millis: Long): String {
         minutes < 60 -> "$minutes min ago"
         minutes < 48 * 60 -> "${minutes / 60} h ago"
         else -> "${minutes / (24 * 60)} days ago"
+    }
+}
+
+/** A node as a QR code, to scan with KOne on a phone: the code, its name, the link in small type, and Close. */
+@Composable
+private fun QrPanel(shown: NodeQr, onClose: () -> Unit) {
+    val ink = LocalInk.current
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 10.dp).hairline(ink.hair, bottom = true).padding(bottom = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+    ) {
+        QrCode(shown.link)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Label(shown.name, 15.sp, weight = FontWeight.SemiBold)
+            Label("Scan it with KOne on your phone, or another client that reads share links, to add this node there. It carries the node's password: show it only to your own devices.", 13.sp, ink.soft)
+            androidx.compose.foundation.text.BasicText(
+                shown.link,
+                style = androidx.compose.ui.text.TextStyle(color = ink.soft, fontSize = 11.sp, fontFamily = Fonts.mono),
+                maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClose), contentAlignment = Alignment.Center) {
+                Label("Close", 14.sp, weight = FontWeight.SemiBold)
+            }
+        }
     }
 }
