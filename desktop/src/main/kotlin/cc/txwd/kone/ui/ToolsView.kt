@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cc.txwd.kone.app.Check
+import cc.txwd.kone.app.SiteCheck
 import cc.txwd.kone.app.Outcome
 import cc.txwd.kone.app.Used
 import cc.txwd.kone.core.Carried
@@ -77,7 +78,11 @@ data class ToolsState(
     val lookup: DnsLookupState? = null,
     /** Usage by node, by program and by day, while the person has it open. */
     val details: UsageDetails? = null,
+    /** The last site check: the site, each way it was tried, and which way to keep. */
+    val site: SiteCheckState? = null,
 )
+
+data class SiteCheckState(val site: String, val checks: List<Check>, val running: Boolean, val verdict: String? = null, val way: SiteCheck.Way? = null)
 
 /** Over [span] days (1 is today): each node's and program's share, largest first, and each day's total. */
 data class UsageDetails(
@@ -104,6 +109,11 @@ class ToolsActions(
     val onClearLookup: () -> Unit = {},
     /** Shows usage over 1, 7 or 30 days, or puts it away for null. */
     val onUsage: (Int?) -> Unit = {},
+    /** Tries a site straight out and through nodes; false when it is not a domain name. */
+    val onCheckSite: (String) -> Boolean = { true },
+    /** Keeps a site check's answer: straight out (true) or through the node. */
+    val onKeepSite: (Boolean) -> Unit = {},
+    val onClearSite: () -> Unit = {},
 )
 
 private val MODE_NAMES = listOf("Rule" to "Rule", "Global" to "Global", "Direct" to "Direct")
@@ -153,6 +163,7 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
             }
             if (state.checks.isNotEmpty()) Checks(state.checks, state.advice)
             Lookup(state.lookup, actions)
+            SiteLine(state.site, actions)
         }
         state.carried?.let { carried -> Connections(carried, state.bypass, actions) }
     }
@@ -251,14 +262,40 @@ private const val SHOWN = 6
 /** DNS lookup: a name, then one row for each way it was asked, and a sentence on what they add up to. */
 @Composable
 private fun Lookup(lookup: DnsLookupState?, actions: ToolsActions) {
-    val ink = LocalInk.current
-    var name by remember { mutableStateOf(lookup?.name.orEmpty()) }
-    var wrong by remember { mutableStateOf(false) }
-    val running = lookup?.running == true
-    fun go() {
-        if (!running) wrong = !actions.onLookUp(name)
+    Ask("DNS lookup", "Look up", "Looking up", lookup?.name, lookup?.running == true, lookup != null, actions.onLookUp, actions.onClearLookup)
+    if (lookup != null && lookup.checks.isNotEmpty()) Checks(lookup.checks, lookup.verdict, verdict = true)
+}
+
+/** Site check: a site tried each way, a sentence on which serves it best, and the one press that keeps it. */
+@Composable
+private fun SiteLine(site: SiteCheckState?, actions: ToolsActions) {
+    Ask("Site check", "Check", "Checking", site?.site, site?.running == true, site != null, actions.onCheckSite, actions.onClearSite)
+    if (site == null || (site.checks.isEmpty() && site.verdict == null)) return
+    if (site.checks.isNotEmpty()) Checks(site.checks, site.verdict, verdict = true) else Label(site.verdict.orEmpty(), 13.sp, weight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 8.dp))
+    val keep = when (site.way) {
+        SiteCheck.Way.Direct -> true to "Always send ${site.site} straight out"
+        SiteCheck.Way.Proxy -> false to "Always send ${site.site} through the node"
+        else -> null
     }
-    Line("DNS lookup") {
+    keep?.let { (direct, title) ->
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.End) {
+            Box(Modifier.height(34.dp).press(bleed = 8.dp) { actions.onKeepSite(direct) }, contentAlignment = Alignment.Center) {
+                Label(title, 14.sp, weight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+/** A line that asks about a name: the field (Enter asks too), Clear once there is an answer, and the button. */
+@Composable
+private fun Ask(title: String, action: String, busy: String, asked: String?, running: Boolean, answered: Boolean, onAsk: (String) -> Boolean, onClear: () -> Unit) {
+    val ink = LocalInk.current
+    var name by remember { mutableStateOf(asked.orEmpty()) }
+    var wrong by remember { mutableStateOf(false) }
+    fun go() {
+        if (!running) wrong = !onAsk(name)
+    }
+    Line(title) {
         BasicTextField(
             name, { name = it; wrong = false },
             Modifier.width(220.dp).height(30.dp).hairline(if (wrong) NodeWeather.Cut.ink(ink.dark) else ink.hair, bottom = true, width = 1.5.dp)
@@ -278,18 +315,17 @@ private fun Lookup(lookup: DnsLookupState?, actions: ToolsActions) {
             },
         )
         Spacer(Modifier.width(22.dp))
-        if (lookup != null && !running) {
-            Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onClearLookup), contentAlignment = Alignment.Center) {
+        if (answered && !running) {
+            Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClear), contentAlignment = Alignment.Center) {
                 Label("Clear", 14.sp, ink.soft)
             }
             Spacer(Modifier.width(22.dp))
         }
         Box(Modifier.height(34.dp).press(enabled = !running, bleed = 8.dp) { go() }, contentAlignment = Alignment.Center) {
-            Label(if (running) "Looking up" else "Look up", 14.sp, if (running) ink.soft else ink.ink, FontWeight.SemiBold)
+            Label(if (running) busy else action, 14.sp, if (running) ink.soft else ink.ink, FontWeight.SemiBold)
         }
     }
     if (wrong) Label("Enter a domain name, such as example.com", 13.sp, NodeWeather.Cut.ink(ink.dark), modifier = Modifier.padding(top = 6.dp))
-    if (lookup != null && lookup.checks.isNotEmpty()) Checks(lookup.checks, lookup.verdict, verdict = true)
 }
 
 /** A diagnosis, one row per check: what, how it went, and a few words; then the suggestion (or, for a lookup, the verdict). */

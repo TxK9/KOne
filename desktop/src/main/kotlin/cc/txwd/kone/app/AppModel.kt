@@ -37,6 +37,7 @@ import cc.txwd.kone.ui.DashboardState
 import cc.txwd.kone.ui.SignInState
 import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.DnsLookupState
+import cc.txwd.kone.ui.SiteCheckState
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
 import cc.txwd.kone.ui.NodeEditing
@@ -1131,6 +1132,67 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             }
         }
         return true
+    }
+
+    /**
+     * Site check: [input] tried straight out and through the node in use and the best few others,
+     * in a core of KOne's own (the running core keeps every test for Automatic, and a slow site
+     * must not move it). Sites the console refuses are never tried. False when it is not a name.
+     */
+    fun checkSite(input: String): Boolean {
+        val site = DnsLookup.clean(input) ?: return false
+        if (tools.site?.running == true) return true
+        fun settle(verdict: String) {
+            tools = tools.copy(site = SiteCheckState(site, emptyList(), running = false, verdict = verdict))
+        }
+        if (DnsLookup.refused(site, account.binding?.source)) {
+            settle("Your provider blocks $site")
+            return true
+        }
+        val core = Places.core
+        val source = source()
+        if (core == null || source == null) {
+            settle(if (core == null) "Site checks need KOne installed" else "Waiting for the console's nodes")
+            return true
+        }
+        val current = inUse()?.takeIf { it != KoneConfig.AUTO_TAG && nodes.any { node -> node.tag == it } }
+        val others = nodes.map { it.tag }.filter { it != current }.sortedBy { delays[it] ?: Int.MAX_VALUE }
+        val picked = (listOfNotNull(current) + others).take(4)
+        val ways = listOf("direct" to "Straight out") + picked.map { it to nameOf(it) }
+        tools = tools.copy(site = SiteCheckState(site, ways.map { (_, title) -> Check(title, Outcome.Running) }, running = true))
+        scope.launch {
+            val tries = withContext(Dispatchers.IO) {
+                val api = CoreApi(freePort(), token())
+                val config = runCatching { KoneConfig.build(source, rules, api, tun = false, mode = "Global").config.toString() }.getOrNull()
+                val tester = Probe(core)
+                try {
+                    val up = config != null && tester.start(config) && ClashApi(api).let { clash -> (0 until 50).any { clash.answers().also { ok -> if (!ok) Thread.sleep(200) } } }
+                    coroutineScope {
+                        ways.map { (tag, title) ->
+                            async { SiteCheck.Try(tag, title, if (up) ClashApi(api).delay(tag, 8_000, SiteCheck.url(site)) else null) }
+                        }.awaitAll()
+                    }
+                } finally {
+                    tester.stop()
+                }
+            }
+            val way = SiteCheck.way(tries.first().millis, tries.drop(1).map { it.millis })
+            tools = tools.copy(site = SiteCheckState(site, SiteCheck.rows(tries), running = false, verdict = SiteCheck.verdict(site, way), way = way))
+        }
+        return true
+    }
+
+    /** Keeps what a site check found: the site on Direct sites or Proxied sites (Rules), ahead of the person's own rules. */
+    fun keepSite(direct: Boolean) {
+        val site = tools.site?.site ?: return
+        if (addSite(site, direct)) {
+            hint(if (direct) "$site now goes straight out" else "$site now goes through the node")
+            tools = tools.copy(site = null)
+        }
+    }
+
+    fun clearSite() {
+        if (tools.site?.running != true) tools = tools.copy(site = null)
     }
 
     fun clearLookup() {

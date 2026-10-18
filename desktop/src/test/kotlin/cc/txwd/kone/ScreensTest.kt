@@ -56,6 +56,8 @@ import cc.txwd.kone.ui.TitleBar
 import cc.txwd.kone.ui.ToolsActions
 import cc.txwd.kone.ui.ToolsState
 import cc.txwd.kone.ui.DnsLookupState
+import cc.txwd.kone.ui.SiteCheckState
+import cc.txwd.kone.app.SiteCheck
 import cc.txwd.kone.ui.SignInState
 import cc.txwd.kone.app.ListStatus
 import cc.txwd.kone.ui.UsageDetails
@@ -330,6 +332,16 @@ class ScreensTest {
             ),
         )
         shoot("tools-lookup", dark = false) { WithRail(Page.Tools, {}) { ToolsView(lookup, ToolsActions()) } }
+        // A site check: straight out is clearly faster than the nodes, with the press that keeps it.
+        val site = ToolsState(
+            "Rule", emptyList(),
+            site = SiteCheckState(
+                "example.org",
+                listOf(Check("Straight out", Outcome.Pass, "42 ms"), Check("Japan", Outcome.Pass, "318 ms"), Check("United States", Outcome.Pass, "402 ms"), Check("Singapore", Outcome.Fail, "No answer")),
+                running = false, verdict = "example.org works best straight out", way = SiteCheck.Way.Direct,
+            ),
+        )
+        shoot("tools-site", dark = false) { WithRail(Page.Tools, {}) { ToolsView(site, ToolsActions()) } }
         // Usage over a week, by node and by program (example names only).
         val week = (6 downTo 0).map { back -> java.time.LocalDate.of(2026, 10, 18).minusDays(back.toLong()) }
         val usage = ToolsState(

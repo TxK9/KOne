@@ -300,6 +300,7 @@ fun main(args: Array<String>) {
                                               onLookUp = model::lookUp,
                                               onClearLookup = model::clearLookup,
                                               onUsage = model::showUsage,
+                                              onCheckSite = model::checkSite, onKeepSite = model::keepSite, onClearSite = model::clearSite,
                                           ),
                                       )
                                       Page.Settings -> SettingsView(
