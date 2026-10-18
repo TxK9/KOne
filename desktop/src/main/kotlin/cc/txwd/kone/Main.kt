@@ -304,6 +304,7 @@ fun main(args: Array<String>) {
                                               onUsage = model::showUsage,
                                               onCheckSite = model::checkSite, onKeepSite = model::keepSite, onClearSite = model::clearSite,
                                               onTakeAdvice = model::takeAdvice, onDismissAdvice = model::dismissAdvice,
+                                              onSendSite = model::sendSite,
                                           ),
                                       )
                                       Page.Settings -> SettingsView(

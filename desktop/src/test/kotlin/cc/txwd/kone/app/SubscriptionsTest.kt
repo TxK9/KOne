@@ -139,3 +139,23 @@ class SubscriptionsTest {
         assertEquals(0, process.exitValue(), output)
     }
 }
+
+class SubscriptionWarningTest {
+    private val now = 1_800_000_000_000L
+    private fun subscription(used: Long, total: Long, expire: Long?) =
+        Subscription("s", "Example Cloud", "https://example.com/sub", info = cc.txwd.kone.node.UserInfo(0, used, total, expire))
+
+    @org.junit.jupiter.api.Test
+    fun theTermsRunningOutAreSaidBeforeTheNodesStop() {
+        val ok = subscription(10, 100, now / 1000 + 30 * 86_400)
+        kotlin.test.assertNull(ok.warning(now))
+        kotlin.test.assertNull(Subscription("s", "Example Cloud", "https://example.com/sub").warning(now))
+        kotlin.test.assertEquals("Example Cloud has used 92% of its data", subscription(92, 100, null).warning(now))
+        kotlin.test.assertEquals("Example Cloud has used all its data", subscription(120, 100, null).warning(now))
+        kotlin.test.assertEquals("Example Cloud ends in 2 days", subscription(10, 100, now / 1000 + 86_400 + 60).warning(now))
+        kotlin.test.assertEquals("Example Cloud ends within a day", subscription(10, 100, now / 1000 + 3_600).warning(now))
+        kotlin.test.assertEquals("Example Cloud has ended", subscription(10, 100, now / 1000 - 1).warning(now))
+        // No total: no share to speak of.
+        kotlin.test.assertNull(subscription(500, 0, null).warning(now))
+    }
+}

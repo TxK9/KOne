@@ -50,9 +50,30 @@ data class Subscription(
         return stale && rested
     }
 
+    /**
+     * What is worth saying about the provider's terms at [now], or null: ended, ending within three
+     * days, or nine tenths of its data used. Said by KOne before the nodes simply stop working.
+     */
+    fun warning(now: Long): String? {
+        val terms = info ?: return null
+        terms.expire?.let { expire ->
+            val left = expire * 1000 - now
+            if (left <= 0) return "$name has ended"
+            if (left < 3 * DAY) {
+                val days = (left / DAY).toInt()
+                return "$name ends ${if (days == 0) "within a day" else "in ${days + 1} days"}"
+            }
+        }
+        if (terms.total > 0 && terms.used * 10 >= terms.total * 9) {
+            return if (terms.used >= terms.total) "$name has used all its data" else "$name has used ${terms.used * 100 / terms.total}% of its data"
+        }
+        return null
+    }
+
     companion object {
         const val DEFAULT_HOURS = 12
         const val HOUR = 3_600_000L
+        const val DAY = 24 * HOUR
     }
 }
 

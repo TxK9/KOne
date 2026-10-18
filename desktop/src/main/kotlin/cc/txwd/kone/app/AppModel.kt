@@ -202,6 +202,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** One line for a Windows notification: the connection dropped, or came back. Main shows it by the clock. */
     var onNotice: (String) -> Unit = {}
 
+    /** Subscription warnings already said this session. */
+    private val warned = HashSet<String>()
+
     /** Opens a page in the person's browser (the network's sign-in page). */
     var onBrowse: (String) -> Unit = {}
 
@@ -661,6 +664,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 nodes = kept, info = fetched.info ?: it.info, updated = now, tried = now, error = null,
             )
         }
+        // The provider's terms running out, said once a session, before the nodes simply stop.
+        subscriptions.all.firstOrNull { it.id == id }?.warning(now)?.let { warning -> if (warned.add(warning)) onNotice(warning) }
         val left = read.nodes.size - kept.size + read.refused
         return if (left > 0) "${kept.size} nodes kept, $left left out" to false else null
     }
@@ -1390,6 +1395,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         val advice = if (preferences.mode == "Rule") watched.advice().take(3) else emptyList()
         advice.filter { advised.add(it.site) }.forEach { onNotice("${it.site} does not answer straight out; Tools can send it through the node") }
         if (advice != tools.siteAdvice) tools = tools.copy(siteAdvice = advice)
+    }
+
+    /** A connection's site sent the other way from now on: on Direct sites (every mode) or Proxied sites (Rule mode). */
+    fun sendSite(site: String, direct: Boolean) {
+        if (addSite(site, direct)) hint(if (direct) "$site now goes straight out" else "$site now goes through the node")
     }
 
     /** Takes an advice: the site goes on Proxied sites (Rules), so Rule mode sends it through the node. */

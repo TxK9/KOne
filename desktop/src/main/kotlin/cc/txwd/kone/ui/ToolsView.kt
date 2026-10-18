@@ -117,6 +117,8 @@ class ToolsActions(
     /** Keeps a site check's answer: straight out (true) or through the node. */
     val onKeepSite: (Boolean) -> Unit = {},
     val onClearSite: () -> Unit = {},
+    /** Sends a connection's site straight out (true) or through the node from now on. */
+    val onSendSite: (String, Boolean) -> Unit = { _, _ -> },
     /** Sends an advised site through the node, or lets the advice go. */
     val onTakeAdvice: (String) -> Unit = {},
     val onDismissAdvice: (String) -> Unit = {},
@@ -437,7 +439,17 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Box(Modifier.width(170.dp)) { Wrapped(connection.program ?: "—", 13.sp, ink.ink) }
-                Box(Modifier.weight(1f)) { Wrapped(connection.target, 13.sp, ink.ink) }
+                // The site, and the one press that sends it the other way from now on (Rules' site lists).
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.weight(1f, fill = false)) { Wrapped(connection.target, 13.sp, ink.ink) }
+                    val site = cc.txwd.kone.core.KoneConfig.site(connection.target)?.removePrefix("www.")
+                    if (site != null) {
+                        val straight = connection.via != "direct"
+                        Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onSendSite(site, straight) }, contentAlignment = Alignment.Center) {
+                            Label(if (straight) "Straight out" else "Via node", 11.sp, ink.soft)
+                        }
+                    }
+                }
                 // The way it went, and beneath it why: which list, rule, category or mode sent it there.
                 Column(Modifier.width(150.dp)) {
                     Wrapped(if (connection.via == "direct") "Direct" else connection.via, 13.sp, ink.soft)
