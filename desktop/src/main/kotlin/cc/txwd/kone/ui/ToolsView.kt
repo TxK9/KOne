@@ -49,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cc.txwd.kone.app.Check
+import cc.txwd.kone.app.Outcome
 import cc.txwd.kone.app.Used
 import cc.txwd.kone.core.Carried
 
@@ -63,6 +65,11 @@ data class ToolsState(
     /** What the core has carried today and this month; Usage shows once there is any. */
     val today: Used = Used(0, 0),
     val month: Used = Used(0, 0),
+    /** The last diagnosis, step by step; empty until one is run. */
+    val checks: List<Check> = emptyList(),
+    val checking: Boolean = false,
+    /** One suggestion for the first check that failed. */
+    val advice: String? = null,
 )
 
 class ToolsActions(
@@ -72,6 +79,9 @@ class ToolsActions(
     val onBypass: (String, Boolean) -> Unit = { _, _ -> },
     /** End one connection, or all of them for null. */
     val onClose: (String?) -> Unit = {},
+    val onDiagnose: () -> Unit = {},
+    /** Puts the last diagnosis away, giving its room back to the connections. */
+    val onClearChecks: () -> Unit = {},
 )
 
 private val MODE_NAMES = listOf("Rule" to "Rule", "Global" to "Global", "Direct" to "Direct")
@@ -98,8 +108,44 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
                     Label("Today ${size(state.today.total)} · This month ${size(state.month.total)}", 14.sp, ink.soft, tabular = true)
                 }
             }
+            Line("Diagnose") {
+                Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                    if (state.checks.isNotEmpty() && !state.checking) {
+                        Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onClearChecks), contentAlignment = Alignment.Center) {
+                            Label("Clear", 14.sp, ink.soft)
+                        }
+                    }
+                    Box(Modifier.height(34.dp).press(enabled = !state.checking, bleed = 8.dp) { if (!state.checking) actions.onDiagnose() }, contentAlignment = Alignment.Center) {
+                        Label(if (state.checking) "Checking" else "Run", 14.sp, if (state.checking) ink.soft else ink.ink, FontWeight.SemiBold)
+                    }
+                }
+            }
+            if (state.checks.isNotEmpty()) Checks(state.checks, state.advice)
         }
         state.carried?.let { carried -> Connections(carried, state.bypass, actions) }
+    }
+}
+
+/** A diagnosis, one row per check: what, how it went, and a few words; then the suggestion. */
+@Composable
+private fun Checks(checks: List<Check>, advice: String?) {
+    val ink = LocalInk.current
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).hairline(ink.hair, bottom = true).padding(bottom = 8.dp)) {
+        checks.forEach { check ->
+            Row(Modifier.height(28.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(Modifier.width(90.dp)) { Label(check.title, 13.sp, ink.soft) }
+                Box(Modifier.width(18.dp), contentAlignment = Alignment.Center) {
+                    when (check.outcome) {
+                        Outcome.Running -> Label("…", 13.sp, ink.soft)
+                        Outcome.Pass -> Glyph(Glyphs.check, NodeWeather.Clear.ink(ink.dark), 15.dp, strokeWidth = 2.2f)
+                        Outcome.Warn -> Label("!", 14.sp, NodeWeather.Mist.ink(ink.dark), FontWeight.SemiBold)
+                        Outcome.Fail -> Label("×", 15.sp, NodeWeather.Cut.ink(ink.dark), FontWeight.SemiBold)
+                    }
+                }
+                Label(check.detail, 13.sp, if (check.outcome == Outcome.Fail) NodeWeather.Cut.ink(ink.dark) else ink.ink, tabular = true)
+            }
+        }
+        advice?.let { Label(it, 13.sp, NodeWeather.Mist.ink(ink.dark), FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp)) }
     }
 }
 

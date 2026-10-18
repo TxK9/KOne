@@ -7,6 +7,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import cc.txwd.kone.app.Check
+import cc.txwd.kone.app.Outcome
 import cc.txwd.kone.app.Used
 import cc.txwd.kone.city.Cities
 import cc.txwd.kone.city.CityGallery
@@ -274,7 +276,15 @@ class ScreensTest {
                 CoreConnection("5", null, "203.0.113.77:53", "United States", 512, 128),
             ),
         )
-        val state = ToolsState("Rule", listOf("WeChat.exe", "Steam.exe"), carried, today = Used(1_288_490_189, 64_424_509), month = Used(19_756_849_561, 1_073_741_824))
+        val state = ToolsState(
+            "Rule", listOf("WeChat.exe", "Steam.exe"), carried, today = Used(1_288_490_189, 64_424_509), month = Used(19_756_849_561, 1_073_741_824),
+            checks = listOf(
+                Check("Key", Outcome.Pass, "5 nodes"), Check("Service", Outcome.Pass, "Connected through it"), Check("Node", Outcome.Pass, "Japan 186 ms"),
+                Check("DNS", Outcome.Pass, "Names resolve at home and abroad"), Check("Google", Outcome.Pass, "212 ms"), Check("GitHub", Outcome.Warn, "3410 ms"),
+                Check("YouTube", Outcome.Fail, "No answer"), Check("Baidu", Outcome.Pass, "38 ms"), Check("Exit", Outcome.Pass, "203.0.113.45"),
+            ),
+            advice = "Some sites do not answer: check your Rules",
+        )
         for (dark in listOf(false, true)) {
             shoot("tools", dark) { WithRail(Page.Tools, {}) { ToolsView(state, ToolsActions()) } }
         }

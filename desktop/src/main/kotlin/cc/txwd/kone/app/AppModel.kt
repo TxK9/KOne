@@ -731,6 +731,77 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         restart()
     }
 
+    // Diagnosis (Tools)
+
+    /** The node carrying traffic now: a stand-in, KOne's pick for Automatic, the core's, or the person's own. */
+    private fun inUse(): String? {
+        standIn?.let { return it }
+        val chosen = account.binding?.selected ?: return nodes.firstOrNull()?.tag
+        return if (chosen == KoneConfig.AUTO_TAG) drivenPick ?: autoNow ?: autoPick()?.tag else chosen
+    }
+
+    /**
+     * Checks the way out step by step, through the same path as the person's traffic, showing
+     * each as it finishes: the key and nodes, the service, the node in use, DNS, a few sites and
+     * the exit. The first failure comes with one suggestion.
+     */
+    fun diagnose() {
+        if (tools.checking) return
+        scope.launch {
+            val checks = mutableListOf<Check>()
+            fun show(running: String?) {
+                tools = tools.copy(checks = checks.toList() + listOfNotNull(running?.let { Check(it, Outcome.Running) }), checking = running != null, advice = null)
+            }
+            show("Key")
+            val binding = account.binding
+            checks += when {
+                binding == null -> Check("Key", Outcome.Fail, "No key yet")
+                binding.source == null -> Check("Key", Outcome.Fail, "The console has not sent nodes yet")
+                else -> Check("Key", Outcome.Pass, "${nodes.size} nodes")
+            }
+            if (preferences.way == WAY_ADAPTER && !noAdapter) {
+                show("Service")
+                checks += when {
+                    service != null -> Check("Service", Outcome.Pass, "Connected through it")
+                    !Places.windows -> Check("Service", Outcome.Warn, "Only on Windows")
+                    else -> {
+                        val version = withContext(Dispatchers.IO) { ServiceLink.open(Places.service)?.use { it.hello() } }
+                        if (version != null) Check("Service", Outcome.Pass, "Version $version") else Check("Service", Outcome.Fail, "Not answering")
+                    }
+                }
+            }
+            show("Node")
+            val api = clash ?: probeApi?.let(::ClashApi)
+            val tag = inUse()
+            checks += if (api == null || tag == null) {
+                Check("Node", Outcome.Warn, "Nothing to test through yet")
+            } else {
+                val measured = withContext(Dispatchers.IO) { api.delay(tag) }
+                health.record(tag, measured)
+                delays[tag] = measured
+                Diagnosis.node(nameOf(tag), measured)
+            }
+            show("DNS")
+            checks += Diagnosis.names()
+            show("Sites")
+            checks += Diagnosis.sites(proxied)
+            show("Exit")
+            val online = connection == Connection.Online
+            val address = withContext(Dispatchers.IO) { ExitTrace.detect(proxied) }
+            checks += when {
+                address == null -> Check("Exit", Outcome.Warn, "Unknown")
+                online -> Check("Exit", Outcome.Pass, address)
+                else -> Check("Exit", Outcome.Warn, "$address, not connected")
+            }
+            tools = tools.copy(checks = checks.toList(), checking = false, advice = Diagnosis.advice(checks))
+            refresh()
+        }
+    }
+
+    fun clearChecks() {
+        if (!tools.checking) tools = tools.copy(checks = emptyList(), advice = null)
+    }
+
     // Network (Settings)
 
     /** The DNS servers and IPv6, as kept. */
@@ -974,7 +1045,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     private suspend fun detectExit() {
         repeat(3) {
-            val found = ExitTrace.detect()
+            val found = ExitTrace.detect(proxied)
             if (found != null) {
                 withContext(Dispatchers.Main) { exit = found; refresh() }
                 return

@@ -284,6 +284,8 @@ fun main(args: Array<String>) {
                                               onWay = model::pickWay,
                                               onBypass = model::setBypass,
                                               onClose = model::closeConnection,
+                                              onDiagnose = model::diagnose,
+                                              onClearChecks = model::clearChecks,
                                           ),
                                       )
                                       Page.Settings -> SettingsView(
