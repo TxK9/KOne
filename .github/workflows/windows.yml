@@ -381,12 +381,38 @@ jobs:
           $down = Install "$env:RUNNER_TEMP\msi\KOne-1.0.0${{ matrix.suffix }}.msi" "$env:RUNNER_TEMP\downgrade.log"
           if ($down -eq 0) { Write-Error "the older MSI installed over the newer one"; exit 1 }
           ../.github/windows/installed.ps1 -Version $env:KONE_VERSION
-      - name: KOne starts
+      - name: KOne starts, and what it costs
         run: |
           $app = Start-Process "$env:ProgramFiles\KOne\KOne.exe" -PassThru
           Start-Sleep -Seconds 20
           if ($app.HasExited) { Write-Error "KOne.exe quit by itself with $($app.ExitCode)"; exit 1 }
+          # CPU as a share of one core over [seconds]: shown (drawn in software here, no GPU), then minimised.
+          function Busy([System.Diagnostics.Process] $process, [int] $seconds) {
+            $process.Refresh(); $before = $process.TotalProcessorTime.TotalSeconds
+            Start-Sleep -Seconds $seconds
+            $process.Refresh(); $after = $process.TotalProcessorTime.TotalSeconds
+            return [math]::Round(100 * ($after - $before) / $seconds, 1)
+          }
+          $shown = Busy $app 30
+          Add-Type -Namespace KOne -Name Window -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr window, int show);'
+          $app.Refresh()
+          $minimised = "n/a"
+          if ($app.MainWindowHandle -ne [System.IntPtr]::Zero) {
+            [KOne.Window]::ShowWindow($app.MainWindowHandle, 6) | Out-Null
+            Start-Sleep -Seconds 5
+            $minimised = Busy $app 30
+          }
+          $app.Refresh()
+          $working = [math]::Round($app.WorkingSet64 / 1MB)
+          $private = [math]::Round($app.PrivateMemorySize64 / 1MB)
+          $threads = $app.Threads.Count
+          $line = "| ${{ matrix.arch }} | $working MB | $private MB | $threads | $shown % | $minimised % |"
+          Write-Host "Working set, private, threads, CPU shown, CPU minimised: $line"
+          "### What KOne costs, idle with no key (one core = 100 %)`n`n| Arch | Working set | Private | Threads | CPU shown (software drawing) | CPU minimised |`n| --- | --- | --- | --- | --- | --- |`n$line" >> $env:GITHUB_STEP_SUMMARY
           Stop-Process -Id $app.Id -Force
+          # Ceilings for what would be a real regression, not targets.
+          if ($private -gt 1024) { Write-Error "KOne uses $private MB of private memory idle"; exit 1 }
+          if ($minimised -ne "n/a" -and $minimised -gt 10) { Write-Error "KOne keeps $minimised % of a core busy while minimised"; exit 1 }
       - name: The service turns away anything but KOne.exe
         run: ./gradlew.bat --no-daemon test --tests "cc.txwd.kone.ServiceEndToEndTest" "-Pkone.e2e=reject"
       - name: Key, connection, Claude block, disconnection
