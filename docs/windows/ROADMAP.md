@@ -70,15 +70,25 @@ real Windows PC yet.
 
 ## Next
 
-- **Node export and manual add.** Copy a node as a share link (and QR); add or edit one
-  by protocol without a link.
-- **Bandwidth test.** Download through a chosen node for a few seconds and report the rate.
-- **Remote rule sets.** Rule-set URLs (sing-box `.srs`) as rules, fetched through the node.
-- **Hosts.** Fixed answers for chosen names.
-- **Backup and restore.** Settings, rules and subscriptions to a file the person keeps.
-- **Per-node traffic.** Usage by node and by app over the day.
-- **Cost of Automatic over large subscriptions.** The template's url-test still tests every
-  node every three minutes; with KOne steering Automatic it could test less often.
+| Work | Status |
+| --- | --- |
+| Copy an imported or subscribed node as a share link (managed nodes are never written out) | Done |
+| Backup and restore of the setup (never the key or the binding) | Done |
+| Add or edit a node by protocol without a link; QR export | Planned |
+| Bandwidth test through a chosen node | Planned |
+| Hosts: fixed answers for chosen names | Planned |
+| Per-node and per-app traffic over the day | Planned |
+| Automatic over large subscriptions: the template's url-test still tests every node every three minutes; with KOne steering it could test less often | Planned |
+| GEOSITE and GEOIP category rules (e.g. a streaming category to Proxy) | Needs a decision, below |
+
+**Category rules need a decision.** They use rule-set files the service does not carry.
+sing-box fails to start when a remote rule set cannot be downloaded, and the service keeps
+no cache, so downloading them at each start would make connecting slow and fragile. Two ways
+that keep the service in charge: the service fetches and caches the files itself under its
+own folder (a new network task in the privileged service), or the App fetches them and hands
+them to the service over the pipe, which checks they are rule sets, caps their size and stores
+them. The second keeps the service off the network; either changes the service's role, so the
+owner decides.
 
 ## Not planned, and why
 
