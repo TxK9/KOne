@@ -69,12 +69,13 @@
                 <File Id="GeositeCn" Source="$(var.CoreDir)\rules\geosite-cn.srs" KeyPath="yes" />
                 <File Id="GeoipCn" Source="$(var.CoreDir)\rules\geoip-cn.srs" />
                 <!-- The person's category lists, which the service keeps in sets\ as it is handed them,
-                     go with the rules in the same step, so rules\ and core\ are empty when the
-                     installer comes to remove them. -->
+                     go with the rules in the same step; then rules\, core\ and KOne\, each only if
+                     empty and in that order, as the installer's own clean-up has passed them by then. -->
                 <RemoveFile Id="CategoryListFiles" Directory="SetsDir" Name="*" On="uninstall" />
                 <RemoveFolder Id="CategoryListFolder" Directory="SetsDir" On="uninstall" />
                 <RemoveFolder Id="RulesFolder" Directory="RulesDir" On="uninstall" />
                 <RemoveFolder Id="CoreFolder" Directory="CoreDir" On="uninstall" />
+                <RemoveFolder Id="InstallFolder" Directory="INSTALLDIR" On="uninstall" />
               </Component>
               <!-- A component of its own, so an upgrade from a KOne without it follows the component rules. -->
               <Component Id="AdsRules" Guid="1c7233d4-c8c7-45b3-8fbc-2ecf873e2408" Win64="yes">
