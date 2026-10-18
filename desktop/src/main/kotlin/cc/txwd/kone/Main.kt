@@ -524,7 +524,7 @@ private fun saveText(owner: java.awt.Frame, name: String, text: String): Boolean
     return runCatching { file.writeText(text) }.isSuccess
 }
 
-/** The text of a file the person picks (a list of share links, a subscription), 2 MB at most. */
+/** The text of a file the person picks (share links, a Clash profile, a sing-box configuration), 2 MB at most. */
 private fun pickText(owner: java.awt.Frame): String? {
     val dialog = java.awt.FileDialog(owner, "KOne", java.awt.FileDialog.LOAD).apply { isVisible = true }
     val file = java.io.File(dialog.directory ?: return null, dialog.file ?: return null)
@@ -571,7 +571,7 @@ private fun commands(model: AppModel, query: String, go: (Page) -> Unit): List<c
     add(cc.txwd.kone.ui.Command("Run diagnosis", "Tools") { go(Page.Tools); model.diagnose() })
     add(cc.txwd.kone.ui.Command("Test all nodes", "Nodes") { go(Page.Nodes); model.testAll() })
     add(cc.txwd.kone.ui.Command("Update category lists", "Rules") { go(Page.Rules); model.updateLists(force = true) })
-    add(cc.txwd.kone.ui.Command("Import from clipboard", "Nodes") { model.importText(clipboardText().orEmpty()) })
+    add(cc.txwd.kone.ui.Command("Import from clipboard", "Nodes: links, Clash or sing-box") { model.importText(clipboardText().orEmpty()) })
     add(cc.txwd.kone.ui.Command("Import Clash rules from clipboard", "Rules") { go(Page.Rules); model.importRulesFrom(clipboardText().orEmpty()) })
     for (target in listOf(Page.Dashboard, Page.Nodes, Page.Rules, Page.Log, Page.Tools, Page.Settings)) {
         add(cc.txwd.kone.ui.Command("Go to ${target.title}", "Page") { go(target) })

@@ -26,11 +26,9 @@ import cc.txwd.kone.core.SpeedTest
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules
 import cc.txwd.kone.node.Countries
-import cc.txwd.kone.node.SharedNode
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.node.NodeForm
 import cc.txwd.kone.node.ShareLinkWriter
-import cc.txwd.kone.node.ShareLinks
 import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
@@ -63,6 +61,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.net.InetAddress
 import java.net.ServerSocket
@@ -606,19 +606,20 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         val source = account.binding?.source ?: return
         scope.launch {
             val (message, good) = withContext(Dispatchers.IO) {
-                val links = ShareLinks.findAll(text).take(100)
-                if (links.isEmpty()) return@withContext "No node links found" to false
-                var refusal: String? = null
-                val read = links.mapNotNull { link ->
-                    runCatching { ShareLinks.parse(link) }.onFailure { refusal = refusal ?: it.message }.getOrNull()
+                // Share links, a Clash profile or a sing-box configuration, as a subscription is read.
+                val read = SubscriptionContent.read(text)
+                // A chain names its next node by tag, and imported nodes are tagged anew: chains come by subscription.
+                val single = read.nodes.filter { it["detour"] == null }.take(100)
+                if (single.isEmpty()) {
+                    return@withContext when {
+                        read.nodes.isNotEmpty() -> "Chained nodes can be added as a subscription" to false
+                        read.refused > 0 -> (read.refusal ?: "No usable nodes") to false
+                        else -> "No nodes found" to false
+                    }
                 }
-                fun fits(found: List<SharedNode>): Boolean =
-                    accepts(Merge.into(source, listOf(found.map { Json.parseToJsonElement(it.outbound.toString()) as JsonObject })).source)
-                // All at once when they all fit; one by one only to find which do not.
-                val fitting = if (read.isEmpty() || fits(read)) read else read.filter { fits(listOf(it)) }.also {
-                    if (it.size < read.size) refusal = refusal ?: "sing-box does not accept some nodes"
-                }
-                val added = imports.add(fitting)
+                val fitting = acceptedNodes(source, single)
+                val refusal = read.refusal ?: if (fitting.size < single.size) "sing-box does not accept some nodes" else null
+                val added = imports.addOutbounds(fitting.map { it to it["tag"]?.jsonPrimitive?.contentOrNull })
                 when {
                     added > 0 -> "Imported $added nodes" to true
                     fitting.isNotEmpty() -> "These nodes are already here" to true
