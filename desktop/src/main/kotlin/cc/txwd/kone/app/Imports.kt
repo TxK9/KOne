@@ -21,16 +21,19 @@ class Imports(private val file: File, private val vault: Vault) {
         private set
 
     /** Adds [found], each under its name (or Imported and a number), leaving out what is here already; how many were new. */
+    fun add(found: List<SharedNode>): Int = addOutbounds(found.map { (Json.parseToJsonElement(it.outbound.toString()) as JsonObject) to it.name })
+
+    /** Adds outbounds with their names, as [add] does; a tag they carry is set aside for the name. */
     @Synchronized
-    fun add(found: List<SharedNode>): Int {
+    fun addOutbounds(found: List<Pair<JsonObject, String?>>): Int {
         val kept = all.toMutableList()
         val keys = kept.mapTo(HashSet(), ::key)
         val tags = kept.mapNotNullTo(HashSet()) { it.tag }
         var added = 0
-        for (node in found) {
-            val outbound = Json.parseToJsonElement(node.outbound.toString()) as JsonObject
+        for ((given, name) in found) {
+            val outbound = JsonObject(given - "tag")
             if (!keys.add(key(outbound)) || kept.size >= MOST) continue
-            val tag = unique(node.name ?: "Imported ${kept.size + 1}", tags)
+            val tag = unique(name ?: "Imported ${kept.size + 1}", tags)
             tags += tag
             kept += JsonObject(outbound + ("tag" to JsonPrimitive(tag)))
             added++

@@ -301,7 +301,14 @@ fun main(args: Array<String>) {
                                               onUpdate = settings::update,
                                           ),
                                           model.network,
-                                          NetworkActions(onRemoteDns = model::setRemoteDns, onDirectDns = model::setDirectDns, onIpv6 = model::setIpv6, onFailover = model::setFailover),
+                                          NetworkActions(
+                                              onRemoteDns = model::setRemoteDns, onDirectDns = model::setDirectDns, onIpv6 = model::setIpv6, onFailover = model::setFailover,
+                                              onExport = {
+                                                  // It holds subscription links and node passwords: the person is told so.
+                                                  if (saveText(this@Window.window, "kone-backup.json", model.backup())) model.onNotice("Backup saved. It holds your subscription links; keep it private.")
+                                              },
+                                              onImport = { pickText(this@Window.window)?.let { model.onNotice(model.restore(it) ?: "That is not a KOne backup") } },
+                                          ),
                                       )
                                       else -> DashboardView(
                                           model.dashboard,
@@ -466,6 +473,16 @@ private fun pickProgram(owner: java.awt.Frame): String? {
         isVisible = true
     }
     return dialog.file?.takeIf { it.endsWith(".exe", ignoreCase = true) }
+}
+
+/** Writes [text] to a file the person picks, starting from [name]; false when they did not pick one. */
+private fun saveText(owner: java.awt.Frame, name: String, text: String): Boolean {
+    val dialog = java.awt.FileDialog(owner, "KOne", java.awt.FileDialog.SAVE).apply {
+        file = name
+        isVisible = true
+    }
+    val file = java.io.File(dialog.directory ?: return false, dialog.file ?: return false)
+    return runCatching { file.writeText(text) }.isSuccess
 }
 
 /** The text of a file the person picks (a list of share links, a subscription), 2 MB at most. */

@@ -102,6 +102,9 @@ class NetworkActions(
     val onDirectDns: (String) -> Boolean = { true },
     val onIpv6: (Boolean) -> Unit = {},
     val onFailover: (Boolean) -> Unit = {},
+    /** Saves the setup to a file the person picks, or reads one back. */
+    val onExport: () -> Unit = {},
+    val onImport: () -> Unit = {},
 )
 
 private val REMOTE_DNS = listOf("" to "Cloudflare", "google" to "Google", "quad9" to "Quad9")
@@ -135,6 +138,12 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
         DnsLine("Direct DNS", DIRECT_DNS, network.directDns, "203.0.113.53", networkActions.onDirectDns)
         Line("IPv6") { Switch(network.ipv6) { networkActions.onIpv6(!network.ipv6) } }
         Line("Fail over") { Switch(network.failover) { networkActions.onFailover(!network.failover) } }
+        Line("Backup") {
+            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                Action("Export", networkActions.onExport)
+                Action("Import", networkActions.onImport)
+            }
+        }
         Line("Version") {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 Label(state.version, 14.sp, ink.soft, tabular = true)
