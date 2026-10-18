@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_settings_no_results">No results</string>
+    <string name="knine_settings_search_hint">Try a different keyword.</string>
+    <string name="knine_settings_show_secret">Show secret</string>
+    <string name="knine_settings_hide_secret">Hide secret</string>
+    <string name="knine_settings_increase_font">Increase font size</string>
+    <string name="knine_settings_decrease_font">Decrease font size</string>
+</resources>

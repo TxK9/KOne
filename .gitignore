@@ -1,0 +1,16 @@
+.DS_Store
+**/local.properties
+**/*.keystore
+**/*.jks
+**/signing.properties
+**/selfuse-signing.properties
+**/.env
+**/.env.*
+**/service-account-credentials.json
+**/.gradle/
+**/.kotlin/
+**/.idea/
+**/build/
+**/private/
+**/device/
+**/backups/

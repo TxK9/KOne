@@ -1,0 +1,4 @@
+<resources>
+    <string name="knine_vpn_revoked_title">VPN connection closed</string>
+    <string name="knine_vpn_revoked_message">The system revoked the VPN connection. Another VPN app may have taken over, or VPN authorization may have been canceled. Check other proxy apps and the system’s always-on VPN setting.</string>
+</resources>

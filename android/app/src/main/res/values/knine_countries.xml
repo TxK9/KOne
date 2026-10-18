@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_profile_actions">Profile actions</string>
+    <string name="knine_categories_summary">Node categories</string>
+    <string name="knine_categories_expand">Show categories</string>
+    <string name="knine_categories_collapse">Collapse categories</string>
+    <string name="knine_node_preview">Node preview</string>
+    <string name="knine_node_use">Use this node</string>
+    <string name="knine_node_exit_unverified">Exit IP has not been verified.</string>
+    <string name="knine_classify_current">Move current profile here</string>
+    <string name="knine_country_empty">No nodes yet</string>
+    <string name="knine_country_selected">Selected node</string>
+    <string name="knine_country_change">Change category</string>
+    <string name="knine_country_more">Show %1$d more</string>
+    <string name="knine_country_show_two">Show less</string>
+    <string name="knine_country_custom_name">Custom category</string>
+</resources>

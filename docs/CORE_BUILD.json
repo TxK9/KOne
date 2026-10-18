@@ -1,0 +1,12 @@
+{
+  "core_commit": "c992297988288565a24a6d36e2cf4d77cb835fcd",
+  "client_commit": "5c7b4ce969b926063737d059edf7b256c8f56ed0",
+  "go": "1.26.3",
+  "ndk": "28.2.13676358",
+  "target": "android/arm64",
+  "aar_sha256": "14c4e2cdc42e21641e62349ed943baf8796b2b0a346feb5dfd3a62fb0bcc21cf",
+  "jni_paths": [
+    "jni/arm64-v8a/libbox.so"
+  ],
+  "evidence": "OFFICIAL_CORE_SOURCE_AAR_BUILD_SUCCEEDED_NOT_DEVICE_ACCEPTANCE"
+}

@@ -1,0 +1,8 @@
+<resources>
+    <string name="knine_log_paused">Log updates paused</string>
+    <string name="knine_log_no_matches">No matching logs</string>
+    <string name="knine_log_no_matches_hint">Try another keyword or clear the filter.</string>
+    <string name="knine_log_waiting">New log entries will appear here.</string>
+    <string name="knine_group_empty">No node groups</string>
+    <string name="knine_group_empty_hint">Node groups in the current configuration will appear here.</string>
+</resources>

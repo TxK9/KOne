@@ -1,0 +1,10 @@
+<resources>
+    <string name="knine_no_search_results">No matching items</string>
+    <string name="knine_no_search_results_hint">Try another name or clear the search.</string>
+    <string name="knine_taildrop_empty">No files yet</string>
+    <string name="knine_taildrop_empty_hint">Files received by this device will appear here.</string>
+    <string name="knine_reveal_link">Show link</string>
+    <string name="knine_conceal_link">Hide link</string>
+    <string name="knine_import_steps">Import the node, then open the connection from Dashboard. Sign in to Tailscale from Tools if needed.</string>
+    <string name="knine_qr_scan_hint">Scan this code on the receiving device.</string>
+</resources>
