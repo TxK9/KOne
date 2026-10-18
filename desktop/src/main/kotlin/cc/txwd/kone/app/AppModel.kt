@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import cc.txwd.kone.console.ClaimLink
 import cc.txwd.kone.console.ConsoleException
+import cc.txwd.kone.core.Carried
 import cc.txwd.kone.core.ClashApi
 import cc.txwd.kone.core.Dns
 import cc.txwd.kone.core.CoreApi
@@ -30,6 +31,7 @@ import cc.txwd.kone.node.ShareLinks
 import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
+import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.DnsLookupState
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
@@ -121,6 +123,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** How much the core has carried, today and this month (Tools → Usage). */
     private val usage = Usage(File(Places.data, "usage.properties"))
 
+    /** How much each node and each program carried, day by day (Tools → Usage → Details). */
+    private val traffic = Traffic(File(Places.data, "traffic.properties"))
+
     var screen by mutableStateOf(if (account.binding != null) Screen.Dashboard else Screen.Key)
         private set
     var key by mutableStateOf(KeyState())
@@ -191,7 +196,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         // A KOne that crashed while Windows' proxy pointed at it puts the person's own back now;
         // one that is ended with Windows puts it back on its way out.
         SystemProxy.restore()
-        Runtime.getRuntime().addShutdownHook(Thread { SystemProxy.restore(); usage.save() })
+        Runtime.getRuntime().addShutdownHook(Thread { SystemProxy.restore(); usage.save(); traffic.save() })
         loadNodes()
         if (account.binding != null) {
             // Connected when Windows shut down or restarted (not ended by Close or Quit): connect again.
@@ -310,6 +315,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         local?.stop()
         SystemProxy.restore()
         usage.save()
+        traffic.save()
     }
 
     private fun connect() {
@@ -470,7 +476,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     private fun ended(end: String) {
         following?.cancel()
-        scope.launch(Dispatchers.IO) { usage.save() }
+        scope.launch(Dispatchers.IO) { usage.save(); traffic.save() }
         service = null
         clash = null
         exit = null
@@ -1151,11 +1157,36 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             while (isActive) {
                 val api = clash
                 val carried = if (api == null) null else withContext(Dispatchers.IO) { api.connections() }
+                carried?.let(::count)
                 tools = tools.copy(carried = carried)
                 delay(1000)
             }
         }
     }
+
+    /**
+     * While connected, every five seconds (each second while Tools shows the connections, which
+     * count the same way): what each node and program carried since the last look.
+     */
+    private suspend fun countTraffic(api: ClashApi) {
+        traffic.forget()
+        while (clash === api) {
+            delay(5_000)
+            if (watching == null) withContext(Dispatchers.IO) { api.connections() }?.let(::count)
+        }
+    }
+
+    private fun count(carried: Carried) {
+        traffic.sample(carried.connections, ::nameOf)
+        tools.details?.let { tools = tools.copy(details = details(it.span)) }
+    }
+
+    /** Usage by node, by program and by day over [span] days, or put away for null. */
+    fun showUsage(span: Int?) {
+        tools = tools.copy(details = span?.takeIf { it in setOf(1, 7, 30) }?.let(::details))
+    }
+
+    private fun details(span: Int) = UsageDetails(span, traffic.top(TrafficBy.Node, span), traffic.top(TrafficBy.App, span), traffic.daily(span))
 
     /** Ends one connection, or all of them when [id] is null. */
     fun closeConnection(id: String?) {
@@ -1205,6 +1236,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             launch { while (isActive && clash === api) { delay(1000); seconds++; refresh() } }
             launch(Dispatchers.IO) { detectExit() }
             launch { testDelays(api) }
+            launch { countTraffic(api) }
             launch { watch(api) }
         }
     }

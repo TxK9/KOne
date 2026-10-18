@@ -3,6 +3,7 @@ package cc.txwd.kone.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -72,6 +75,16 @@ data class ToolsState(
     val advice: String? = null,
     /** The last DNS lookup: the name, each way it was asked, and what they add up to. */
     val lookup: DnsLookupState? = null,
+    /** Usage by node, by program and by day, while the person has it open. */
+    val details: UsageDetails? = null,
+)
+
+/** Over [span] days (1 is today): each node's and program's share, largest first, and each day's total. */
+data class UsageDetails(
+    val span: Int,
+    val nodes: List<Pair<String, Used>>,
+    val apps: List<Pair<String, Used>>,
+    val daily: List<Pair<java.time.LocalDate, Used>>,
 )
 
 data class DnsLookupState(val name: String, val checks: List<Check>, val running: Boolean, val verdict: String? = null)
@@ -89,6 +102,8 @@ class ToolsActions(
     /** Looks a name up every way KOne can; false when it is not a domain name. */
     val onLookUp: (String) -> Boolean = { true },
     val onClearLookup: () -> Unit = {},
+    /** Shows usage over 1, 7 or 30 days, or puts it away for null. */
+    val onUsage: (Int?) -> Unit = {},
 )
 
 private val MODE_NAMES = listOf("Rule" to "Rule", "Global" to "Global", "Direct" to "Direct")
@@ -98,8 +113,11 @@ private val WAY_NAMES = listOf("Adapter" to "Virtual adapter", "Proxy" to "Syste
 @Composable
 fun ToolsView(state: ToolsState, actions: ToolsActions) {
     val ink = LocalInk.current
-    Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
-        Column(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
+    // While connected the settings above keep at most three fifths of the page, scrolling within it, so the connections always show.
+    val top = if (state.carried != null) maxHeight * 0.6f else maxHeight
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(max = top).verticalScroll(rememberScrollState())) {
             Line("Mode") {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                     MODE_NAMES.forEach { (mode, name) -> Choice(name, mode == state.mode) { actions.onMode(mode) } }
@@ -113,7 +131,13 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
             if (state.month.total > 0) {
                 Line("Usage") {
                     Label("Today ${size(state.today.total)} · This month ${size(state.month.total)}", 14.sp, ink.soft, tabular = true)
+                    Spacer(Modifier.width(22.dp))
+                    val open = state.details != null
+                    Box(Modifier.height(34.dp).press(bleed = 8.dp) { actions.onUsage(if (open) null else 1) }, contentAlignment = Alignment.Center) {
+                        Label(if (open) "Hide" else "Details", 14.sp, weight = FontWeight.SemiBold)
+                    }
                 }
+                state.details?.let { UsagePanel(it, actions.onUsage) }
             }
             Line("Diagnose") {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
@@ -132,7 +156,97 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
         }
         state.carried?.let { carried -> Connections(carried, state.bypass, actions) }
     }
+    }
 }
+
+private val SPANS = listOf(1 to "Today", 7 to "7 days", 30 to "30 days")
+
+/** Usage in detail: the span, each day's total as a bar, then by node and by program side by side. */
+@Composable
+private fun UsagePanel(details: UsageDetails, onSpan: (Int?) -> Unit) {
+    val ink = LocalInk.current
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).hairline(ink.hair, bottom = true).padding(bottom = 10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+            SPANS.forEach { (span, name) -> Choice(name, span == details.span) { onSpan(span) } }
+        }
+        if (details.span > 1) Days(details.daily)
+        if (details.nodes.isEmpty()) {
+            Label("Counted by node and program while KOne is connected", 13.sp, ink.soft, modifier = Modifier.padding(top = 10.dp))
+            return@Column
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(36.dp)) {
+            Shares("By node", details.nodes, Modifier.weight(1f))
+            Shares("By program", details.apps, Modifier.weight(1f))
+        }
+    }
+}
+
+/** Each day's total as a thin bar, today darkest; the first and last dates beneath. */
+@Composable
+private fun Days(daily: List<Pair<java.time.LocalDate, Used>>) {
+    val ink = LocalInk.current
+    if (daily.isEmpty()) return
+    val most = daily.maxOf { it.second.total }.coerceAtLeast(1)
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Box(
+            Modifier.fillMaxWidth().height(44.dp).drawBehind {
+                val step = size.width / daily.size
+                val bar = (step * 0.6f).coerceAtMost(14.dp.toPx())
+                daily.forEachIndexed { i, (_, used) ->
+                    val h = (size.height * used.total / most).coerceAtLeast(if (used.total > 0) 1.dp.toPx() else 0f)
+                    drawRect(
+                        if (i == daily.lastIndex) ink.ink else ink.soft.copy(alpha = 0.55f),
+                        Offset(i * step + (step - bar) / 2, size.height - h), androidx.compose.ui.geometry.Size(bar, h),
+                    )
+                }
+                drawRect(ink.hair, Offset(0f, size.height - 1f), androidx.compose.ui.geometry.Size(size.width, 1f))
+            },
+        )
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Label(daily.first().first.toString().substring(5), 11.sp, ink.soft, tabular = true)
+            Spacer(Modifier.weight(1f))
+            Label("Most ${size(most)} a day", 11.sp, ink.soft, tabular = true)
+            Spacer(Modifier.weight(1f))
+            Label("Today", 11.sp, ink.soft)
+        }
+    }
+}
+
+/** The largest few, each with its total, down and up, and a thin bar for its share of the whole. */
+@Composable
+private fun Shares(title: String, list: List<Pair<String, Used>>, modifier: Modifier) {
+    val ink = LocalInk.current
+    val whole = list.sumOf { it.second.total }.coerceAtLeast(1)
+    Column(modifier) {
+        Label(title, 13.sp, ink.soft, modifier = Modifier.padding(bottom = 4.dp))
+        list.take(SHOWN).forEach { (name, used) ->
+            Column(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    BasicText(
+                        name, Modifier.weight(1f), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        style = TextStyle(color = ink.ink, fontSize = 13.sp, fontFamily = Fonts.ui),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Label("↓ ${size(used.down)}  ↑ ${size(used.up)}", 11.sp, ink.soft, tabular = true)
+                    Row(Modifier.width(76.dp), horizontalArrangement = Arrangement.End) { Label(size(used.total), 13.sp, tabular = true) }
+                }
+                val share = used.total.toFloat() / whole
+                Box(
+                    Modifier.fillMaxWidth().padding(top = 3.dp).height(2.dp).drawBehind {
+                        drawRect(ink.hair)
+                        drawRect(ink.soft, size = androidx.compose.ui.geometry.Size(size.width * share, size.height))
+                    },
+                )
+            }
+        }
+        if (list.size > SHOWN) {
+            val rest = list.drop(SHOWN).sumOf { it.second.total }
+            Label("${list.size - SHOWN} more · ${size(rest)}", 12.sp, ink.soft, tabular = true, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
+}
+
+private const val SHOWN = 6
 
 /** DNS lookup: a name, then one row for each way it was asked, and a sentence on what they add up to. */
 @Composable

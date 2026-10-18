@@ -298,6 +298,7 @@ fun main(args: Array<String>) {
                                               onClearChecks = model::clearChecks,
                                               onLookUp = model::lookUp,
                                               onClearLookup = model::clearLookup,
+                                              onUsage = model::showUsage,
                                           ),
                                       )
                                       Page.Settings -> SettingsView(

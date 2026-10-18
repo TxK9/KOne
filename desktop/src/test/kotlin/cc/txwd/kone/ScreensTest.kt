@@ -56,6 +56,7 @@ import cc.txwd.kone.ui.TitleBar
 import cc.txwd.kone.ui.ToolsActions
 import cc.txwd.kone.ui.ToolsState
 import cc.txwd.kone.ui.DnsLookupState
+import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.ToolsView
 import cc.txwd.kone.ui.TrayIcon
 import cc.txwd.kone.ui.TrayPanel
@@ -320,6 +321,26 @@ class ScreensTest {
             ),
         )
         shoot("tools-lookup", dark = false) { WithRail(Page.Tools, {}) { ToolsView(lookup, ToolsActions()) } }
+        // Usage over a week, by node and by program (example names only).
+        val week = (6 downTo 0).map { back -> java.time.LocalDate.of(2026, 10, 18).minusDays(back.toLong()) }
+        val usage = ToolsState(
+            "Rule", emptyList(), today = Used(1_288_490_189, 64_424_509), month = Used(19_756_849_561, 1_073_741_824),
+            details = UsageDetails(
+                7,
+                nodes = listOf("Japan" to Used(2_684_354_560, 104_857_600), "United States" to Used(912_261_120, 41_943_040), "Direct" to Used(402_653_184, 20_971_520), "Singapore" to Used(31_457_280, 1_048_576)),
+                apps = listOf(
+                    "chrome.exe" to Used(2_147_483_648, 73_400_320), "Steam.exe" to Used(1_073_741_824, 5_242_880), "Code.exe" to Used(503_316_480, 52_428_800),
+                    "WeChat.exe" to Used(209_715_200, 31_457_280), "Unknown program" to Used(52_428_800, 3_145_728), "svchost.exe" to Used(31_457_280, 1_048_576),
+                    "OneDrive.exe" to Used(10_485_760, 1_048_576), "Teams.exe" to Used(5_242_880, 524_288),
+                ),
+                daily = week.zip(listOf(310L, 520L, 180L, 760L, 430L, 640L, 1_288L)).map { (day, mb) -> day to Used(mb * 1_048_576, mb * 40_000) },
+            ),
+        )
+        for (dark in listOf(false, true)) {
+            shoot("tools-usage", dark) { WithRail(Page.Tools, {}) { ToolsView(usage, ToolsActions()) } }
+        }
+        // Everything open while connected: the connections keep their share of the page.
+        shoot("tools-crowded", dark = false) { WithRail(Page.Tools, {}) { ToolsView(state.copy(details = usage.details, lookup = lookup.lookup), ToolsActions()) } }
     }
 
     /** Logs: the core's lines, warnings and errors in their weather's ink (example addresses only). */
