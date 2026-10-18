@@ -201,11 +201,11 @@ class KoneConfigTest {
         val two = KoneConfig.build(FakeConsole.source(blockClaude = true), rules, api, selected = KoneConfig.AUTO_TAG).config
         val outbounds = (two["outbounds"] as JsonArray).map { it as JsonObject }
         val selector = outbounds.first { it["tag"]?.jsonPrimitive?.content == KoneConfig.PROXY_TAG }
-        assertEquals(listOf("auto", "\u7f8e\u56fd", "\u65e5\u672c"), (selector["outbounds"] as JsonArray).map { it.jsonPrimitive.content })
+        assertEquals(listOf("auto", "United States", "Japan"), (selector["outbounds"] as JsonArray).map { it.jsonPrimitive.content })
         assertEquals("auto", selector["default"]?.jsonPrimitive?.content)
         val auto = outbounds.first { it["tag"]?.jsonPrimitive?.content == KoneConfig.AUTO_TAG }
         assertEquals("urltest", auto["type"]?.jsonPrimitive?.content)
-        assertEquals(listOf("\u7f8e\u56fd", "\u65e5\u672c"), (auto["outbounds"] as JsonArray).map { it.jsonPrimitive.content })
+        assertEquals(listOf("United States", "Japan"), (auto["outbounds"] as JsonArray).map { it.jsonPrimitive.content })
 
         val one = Json.parseToJsonElement("""{"outbounds":[{"type":"trojan","tag":"auto","server":"203.0.113.11","server_port":443,"password":"example"}]}""") as JsonObject
         val single = KoneConfig.build(one, rules, api, selected = KoneConfig.AUTO_TAG)
