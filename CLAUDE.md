@@ -4,7 +4,7 @@ This repository contains the modified SFA Android client in `android/`, sing-box
 
 Read `HANDOFF.md` for source and build details. Windows work is specified in `docs/windows/README.md`; `docs/windows/preview.html` is a visual prototype, not a functioning VPN client.
 
-- Use English for project documentation, interface text, comments, and development handoffs.
+- Use English for project documentation, default UI labels, comments, and development handoffs; preserve client translations.
 - Keep changes within the assigned project scope. Do not inspect unrelated folders, personal records, model histories, or private tooling state.
 - Never commit personal photographs, real node credentials, device identifiers, private network settings, signing keys, passwords, or authentication state. Use reserved documentation addresses in examples.
 - Inspect `git status` and the target file's current contents before editing. Preserve concurrent work and never reset or replace unrelated changes.
@@ -19,11 +19,12 @@ Read `HANDOFF.md` for source and build details. Windows work is specified in `do
 
 Repository documentation, comments, default display resources and development
 conversations use English. The Linux workspace uses an English locale. These
-choices do not permanently restrict the release client's language: preserve
-localization APIs, stable resource keys, formatting placeholders and protocol
-fields. A separately reviewed release language pack may provide Chinese or
-another language during local integration. Do not replace business identifiers,
-country recognition aliases or external user data merely to translate a label.
+choices do not restrict the release client's language. Retain the original
+client language packs and language selection, stable resource keys, formatting
+placeholders and protocol fields. Translation resources may contain their target
+languages. Missing translations fall back to English. Keep development and design
+notes in English. Do not replace business identifiers, country recognition aliases
+or external user data merely to translate a label.
 
 Only explicitly shared project files belong in this repository. Keep private
 conversations, local device information, credentials, signing material, personal

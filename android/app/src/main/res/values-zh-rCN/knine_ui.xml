@@ -1,0 +1,10 @@
+<resources>
+    <string name="knine_no_search_results">没有匹配的项目</string>
+    <string name="knine_no_search_results_hint">换个名称试试，或清空搜索。</string>
+    <string name="knine_taildrop_empty">还没有文件</string>
+    <string name="knine_taildrop_empty_hint">这台设备收到的文件会显示在这里。</string>
+    <string name="knine_reveal_link">显示链接</string>
+    <string name="knine_conceal_link">隐藏链接</string>
+    <string name="knine_import_steps">导入后，在仪表开启连接。需要回家时，可前往工具登录 Tailscale。</string>
+    <string name="knine_qr_scan_hint">在接收设备上扫描此二维码。</string>
+</resources>
