@@ -26,7 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -168,7 +168,7 @@ fun PowerReportListScreen(
                             Text(stringResource(R.string.power_report_enable_description))
                         },
                         trailingContent = {
-                            Switch(
+                            KnineSwitch(
                                 checked = powerReportEnabled,
                                 onCheckedChange = { checked ->
                                     powerReportEnabled = checked

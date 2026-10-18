@@ -16,7 +16,7 @@ object PrivateBootstrap {
         val input = File(context.filesDir, "inbox/vless.txt")
         if (!input.isFile()) return false
         require(input.length() in 1..16384) { "Invalid import file" }
-        val config = PairedProfile.fromVlessLink(input.readText(), InitialRuleSets.ensure(context))
+        val config = PairedProfile.fromLink(input.readText(), HomeSettings.current(), InitialRuleSets.ensure(context))
         Libbox.checkConfig(config)
         val fileId = ProfileManager.nextFileID()
         val directory = File(context.filesDir, "configs").also { it.mkdirs() }

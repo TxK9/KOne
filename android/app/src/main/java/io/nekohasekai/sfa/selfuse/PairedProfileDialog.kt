@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.selfuse
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import io.nekohasekai.libbox.Libbox
+import org.json.JSONObject
+import io.nekohasekai.sfa.compose.screen.dashboard.Countries
+import io.nekohasekai.sfa.compose.util.FlagIcons
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.Settings
@@ -39,6 +43,53 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+
+/** A node from a link: the profile that holds it, and whether this import created it. */
+class ImportedNode(val profile: Profile, val isNew: Boolean)
+
+/**
+ * Builds and stores a paired profile from a share link (see [ShareLinks]). The link's name
+ * becomes the node name, so category recognition works right away; without one the server
+ * names it. A name that points to exactly one country also gives the node that flag. A node
+ * that is already here is returned instead of a copy. Throws [ShareLinkException] for a link
+ * that cannot be imported.
+ */
+suspend fun createPairedProfile(context: Context, link: String): ImportedNode = withContext(Dispatchers.IO) {
+    val shared = ShareLinks.parse(link)
+    existingProfile(shared.outbound)?.let { return@withContext ImportedNode(it, isNew = false) }
+    val content = PairedProfile.build(shared.outbound, HomeSettings.current(), InitialRuleSets.ensure(context))
+    Libbox.checkConfig(content)
+    val fileId = ProfileManager.nextFileID()
+    val directory = File(context.filesDir, "configs").also { it.mkdirs() }
+    val file = File(directory, "$fileId.json")
+    try {
+        file.writeText(content)
+        file.setReadable(false, false)
+        file.setReadable(true, true)
+        val typed = TypedProfile().apply { type = TypedProfile.Type.Local; path = file.absolutePath }
+        val name = shared.name ?: shared.outbound.optString("server").ifBlank { "Node" }
+        val country = Countries.all.filter { it.matches(name) }.singleOrNull()
+        val profile = Profile(name = name, typed = typed).apply {
+            userOrder = ProfileManager.nextOrder()
+            country?.let { icon = FlagIcons.idFor(it.code) }
+        }
+        ImportedNode(ProfileManager.create(profile, andSelect = false), isNew = true)
+    } catch (failure: Exception) {
+        file.delete()
+        throw failure
+    }
+}
+
+/** A local profile already carrying this node, read from its stored configuration. */
+private suspend fun existingProfile(outbound: JSONObject): Profile? {
+    val key = PairedProfile.nodeKey(outbound) ?: return null
+    return ProfileManager.list().firstOrNull { profile ->
+        profile.typed.type == TypedProfile.Type.Local && runCatching {
+            val outbounds = JSONObject(File(profile.typed.path).readText()).optJSONArray("outbounds")
+            outbounds != null && (0 until outbounds.length()).any { PairedProfile.nodeKey(outbounds.optJSONObject(it)) == key }
+        }.getOrDefault(false)
+    }
+}
 
 @Composable
 fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, initialLink: String = "") {
@@ -50,10 +101,10 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
     var error by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
-        title = { Text("Import VLESS node") },
+        title = { Text("Import nodes") },
         text = {
             Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Supports VLESS TCP nodes with TLS or Reality.", style = MaterialTheme.typography.bodyMedium)
+                Text("Supports VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, and AnyTLS links.", style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(
                     value = link,
                     onValueChange = { link = it; error = null },
@@ -82,30 +133,13 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
                     val input = link
                     scope.launch {
                         try {
-                            val created = withContext(Dispatchers.IO) {
-                                val content = PairedProfile.fromVlessLink(input, InitialRuleSets.ensure(context))
-                                Libbox.checkConfig(content)
-                                val fileId = ProfileManager.nextFileID()
-                                val directory = File(context.filesDir, "configs").also { it.mkdirs() }
-                                val file = File(directory, "$fileId.json")
-                                try {
-                                    file.writeText(content)
-                                    file.setReadable(false, false)
-                                    file.setReadable(true, true)
-                                    val typed = TypedProfile().apply { type = TypedProfile.Type.Local; path = file.absolutePath }
-                                    val profile = Profile(name = "Proxy and Home", typed = typed).apply { userOrder = ProfileManager.nextOrder() }
-                                    ProfileManager.create(profile, andSelect = false)
-                                } catch (failure: Exception) {
-                                    file.delete()
-                                    throw failure
-                                }
-                            }
+                            val created = createPairedProfile(context, input).profile
                             link = ""
                             onCreated(created)
                             Toast.makeText(context, "Node imported and selected. Tap Connect if disconnected, then choose Rule or Global.", Toast.LENGTH_LONG).show()
                             onDismiss()
-                        } catch (failure: IllegalArgumentException) {
-                            error = failure.message ?: "Invalid connection parameters"
+                        } catch (failure: ShareLinkException) {
+                            error = failure.message
                         } catch (_: Exception) {
                             error = "Could not save the profile. Check the link format and try again."
                         } finally {

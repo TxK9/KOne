@@ -7,6 +7,7 @@ The checked-in source and build metadata define this branch's capabilities.
 - `core/`: pinned sing-box source.
 - `dependencies/`: recorded Android core artifacts.
 - `docs/`: development specifications and historical evidence.
+- `tools/`: existing build and integration helpers.
 
 Read `HANDOFF.md` for the development boundary. `SNAPSHOT.json` describes the initial
 export, not subsequent changes or current acceptance. Preserve upstream licenses

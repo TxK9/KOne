@@ -34,7 +34,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import io.nekohasekai.sfa.compose.theme.BackdropButton as OutlinedButton
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -163,39 +163,26 @@ fun ServiceSettingsScreen(
                     }
 
                     Text(
-                        stringResource(R.string.background_permission_description),
+                        "Keep KOne connected in the background without battery optimization stopping it.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onTertiaryContainer,
                         modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
                     )
 
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    Button(
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                val intent =
+                                    Intent(
+                                        android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                        Uri.parse("package:${context.packageName}"),
+                                    )
+                                requestBatteryOptimizationLauncher.launch(intent)
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.End),
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                context.launchCustomTab("https://dontkillmyapp.com/")
-                            },
-                        ) {
-                            Text(stringResource(R.string.read_more))
-                        }
-
-                        Button(
-                            onClick = {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                    val intent =
-                                        Intent(
-                                            android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                            Uri.parse("package:${context.packageName}"),
-                                        )
-                                    requestBatteryOptimizationLauncher.launch(intent)
-                                }
-                            },
-                        ) {
-                            Text(stringResource(R.string.request_background_permission))
-                        }
+                        Text(stringResource(R.string.request_background_permission))
                     }
                 }
             }
@@ -216,12 +203,6 @@ fun ServiceSettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
             ),
         ) {
-            val descriptionText = stringResource(R.string.allow_bypass_description)
-            val linkText = stringResource(R.string.android_documentation)
-            val linkColor = MaterialTheme.colorScheme.primary
-            val textColor = MaterialTheme.colorScheme.onSurfaceVariant
-            val textStyle = MaterialTheme.typography.bodyMedium
-
             ListItem(
                 headlineContent = {
                     Text(
@@ -230,39 +211,10 @@ fun ServiceSettingsScreen(
                     )
                 },
                 supportingContent = {
-                    val annotatedString = buildAnnotatedString {
-                        withStyle(SpanStyle(color = textColor)) {
-                            append(descriptionText)
-                        }
-                        append("\n\n")
-                        pushStringAnnotation(tag = "URL", annotation = ALLOW_BYPASS_DOC_URL)
-                        withStyle(
-                            SpanStyle(
-                                color = linkColor,
-                                textDecoration = TextDecoration.Underline,
-                            ),
-                        ) {
-                            append(linkText)
-                        }
-                        pop()
-                    }
-                    ClickableText(
-                        text = annotatedString,
-                        style = textStyle,
-                        modifier = Modifier.padding(top = 4.dp),
-                        onClick = { offset ->
-                            annotatedString.getStringAnnotations(
-                                tag = "URL",
-                                start = offset,
-                                end = offset,
-                            ).firstOrNull()?.let {
-                                context.launchCustomTab(it.item)
-                            }
-                        },
-                    )
+                    Text(stringResource(R.string.allow_bypass_description), style = MaterialTheme.typography.bodyMedium)
                 },
                 trailingContent = {
-                    Switch(
+                    KnineSwitch(
                         checked = allowBypass,
                         onCheckedChange = { checked ->
                             allowBypass = checked
@@ -286,6 +238,3 @@ fun ServiceSettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
-
-private const val ALLOW_BYPASS_DOC_URL =
-    "https://developer.android.com/reference/android/net/VpnService.Builder#allowBypass()"

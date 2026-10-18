@@ -30,7 +30,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -287,7 +287,7 @@ fun OOMReportListScreen(
                                 Text(stringResource(R.string.oom_report_enable_memory_limit_description))
                             },
                             trailingContent = {
-                                Switch(
+                                KnineSwitch(
                                     checked = oomKillerEnabled,
                                     onCheckedChange = { checked ->
                                         oomKillerEnabled = checked
@@ -329,7 +329,7 @@ fun OOMReportListScreen(
                                         Text(stringResource(R.string.oom_report_kill_connections_description))
                                     },
                                     trailingContent = {
-                                        Switch(
+                                        KnineSwitch(
                                             checked = oomKillerKillConnections,
                                             onCheckedChange = { checked ->
                                                 oomKillerKillConnections = checked

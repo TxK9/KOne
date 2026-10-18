@@ -2,6 +2,7 @@ package io.nekohasekai.sfa.bg
 
 import android.content.Intent
 import android.content.pm.PackageManager.NameNotFoundException
+import android.net.Network
 import android.net.ProxyInfo
 import android.net.VpnService
 import android.os.Build
@@ -10,6 +11,7 @@ import android.util.Log
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.Notification
 import io.nekohasekai.libbox.TunOptions
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.ktx.toIpPrefix
 import io.nekohasekai.sfa.ktx.toList
@@ -60,7 +62,7 @@ class VPNService :
 
         val builder =
             Builder()
-                .setSession("sing-box")
+                .setSession(getString(R.string.app_name))
                 .setMtu(options.mtu)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -184,7 +186,20 @@ class VPNService :
         val pfd =
             builder.establish() ?: error("android: the application is not prepared or is revoked")
         service.fileDescriptor = pfd
+        DefaultNetworkMonitor.underlying = ::declareUnderlying
+        DefaultNetworkMonitor.defaultNetwork?.let(::declareUnderlying)
         return pfd.fd
+    }
+
+    /**
+     * Tells Android which real network carries the tunnel. The VPN is built not metered of its
+     * own, which makes it take after that network: metered on mobile data, as it should be, so
+     * Apps inside it hold back their big downloads (updates, backups) there just as they do
+     * without the VPN; unmetered on Wi-Fi. Without this the phone took the VPN for an unmetered
+     * network even on mobile data.
+     */
+    private fun declareUnderlying(network: Network) {
+        runCatching { setUnderlyingNetworks(arrayOf(network)) }
     }
 
     override fun sendNotification(notification: Notification) = service.sendNotification(notification)

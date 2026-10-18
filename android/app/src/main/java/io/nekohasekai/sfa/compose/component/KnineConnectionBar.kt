@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -59,13 +60,40 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun KnineStartAction(onClick: () -> Unit) {
-    val label = stringResource(R.string.knine_connect)
+    KnineConnectAction(Status.Stopped, onStart = onClick, onStop = {})
+}
+
+/**
+ * [KnineStartAction]'s look for every service state. The photo dashboard passes
+ * [glass] = false: no underlay at all, the label's glow alone keeps it readable.
+ */
+@Composable
+fun KnineConnectAction(status: Status, onStart: () -> Unit, onStop: () -> Unit, glass: Boolean = true) {
+    val label = when (status) {
+        Status.Stopped -> stringResource(R.string.knine_connect)
+        Status.Starting -> stringResource(R.string.status_starting)
+        Status.Started -> stringResource(R.string.knine_disconnect)
+        Status.Stopping -> stringResource(R.string.status_stopping)
+    }
+    val busy = status == Status.Starting || status == Status.Stopping
     BackdropContrastScope {
-        WallpaperGlass {
+        WallpaperGlass(enabled = glass) {
             ExtendedFloatingActionButton(
                 modifier = Modifier.semantics { contentDescription = label },
-                onClick = onClick,
-                icon = { Icon(Icons.Default.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(20.dp), emphasized = true) },
+                onClick = {
+                    when (status) {
+                        Status.Stopped -> onStart()
+                        Status.Started -> onStop()
+                        else -> Unit
+                    }
+                },
+                icon = {
+                    if (busy) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.onSurface, strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(20.dp), emphasized = true)
+                    }
+                },
                 text = { Text(label, fontWeight = FontWeight.SemiBold, emphasized = true) },
                 containerColor = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,

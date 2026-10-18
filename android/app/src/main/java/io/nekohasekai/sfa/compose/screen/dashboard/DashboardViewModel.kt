@@ -3,6 +3,7 @@ package io.nekohasekai.sfa.compose.screen.dashboard
 import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.OutboundGroup
+import io.nekohasekai.sfa.compose.model.Group
 import io.nekohasekai.libbox.StatusMessage
 import io.nekohasekai.sfa.bg.BoxService
 import io.nekohasekai.sfa.compose.base.BaseViewModel
@@ -17,6 +18,8 @@ import io.nekohasekai.sfa.utils.CommandClient
 import io.nekohasekai.sfa.utils.CommandTarget
 import io.nekohasekai.sfa.utils.HTTPClient
 import io.nekohasekai.sfa.utils.RemoteControlManager
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,6 +65,13 @@ data class DashboardUiState(
     val isLoading: Boolean = false,
     val hasGroups: Boolean = false,
     val groupsCount: Int = 0,
+    // Groups with at least two outbounds to pick from; a one-node selector is not a choice.
+    val choosableGroupsCount: Int = 0,
+    // The selector the dashboard URL-tests for the node in use, and that node's last result.
+    val probeGroupTag: String? = null,
+    val probeDelay: Int = 0,
+    val probeTime: Long = 0L,
+    val latencyRefreshToken: Long = 0L,
     val connectionsCount: Int = 0,
     val serviceStartTime: Long? = null,
     val deprecatedNotes: List<DeprecatedNote> = emptyList(),
@@ -106,6 +116,15 @@ data class DashboardUiState(
 class DashboardViewModel :
     BaseViewModel<DashboardUiState, UiEvent>(),
     CommandClient.Handler {
+    private val profileSwitchQueue by lazy {
+        ProfileSelectionQueue(
+            viewModelScope,
+            onBusy = { busy -> updateState { copy(isLoading = busy) } },
+            onFailure = ::sendError,
+            apply = ::applyProfileSelection,
+        )
+    }
+
     private val _serviceStatus = MutableStateFlow(Status.Stopped)
     val serviceStatus: StateFlow<Status> = _serviceStatus.asStateFlow()
 
@@ -258,43 +277,45 @@ class DashboardViewModel :
     }
 
     fun selectProfile(profileId: Long) {
-        if (currentState.isLoading) return
+        profileSwitchQueue.request(profileId)
+    }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                updateState { copy(isLoading = true) }
-                val profile = ProfileManager.get(profileId) ?: return@launch
-
-                Settings.selectedProfile = profileId
-
-                // Check if service is running
-                if (_serviceStatus.value == Status.Started) {
-                    val restart = Settings.rebuildServiceMode()
-                    if (restart) {
-                        // Need full restart
-                        BoxService.stop()
-                        sendGlobalEvent(UiEvent.RequestReconnectService)
-                        for (i in 0 until 30) {
-                            if (_serviceStatus.value == Status.Stopped) {
-                                break
+    private suspend fun applyProfileSelection(target: Long) {
+        try {
+            withTimeout(15_000) {
+                _serviceStatus.first { it != Status.Starting && it != Status.Stopping }
+                withContext(Dispatchers.IO) {
+                    val profile = ProfileManager.get(target) ?: return@withContext
+                    if (Settings.selectedProfile != target) {
+                        val previous = Settings.selectedProfile
+                        Settings.selectedProfile = target
+                        try {
+                            if (_serviceStatus.value == Status.Started) {
+                                if (Settings.rebuildServiceMode()) {
+                                    BoxService.stop()
+                                    sendGlobalEvent(UiEvent.RequestReconnectService)
+                                    _serviceStatus.first { it == Status.Stopped }
+                                    sendGlobalEvent(UiEvent.RequestStartService)
+                                    _serviceStatus.first { it == Status.Starting || it == Status.Started }
+                                    _serviceStatus.first { it == Status.Started || it == Status.Stopped }
+                                } else {
+                                    Libbox.newStandaloneCommandClient().serviceReload()
+                                }
                             }
-                            delay(100L)
+                        } catch (e: Exception) {
+                            Settings.selectedProfile = previous
+                            throw e
                         }
-                        sendGlobalEvent(UiEvent.RequestStartService)
-                    } else {
-                        // Just reload
-                        Libbox.newStandaloneCommandClient().serviceReload()
+                    }
+                    withContext(Dispatchers.Main) {
+                        updateState { copy(selectedProfileId = target, selectedProfileName = profile.name, latencyRefreshToken = latencyRefreshToken + 1) }
+                        loadProfiles()
                     }
                 }
-
-                withContext(Dispatchers.Main) {
-                    loadProfiles()
-                }
-            } catch (e: Exception) {
-                sendError(e)
-            } finally {
-                updateState { copy(isLoading = false) }
             }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            // Finish this attempt and release the queue, so later taps still work.
+            throw IllegalStateException("Node switching timed out. Try again.", e)
         }
     }
 
@@ -467,6 +488,10 @@ class DashboardViewModel :
                     copy(
                         hasGroups = false,
                         groupsCount = 0,
+                        choosableGroupsCount = 0,
+                        probeGroupTag = null,
+                        probeDelay = 0,
+                        probeTime = 0L,
                         connectionsCount = 0,
                         serviceStartTime = null,
                         clashModeVisible = false,
@@ -641,8 +666,20 @@ class DashboardViewModel :
     override fun updateGroups(newGroups: MutableList<OutboundGroup>) {
         viewModelScope.launch(Dispatchers.Main) {
             val hasGroups = newGroups.isNotEmpty()
+            val groups = newGroups.map { Group(it) }
+            val choosable = groups.count { it.items.size >= 2 }
+            // A paired profile routes through its "proxy" selector; otherwise use the first selector.
+            val probe = groups.firstOrNull { it.selectable && it.tag == "proxy" } ?: groups.firstOrNull { it.selectable }
+            val inUse = probe?.items?.firstOrNull { it.tag == probe.selected }
             updateState {
-                copy(hasGroups = hasGroups, groupsCount = newGroups.size)
+                copy(
+                    hasGroups = hasGroups,
+                    groupsCount = newGroups.size,
+                    choosableGroupsCount = choosable,
+                    probeGroupTag = probe?.tag,
+                    probeDelay = inUse?.urlTestDelay ?: 0,
+                    probeTime = inUse?.urlTestTime ?: 0L,
+                )
             }
         }
     }

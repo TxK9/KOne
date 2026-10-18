@@ -2,60 +2,57 @@ package io.nekohasekai.sfa.selfuse
 
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.URI
-import java.net.URLDecoder
-import java.util.Base64
-import java.util.UUID
 
-/** One upstream sing-box service owns the public proxy and the private Tailscale endpoint. */
+/** One sing-box service owns the proxy and, when Home is on, the private Tailscale endpoint. */
 object PairedProfile {
     const val HOME_TAG = "home-tailnet"
     const val PROXY_TAG = "proxy"
     private fun obj(vararg values: Pair<String, Any>) = JSONObject().apply { values.forEach { put(it.first, it.second) } }
     private fun array(vararg values: Any) = JSONArray().apply { values.forEach { put(it) } }
 
-    fun fromVlessLink(link: String, rulesDirectory: String = "rules"): String {
-        val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
-        require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
-        val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
-        val port = if (uri.port == -1) 443 else uri.port
-        require(port in 1..65535) { "Invalid connection port" }
-        val parameters = mutableMapOf<String, String>()
-        uri.rawQuery.orEmpty().split('&').filter { it.isNotBlank() }.forEach {
-            val pieces = it.split('=', limit = 2)
-            val key = URLDecoder.decode(pieces[0], "UTF-8")
-            require(!parameters.containsKey(key)) { "Connection contains duplicate parameters" }
-            parameters[key] = URLDecoder.decode(pieces.getOrElse(1) { "" }, "UTF-8")
-        }
-        require(parameters["type"].orEmpty() in setOf("", "tcp")) { "Import this transport using a complete configuration" }
-        require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
-        val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
-        val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"] ?: "chrome")))
-        if (parameters["security"] == "reality") {
-            val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
-            val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }
-            require(decoded.size == 32) { "Invalid Reality public key format" }
-            val shortId = parameters["sid"].orEmpty()
-            require(shortId.length <= 16 && shortId.length % 2 == 0 && shortId.all { it in "0123456789abcdefABCDEF" }) { "Invalid Reality short ID format" }
-            tls.put("reality", obj("enabled" to true, "public_key" to publicKey, "short_id" to shortId))
-        }
-        val node = obj("type" to "vless", "tag" to "node", "server" to host, "server_port" to port,
-            "uuid" to uuid, "tls" to tls)
-        parameters["flow"]?.takeIf { it.isNotBlank() }?.let { node.put("flow", it) }
-        return build(node, rulesDirectory)
+    /** A configuration around the node a share link describes; see [ShareLinks] and [HomeLink]. */
+    fun fromLink(link: String, home: HomeLink.Home, rulesDirectory: String = "rules"): String = build(ShareLinks.parse(link).outbound, home, rulesDirectory)
+
+    /**
+     * The node outbound of a configuration built here, without its tag, as text with its keys
+     * in order: the same link gives the same key whoever wrote the file, so a node is not
+     * imported twice. Null for an outbound that is not such a node.
+     */
+    fun nodeKey(outbound: JSONObject?): String? {
+        if (outbound == null || outbound.optString("tag") != ShareLinks.NODE_TAG) return null
+        val copy = JSONObject(outbound.toString()).apply { remove("tag") }
+        return sorted(copy).toString()
     }
 
-    fun build(node: JSONObject, rulesDirectory: String = "rules"): String {
-        require(node.optString("type") != "direct" && node.optString("type") != "block") { "An actual proxy node is required." }
-        val home = obj("type" to "tailscale", "tag" to HOME_TAG, "state_directory" to "tailscale-selfuse",
-            "accept_routes" to true, "hostname" to "txwd-phone", "system_interface" to false, "on_demand" to false, "detour" to PROXY_TAG)
-        val privateRoute = obj("ip_cidr" to array("100.64.0.0/10", "fd7a:115c:a1e0::/48", "192.168.10.0/24"), "action" to "route", "outbound" to HOME_TAG)
+    private fun sorted(value: Any?): Any? = when (value) {
+        is JSONObject -> JSONObject().also { out -> value.keys().asSequence().sorted().forEach { out.put(it, sorted(value.get(it))) } }
+        is JSONArray -> JSONArray().also { out -> (0 until value.length()).forEach { out.put(sorted(value.get(it))) } }
+        else -> value
+    }
+
+    /** The proxy around [node], with Home added as [home] says. */
+    fun build(node: JSONObject, home: HomeLink.Home, rulesDirectory: String = "rules"): String =
+        buildGroup(listOf(node), emptyList(), home, rulesDirectory)
+
+    /**
+     * The proxy around several nodes to choose from, the first tagged [ShareLinks.NODE_TAG] and
+     * selected by default. [support] are outbounds the nodes reach through `detour` (a relay
+     * chain); they are kept but not offered as choices. Tags must already be unique.
+     * [refused] are rules refusing domain names (see ManagedConfig.refusals): they apply in every
+     * mode, to connections and to DNS alike, so a browser cannot get round them by its own lookup.
+     */
+    fun buildGroup(members: List<JSONObject>, support: List<JSONObject>, home: HomeLink.Home, rulesDirectory: String = "rules", refused: List<JSONObject> = emptyList()): String {
+        require(members.isNotEmpty()) { "An actual proxy node is required." }
+        members.forEach { node -> require(node.optString("type") != "direct" && node.optString("type") != "block") { "An actual proxy node is required." } }
+        val node = members.first()
+        if (node.optString("tag").isBlank()) node.put("tag", ShareLinks.NODE_TAG)
+        val choices = array(*members.map { it.optString("tag") }.toTypedArray())
+        val refusals = { refused.map { JSONObject(it.toString()) }.toTypedArray() }
         val routes = array(
             obj("action" to "sniff"),
             obj("protocol" to "dns", "action" to "hijack-dns"),
-            privateRoute,
+            // Home goes in right here (HomeLink.apply), ahead of these refusals and every mode.
+            *refusals(),
             obj("clash_mode" to "Direct", "outbound" to "direct"),
             obj("clash_mode" to "Global", "outbound" to PROXY_TAG),
             obj("ip_is_private" to true, "outbound" to "direct"),
@@ -74,10 +71,9 @@ object PairedProfile {
                 "servers" to array(
                     obj("type" to "udp", "tag" to "local-dns", "server" to "223.5.5.5"),
                     obj("type" to "https", "tag" to "proxy-dns", "server" to "1.1.1.1", "detour" to PROXY_TAG),
-                    obj("type" to "tailscale", "tag" to "home-dns", "endpoint" to HOME_TAG, "accept_search_domain" to true),
                 ),
                 "rules" to array(
-                    obj("domain_suffix" to array("ts.net"), "server" to "home-dns"),
+                    *refusals(),
                     obj("clash_mode" to "Direct", "server" to "local-dns"),
                     obj("clash_mode" to "Global", "server" to "proxy-dns"),
                     obj("rule_set" to array("geosite-cn"), "server" to "local-dns"),
@@ -85,14 +81,17 @@ object PairedProfile {
             ),
             "inbounds" to array(obj("type" to "tun", "tag" to "tun-in", "address" to array("172.19.0.1/30", "fdfe:dcba:9876::1/126"),
                 "auto_route" to true)),
-            "endpoints" to array(home),
-            "outbounds" to array(obj("type" to "selector", "tag" to PROXY_TAG, "outbounds" to array("node"), "default" to "node"), node, obj("type" to "direct", "tag" to "direct")),
+            "outbounds" to array(
+                obj("type" to "selector", "tag" to PROXY_TAG, "outbounds" to choices, "default" to node.optString("tag")),
+                *members.toTypedArray(), *support.toTypedArray(), obj("type" to "direct", "tag" to "direct"),
+            ),
             "route" to obj("rules" to routes, "rule_set" to rulesets, "auto_detect_interface" to true,
                 "default_domain_resolver" to "local-dns", "final" to PROXY_TAG),
             "experimental" to obj("cache_file" to obj("enabled" to true), "clash_api" to obj("default_mode" to "Rule")),
         )
+        HomeLink.apply(config, home)
         val content = config.toString(2)
-        requirePaired(content)
+        if (home.enabled) requirePaired(content)
         return content
     }
 

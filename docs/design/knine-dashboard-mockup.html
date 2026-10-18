@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOne dashboard design preview</title>
+<style>
+:root{color-scheme:light dark;font:15px/1.5 system-ui,sans-serif;background:#ecefe9;color:#21362d}*{box-sizing:border-box}body{margin:0;padding:32px;display:grid;justify-items:center;gap:18px}h1{font-size:22px;margin:0}p{max-width:600px;margin:0;color:#51665a}button{font:inherit;cursor:pointer;border:0;border-radius:14px;padding:10px 14px;color:inherit;background:#dce7dd}button:focus-visible{outline:3px solid #8c7549;outline-offset:3px}.phone{position:relative;width:min(380px,100%);min-height:700px;border-radius:36px;overflow:hidden;padding:28px 20px 88px;background:radial-gradient(ellipse at 76% 18%,#f9e4b0 0,transparent 24%),linear-gradient(150deg,#1b4140 5%,#799b8c 38%,#d7dcc2 58%,#53776b 83%,#244f47);box-shadow:0 18px 48px #14342630;color:#f6f7ec}.phone header{display:flex;align-items:center;justify-content:space-between;gap:12px}.brand{font-size:28px;font-weight:650;letter-spacing:-1px}.art{height:250px;display:grid;place-items:center;text-align:center;letter-spacing:3px;font-size:12px;text-transform:uppercase;opacity:.7}.panel{padding:18px;border-radius:25px;background:#f4f4e5db;backdrop-filter:blur(14px);color:#21362d;box-shadow:0 8px 25px #14342618}.small{font-size:12px;opacity:.72}.connect{display:flex;align-items:center;justify-content:space-between;gap:10px}.connect h2{font-size:20px;margin:3px 0 0}.primary{color:#f5f4e9;background:#254d42}.modes{display:flex;gap:8px;margin:20px 0}.modes button{flex:1;padding:8px;background:transparent}.modes button[aria-pressed="true"]{background:#d9e4d7;font-weight:650}.stats{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}.stats strong{font-size:20px;display:block}.node{margin-top:16px;padding-top:14px;border-top:1px solid #243e3220;display:flex;align-items:center;justify-content:space-between;gap:8px}.phone footer{position:absolute;bottom:25px;left:20px;right:20px;display:flex;justify-content:space-around;font-size:12px}.phone.dark .panel{background:#172d29a8;color:#e5eee4}.phone.dark .modes button[aria-pressed="true"]{background:#456253}.phone.dark .node{border-color:#c5d6c530}.phone.dark button{color:#e8eee3;background:#2c4b41}.phone.dark .primary{background:#d9dfc9;color:#233a30}output{display:block;min-height:25px;font-size:13px;margin-top:12px}
+</style>
+<h1>KOne dashboard</h1>
+<p>Interactive layout study using synthetic data and generated gradients. This preview performs no network requests.</p>
+<section class="phone" id="phone" aria-label="Dashboard preview">
+<header><span class="brand">KOne</span><button id="theme" type="button">Dark palette</button></header>
+<div class="art" aria-hidden="true">Background space</div>
+<div class="panel">
+<div class="connect"><div><div class="small" id="state">Disconnected</div><h2>Sample profile</h2></div><button class="primary" id="connect" type="button">Connect</button></div>
+<div class="modes" aria-label="Routing mode"><button aria-pressed="true">Rule</button><button aria-pressed="false">Global</button><button aria-pressed="false">Direct</button></div>
+<div class="small">Example exit</div><strong id="exit">Unavailable</strong>
+<div class="stats"><div><span class="small">Download</span><strong>0 KB/s</strong></div><div><span class="small">Upload</span><strong>0 KB/s</strong></div></div>
+<div class="node"><span>Selected node</span><button id="node" type="button">Sample node A</button></div>
+<output id="notice" aria-live="polite">Design preview only</output>
+</div>
+<footer><span>Dashboard</span><span>Logs</span><span>Tools</span><span>Settings</span></footer>
+</section>
+<script>
+const byId=id=>document.getElementById(id);let connected=false,dark=false,nodeB=false;
+byId('connect').addEventListener('click',()=>{connected=!connected;byId('state').textContent=connected?'Connected':'Disconnected';byId('connect').textContent=connected?'Disconnect':'Connect';byId('exit').textContent=connected?'203.0.113.10':'Unavailable';byId('notice').textContent='Synthetic connection state updated';});
+byId('theme').addEventListener('click',()=>{dark=!dark;byId('phone').classList.toggle('dark',dark);byId('theme').textContent=dark?'Light palette':'Dark palette';});
+for(const button of document.querySelectorAll('.modes button'))button.addEventListener('click',()=>{for(const peer of document.querySelectorAll('.modes button'))peer.setAttribute('aria-pressed',String(peer===button));byId('notice').textContent=button.textContent+' routing selected';});
+byId('node').addEventListener('click',()=>{nodeB=!nodeB;byId('node').textContent=nodeB?'Sample node B':'Sample node A';byId('notice').textContent='Synthetic node selection updated';});
+</script>
+</html>

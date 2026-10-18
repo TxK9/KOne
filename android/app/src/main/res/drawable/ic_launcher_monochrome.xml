@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFFFFF" android:pathData="M36,31 C33,31 31,33 31,36 L31,73 C31,76 33,78 36,78 L40,78 L40,31 Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M42,54 L63,33 C65,31 68,31 70,33 C72,35 72,38 69,40 L49,59 Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M44,54 L72,73 C75,76 73,79 70,79 L65,79 L42,60 Q40,57 44,54 Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M76,34 A3,3 0,1 1,70,34 A3,3 0,1 1,76,34 Z" />
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.666667" android:scaleY="0.666667">
+        <!-- Mountains and a winding river remain legible under the launcher's system tint. -->
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeAlpha="0.45" android:strokeWidth="2.4" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M10,51 L20,43 L25,45 L32,37 L39,43 M69,42 L77,34 L82,38 L87,37 L99,50" />
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="3.5" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M17,59 L28,49 L36,47 L47,29 L51,27 L60,40 L66,42 L79,58 M50,29 L48,42 L55,49 L60,58 M38,48 L43,47 L48,59" />
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M9,75 L21,59 L27,55 L33,61 L39,63 L48,76 M27,57 L25,66 L33,72 M73,67 L85,60 L92,65 L99,72" />
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="2.8" android:strokeLineCap="round" android:pathData="M69,65 C55,68 55,70 66,73 C89,78 74,82 53,85 C37,88 33,91 40,95 M80,68 C67,70 68,71 79,74 C97,80 82,85 60,88 C52,90 48,92 49,95" />
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="2" android:strokeLineCap="round" android:pathData="M11,81 L30,80 M83,88 L97,86" />
+    </group>
 </vector>

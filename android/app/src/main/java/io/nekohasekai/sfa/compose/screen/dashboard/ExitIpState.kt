@@ -16,8 +16,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+/** [detecting] is true only while a check for the current state is in flight. */
+internal data class ExitIpUi(val info: ExitInfo? = null, val detecting: Boolean = false)
+
 @Composable
-internal fun rememberExitIp(profileId: Long, status: Status, routeMode: String, remote: Boolean, commandClient: CommandClient): State<String?> {
+internal fun rememberExitIp(profileId: Long, status: Status, routeMode: String, remote: Boolean, commandClient: CommandClient): State<ExitIpUi> {
     val context = LocalContext.current.applicationContext
     val detector = remember(context) { ExitIpDetector(context) }
     val scope = rememberCoroutineScope()
@@ -34,22 +37,25 @@ internal fun rememberExitIp(profileId: Long, status: Status, routeMode: String, 
         onDispose { commandClient.removeHandler(handler) }
     }
     // New state immediately hides an old IP during a profile, mode, or connection change.
-    val state = remember(profileId, status, routeMode, remote, selectedOutbounds.value) { mutableStateOf<String?>(null) }
+    val state = remember(profileId, status, routeMode, remote, selectedOutbounds.value) { mutableStateOf(ExitIpUi()) }
     LaunchedEffect(state) {
         if (remote || profileId < 0 || status != Status.Started) return@LaunchedEffect
         try {
             detector.networks().collectLatest { network ->
-                state.value = null
+                state.value = ExitIpUi()
                 if (network == null) {
                     Log.i("KnineExitIp", "IP hidden: this app's VPN network is unavailable")
                     return@collectLatest
                 }
+                state.value = ExitIpUi(detecting = true)
                 try {
-                    state.value = detector.detect(network)
-                    if (state.value == null) Log.i("KnineExitIp", "IP hidden: no verified response")
+                    val info = detector.detect(network)
+                    state.value = ExitIpUi(info)
+                    if (info == null) Log.i("KnineExitIp", "IP hidden: no verified response")
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
+                    state.value = ExitIpUi()
                     Log.i("KnineExitIp", "IP hidden: detection failed")
                 }
             }

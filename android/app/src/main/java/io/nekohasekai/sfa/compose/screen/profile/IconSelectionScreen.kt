@@ -6,7 +6,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -66,6 +68,10 @@ import androidx.compose.ui.unit.dp
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
+import io.nekohasekai.sfa.compose.screen.dashboard.Countries
+import io.nekohasekai.sfa.compose.screen.dashboard.Country
+import io.nekohasekai.sfa.compose.util.FlagGlyph
+import io.nekohasekai.sfa.compose.util.FlagIcons
 import io.nekohasekai.sfa.compose.util.ProfileIcon
 import io.nekohasekai.sfa.compose.util.icons.IconCategory
 import io.nekohasekai.sfa.compose.util.icons.MaterialIconsLibrary
@@ -147,8 +153,10 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
         currentIconId?.let { id ->
             MaterialIconsLibrary.getIconById(id)?.let { icon -> id to icon }
         }
+    val currentFlag = FlagIcons.codeOf(currentIconId)?.let { Countries.byCode(it) }
+    val flagResults = remember(searchQuery) { if (searchQuery.isEmpty()) emptyList() else Countries.search(searchQuery) }
     val bottomBarPadding =
-        if (currentIcon != null) {
+        if (currentIcon != null || currentFlag != null) {
             88.dp
         } else {
             0.dp
@@ -251,7 +259,7 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
                 // View mode tabs (only show when not searching)
                 AnimatedVisibility(visible = searchQuery.isEmpty()) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         FilterChip(
@@ -278,6 +286,21 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
                             label = { Text(stringResource(R.string.all_icons)) },
                             leadingIcon =
                             if (viewMode == IconViewMode.ALL) {
+                                { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                            } else {
+                                null
+                            },
+                        )
+
+                        FilterChip(
+                            selected = viewMode == IconViewMode.FLAGS,
+                            onClick = {
+                                viewMode = IconViewMode.FLAGS
+                                selectedCategory = null
+                            },
+                            label = { Text("Flag") },
+                            leadingIcon =
+                            if (viewMode == IconViewMode.FLAGS) {
                                 { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
                             } else {
                                 null
@@ -329,18 +352,36 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
                     when {
                         // Search results
                         searchQuery.isNotEmpty() -> {
-                            if (displayedIcons.isEmpty()) {
+                            if (displayedIcons.isEmpty() && flagResults.isEmpty()) {
                                 EmptySearchResult(searchQuery)
                             } else {
                                 IconGrid(
                                     icons = displayedIcons,
                                     currentIconId = currentIconId,
+                                    flags = flagResults,
+                                    onFlagClick = { country ->
+                                        onIconSelected(FlagIcons.idFor(country.code))
+                                        onNavigateBack()
+                                    },
                                     onIconClick = { icon ->
                                         onIconSelected(icon.id)
                                         onNavigateBack()
                                     },
                                 )
                             }
+                        }
+                        // Country flags, drawn as emoji
+                        viewMode == IconViewMode.FLAGS -> {
+                            IconGrid(
+                                icons = emptyList(),
+                                currentIconId = currentIconId,
+                                flags = Countries.all,
+                                onFlagClick = { country ->
+                                    onIconSelected(FlagIcons.idFor(country.code))
+                                    onNavigateBack()
+                                },
+                                onIconClick = {},
+                            )
                         }
                         // Category view
                         viewMode == IconViewMode.CATEGORIES && selectedCategory == null -> {
@@ -373,6 +414,36 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
                             }
                         }
                     }
+                }
+            }
+        }
+
+        if (currentIcon == null && currentFlag != null) {
+            Card(
+                modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = scaffoldPadding.calculateBottomPadding())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                ),
+            ) {
+                Row(
+                    modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FlagGlyph(currentFlag.code, size = 24.dp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.current_icon_format, currentFlag.label),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
         }
@@ -502,12 +573,25 @@ private fun CategoryCard(category: IconCategory, hasSelectedIcon: Boolean, onCli
 }
 
 @Composable
-private fun IconGrid(icons: List<ProfileIcon>, currentIconId: String?, onIconClick: (ProfileIcon) -> Unit) {
+private fun IconGrid(
+    icons: List<ProfileIcon>,
+    currentIconId: String?,
+    onIconClick: (ProfileIcon) -> Unit,
+    flags: List<Country> = emptyList(),
+    onFlagClick: (Country) -> Unit = {},
+) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 72.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        items(flags, key = { "flag-" + it.code }) { country ->
+            FlagGridItem(
+                country = country,
+                isSelected = currentIconId == FlagIcons.idFor(country.code),
+                onClick = { onFlagClick(country) },
+            )
+        }
         items(icons) { icon ->
             IconGridItem(
                 icon = icon,
@@ -583,6 +667,53 @@ private fun IconGridItem(icon: ProfileIcon, isSelected: Boolean, onClick: () -> 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FlagGridItem(country: Country, isSelected: Boolean, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier =
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f),
+        colors =
+        CardDefaults.cardColors(
+            containerColor =
+            if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            },
+        ),
+        border =
+        if (isSelected) {
+            CardDefaults.outlinedCardBorder()
+        } else {
+            null
+        },
+    ) {
+        Column(
+            modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            FlagGlyph(country.code, size = 30.dp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = country.label,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
 @Composable
 private fun EmptySearchResult(query: String) {
     io.nekohasekai.sfa.compose.theme.KnineEmptyState(
@@ -596,5 +727,6 @@ private fun EmptySearchResult(query: String) {
 private enum class IconViewMode {
     CATEGORIES,
     ALL,
+    FLAGS,
     SEARCH,
 }

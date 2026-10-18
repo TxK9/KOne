@@ -12,7 +12,7 @@ import androidx.compose.material.icons.outlined.SettingsEthernet
 import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -52,7 +52,7 @@ fun SystemProxyCard(enabled: Boolean, isSwitching: Boolean, onToggle: (Boolean) 
                     fontWeight = FontWeight.Medium,
                 )
             }
-            Switch(
+            KnineSwitch(
                 checked = enabled,
                 onCheckedChange = onToggle,
                 enabled = !isSwitching,

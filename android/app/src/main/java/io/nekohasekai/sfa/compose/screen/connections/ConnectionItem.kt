@@ -32,6 +32,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -81,6 +82,9 @@ private fun rememberAppInfo(packageName: String): AppInfo? {
 }
 
 @OptIn(ExperimentalFoundationApi::class)
+/** Names to show for outbound tags: KOne's own tags read as the node's name, Home and Direct. */
+internal val LocalOutboundNames = staticCompositionLocalOf<Map<String, String>> { emptyMap() }
+
 @Composable
 fun ConnectionItem(connection: Connection, onClick: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
     var showContextMenu by remember { mutableStateOf(false) }
@@ -203,7 +207,7 @@ fun ConnectionItem(connection: Connection, onClick: () -> Unit, onClose: () -> U
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                            text = connection.chain.firstOrNull() ?: connection.outbound,
+                            text = (connection.chain.firstOrNull() ?: connection.outbound).let { LocalOutboundNames.current[it] ?: it },
                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

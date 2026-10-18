@@ -10,6 +10,7 @@ import io.nekohasekai.sfa.bg.UpdateProfileWork
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.TypedProfile
+import io.nekohasekai.sfa.selfuse.ShareLinks
 import io.nekohasekai.sfa.utils.HTTPClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -177,8 +178,8 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
                 if (state.remoteUrl.isBlank()) {
                     _uiState.update { it.copy(remoteUrlError = context.getString(R.string.profile_input_required)) }
                     hasError = true
-                } else if (state.remoteUrl.trim().startsWith("vless:", ignoreCase = true)) {
-                    _uiState.update { it.copy(remoteUrlError = "This is a VLESS node link. Return to Dashboard and choose + > Import VLESS node.") }
+                } else if (ShareLinks.isShareLink(state.remoteUrl)) {
+                    _uiState.update { it.copy(remoteUrlError = "This is a node link. Copy it, then choose Import → Clipboard on the dashboard.") }
                     hasError = true
                 } else if (!state.remoteUrl.trim().startsWith("https://", ignoreCase = true) &&
                     !state.remoteUrl.trim().startsWith("http://", ignoreCase = true)

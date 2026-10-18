@@ -65,6 +65,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.constant.Status
+import io.nekohasekai.sfa.selfuse.HomeSettings
+import io.nekohasekai.sfa.selfuse.PairedProfile
+import io.nekohasekai.sfa.utils.RemoteControlManager
+import io.nekohasekai.sfa.compose.base.UiEvent
+import io.nekohasekai.sfa.compose.base.rememberApplyServiceChangeNotifier
 import io.nekohasekai.sfa.compose.component.qr.QRCodeDialog
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
@@ -76,9 +82,13 @@ fun TailscaleEndpointScreen(
     viewModel: TailscaleStatusViewModel,
     sshSharedViewModel: TailscaleSSHSharedViewModel,
     endpointTag: String,
+    serviceStatus: Status = Status.Stopped,
 ) {
     val state by viewModel.uiState.collectAsState()
     val endpoint = state.endpoints.firstOrNull { it.endpointTag == endpointTag }
+    val remoteServer by RemoteControlManager.remoteServer.collectAsState()
+    val managed = endpointTag == PairedProfile.HOME_TAG && remoteServer == null
+    val notifyApplyChange = rememberApplyServiceChangeNotifier(serviceStatus)
 
     OverrideTopBar {
         TopAppBar(
@@ -99,7 +109,7 @@ fun TailscaleEndpointScreen(
         )
     }
 
-    if (endpoint == null) {
+    if (endpoint == null && !managed) {
         LaunchedEffect(Unit) {
             navController.navigateUp()
         }
@@ -114,14 +124,8 @@ fun TailscaleEndpointScreen(
     val hasFailedSend = endpointSends.any { it.errorMessage != null }
     val scaffoldPadding = LocalScaffoldPadding.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .verticalScroll(rememberScrollState())
-            .padding(scaffoldPadding)
-            .padding(vertical = 8.dp),
-    ) {
+    @Composable
+    fun RuntimeSections(endpoint: TailscaleEndpointData) {
         val hasThisDevice = endpoint.backendState == "Running" && endpoint.selfPeer != null
         val hasExitNode = endpoint.backendState == "Running" && endpoint.hasExitNodeCandidates
         val hasTaildrop = endpoint.backendState == "Running" &&
@@ -129,281 +133,285 @@ fun TailscaleEndpointScreen(
         val hasAuth = endpoint.authURL.isNotEmpty()
 
         // Status section
-        SectionHeader(stringResource(R.string.tailscale_status))
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ),
-        ) {
-            Column {
-                val stateIsLast = !hasThisDevice && !hasExitNode && !hasTaildrop && !hasAuth
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(R.string.tailscale_state),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            Icons.Filled.PowerSettingsNew,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    supportingContent = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(stateColor(endpoint.backendState)),
-                            )
-                            Text(
-                                endpoint.stateText,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                    },
-                    modifier = Modifier.clip(
-                        if (stateIsLast) {
-                            RoundedCornerShape(12.dp)
-                        } else {
-                            RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-                        },
-                    ),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-                if (endpoint.backendState == "Running" && endpoint.selfPeer != null) {
-                    val thisDeviceIsLast = !hasExitNode && !hasTaildrop && !hasAuth
-                    ListItem(
+        if (!managed) SectionHeader(stringResource(R.string.tailscale_status))
+        else if (hasThisDevice || hasExitNode || hasTaildrop || hasAuth) SectionHeader("Connection")
+        if (!managed || hasThisDevice || hasExitNode || hasTaildrop || hasAuth) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            ) {
+                Column {
+                    val stateIsLast = !hasThisDevice && !hasExitNode && !hasTaildrop && !hasAuth
+                    if (!managed) ListItem(
                         headlineContent = {
                             Text(
-                                stringResource(R.string.tailscale_this_device),
+                                stringResource(R.string.tailscale_state),
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         },
                         leadingContent = {
                             Icon(
-                                Icons.Filled.Computer,
+                                Icons.Filled.PowerSettingsNew,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         },
                         supportingContent = {
-                            Text(
-                                endpoint.selfPeer.displayName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                            )
-                        },
-                        trailingContent = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        modifier = Modifier
-                            .clip(
-                                if (thisDeviceIsLast) {
-                                    RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                                } else {
-                                    RoundedCornerShape(0.dp)
-                                },
-                            )
-                            .clickable {
-                                navController.navigate(
-                                    "tools/tailscale/${Uri.encode(endpointTag)}/peer/${Uri.encode(endpoint.selfPeer.id)}",
-                                )
-                            },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    )
-                }
-                if (hasExitNode) {
-                    val exitNodeIsLast = !hasTaildrop && !hasAuth
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.tailscale_exit_node),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Filled.Router,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                endpoint.exitNode?.displayName ?: stringResource(R.string.disabled),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                            )
-                        },
-                        trailingContent = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        modifier = Modifier
-                            .clip(
-                                if (exitNodeIsLast) {
-                                    RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                                } else {
-                                    RoundedCornerShape(0.dp)
-                                },
-                            )
-                            .clickable {
-                                navController.navigate(
-                                    "tools/tailscale/${Uri.encode(endpointTag)}/exit_node",
-                                )
-                            },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    )
-                }
-                if (hasTaildrop) {
-                    val taildropSubtitle = when {
-                        endpoint.waitingFileCount > 0 -> pluralStringResource(
-                            R.plurals.taildrop_file_count,
-                            endpoint.waitingFileCount,
-                            endpoint.waitingFileCount,
-                        )
-
-                        endpoint.receivingFileCount > 0 ->
-                            stringResource(R.string.taildrop_receive)
-
-                        hasActiveSend -> stringResource(R.string.taildrop_send)
-
-                        endpoint.taildropFileCount > 0 -> pluralStringResource(
-                            R.plurals.taildrop_file_count,
-                            endpoint.taildropFileCount,
-                            endpoint.taildropFileCount,
-                        )
-
-                        else -> null
-                    }
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.taildrop),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Filled.Inbox,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        supportingContent = if (taildropSubtitle != null) {
-                            {
-                                Text(
-                                    taildropSubtitle,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                        trailingContent = {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                if (hasFailedSend) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.error) {
-                                        Text("!")
-                                    }
-                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(stateColor(endpoint.backendState)),
+                                )
+                                Text(
+                                    endpoint.stateText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        },
+                        modifier = Modifier.clip(
+                            if (stateIsLast) {
+                                RoundedCornerShape(12.dp)
+                            } else {
+                                RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+                            },
+                        ),
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                    if (endpoint.backendState == "Running" && endpoint.selfPeer != null) {
+                        val thisDeviceIsLast = !hasExitNode && !hasTaildrop && !hasAuth
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    stringResource(R.string.tailscale_this_device),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Filled.Computer,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    if (managed) "View device information" else endpoint.selfPeer.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
+                            },
+                            trailingContent = {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                            }
-                        },
-                        modifier = Modifier
-                            .clip(
-                                if (!hasAuth) {
-                                    RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                                } else {
-                                    RoundedCornerShape(0.dp)
+                            },
+                            modifier = Modifier
+                                .clip(
+                                    if (thisDeviceIsLast) {
+                                        RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                                    } else {
+                                        RoundedCornerShape(0.dp)
+                                    },
+                                )
+                                .clickable {
+                                    navController.navigate(
+                                        "tools/tailscale/${Uri.encode(endpointTag)}/peer/${Uri.encode(endpoint.selfPeer.id)}",
+                                    )
                                 },
-                            )
-                            .clickable {
-                                navController.navigate(
-                                    "tools/tailscale/${Uri.encode(endpointTag)}/taildrop",
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+                    }
+                    if (hasExitNode) {
+                        val exitNodeIsLast = !hasTaildrop && !hasAuth
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    stringResource(R.string.tailscale_exit_node),
+                                    style = MaterialTheme.typography.bodyLarge,
                                 )
                             },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    )
-                }
-                if (hasAuth) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.tailscale_open_auth_url),
-                                style = MaterialTheme.typography.bodyLarge,
+                            leadingContent = {
+                                Icon(
+                                    Icons.Filled.Router,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    endpoint.exitNode?.displayName ?: stringResource(R.string.disabled),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
+                            },
+                            trailingContent = {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            modifier = Modifier
+                                .clip(
+                                    if (exitNodeIsLast) {
+                                        RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                                    } else {
+                                        RoundedCornerShape(0.dp)
+                                    },
+                                )
+                                .clickable {
+                                    navController.navigate(
+                                        "tools/tailscale/${Uri.encode(endpointTag)}/exit_node",
+                                    )
+                                },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+                    }
+                    if (hasTaildrop) {
+                        val taildropSubtitle = when {
+                            endpoint.waitingFileCount > 0 -> pluralStringResource(
+                                R.plurals.taildrop_file_count,
+                                endpoint.waitingFileCount,
+                                endpoint.waitingFileCount,
                             )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.AutoMirrored.Outlined.OpenInNew,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+
+                            endpoint.receivingFileCount > 0 ->
+                                stringResource(R.string.taildrop_receive)
+
+                            hasActiveSend -> stringResource(R.string.taildrop_send)
+
+                            endpoint.taildropFileCount > 0 -> pluralStringResource(
+                                R.plurals.taildrop_file_count,
+                                endpoint.taildropFileCount,
+                                endpoint.taildropFileCount,
                             )
-                        },
-                        modifier = Modifier.clickable {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(endpoint.authURL)))
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    )
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.tailscale_open_auth_url_qr_code),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Default.QrCode2,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                            .clickable { showAuthQRCode = true },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    )
+
+                            else -> null
+                        }
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    stringResource(R.string.taildrop),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Filled.Inbox,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            supportingContent = if (taildropSubtitle != null) {
+                                {
+                                    Text(
+                                        taildropSubtitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            } else {
+                                null
+                            },
+                            trailingContent = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    if (hasFailedSend) {
+                                        Badge(containerColor = MaterialTheme.colorScheme.error) {
+                                            Text("!")
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            },
+                            modifier = Modifier
+                                .clip(
+                                    if (!hasAuth) {
+                                        RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                                    } else {
+                                        RoundedCornerShape(0.dp)
+                                    },
+                                )
+                                .clickable {
+                                    navController.navigate(
+                                        "tools/tailscale/${Uri.encode(endpointTag)}/taildrop",
+                                    )
+                                },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+                    }
+                    if (hasAuth) {
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    stringResource(R.string.tailscale_open_auth_url),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.AutoMirrored.Outlined.OpenInNew,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(endpoint.authURL)))
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    stringResource(R.string.tailscale_open_auth_url_qr_code),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.QrCode2,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                                .clickable { showAuthQRCode = true },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+                    }
                 }
             }
+
         }
 
         // User group sections
         for (group in endpoint.userGroups) {
             Spacer(modifier = Modifier.height(16.dp))
-            SectionHeader(group.displayName.ifEmpty { group.loginName })
+            SectionHeader(if (endpoint.userGroups.size == 1) "Devices" else group.displayName.ifEmpty { group.loginName })
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -469,10 +477,42 @@ fun TailscaleEndpointScreen(
             }
         }
 
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .verticalScroll(rememberScrollState())
+            .padding(scaffoldPadding)
+            .padding(vertical = 8.dp),
+    ) {
+        if (managed) {
+            TailscaleSettingsSection(
+                stateText = tailscaleConnectionLabel(HomeSettings.isEnabled, serviceStatus, endpoint?.backendState, state.hasUpdate),
+                onlineDevices = endpoint?.takeIf { it.backendState == "Running" }?.userGroups
+                    ?.flatMap { it.peers }?.distinctBy { it.id }?.count { it.online && it.id != endpoint.selfPeer?.id },
+                onTerminalConfig = { navController.navigate("settings/tailscale/terminal_config") },
+                onChanged = { notifyApplyChange(UiEvent.ApplyServiceChange.Mode.Restart) },
+            ) {
+                if (HomeSettings.isEnabled && endpoint != null) RuntimeSections(endpoint)
+                else if (HomeSettings.isEnabled && serviceStatus == Status.Stopped) {
+                    Text(
+                        "Connect KOne to access devices",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
+                    )
+                }
+            }
+        } else if (endpoint != null) {
+            RuntimeSections(endpoint)
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
     }
 
-    if (showAuthQRCode && endpoint.authURL.isNotEmpty()) {
+    if (showAuthQRCode && endpoint != null && endpoint.authURL.isNotEmpty()) {
         QRCodeDialog(
             content = endpoint.authURL,
             onDismiss = { showAuthQRCode = false },

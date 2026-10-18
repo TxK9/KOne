@@ -402,7 +402,7 @@ private fun GroupHeader(
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 Text(
-                    text = group.displayType,
+                    text = groupTypeLabel(group),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -679,4 +679,12 @@ private fun rememberBounceBlockingNestedScrollConnection(lazyListState: LazyList
             return if (available.y < 0) available else Velocity.Zero
         }
     }
+}
+
+/** The two group kinds in plain words; other kinds keep the core's name. */
+@Composable
+private fun groupTypeLabel(group: Group): String = when (group.type.lowercase()) {
+    "selector" -> stringResource(R.string.knine_group_type_selector)
+    "urltest" -> stringResource(R.string.knine_group_type_urltest)
+    else -> group.displayType
 }

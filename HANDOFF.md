@@ -12,9 +12,10 @@ Language changes are reviewed independently from feature changes. Do not import
 uncommitted functionality, replace the native core, change signing identity,
 clear application data, or modify active network settings to complete translation.
 
-Use the Android Gradle wrapper with the SDK, JDK, and AAR inputs required by this
-branch's build files. A development signature cannot replace an installation
-using a different signing identity. Never uninstall to bypass that mismatch.
+Existing build helpers are under `tools/`. Their required environment variables
+and external inputs must be configured explicitly. Keep signing keys and private
+photographs outside version control. Validate package/signature compatibility
+before an authorized in-place installation; never uninstall to bypass a mismatch.
 
 Record the exact checks executed and their limits. Compilation, unit tests,
 rendering, installation, live networking, update recovery, and visual acceptance

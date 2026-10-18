@@ -1,6 +1,8 @@
 package io.nekohasekai.sfa.compose.screen.dashboard
 
 import android.net.Uri
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.IosShare
@@ -70,6 +73,10 @@ import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.ProfileContent
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.selfuse.PairedProfileDialog
+import io.nekohasekai.sfa.selfuse.ImportedNode
+import io.nekohasekai.sfa.selfuse.ShareLinkException
+import io.nekohasekai.sfa.selfuse.ShareLinks
+import io.nekohasekai.sfa.selfuse.createPairedProfile
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import io.nekohasekai.sfa.compose.component.qr.QRCodeDialog
 import io.nekohasekai.sfa.compose.component.qr.QRSDialog
@@ -113,9 +120,10 @@ fun ProfilesCard(
     onShowProfilePickerSheet: () -> Unit,
     onHideProfilePickerSheet: () -> Unit,
     onOpenNewProfile: (NewProfileArgs) -> Unit,
+    panel: (@Composable (KnineImportActions) -> Unit)? = null,
 ) {
     var showPairedProfileDialog by remember { mutableStateOf(false) }
-    var scannedVlessLink by remember { mutableStateOf("") }
+    var scannedNodeLink by remember { mutableStateOf("") }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -225,8 +233,73 @@ fun ProfilesCard(
         }
     }
 
+    // Node links, from the clipboard or a QR code, are imported at once and the first is
+    // selected. A node that is already here is selected instead of being added again.
+    fun importNodeLinks(links: List<String>) {
+        coroutineScope.launch {
+            val imported = mutableListOf<ImportedNode>()
+            var refusal: String? = null
+            links.forEach { link ->
+                try {
+                    imported += createPairedProfile(context, link)
+                } catch (failure: ShareLinkException) {
+                    refusal = failure.message
+                } catch (_: Exception) {
+                    refusal = refusal ?: "Could not import this link. Check it and try again."
+                }
+            }
+            imported.firstOrNull()?.let { onProfileSelected(it.profile.id) }
+            val added = imported.count { it.isNew }
+            val kept = imported.size - added
+            val failed = links.size - imported.size
+            val message = when {
+                imported.isEmpty() -> refusal ?: "Could not import this link. Check it and try again."
+                links.size == 1 && added == 1 -> "Imported and selected ${imported[0].profile.name}"
+                links.size == 1 -> "${imported[0].profile.name} already exists and is selected."
+                else -> buildString {
+                    append("Imported $added nodes")
+                    if (kept > 0) append(", $kept already existed")
+                    if (failed > 0) append(", $failed could not be imported")
+                }
+            }
+            Toast.makeText(context, message, if (failed > 0) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // The link is always copied from somewhere, so read it straight from the clipboard:
+    // a node link imports at once, a sing-box remote profile link opens as a new profile.
+    fun importFromClipboard() {
+        val clip = (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip
+        val text = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+        val links = ShareLinks.findAll(text)
+        val remote = text.lineSequence().map { it.trim() }.firstOrNull { it.startsWith("sing-box://import-remote-profile", ignoreCase = true) }
+        when {
+            links.isNotEmpty() -> importNodeLinks(links)
+            remote != null -> coroutineScope.launch {
+                when (val parsed = importHandler.parseQRCode(remote)) {
+                    is ProfileImportHandler.QRCodeParseResult.RemoteProfile ->
+                        onOpenNewProfile(NewProfileArgs(importName = parsed.name, importUrl = parsed.url))
+                    else -> Toast.makeText(context, "The clipboard contains an unrecognized remote configuration link.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            else -> Toast.makeText(context, "No recognized links in the clipboard", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val selectedProfile = profiles.find { it.id == selectedProfileId }
 
+    if (panel != null) {
+        // The photo dashboard draws its own panel and reuses this card's sheets and dialogs;
+        // its Import offers the same ways in as the sheet below.
+        panel(
+            KnineImportActions(
+                clipboard = ::importFromClipboard,
+                scan = { showQRScanSheet = true },
+                file = { importFromFileLauncher.launch("*/*") },
+                manual = { onOpenNewProfile(NewProfileArgs()) },
+            ),
+        )
+    } else {
     Column(Modifier.fillMaxWidth()) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -374,6 +447,7 @@ fun ProfilesCard(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     )
     }
+    }
 
     if (showProfilePickerSheet) {
         ProfilePickerSheet(
@@ -389,12 +463,13 @@ fun ProfilesCard(
 
     if (showPairedProfileDialog) {
         PairedProfileDialog(
-            initialLink = scannedVlessLink,
-            onDismiss = { showPairedProfileDialog = false; scannedVlessLink = "" },
+            initialLink = scannedNodeLink,
+            onDismiss = { showPairedProfileDialog = false; scannedNodeLink = "" },
             onCreated = { onProfileSelected(it.id) },
         )
     }
-    if (showAddProfileSheet) {
+
+    if (showAddProfileSheet && panel == null) {
         ModalBottomSheet(
             onDismissRequest = onHideAddProfileSheet,
             containerColor = Color.Transparent,
@@ -411,10 +486,13 @@ fun ProfilesCard(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                 )
                 ListItem(
-                    modifier = Modifier.clickable { onHideAddProfileSheet(); showPairedProfileDialog = true },
-                    leadingContent = { Icon(Icons.Default.Cloud, contentDescription = null) },
-                    headlineContent = { Text("Import VLESS node") },
-                    supportingContent = { Text("Create a proxy and Tailscale configuration from a VLESS link") },
+                    modifier = Modifier.clickable {
+                        onHideAddProfileSheet()
+                        importFromClipboard()
+                    },
+                    leadingContent = { Icon(Icons.Default.ContentPaste, contentDescription = null) },
+                    headlineContent = { Text("Import from clipboard") },
+                    supportingContent = { Text("Read copied node links") },
                 )
 
                 ListItem(
@@ -583,9 +661,17 @@ fun ProfilesCard(
             onScanResult = { result ->
                 showQRScanSheet = false
                 when (result) {
-                    is QRScanResult.VlessLink -> {
-                        scannedVlessLink = result.link
-                        showPairedProfileDialog = true
+                    // A KOne key belongs on the start page, not among the nodes.
+                    is QRScanResult.ClaimLink -> Toast.makeText(context, "This is a KOne access key, not a node.", Toast.LENGTH_SHORT).show()
+                    is QRScanResult.NodeLink -> {
+                        // The dashboard panel imports a scanned node like a copied one; the
+                        // plain card shows the link in its dialog first.
+                        if (panel != null) {
+                            importNodeLinks(listOf(result.link))
+                        } else {
+                            scannedNodeLink = result.link
+                            showPairedProfileDialog = true
+                        }
                     }
                     is QRScanResult.QRSData -> {
                         coroutineScope.launch {

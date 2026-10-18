@@ -25,7 +25,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -163,7 +163,7 @@ fun TailscaleSSHPromptScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.tailscale_ssh_remember_options)) },
                 trailingContent = {
-                    Switch(
+                    KnineSwitch(
                         checked = rememberOptions,
                         onCheckedChange = { checked ->
                             rememberOptions = checked

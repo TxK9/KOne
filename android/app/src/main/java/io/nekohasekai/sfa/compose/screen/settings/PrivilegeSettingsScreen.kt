@@ -40,7 +40,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -588,7 +588,7 @@ fun PrivilegeSettingsScreen(navController: NavController, serviceStatus: Status 
                         )
                     },
                     trailingContent = {
-                        Switch(
+                        KnineSwitch(
                             checked = privilegeSettingsEnabled,
                             onCheckedChange = { checked ->
                                 privilegeSettingsEnabled = checked
@@ -697,7 +697,7 @@ fun PrivilegeSettingsScreen(navController: NavController, serviceStatus: Status 
                         )
                     },
                     trailingContent = {
-                        Switch(
+                        KnineSwitch(
                             checked = interfaceRenameEnabled,
                             onCheckedChange = { checked ->
                                 interfaceRenameEnabled = checked

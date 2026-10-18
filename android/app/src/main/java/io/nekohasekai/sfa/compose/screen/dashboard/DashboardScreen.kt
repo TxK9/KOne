@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
 import io.nekohasekai.sfa.compose.theme.KnineDropdownMenu as DropdownMenu
@@ -31,6 +33,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -39,6 +44,7 @@ import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.component.RemoteControlMenuItems
 import io.nekohasekai.sfa.compose.component.rememberRemoteServers
 import io.nekohasekai.sfa.compose.navigation.NewProfileArgs
+import io.nekohasekai.sfa.compose.theme.LocalBackdrop
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.constant.Status
@@ -61,21 +67,30 @@ fun DashboardScreen(
     val remoteServer by RemoteControlManager.remoteServer.collectAsState()
     val remoteConnected by RemoteControlManager.isConnected.collectAsState()
     val isRemote = remoteServer != null
-    val exitIp by rememberExitIp(uiState.selectedProfileId, serviceStatus, uiState.selectedClashMode, isRemote, viewModel.commandClient)
+    val exit by rememberExitIp(uiState.selectedProfileId, serviceStatus, uiState.selectedClashMode, isRemote, viewModel.commandClient)
+    val exitIp = exit.info?.ip
     val remoteServers by rememberRemoteServers()
     var showOthersMenu by remember { mutableStateOf(false) }
+    // The dashboard panel keeps importing and adding categories in this menu, out of the photo.
+    val kninePanel = LocalBackdrop.current != null && !isRemote
+    var addCategoryRequested by remember { mutableStateOf(false) }
+    // The ways to import bloom out of the menu button.
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
     OverrideTopBar {
         TopAppBar(
             title = {
                 androidx.compose.foundation.layout.Column {
-                    Text("Knine", style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                     Text(stringResource(R.string.title_dashboard), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             actions = {
                 Box {
-                    IconButton(onClick = { showOthersMenu = true }) {
+                    IconButton(
+                        onClick = { showOthersMenu = true },
+                        modifier = Modifier.onGloballyPositioned { menuAnchor = it.boundsInRoot().center },
+                    ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = stringResource(R.string.title_others),
@@ -85,20 +100,52 @@ fun DashboardScreen(
                         expanded = showOthersMenu,
                         onDismissRequest = { showOthersMenu = false },
                     ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.dashboard_items)) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.GridView,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            onClick = {
-                                showOthersMenu = false
-                                viewModel.toggleCardSettingsDialog()
-                            },
-                        )
+                        if (kninePanel) {
+                            DropdownMenuItem(
+                                text = { Text("Import") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentPaste,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                },
+                                onClick = {
+                                    showOthersMenu = false
+                                    viewModel.showAddProfileSheet()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add category") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                },
+                                onClick = {
+                                    showOthersMenu = false
+                                    addCategoryRequested = true
+                                },
+                            )
+                        } else {
+                            // Dashboard items arrange the card list, which the dashboard panel replaces.
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.dashboard_items)) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.GridView,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                },
+                                onClick = {
+                                    showOthersMenu = false
+                                    viewModel.toggleCardSettingsDialog()
+                                },
+                            )
+                        }
                         RemoteControlMenuItems(
                             servers = remoteServers,
                             onAction = { showOthersMenu = false },
@@ -138,6 +185,55 @@ fun DashboardScreen(
         ) {
             CircularProgressIndicator()
         }
+        return
+    }
+
+    if (kninePanel) {
+        // Dashboard UI: one panel over the whole photograph instead of the card list.
+        ProfilesCard(
+            profiles = uiState.profiles,
+            selectedProfileId = uiState.selectedProfileId,
+            isLoading = uiState.isLoading,
+            showAddProfileSheet = uiState.showAddProfileSheet,
+            showProfilePickerSheet = uiState.showProfilePickerSheet,
+            updatingProfileId = uiState.updatingProfileId,
+            updatedProfileId = uiState.updatedProfileId,
+            serviceStatus = serviceStatus,
+            exitIp = exitIp,
+            onProfileSelected = viewModel::selectProfile,
+            onProfileEdit = viewModel::editProfile,
+            onProfileDelete = viewModel::deleteProfile,
+            onProfileShare = viewModel::shareProfile,
+            onProfileShareURL = viewModel::shareProfileURL,
+            onProfileUpdate = viewModel::updateProfile,
+            onProfileMove = viewModel::moveProfile,
+            onShowAddProfileSheet = viewModel::showAddProfileSheet,
+            onHideAddProfileSheet = viewModel::hideAddProfileSheet,
+            onShowProfilePickerSheet = viewModel::showProfilePickerSheet,
+            onHideProfilePickerSheet = viewModel::hideProfilePickerSheet,
+            onOpenNewProfile = onOpenNewProfile,
+            panel = { imports ->
+                KnineDashboard(
+                    uiState = uiState,
+                    serviceStatus = serviceStatus,
+                    exit = exit,
+                    actions = KnineDashboardActions(
+                        start = { viewModel.sendGlobalEvent(UiEvent.RequestStartService) },
+                        stop = { viewModel.toggleService() },
+                        select = viewModel::selectProfile,
+                        edit = viewModel::editProfile,
+                        selectMode = viewModel::selectClashMode,
+                        toggleSystemProxy = viewModel::toggleSystemProxy,
+                        import = viewModel::showAddProfileSheet,
+                    ),
+                    addCategoryRequested = addCategoryRequested,
+                    onAddCategoryShown = { addCategoryRequested = false },
+                    imports = imports,
+                    importAnchor = menuAnchor,
+                    onImportClosed = viewModel::hideAddProfileSheet,
+                )
+            },
+        )
         return
     }
 

@@ -61,7 +61,7 @@ import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.ProfileContent
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.component.qr.QRCodeDialog
-import io.nekohasekai.sfa.compose.util.ProfileIcons
+import io.nekohasekai.sfa.compose.util.ProfileIconGlyph
 import io.nekohasekai.sfa.compose.util.RelativeTimeFormatter
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.TypedProfile
@@ -290,14 +290,10 @@ private fun ProfilePickerRow(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val profileIcon =
-                ProfileIcons.getIconById(profile.icon)
-                    ?: Icons.AutoMirrored.Default.InsertDriveFile
-
-            Icon(
-                imageVector = profileIcon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
+            ProfileIconGlyph(
+                iconId = profile.icon,
+                fallback = Icons.AutoMirrored.Default.InsertDriveFile,
+                size = 24.dp,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 

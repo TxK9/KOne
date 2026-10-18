@@ -11,9 +11,14 @@ object DefaultNetworkMonitor {
     var defaultNetwork: Network? = null
     private var listener: InterfaceUpdateListener? = null
 
+    /** Told of every new network under the tunnel, so the VPN can declare it (see [VPNService.declareUnderlying]). */
+    @Volatile
+    var underlying: ((Network) -> Unit)? = null
+
     suspend fun start() {
         DefaultNetworkListener.start(this) {
             defaultNetwork = it
+            if (it != null) underlying?.invoke(it)
             checkDefaultInterfaceUpdate(it)
         }
         defaultNetwork = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -24,6 +29,7 @@ object DefaultNetworkMonitor {
     }
 
     suspend fun stop() {
+        underlying = null
         DefaultNetworkListener.stop(this)
     }
 

@@ -54,7 +54,7 @@ import io.nekohasekai.sfa.compose.theme.BackdropButton as OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
 import io.nekohasekai.sfa.compose.theme.KnineSurface as Surface
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -416,7 +416,7 @@ fun NewProfileScreen(
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.weight(1f).padding(end = 12.dp),
                             )
-                            Switch(
+                            KnineSwitch(
                                 checked = uiState.autoUpdate,
                                 onCheckedChange = viewModel::updateAutoUpdate,
                             )

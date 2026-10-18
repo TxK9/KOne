@@ -11,6 +11,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import kotlin.math.max
 
+/** [BackdropBusyness] of the photo behind [area]; 0 while no photo map is ready. */
+@Composable
+internal fun rememberBackdropBusyness(backdrop: BackdropContext, area: Rect): Float = remember(backdrop.pixels, backdrop.bounds, backdrop.focus, area) {
+    backdrop.pixels?.let { BackdropBusyness.of(it, backdrop.bounds, area, backdrop.focus) } ?: 0f
+}
+
 @Composable
 internal fun rememberReadingAlpha(backdrop: BackdropContext, area: Rect, foreground: Color, target: Float): Float {
     if (area.width <= 0 || area.height <= 0) return 0f

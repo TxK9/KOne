@@ -20,7 +20,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.Libbox
-import io.nekohasekai.sfa.selfuse.PairedProfile
+import io.nekohasekai.sfa.selfuse.ShareLinks
 import io.nekohasekai.sfa.qrs.QRSDecoder
 import io.nekohasekai.sfa.qrs.readIntLE
 import io.nekohasekai.sfa.vendor.Vendor
@@ -38,8 +38,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 sealed class QRScanResult {
     data class RemoteProfile(val uri: Uri) : QRScanResult()
-    data class VlessLink(val link: String) : QRScanResult() {
-        override fun toString(): String = "VlessLink(redacted)"
+    /** A KOne claim link (see ManagedClaimLink); never printed, it carries an invite code. */
+    data class ClaimLink(val link: String) : QRScanResult() {
+        override fun toString(): String = "ClaimLink(redacted)"
+    }
+    /** A node share link (see [ShareLinks]); never printed, it carries credentials. */
+    data class NodeLink(val link: String) : QRScanResult() {
+        override fun toString(): String = "NodeLink(redacted)"
     }
     data class QRSData(val data: ByteArray) : QRScanResult() {
         override fun equals(other: Any?): Boolean {
@@ -544,14 +549,18 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
     private fun processQRCode(value: String): Boolean {
         try {
             val normalized = value.trim()
-            if (normalized.startsWith("vless://", ignoreCase = true)) {
-                PairedProfile.fromVlessLink(normalized)
-                _uiState.update { it.copy(result = QRScanResult.VlessLink(normalized)) }
+            if (io.nekohasekai.sfa.managed.ManagedClaimLink.parse(normalized) != null) {
+                _uiState.update { it.copy(result = QRScanResult.ClaimLink(normalized)) }
+                return true
+            }
+            if (ShareLinks.isShareLink(normalized)) {
+                ShareLinks.parse(normalized)
+                _uiState.update { it.copy(result = QRScanResult.NodeLink(normalized)) }
                 return true
             }
             val uri = Uri.parse(normalized)
             if (uri.scheme != "sing-box" || uri.host != "import-remote-profile") {
-                showScanError("Unsupported QR code. Use a VLESS TCP TLS/Reality node or a sing-box remote configuration QR code.")
+                showScanError("This QR code contains no recognized node link or sing-box remote configuration.")
                 return false
             }
             Libbox.parseRemoteProfileImportLink(uri.toString())

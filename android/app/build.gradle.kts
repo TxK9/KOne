@@ -25,7 +25,11 @@ configurations.configureEach {
 // Opt-in host rendering keeps Robolectric and Android resources out of the
 // ordinary fast unit-test path. It never starts the production Application.
 val knineVisualTests = providers.gradleProperty("knineVisualTests").map(String::toBoolean).getOrElse(false)
-val kninePlain = providers.gradleProperty("kninePlain").map(String::toBoolean).getOrElse(false)
+// One source, two editions: private builds can include local wallpapers and Home defaults;
+// managed builds omit those assets and require explicit Home configuration.
+// Build the shared one with -PkoneEdition=share; the older -PkninePlain=true means the same.
+val koneShare = providers.gradleProperty("koneEdition").map { it == "share" }
+    .orElse(providers.gradleProperty("kninePlain").map(String::toBoolean)).getOrElse(false)
 
 fun getProps(propName: String): String {
     val propsInEnv = System.getenv("LOCAL_PROPERTIES")
@@ -48,6 +52,11 @@ fun getProps(propName: String): String {
     }
     return ""
 }
+
+// KOne's own version (kone-version.properties): the name people see, and a build number that only rises.
+val koneVersionProps = Properties().apply { rootProject.file("kone-version.properties").inputStream().use { load(it) } }
+val koneVersion: String = koneVersionProps.getProperty("KONE_VERSION")
+val koneVersionCode: Int = koneVersionProps.getProperty("KONE_BUILD").toInt()
 
 fun getVersionProps(propName: String): String {
     val propsFile = rootProject.file("version.properties")
@@ -77,13 +86,24 @@ android {
     }
 
     defaultConfig {
-        applicationId = if (kninePlain) "cc.txwd.tianxiawudi.proxy.plain" else "cc.txwd.tianxiawudi.proxy"
+        // Managed and private editions have distinct application IDs.
+        applicationId = if (koneShare) "cc.txwd.kone" else "cc.txwd.tianxiawudi.proxy"
         minSdk = 24
         targetSdk = 37
-        versionCode = 18
-        versionName = if (kninePlain) "0.1.17-plain" else "0.1.17-selfuse"
-        buildConfigField("boolean", "KNINE_PERSONAL_UI", (!kninePlain).toString())
-        base.archivesName.set("Knine-${versionName}")
+        versionCode = koneVersionCode
+        versionName = koneVersion
+        buildConfigField("boolean", "KNINE_OWNER", (!koneShare).toString())
+        // Managed builds require a console-issued access key; private builds do not.
+        buildConfigField("boolean", "KONE_ACTIVATION", koneShare.toString())
+        // The console address built into a copy (-PkoneConsole=https://...); empty asks for it on the start page.
+        buildConfigField("String", "KONE_CONSOLE", "\"${providers.gradleProperty("koneConsole").getOrElse("")}\"")
+        // Private console origin: kone.admin in untracked local.properties, reached over Home.
+        buildConfigField("String", "KONE_ADMIN", "\"${if (koneShare) "" else getProps("kone.admin").replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+        // The sing-box release the bundled core comes from (version.properties tracks it).
+        buildConfigField("String", "CORE_VERSION", "\"${getVersionProps("VERSION_NAME")}\"")
+        buildConfigField("String", "KNINE_HOME_SUBNETS", if (koneShare) "\"\"" else "\"192.168.10.0/24\"")
+        buildConfigField("String", "KNINE_HOME_HOSTNAME", if (koneShare) "\"\"" else "\"txwd-phone\"")
+        base.archivesName.set(if (koneShare) "KOne-share-$koneVersion" else "KOne-$koneVersion")
     }
 
     signingConfigs {
@@ -138,8 +158,8 @@ android {
         }
     }
 
-    if (kninePlain) {
-        // The public-looking edition must not ship the personal photographs,
+    if (koneShare) {
+        // Managed builds must not include local wallpaper assets,
         // even as hidden resources. IDs remain available as transparent shapes
         // so the shared source can compile without loading a wallpaper.
         val photoNames = listOf("portrait_backdrop", "sunset_backdrop") + (1..6).map { "owner_wallpaper_$it" }

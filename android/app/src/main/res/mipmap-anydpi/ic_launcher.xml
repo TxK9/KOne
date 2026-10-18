@@ -1,10 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="72" android:viewportHeight="72">
-    <path android:fillColor="#161B29" android:pathData="M0,0 H72 V72 H0 Z" />
-    <group android:translateX="-18" android:translateY="-18">
-    <path android:fillColor="#FFF5E8" android:pathData="M36,31 C33,31 31,33 31,36 L31,73 C31,76 33,78 36,78 L40,78 L40,31 Z" />
-    <path android:fillColor="#E5BD82" android:pathData="M42,54 L63,33 C65,31 68,31 70,33 C72,35 72,38 69,40 L49,59 Z" />
-    <path android:fillColor="#FFF5E8" android:pathData="M44,54 L72,73 C75,76 73,79 70,79 L65,79 L42,60 Q40,57 44,54 Z" />
-    <path android:fillColor="#E5BD82" android:pathData="M76,34 A3,3 0,1 1,70,34 A3,3 0,1 1,76,34 Z" />
-    </group>
-</vector>
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/kone_brand_icon" android:gravity="fill" android:filter="true" />

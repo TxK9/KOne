@@ -28,7 +28,7 @@ import io.nekohasekai.sfa.compose.theme.KnineDropdownMenu as DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -153,6 +153,7 @@ fun AppSelectionCard(
     onCopyLabel: (() -> Unit)? = null,
     onCopyPackage: (() -> Unit)? = null,
     onCopyUid: (() -> Unit)? = null,
+    badge: String? = null,
 ) {
     var showContextMenu by remember { mutableStateOf(false) }
     var showCopyMenu by remember { mutableStateOf(false) }
@@ -201,6 +202,13 @@ fun AppSelectionCard(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (badge != null) {
+                        Text(
+                            text = badge,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     Text(
                         text = "${packageCache.packageName} (${packageCache.uid})",
                         style = MaterialTheme.typography.bodySmall,
@@ -208,7 +216,7 @@ fun AppSelectionCard(
                         softWrap = true,
                     )
                 }
-                Switch(
+                KnineSwitch(
                     checked = selected,
                     onCheckedChange = { onToggle(it) },
                 )

@@ -27,8 +27,9 @@ import io.nekohasekai.libbox.OverrideOptions
 import io.nekohasekai.libbox.PlatformInterface
 import io.nekohasekai.libbox.SystemProxyStatus
 import io.nekohasekai.sfa.Application
+import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
-import io.nekohasekai.sfa.selfuse.PairedProfile
+import io.nekohasekai.sfa.selfuse.HomeSettings
 import io.nekohasekai.sfa.compose.MainActivity
 import io.nekohasekai.sfa.constant.Action
 import io.nekohasekai.sfa.constant.Alert
@@ -125,6 +126,12 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 notification.show(lastProfileName, R.string.status_starting)
             }
 
+            // Without a key the edition for others does not connect, whatever starts it (tile, boot).
+            if (BuildConfig.KONE_ACTIVATION && !io.nekohasekai.sfa.managed.ManagedState.bound) {
+                stopAndAlert(Alert.StartService, "Enter an access key in KOne first.")
+                return
+            }
+
             val selectedProfileId = Settings.selectedProfile
             if (selectedProfileId == -1L) {
                 stopAndAlert(Alert.EmptyConfiguration)
@@ -137,14 +144,13 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 return
             }
 
-            val content = File(profile.typed.path).readText()
-            PairedProfile.requirePaired(content)
+            val content = HomeSettings.prepare(File(profile.typed.path).readText())
             if (content.isBlank()) {
                 stopAndAlert(Alert.EmptyConfiguration)
                 return
             }
 
-            lastProfileName = profile.name
+            lastProfileName = titleOf(profile)
             withContext(Dispatchers.Main) {
                 notification.show(lastProfileName, R.string.status_starting)
             }
@@ -227,9 +233,8 @@ class BoxService(private val service: Service, private val platformInterface: Pl
             return
         }
 
-        val content = File(profile.typed.path).readText()
-        try {
-            PairedProfile.requirePaired(content)
+        val content = try {
+            HomeSettings.prepare(File(profile.typed.path).readText())
         } catch (e: IllegalArgumentException) {
             stopAndAlert(Alert.CreateService, e.message)
             return
@@ -238,7 +243,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
             stopAndAlert(Alert.EmptyConfiguration)
             return
         }
-        lastProfileName = profile.name
+        lastProfileName = titleOf(profile)
         try {
             commandServer.startOrReloadService(
                 content,
@@ -271,6 +276,16 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 return
             }
         }
+        withContext(Dispatchers.Main) {
+            NodeWatch.reset()
+            notification.retitle(lastProfileName)
+        }
+    }
+
+    /** The notification's title: the node's flag, as the dashboard shows it, and its name. */
+    private fun titleOf(profile: io.nekohasekai.sfa.database.Profile): String {
+        val flag = io.nekohasekai.sfa.compose.util.FlagIcons.codeFor(profile.icon, profile.name)?.let { io.nekohasekai.sfa.compose.screen.dashboard.flagEmoji(it) }
+        return if (flag == null || profile.name.startsWith(flag)) profile.name else "$flag ${profile.name}"
     }
 
     override fun getSystemProxyStatus(): SystemProxyStatus? {

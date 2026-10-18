@@ -1,0 +1,506 @@
+<!doctype html><html lang="en"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>KOne for Windows</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap">
+<style>
+/* Layout: a quiet stage; each KOne window is shown whole, scaled to the page width, the tray pieces below. */
+:root {
+  --stage: #E3E6EA;
+  --paper: #F0F2F5;
+  --panel: #F7F8FA;
+  --menu: #FBFCFD;
+  --ink: #1C2622;
+  --soft: #4A5550;
+  --hair: rgba(28, 38, 34, 0.12);
+  --press: rgba(28, 38, 34, 0.07);
+  --fog: 240, 242, 245;
+  --veil: 240, 242, 245;
+  --shadow: 0 18px 50px rgba(20, 28, 25, 0.16);
+  --ok: #2F7D66;
+  --slow: #E0A800;
+  --down: #B3362A;
+  --rest: #6B7470;
+  --on-seal: #FFFFFF;
+  --on-slow: #1C2622;
+  --ok-ink: #2F7D66;
+  --slow-ink: #9A6F00;
+  --down-ink: #B3362A;
+  --rest-ink: #5C6561;
+  --show-light: flex;
+  --show-dark: none;
+  --ui: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif;
+  --seal-face: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --mono: Consolas, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --stage: #0E1013; --paper: #181A1F; --panel: #1E2126; --menu: #23262C; --ink: #D8E2DE; --soft: #A9B4B0;
+    --hair: rgba(216, 226, 222, 0.13); --press: rgba(216, 226, 222, 0.08); --fog: 150, 162, 168; --veil: 24, 26, 31;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+    --ok-ink: #63C29E; --slow-ink: #E8B520; --down-ink: #F0806F; --rest-ink: #9AA3A0;
+    --show-light: none; --show-dark: flex; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --stage: #0E1013; --paper: #181A1F; --panel: #1E2126; --menu: #23262C; --ink: #D8E2DE; --soft: #A9B4B0;
+  --hair: rgba(216, 226, 222, 0.13); --press: rgba(216, 226, 222, 0.08); --fog: 150, 162, 168; --veil: 24, 26, 31;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  --ok-ink: #63C29E; --slow-ink: #E8B520; --down-ink: #F0806F; --rest-ink: #9AA3A0;
+  --show-light: none; --show-dark: flex; color-scheme: dark;
+}
+body { background: var(--stage); color: var(--ink); font-family: var(--ui); }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ok-ink); outline-offset: 2px; }
+svg { display: block; }
+.page { max-width: 1320px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); padding-block: 28px 72px; display: flex; flex-direction: column; gap: 48px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand .mark { width: 40px; height: 40px; color: var(--ink); }
+.brand h1 { margin: 0; font-size: 26px; line-height: 1.15; letter-spacing: 0.01em; text-wrap: balance; }
+.brand p { margin: 4px 0 0; color: var(--soft); font-size: 14px; }
+.ghost { height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid var(--hair); background: var(--panel); font-size: 14px; }
+.block { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.block h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.06em; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.block h2 span { font-weight: 400; color: var(--soft); letter-spacing: 0; font-size: 13px; }
+.pair { display: flex; flex-wrap: wrap; gap: 36px; align-items: flex-start; }
+.pair > .block { flex: 1 1 360px; }
+.pair > .block.narrow { flex: 0 1 360px; }
+
+/* A window drawn at its real size (1280 x 800) and scaled down to the column. */
+.frame { position: relative; width: 100%; max-width: 100%; aspect-ratio: 1280 / 800; }
+.win { position: absolute; top: 0; left: 0; width: 1280px; height: 800px; transform-origin: 0 0; transform: scale(var(--s, 0.5)); background: var(--paper); color: var(--ink); border: 1px solid var(--hair); box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; }
+.titlebar { height: 36px; flex: none; display: flex; align-items: center; gap: 10px; padding-left: 14px; border-bottom: 1px solid var(--hair); }
+.titlebar .mark { width: 18px; height: 18px; color: var(--ink); }
+.titlebar .name { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+.grow { flex-grow: 1; }
+.cap { width: 46px; height: 36px; border: 0; padding: 0; background: transparent; display: flex; align-items: center; justify-content: center; }
+.cap svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1; }
+.winbody { display: flex; height: 764px; }
+.rail { width: 84px; flex: none; box-sizing: border-box; padding: 14px 8px; border-right: 1px solid var(--hair); display: flex; flex-direction: column; gap: 6px; }
+.rail button { height: 64px; border: 0; border-radius: 10px; background: transparent; color: var(--soft); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 12px; }
+.rail button[aria-current="page"] { background: var(--press); color: var(--ink); }
+.rail svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.view { position: relative; flex: 1; overflow: hidden; }
+
+/* The handscroll: four paintings overlapping, each fading into the next, panning slowly. */
+.strip { position: absolute; top: 0; left: 0; height: 764px; animation: pan 150s ease-in-out infinite alternate; }
+.strip.light { display: var(--show-light); }
+.strip.dark { display: var(--show-dark); }
+.strip img { height: 764px; width: 573px; max-width: none; flex: none; -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%); mask-image: linear-gradient(to right, transparent 0%, #000 18%, #000 82%, transparent 100%); }
+.strip img + img { margin-left: -150px; }
+@keyframes pan { from { left: 0; } to { left: calc(100% - 1842px); } }
+.mist { position: absolute; left: 0; right: 0; bottom: 0; height: 300px; background: linear-gradient(to bottom, rgba(var(--veil), 0) 0%, rgba(var(--veil), 0.84) 55%, var(--paper) 100%); }
+
+/* The deck at the foot of the painting: categories, nodes in place, and the status line. */
+.deck { position: absolute; left: 40px; right: 40px; bottom: 26px; display: flex; flex-direction: column; gap: 14px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+.tabs button { height: 34px; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--soft); font-size: 14px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
+.nodes { display: flex; flex-wrap: wrap; gap: 4px 28px; }
+.nodes button { height: 44px; padding: 0; border: 0; background: transparent; color: var(--soft); display: flex; align-items: center; gap: 9px; font-size: 15px; }
+.nodes button[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
+.nodes .ms { font-size: 14px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.flag { width: 20px; height: 14px; flex: none; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1); }
+.flag.big { width: 26px; height: 18px; }
+.statusline { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; padding-top: 14px; border-top: 1px solid var(--hair); min-height: 52px; }
+.status { display: flex; flex-direction: column; gap: 5px; }
+.status .row { display: flex; align-items: center; gap: 10px; }
+.status .head { font-size: 18px; font-weight: 600; }
+.status .sub { font-size: 14px; color: var(--soft); flex-wrap: wrap; gap: 6px 16px; }
+.status .num { font-variant-numeric: tabular-nums; }
+.power { height: 48px; padding: 0 6px; border: 0; background: transparent; display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; }
+.power svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.more { position: absolute; top: 18px; right: 22px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.more > button { width: 44px; height: 44px; border: 0; border-radius: 22px; background: transparent; display: flex; align-items: center; justify-content: center; }
+.menu { min-width: 168px; padding: 6px; border-radius: 12px; background: var(--menu); box-shadow: 0 10px 30px rgba(20, 28, 25, 0.18); display: flex; flex-direction: column; }
+.menu button { height: 40px; border: 0; border-radius: 8px; background: transparent; text-align: left; padding: 0 14px; font-size: 14px; }
+.menu button:hover { background: var(--press); }
+
+/* Weather seal: a seal in a painter's pigment with its character, and the weather drawn beside it. */
+.wx { display: inline-flex; align-items: center; gap: 6px; }
+.wx .seal { width: 22px; height: 22px; border-radius: 4px; background: var(--wx-seal); color: var(--wx-on); display: inline-flex; align-items: center; justify-content: center; font-family: var(--seal-face); font-size: 14px; font-weight: 700; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.22); flex: none; }
+.wx svg, .glyph { width: 18px; height: 18px; fill: none; stroke: var(--wx-ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* The key page: the painting behind, the paper wiped clear on the left for the form. */
+.veil { position: absolute; top: 0; bottom: 0; left: 0; width: 620px; background: linear-gradient(to right, rgba(var(--veil), 0.96) 0%, rgba(var(--veil), 0.86) 62%, rgba(var(--veil), 0) 100%); }
+.key { position: absolute; left: 72px; top: 0; bottom: 0; width: 380px; display: flex; flex-direction: column; justify-content: center; gap: 40px; }
+.key h3 { margin: 0; font-size: 48px; line-height: 1.05; font-weight: 700; letter-spacing: 0.01em; }
+.key p { margin: 10px 0 0; font-size: 16px; color: var(--soft); }
+.key label { font-size: 13px; color: var(--soft); }
+.keyrow { display: flex; align-items: center; gap: 8px; border-bottom: 1.5px solid var(--ink); margin-top: 6px; }
+.keyrow input { flex: 1; min-width: 0; height: 46px; border: 0; padding: 0; background: transparent; font-family: var(--mono); font-size: 17px; letter-spacing: 0.04em; outline: none; }
+.icon-btn { width: 44px; height: 44px; flex: none; border: 0; border-radius: 22px; background: transparent; display: flex; align-items: center; justify-content: center; }
+.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.start { height: 50px; border: 0; border-radius: 25px; background: var(--ink); color: var(--paper); font-size: 16px; font-weight: 600; letter-spacing: 0.08em; }
+.start:disabled { background: var(--press); color: var(--soft); cursor: default; }
+
+/* The tray panel: the Golden Gate under weather that follows the connection. */
+.tray { width: 360px; max-width: 100%; height: 420px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: var(--panel); border: 1px solid var(--hair); box-shadow: var(--shadow); }
+.sky { position: relative; height: 176px; flex: none; overflow: hidden; background: var(--paper); }
+.sky img { position: absolute; left: 0; top: -150px; width: 360px; height: 480px; max-width: none; transition: opacity 0.9s, filter 0.9s; }
+.sky img.light { display: var(--show-light); }
+.sky img.dark { display: var(--show-dark); }
+.drift { position: absolute; top: 0; left: 0; width: 720px; height: 176px; opacity: var(--drift, 0.2); transition: opacity 0.9s; animation: drift var(--speed, 60s) linear infinite;
+  background-image:
+    radial-gradient(ellipse 22% 50% at 8% 62%, rgba(var(--fog), 0.95) 0%, rgba(var(--fog), 0) 72%),
+    radial-gradient(ellipse 20% 42% at 27% 42%, rgba(var(--fog), 0.85) 0%, rgba(var(--fog), 0) 72%),
+    radial-gradient(ellipse 24% 46% at 41% 70%, rgba(var(--fog), 0.95) 0%, rgba(var(--fog), 0) 72%),
+    radial-gradient(ellipse 22% 50% at 58% 62%, rgba(var(--fog), 0.95) 0%, rgba(var(--fog), 0) 72%),
+    radial-gradient(ellipse 20% 42% at 77% 42%, rgba(var(--fog), 0.85) 0%, rgba(var(--fog), 0) 72%),
+    radial-gradient(ellipse 24% 46% at 91% 70%, rgba(var(--fog), 0.95) 0%, rgba(var(--fog), 0) 72%); }
+@keyframes drift { from { transform: translateX(0); } to { transform: translateX(-360px); } }
+.blanket { position: absolute; inset: 0; background: rgba(var(--fog), var(--blanket, 0)); transition: background 0.9s; }
+.sky .bigseal { position: absolute; top: 14px; left: 14px; width: 40px; height: 40px; border-radius: 6px; background: var(--wx-seal); color: var(--wx-on); display: flex; align-items: center; justify-content: center; font-family: var(--seal-face); font-size: 23px; font-weight: 700; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.24); transition: background 0.6s; }
+.tray[data-wx="qing"] { --drift: 0.22; --blanket: 0; --speed: 60s; }
+.tray[data-wx="wu"] { --drift: 0.8; --blanket: 0.16; --speed: 34s; }
+.tray[data-wx="duan"] { --drift: 0.96; --blanket: 0.6; --speed: 22s; }
+.tray[data-wx="xie"] { --drift: 0; --blanket: 0; }
+.tray[data-wx="xie"] .sky img { filter: grayscale(1); opacity: 0.42; }
+.tray .info { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 16px 18px 12px; }
+.tray .line { display: flex; align-items: center; gap: 10px; }
+.tray .node { font-size: 17px; font-weight: 600; }
+.tray .lat { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tray .meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--soft); }
+.tray .meta .now { color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.tray .acts { display: flex; align-items: center; gap: 6px; }
+.pill { height: 44px; padding: 0 20px; border: 0; border-radius: 22px; background: var(--ink); color: var(--panel); display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.pill svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; }
+.textbtn { height: 44px; padding: 0 10px; border: 0; background: transparent; font-size: 14px; font-weight: 600; }
+.quiet { height: 44px; padding: 0 6px; border: 0; background: transparent; color: var(--soft); font-size: 13px; }
+.choose { display: flex; flex-wrap: wrap; gap: 8px; }
+.choose button { height: 40px; padding: 0 14px 0 8px; border-radius: 20px; border: 1px solid var(--hair); background: var(--panel); display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.choose button[aria-pressed="true"] { border-color: var(--ink); }
+
+/* Tray icons on a dark and a light taskbar. */
+.icons { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.bar { border-radius: 12px; padding: 20px 14px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.bar.dark-bar { background: #202020; color: #E8E8E8; --wx-ink-dark: 1; }
+.bar.light-bar { background: #E6E8EB; color: #1C2622; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.cell .sizes { display: flex; align-items: flex-end; gap: 10px; }
+.cell .label { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+.cell .label .seal { width: 18px; height: 18px; font-size: 12px; }
+.tip { align-self: flex-start; padding: 6px 10px; background: #F2F2F2; border: 1px solid #767676; color: #000000; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.tip .seal { width: 16px; height: 16px; font-size: 11px; border-radius: 3px; }
+.tip svg { width: 15px; height: 15px; }
+@media (prefers-reduced-motion: reduce) { .strip, .drift { animation: none; } }
+</style>
+
+<div class="page">
+  <header class="top">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 108 108" aria-hidden="true"><g transform="translate(0,-4)" fill="currentColor"><path fill-rule="evenodd" d="M12,90 L27,72 L33,66 L43,63 L49,51 L53,45 L55,38 L60,33 L64,25 L68,28 L70,29 L74,40 L76,43 L78,49 L82,50 L88,62 L95,73 L105,90 L74,87 L52,86 L34,88 Z M66,31 L69,49 L82,76 L86,85 L73,69 L65,43 Z M52,52 L55,59 L58,75 L66,83 L51,70 L47,64 Z"/><path d="M52,41 H55 V39 H56 V41 H58 V44 H56 V43 H55 V45 H52 Z"/></g></svg>
+      <div>
+        <h1>KOne for Windows</h1>
+        <p>Visual prototype · All nodes, metrics, and exit addresses are synthetic</p>
+      </div>
+    </div>
+    <button class="ghost" id="theme" type="button">Dark</button>
+  </header>
+
+  <section class="block" aria-labelledby="h-dash" id="s-dash">
+    <h2 id="h-dash">Dashboard <span>Select Connect to preview the connected state</span></h2>
+    <div class="frame">
+      <div class="win">
+        <div class="titlebar">
+          <svg class="mark" viewBox="0 0 108 108" aria-hidden="true"><g transform="translate(0,-4)" fill="currentColor"><path fill-rule="evenodd" d="M12,90 L27,72 L33,66 L43,63 L49,51 L53,45 L55,38 L60,33 L64,25 L68,28 L70,29 L74,40 L76,43 L78,49 L82,50 L88,62 L95,73 L105,90 L74,87 L52,86 L34,88 Z M66,31 L69,49 L82,76 L86,85 L73,69 L65,43 Z M52,52 L55,59 L58,75 L66,83 L51,70 L47,64 Z"/><path d="M52,41 H55 V39 H56 V41 H58 V44 H56 V43 H55 V45 H52 Z"/></g></svg>
+          <span class="name">KOne</span>
+          <span class="grow"></span>
+          <button class="cap" type="button" aria-label="Minimize"><svg viewBox="0 0 12 12"><path d="M1 6h10"/></svg></button>
+          <button class="cap" type="button" aria-label="Maximize"><svg viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9"/></svg></button>
+          <button class="cap" type="button" aria-label="Close window"><svg viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9"/></svg></button>
+        </div>
+        <div class="winbody">
+          <nav class="rail" aria-label="Main navigation">
+            <button type="button" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</button>
+            <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M14.5 3.5V8H19"/><path d="M9 12.5h7M9 16h7"/></svg>Logs</button>
+            <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M7 10l3 2.5L7 15M12.5 15.5h4.5"/></svg>Tools</button>
+            <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="6.8"/><path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.4 5.4l1.8 1.8M16.8 16.8l1.8 1.8M5.4 18.6l1.8-1.8M16.8 7.2l1.8-1.8"/></svg>Settings</button>
+          </nav>
+          <div class="view">
+            <div class="strip light" aria-hidden="true"><img src="art/liberty-light.png" alt=""><img src="art/goldengate-light.png" alt=""><img src="art/halfdome-light.png" alt=""><img src="art/rainier-light.png" alt=""></div>
+            <div class="strip dark" aria-hidden="true"><img src="art/liberty-dark.png" alt=""><img src="art/goldengate-dark.png" alt=""><img src="art/halfdome-dark.png" alt=""><img src="art/rainier-dark.png" alt=""></div>
+            <div class="mist" aria-hidden="true"></div>
+            <div class="more">
+              <button type="button" id="more" aria-label="More" aria-expanded="false"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="12" cy="5.5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18.5" r="1.7"/></svg></button>
+              <div class="menu" id="menu" role="menu" hidden>
+                <button type="button" role="menuitem">Import from clipboard</button>
+                <button type="button" role="menuitem">Import from file</button>
+                <button type="button" role="menuitem">Add manually</button>
+                <button type="button" role="menuitem">Add category</button>
+              </div>
+            </div>
+            <div class="deck">
+              <div class="tabs" role="tablist" aria-label="Categories" id="tabs"></div>
+              <div class="nodes" id="nodes"></div>
+              <div class="statusline">
+                <div class="status" id="status"></div>
+                <span class="grow"></span>
+                <button class="power" type="button" id="power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v8"/><path d="M6.4 7.2a7.6 7.6 0 1 0 11.2 0"/></svg><span id="power-label">Connect</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="h-key">
+    <h2 id="h-key">Activation <span>Managed activation preview</span></h2>
+    <div class="frame">
+      <div class="win">
+        <div class="titlebar">
+          <svg class="mark" viewBox="0 0 108 108" aria-hidden="true"><g transform="translate(0,-4)" fill="currentColor"><path fill-rule="evenodd" d="M12,90 L27,72 L33,66 L43,63 L49,51 L53,45 L55,38 L60,33 L64,25 L68,28 L70,29 L74,40 L76,43 L78,49 L82,50 L88,62 L95,73 L105,90 L74,87 L52,86 L34,88 Z M66,31 L69,49 L82,76 L86,85 L73,69 L65,43 Z M52,52 L55,59 L58,75 L66,83 L51,70 L47,64 Z"/><path d="M52,41 H55 V39 H56 V41 H58 V44 H56 V43 H55 V45 H52 Z"/></g></svg>
+          <span class="name">KOne</span>
+          <span class="grow"></span>
+          <button class="cap" type="button" aria-label="Minimize"><svg viewBox="0 0 12 12"><path d="M1 6h10"/></svg></button>
+          <button class="cap" type="button" aria-label="Maximize"><svg viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9"/></svg></button>
+          <button class="cap" type="button" aria-label="Close window"><svg viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9"/></svg></button>
+        </div>
+        <div class="winbody">
+          <div class="view">
+            <div class="strip light" aria-hidden="true"><img src="art/liberty-light.png" alt=""><img src="art/goldengate-light.png" alt=""><img src="art/halfdome-light.png" alt=""><img src="art/rainier-light.png" alt=""></div>
+            <div class="strip dark" aria-hidden="true"><img src="art/liberty-dark.png" alt=""><img src="art/goldengate-dark.png" alt=""><img src="art/halfdome-dark.png" alt=""><img src="art/rainier-dark.png" alt=""></div>
+            <div class="veil" aria-hidden="true"></div>
+            <div class="key">
+              <div>
+                <h3>KOne</h3>
+                <p>Enter an invitation code to begin</p>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 22px;">
+                <div>
+                  <label for="key-input">Invitation code</label>
+                  <div class="keyrow">
+                    <input id="key-input" autocomplete="off" spellcheck="false">
+                    <button class="icon-btn" type="button" id="paste" aria-label="Paste invitation code"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3.5" width="8" height="4" rx="1"/><path d="M8 5.5H6.5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-13a1 1 0 0 0-1-1H16"/></svg></button>
+                  </div>
+                </div>
+                <button class="start" type="button" id="start" disabled>Get started</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="pair">
+    <section class="block narrow" aria-labelledby="h-tray">
+      <h2 id="h-tray">Tray panel <span>Opened from the KOne notification-area icon</span></h2>
+      <div class="choose" id="choose" aria-label="Preview health states"></div>
+      <div class="tray" id="tray" data-wx="qing">
+        <div class="sky">
+          <img class="light" src="art/goldengate-light.png" alt="Golden Gate ink landscape">
+          <img class="dark" src="art/goldengate-dark.png" alt="Golden Gate ink landscape">
+          <div class="drift" aria-hidden="true"></div>
+          <div class="blanket" aria-hidden="true"></div>
+          <div class="bigseal" id="bigseal" role="img" aria-label="Node health">S</div>
+        </div>
+        <div class="info">
+          <div class="line">
+            <svg class="flag big" viewBox="0 0 20 14" aria-hidden="true"><rect width="20" height="14" fill="#FFFFFF"/><path d="M0 0h20v1.08H0zM0 2.15h20v1.08H0zM0 4.31h20v1.08H0zM0 6.46h20v1.08H0zM0 8.62h20v1.08H0zM0 10.77h20v1.08H0zM0 12.92h20v1.08H0z" fill="#B22234"/><rect width="8.6" height="7.54" fill="#3C3B6E"/></svg>
+            <span class="node">US</span>
+            <span class="grow"></span>
+            <span class="lat" id="tray-lat">245 ms</span>
+          </div>
+          <div class="meta" id="tray-meta"></div>
+          <span class="grow"></span>
+          <div class="acts">
+            <button class="pill" type="button" id="tray-power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v8"/><path d="M6.4 7.2a7.6 7.6 0 1 0 11.2 0"/></svg><span id="tray-power-label">Disconnect</span></button>
+            <button class="textbtn" type="button" id="open-kone">Open KOne</button>
+            <span class="grow"></span>
+            <button class="quiet" type="button">Quit</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="h-icons">
+      <h2 id="h-icons">Tray icons <span>Mountain mark and health badge on light and dark taskbars</span></h2>
+      <div class="icons">
+        <div class="bar dark-bar" id="bar-dark"></div>
+        <div class="bar light-bar" id="bar-light"></div>
+      </div>
+      <div class="tip" id="tip"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const MARK = '<g transform="translate(-6,-8)"><path fill-rule="evenodd" d="M12,90 L27,72 L33,66 L43,63 L49,51 L53,45 L55,38 L60,33 L64,25 L68,28 L70,29 L74,40 L76,43 L78,49 L82,50 L88,62 L95,73 L105,90 L74,87 L52,86 L34,88 Z M66,31 L69,49 L82,76 L86,85 L73,69 L65,43 Z M52,52 L55,59 L58,75 L66,83 L51,70 L47,64 Z"/><path d="M52,41 H55 V39 H56 V41 H58 V44 H56 V43 H55 V45 H52 Z"/></g>';
+  const GLYPH = {
+    qing: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>',
+    wu: '<path d="M3.5 8.5c2-1.3 4-1.3 6 0s4 1.3 6 0 3.5-1.1 5-.5"/><path d="M3 12.5c2-1.3 4-1.3 6 0s4 1.3 6 0 4-1.1 6-.4"/><path d="M5.5 16.5c1.7-1.1 3.4-1.1 5.1 0s3.4 1.1 5.1 0 2.6-.8 3.8-.3"/>',
+    duan: '<path d="M7.3 15.2h-.6a3.6 3.6 0 0 1-.3-7.2 5.2 5.2 0 0 1 10-1 3.8 3.8 0 0 1 1.3 7.4"/><path d="M12.8 11.2l-2.5 4.1h3.4l-2.3 4.2"/>',
+    xie: '<path d="M18.8 14.6A7.4 7.4 0 0 1 9.4 5.2a7.4 7.4 0 1 0 9.4 9.4z"/><path d="M17.8 3.6v2.6M16.5 4.9h2.6"/>',
+  };
+  const WX = {
+    qing: { char: 'S', word: 'Healthy', seal: 'var(--ok)', ink: 'var(--ok-ink)', on: 'var(--on-seal)' },
+    wu: { char: 'M', word: 'Slow', seal: 'var(--slow)', ink: 'var(--slow-ink)', on: 'var(--on-slow)' },
+    duan: { char: '!', word: 'No response', seal: 'var(--down)', ink: 'var(--down-ink)', on: 'var(--on-seal)' },
+    xie: { char: 'Z', word: 'Disconnected', seal: 'var(--rest)', ink: 'var(--rest-ink)', on: 'var(--on-seal)' },
+  };
+  const glyph = (key, cls) => '<svg class="' + (cls || 'glyph') + '" viewBox="0 0 24 24" aria-hidden="true" style="--wx-ink:' + WX[key].ink + '">' + GLYPH[key] + '</svg>';
+  const vars = (key) => '--wx-seal:' + WX[key].seal + ';--wx-ink:' + WX[key].ink + ';--wx-on:' + WX[key].on;
+  const tag = (key) => '<span class="wx" style="' + vars(key) + '"><span class="seal">' + WX[key].char + '</span><svg viewBox="0 0 24 24" aria-hidden="true">' + GLYPH[key] + '</svg></span>';
+
+  const FLAG = {
+    US: '<rect width="20" height="14" fill="#FFFFFF"/><path d="M0 0h20v1.08H0zM0 2.15h20v1.08H0zM0 4.31h20v1.08H0zM0 6.46h20v1.08H0zM0 8.62h20v1.08H0zM0 10.77h20v1.08H0zM0 12.92h20v1.08H0z" fill="#B22234"/><rect width="8.6" height="7.54" fill="#3C3B6E"/>',
+    JP: '<rect width="20" height="14" fill="#FFFFFF"/><circle cx="10" cy="7" r="4.2" fill="#BC002D"/>',
+    SG: '<rect width="20" height="7" fill="#EF3340"/><rect y="7" width="20" height="7" fill="#FFFFFF"/><circle cx="5.2" cy="3.5" r="2.5" fill="#FFFFFF"/><circle cx="6.2" cy="3.5" r="2.3" fill="#EF3340"/>',
+  };
+  const flag = (code, big) => '<svg class="flag' + (big ? ' big' : '') + '" viewBox="0 0 20 14" aria-hidden="true">' + FLAG[code] + '</svg>';
+
+  // Example nodes only, not anyone's real servers.
+  const NODES = [
+    { id: 'us1', name: 'US', code: 'US', cat: 'US', ms: 245 },
+    { id: 'us2', name: 'US 2', code: 'US', cat: 'US', ms: 312 },
+    { id: 'jp1', name: 'Japan', code: 'JP', cat: 'Japan', ms: 186 },
+    { id: 'sg1', name: 'Singapore', code: 'SG', cat: 'Singapore', ms: 1040 },
+  ];
+  const weatherOf = (ms) => (ms == null ? 'duan' : ms >= 1000 ? 'wu' : 'qing');
+  const two = (v) => String(v).padStart(2, '0');
+  const clock = (s) => two(Math.floor(s / 3600)) + ':' + two(Math.floor((s % 3600) / 60)) + ':' + two(s % 60);
+  const wobble = (v, spread) => Math.max(0.2, v + (Math.random() - 0.5) * spread);
+
+  // Windows drawn at 1280 x 800, scaled to their column.
+  const frames = Array.from(document.querySelectorAll('.frame'));
+  const fit = () => frames.forEach((f) => f.style.setProperty('--s', String(f.clientWidth / 1280)));
+  fit();
+  if ('ResizeObserver' in window) new ResizeObserver(fit).observe(document.body);
+  else window.addEventListener('resize', fit);
+
+  // Theme: follows the viewer until the button picks one.
+  const root = document.documentElement;
+  const themeBtn = document.getElementById('theme');
+  const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const label = () => { themeBtn.textContent = isDark() ? 'Light' : 'Dark'; };
+  themeBtn.addEventListener('click', () => { root.dataset.theme = isDark() ? 'light' : 'dark'; label(); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', label);
+  label();
+
+  // The dashboard.
+  const dash = { tab: 'US', selected: 'us1', state: 'idle', seconds: 0, down: 18.6, up: 1.2 };
+  const tabsEl = document.getElementById('tabs');
+  const nodesEl = document.getElementById('nodes');
+  const statusEl = document.getElementById('status');
+  const powerLabel = document.getElementById('power-label');
+
+  function drawDeck() {
+    tabsEl.innerHTML = ['US', 'Japan', 'Singapore'].map((t) =>
+      '<button type="button" role="tab" aria-selected="' + (t === dash.tab) + '" data-tab="' + t + '">' + t + '</button>').join('');
+    nodesEl.innerHTML = NODES.filter((n) => n.cat === dash.tab).map((n) => {
+      const w = weatherOf(n.ms);
+      const on = n.id === dash.selected;
+      return '<button type="button" aria-pressed="' + on + '" data-node="' + n.id + '">' + flag(n.code) + '<span>' + n.name + '</span>' +
+        glyph(w) + '<span class="ms">' + n.ms + ' ms</span>' +
+        (on ? '<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true" style="--wx-ink: currentColor; stroke-width: 2.2"><path d="M5 12.5l4.2 4.2L19 7"/></svg>' : '') + '</button>';
+    }).join('');
+    drawStatus();
+  }
+
+  function drawStatus() {
+    const n = NODES.find((x) => x.id === dash.selected);
+    const w = weatherOf(n.ms);
+    if (dash.state === 'online') {
+      statusEl.innerHTML =
+        '<div class="row head">' + flag(n.code, true) + '<span>Exit 203.0.113.24</span><span style="font-weight: 400; color: var(--soft)">' + n.cat + '</span></div>' +
+        '<div class="row sub">' + tag(w) + '<span class="num" style="color: var(--ink)">' + n.ms + ' ms</span>' +
+        '<span style="display: inline-flex; align-items: center; gap: 5px"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true" style="--wx-ink: currentColor; width: 16px; height: 16px"><path d="M4 11.5L12 4l8 7.5"/><path d="M6.5 10v9.5h11V10"/></svg>Home</span>' +
+        '<span class="num">↓ ' + dash.down.toFixed(1) + ' KB/s　↑ ' + dash.up.toFixed(1) + ' KB/s</span><span class="num">' + clock(dash.seconds) + '</span></div>';
+    } else {
+      statusEl.innerHTML = '<div class="row head">' + flag(n.code, true) + tag(w) + '<span class="num">' + n.ms + ' ms</span></div>';
+    }
+    powerLabel.textContent = dash.state === 'online' ? 'Disconnect' : dash.state === 'connecting' ? 'Connecting' : 'Connect';
+  }
+
+  tabsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tab]');
+    if (b) { dash.tab = b.dataset.tab; drawDeck(); }
+  });
+  nodesEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-node]');
+    if (b) { dash.selected = b.dataset.node; drawDeck(); }
+  });
+  document.getElementById('power').addEventListener('click', () => {
+    if (dash.state === 'online') { dash.state = 'idle'; dash.seconds = 0; drawStatus(); }
+    else if (dash.state === 'idle') {
+      dash.state = 'connecting'; drawStatus();
+      setTimeout(() => { dash.state = 'online'; dash.seconds = 0; drawStatus(); }, 1200);
+    }
+  });
+  const moreBtn = document.getElementById('more');
+  const menu = document.getElementById('menu');
+  moreBtn.addEventListener('click', () => { menu.hidden = !menu.hidden; moreBtn.setAttribute('aria-expanded', String(!menu.hidden)); });
+  menu.addEventListener('click', () => { menu.hidden = true; moreBtn.setAttribute('aria-expanded', 'false'); });
+
+  // The key page.
+  const keyInput = document.getElementById('key-input');
+  const start = document.getElementById('start');
+  const check = () => { start.disabled = keyInput.value.trim().length < 8; };
+  keyInput.addEventListener('input', check);
+  document.getElementById('paste').addEventListener('click', () => { keyInput.value = 'kone-7q4m-x2p9-hd3k'; check(); });
+  start.addEventListener('click', () => document.getElementById('s-dash').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+
+  // The tray panel and icons.
+  const tray = { weather: 'qing', online: true, connecting: false, seconds: 754, down: 18.6, up: 1.2 };
+  const trayEl = document.getElementById('tray');
+  const chooseEl = document.getElementById('choose');
+  const bigSeal = document.getElementById('bigseal');
+  const trayLat = document.getElementById('tray-lat');
+  const trayMeta = document.getElementById('tray-meta');
+  const trayPower = document.getElementById('tray-power-label');
+  const LAT = { qing: '245 ms', wu: '1180 ms', duan: '—' };
+
+  function drawTray() {
+    const key = tray.online ? tray.weather : 'xie';
+    trayEl.dataset.wx = key;
+    bigSeal.textContent = WX[key].char;
+    bigSeal.setAttribute('style', vars(key));
+    bigSeal.setAttribute('aria-label', 'Node health: ' + WX[key].word);
+    trayLat.textContent = tray.online ? LAT[tray.weather] : '';
+    trayMeta.innerHTML = '<span class="now">' + glyph(key) + WX[key].char + ' · ' + (tray.connecting ? 'Connecting' : WX[key].word) + '</span>' +
+      (tray.online ? '<span class="num">↓ ' + tray.down.toFixed(1) + ' KB/s　↑ ' + tray.up.toFixed(1) + ' KB/s</span><span class="num">' + clock(tray.seconds) + '</span><span>Home</span>' : '');
+    trayPower.textContent = tray.online ? 'Disconnect' : tray.connecting ? 'Connecting' : 'Connect';
+    chooseEl.innerHTML = ['qing', 'wu', 'duan'].map((k) =>
+      '<button type="button" aria-pressed="' + (tray.online && tray.weather === k) + '" data-wx="' + k + '">' + tag(k) + WX[k].word + '</button>').join('');
+  }
+  chooseEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-wx]');
+    if (b) { tray.weather = b.dataset.wx; tray.online = true; tray.connecting = false; drawTray(); }
+  });
+  document.getElementById('tray-power').addEventListener('click', () => {
+    if (tray.online) { tray.online = false; tray.seconds = 0; drawTray(); }
+    else if (!tray.connecting) {
+      tray.connecting = true; drawTray();
+      setTimeout(() => { tray.connecting = false; tray.online = true; tray.seconds = 0; drawTray(); }, 1200);
+    }
+  });
+  document.getElementById('open-kone').addEventListener('click', () => document.getElementById('s-dash').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+
+  const STATES = ['qing', 'wu', 'duan', 'xie'];
+  const LABEL = { qing: 'Healthy', wu: 'Slow', duan: 'Unreachable', xie: 'Disconnected' };
+  const trayIcon = (key, size, bg, mark) => {
+    const badge = key === 'xie' ? '' : '<rect x="62" y="62" width="44" height="44" rx="8" fill="' + ({ qing: '#2F7D66', wu: '#E0A800', duan: '#B3362A' })[key] + '" stroke="' + bg + '" stroke-width="9"/>';
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 108 108" aria-hidden="true"><g fill="' + mark + '" opacity="' + (key === 'xie' ? 0.5 : 1) + '">' + MARK + '</g>' + badge + '</svg>';
+  };
+  const bar = (el, bg, mark, ink) => {
+    el.innerHTML = STATES.map((k) =>
+      '<div class="cell"><div class="sizes">' + trayIcon(k, 40, bg, mark) + trayIcon(k, 16, bg, mark) + '</div>' +
+      '<div class="label"><span class="wx" style="' + vars(k) + ';--wx-ink:' + ink[k] + '"><span class="seal">' + WX[k].char + '</span><svg viewBox="0 0 24 24" aria-hidden="true">' + GLYPH[k] + '</svg></span>' + LABEL[k] + '</div></div>').join('');
+  };
+  bar(document.getElementById('bar-dark'), '#202020', '#FFFFFF', { qing: '#63C29E', wu: '#E8B520', duan: '#F0806F', xie: '#B5BCB9' });
+  bar(document.getElementById('bar-light'), '#E6E8EB', '#1C1C1C', { qing: '#2F7D66', wu: '#8A6400', duan: '#B3362A', xie: '#5C6561' });
+  document.getElementById('tip').innerHTML = '<span>KOne · US</span><span class="wx" style="' + vars('qing') + ';--wx-ink:#2F7D66"><span class="seal">S</span><svg viewBox="0 0 24 24" aria-hidden="true">' + GLYPH.qing + '</svg></span><span>245 ms</span>';
+
+  drawDeck();
+  drawTray();
+  setInterval(() => {
+    if (dash.state === 'online') { dash.seconds += 1; dash.down = wobble(dash.down, 7); dash.up = wobble(dash.up, 0.9); drawStatus(); }
+    if (tray.online) { tray.seconds += 1; tray.down = wobble(tray.down, 7); tray.up = wobble(tray.up, 0.9); drawTray(); }
+  }, 1000);
+})();
+</script>
+
+</body></html>

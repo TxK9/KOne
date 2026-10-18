@@ -4,13 +4,11 @@ import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -66,6 +64,29 @@ private val LightColorScheme =
         secondary = SingBoxPrimaryDark,
         tertiary = LogBlue,
     )
+
+internal data class EdgeVeils(val top: Float, val bottom: Float, val surface: Int)
+
+/** Veil strength from the decoded photo under the top bar and the navigation, for 4.5:1 ink. */
+@Composable
+private fun rememberEdgeVeils(backdrop: BackdropContext?): EdgeVeils? {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    return remember(backdrop?.pixels, backdrop?.previousPixels, backdrop?.bounds, backdrop?.theme, backdrop?.focus) {
+        val context = backdrop ?: return@remember null
+        if (context.pixels == null || context.bounds.width <= 0f || context.bounds.height <= 0f) return@remember null
+        val b = context.bounds
+        val topPx = with(density) { 88.dp.toPx() }
+        val bottomPx = with(density) { 80.dp.toPx() }
+        fun support(area: Rect): Float = KninePalette.readingSupport(
+            context.theme.ink, backdropColors(context, area), context.theme.readingSurface, 4.5f,
+        ).alpha.coerceIn(0f, 0.7f)
+        EdgeVeils(
+            top = support(Rect(b.left, b.top, b.right, b.top + topPx)),
+            bottom = support(Rect(b.left, b.bottom - bottomPx, b.right, b.bottom)),
+            surface = context.theme.readingSurface,
+        )
+    }
+}
 
 @Composable
 fun Theme(
@@ -166,6 +187,7 @@ fun Theme(
             currentBackdrop?.pixels, backdropBounds, leavingBackdrop?.pixels,
             currentBackdrop?.focus ?: WallpaperCatalog.focusFor(backdropRes), leavingBackdrop?.focus ?: BackdropFocus(), settledTheme,
             displayedTheme, reportReadingTop, activePainter,
+            panelAtTop = WallpaperCatalog.panelAtTopFor(currentBackdrop?.resource ?: backdropRes),
         )
     } else null
     val lightInk = settledTheme.lightInk
@@ -221,47 +243,15 @@ fun Theme(
                         val bitmap = frame.bitmap
                         val painter = if (frame == currentBackdrop || currentBackdrop == null) activePainter!!
                         else if (bitmap != null) remember(bitmap) { BitmapPainter(bitmap) } else painterResource(frame.resource)
+                        // Bright and dark photos alike are drawn whole and sharp.
                         Box(imageModifier) {
-                            if (photoTheme.brightComposition && readingTop != null) {
-                                // A real photo region, not a full-screen portrait
-                                // concealed under a white reading mask.
-                                Canvas(Modifier.matchParentSize().blur(14.dp)) {
-                                    val sourceWidth = frame.pixels?.sourceWidth ?: painter.intrinsicSize.width.toInt()
-                                    val sourceHeight = frame.pixels?.sourceHeight ?: painter.intrinsicSize.height.toInt()
-                                    val continuation = BackdropFraming.transform(sourceWidth, sourceHeight, size.width, size.height, frame.focus)
-                                    translate(continuation.x, continuation.y) { with(painter) { draw(Size(continuation.width, continuation.height)) } }
-                                }
-                                Box(Modifier.matchParentSize().background(Color(photoTheme.readingSurface).copy(alpha = 0.12f)))
-                                Canvas(Modifier.matchParentSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
-                                    val sourceWidth = frame.pixels?.sourceWidth ?: painter.intrinsicSize.width.toInt()
-                                    val sourceHeight = frame.pixels?.sourceHeight ?: painter.intrinsicSize.height.toInt()
-                                    val height = BrightSceneGeometry.photoHeight(size.height, readingTop)
-                                    val transform = BrightSceneGeometry.photoTransform(sourceWidth, sourceHeight, size.width, size.height, readingTop, frame.focus)
-                                    clipRect(bottom = height) {
-                                        translate(transform.x, transform.y) {
-                                            with(painter) { draw(Size(transform.width, transform.height)) }
-                                        }
-                                        // The seam uses the lower edge of the
-                                        // photograph; faces and hands stay above
-                                        // the first readable control row.
-                                        val fade = kotlin.math.min(32.dp.toPx(), height * 0.10f)
-                                        drawRect(Brush.verticalGradient(
-                                            0f to Color.White,
-                                            1f to Color.Transparent,
-                                            startY = height - fade,
-                                            endY = height,
-                                        ), blendMode = BlendMode.DstIn)
-                                    }
-                                }
-                            } else {
-                                Canvas(Modifier.matchParentSize()) {
-                                    val sourceWidth = frame.pixels?.sourceWidth ?: painter.intrinsicSize.width.toInt()
-                                    val sourceHeight = frame.pixels?.sourceHeight ?: painter.intrinsicSize.height.toInt()
-                                    val transform = BackdropFraming.transform(sourceWidth, sourceHeight, size.width, size.height, frame.focus)
-                                    clipRect {
-                                        translate(transform.x, transform.y) {
-                                            with(painter) { draw(Size(transform.width, transform.height)) }
-                                        }
+                            Canvas(Modifier.matchParentSize()) {
+                                val sourceWidth = frame.pixels?.sourceWidth ?: painter.intrinsicSize.width.toInt()
+                                val sourceHeight = frame.pixels?.sourceHeight ?: painter.intrinsicSize.height.toInt()
+                                val transform = BackdropFraming.transform(sourceWidth, sourceHeight, size.width, size.height, frame.focus)
+                                clipRect {
+                                    translate(transform.x, transform.y) {
+                                        with(painter) { draw(Size(transform.width, transform.height)) }
                                     }
                                 }
                             }
@@ -273,23 +263,42 @@ fun Theme(
                         leavingBackdrop?.let { drawBackdrop(it, 1f, leavingTheme, leavingReadingTop) }
                         currentBackdrop?.let { drawBackdrop(it, if (leavingBackdrop == null) 1f else transition.value, displayedTheme, if (displayedTheme.brightComposition) photoBoundary else null) }
                     }
-                    // Support only the high-light composition. Dark photos
-                    // retain the original fully transparent main-page layout.
+                    if (customBackdropPath == null && (backdropRes == R.drawable.knine_plain_light || backdropRes == R.drawable.knine_plain_dark)) {
+                        PlainBackdropMark(dark = backdropRes == R.drawable.knine_plain_dark, modifier = Modifier.matchParentSize())
+                    }
+                    // The photograph stays whole and sharp. Only the strips behind the
+                    // top bar and the navigation get a veil, as strong as this photo needs.
+                    val veils = rememberEdgeVeils(backdrop)
                     Canvas(Modifier.matchParentSize().graphicsLayer { alpha = foregroundTransition.value }) {
-                        if (settledTheme.brightComposition && size.height > 0f) {
-                            val color = Color(settledTheme.readingSurface)
-                            drawRect(Brush.verticalGradient(
-                                0f to color.copy(alpha = 0.74f),
-                                (88.dp.toPx() / size.height).coerceIn(0f, 1f) to color.copy(alpha = 0.68f),
-                                (120.dp.toPx() / size.height).coerceIn(0f, 1f) to Color.Transparent,
-                                1f to Color.Transparent,
-                            ))
-                            drawRect(Brush.verticalGradient(
-                                0f to Color.Transparent,
-                                0.76f to Color.Transparent,
-                                0.88f to color.copy(alpha = 0.70f),
-                                1f to color.copy(alpha = 0.74f),
-                            ))
+                        if (veils != null && size.height > 0f) {
+                            val color = Color(veils.surface)
+                            val top = 132.dp.toPx()
+                            if (veils.top > 0f) {
+                                drawRect(
+                                    Brush.verticalGradient(
+                                        0f to color.copy(alpha = veils.top),
+                                        0.64f to color.copy(alpha = veils.top * 0.72f),
+                                        1f to Color.Transparent,
+                                        startY = 0f,
+                                        endY = top,
+                                    ),
+                                    size = Size(size.width, top),
+                                )
+                            }
+                            val bottom = 168.dp.toPx()
+                            if (veils.bottom > 0f) {
+                                drawRect(
+                                    Brush.verticalGradient(
+                                        0f to Color.Transparent,
+                                        0.52f to color.copy(alpha = veils.bottom * 0.8f),
+                                        1f to color.copy(alpha = veils.bottom),
+                                        startY = size.height - bottom,
+                                        endY = size.height,
+                                    ),
+                                    topLeft = Offset(0f, size.height - bottom),
+                                    size = Size(size.width, bottom),
+                                )
+                            }
                         }
                     }
                     Box(Modifier.matchParentSize().graphicsLayer {

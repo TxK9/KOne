@@ -18,6 +18,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -73,6 +74,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -120,6 +122,8 @@ import io.nekohasekai.sfa.compose.component.RemoteStatusBar
 import io.nekohasekai.sfa.compose.component.KnineConnectionBar as ServiceStatusBar
 import io.nekohasekai.sfa.compose.component.KnineStartAction
 import io.nekohasekai.sfa.selfuse.PairedProfile
+import io.nekohasekai.sfa.selfuse.ShareLinks
+import io.nekohasekai.sfa.selfuse.HomeSettings
 import io.nekohasekai.sfa.compose.component.SnackbarHost
 import io.nekohasekai.sfa.compose.component.UpdateAvailableDialog
 import io.nekohasekai.sfa.compose.component.UptimeText
@@ -145,6 +149,9 @@ import io.nekohasekai.sfa.compose.screen.tools.TailscaleStatusViewModel
 import io.nekohasekai.sfa.compose.screen.usbip.USBIPStatusViewModel
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import io.nekohasekai.sfa.compose.theme.WallpaperContentFrame
+import io.nekohasekai.sfa.compose.screen.dashboard.HomeState
+import io.nekohasekai.sfa.compose.screen.dashboard.KnineHost
+import io.nekohasekai.sfa.compose.screen.dashboard.LocalKnineHost
 import io.nekohasekai.sfa.compose.theme.Theme
 import io.nekohasekai.sfa.compose.theme.WallpaperCatalog
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
@@ -231,6 +238,8 @@ class MainActivity :
     private val pendingNavigationRoute = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Light or dark as chosen in Settings → App → Appearance, before anything is drawn.
+        io.nekohasekai.sfa.compose.theme.KnineAppearance.applyTheme()
         super.onCreate(savedInstanceState)
         ConfigurationCompat.getLocales(resources.configuration)[0]?.let { locale ->
             runCatching {
@@ -246,7 +255,7 @@ class MainActivity :
             lifecycleScope.launch {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
                     while (true) {
-                        if (BuildConfig.KNINE_PERSONAL_UI) WallpaperCatalog.rotateIfDue()
+                        WallpaperCatalog.rotateIfDue()
                         delay(60_000)
                     }
                 }
@@ -254,19 +263,22 @@ class MainActivity :
             connection.reconnect()
             RemoteControlManager.restore()
 
-            UpdateState.loadFromCache()
-            if (Settings.checkUpdateEnabled) {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    try {
-                        val updateInfo = Vendor.checkUpdateAsync()
-                        UpdateState.setUpdate(updateInfo)
-                    } catch (_: Exception) {
-                        UpdateState.setUpdate(null)
-                    }
-                }
+            // KOne is updated by hand: nothing is fetched from upstream and nothing waits in the background.
+            if (Settings.cachedUpdateInfo.isNotBlank() || Settings.cachedApkPath.isNotBlank()) UpdateState.clear()
+            if (Settings.autoUpdateEnabled) {
+                Settings.autoUpdateEnabled = false
+                Vendor.scheduleAutoUpdate()
             }
 
             handleIntent(intent)
+            lifecycleScope.launch { runCatching { HomeSettings.refreshSaved() } }
+            // A phone bound to a KOne console checks for a new configuration when the App opens.
+            io.nekohasekai.sfa.managed.ManagedState.record("app_started")
+            // The edition that needs a key checks with its console every time it opens, so a revoked
+            // key closes it at once; otherwise every half hour is plenty.
+            lifecycleScope.launch {
+                runCatching { io.nekohasekai.sfa.managed.ManagedSync.syncIfStale(this@MainActivity, if (BuildConfig.KONE_ACTIVATION) 0L else 30 * 60_000L) }
+            }
             lifecycleScope.launch {
                 try {
                     withContext(Dispatchers.IO) { PrivateBootstrap.consume(this@MainActivity) }
@@ -276,17 +288,21 @@ class MainActivity :
             }
 
             setContent {
+                // The wallpaper is the user's choice: built-in photos, their own photo, or a plain gradient.
+                val darkSystem = isSystemInDarkTheme()
                 Theme(
-                    portraitBackdrop = BuildConfig.KNINE_PERSONAL_UI,
-                    plainKnine = !BuildConfig.KNINE_PERSONAL_UI,
-                    dynamicColor = BuildConfig.KNINE_PERSONAL_UI,
-                    backdropRes = if (BuildConfig.KNINE_PERSONAL_UI) WallpaperCatalog.selectedChoice.resource else 0,
-                    backdropRevision = if (BuildConfig.KNINE_PERSONAL_UI) WallpaperCatalog.revision else 0,
+                    portraitBackdrop = true,
+                    dynamicColor = true,
+                    backdropRes = WallpaperCatalog.backdropResource(darkSystem),
+                    customBackdropPath = WallpaperCatalog.customPath(),
+                    backdropRevision = WallpaperCatalog.revision,
                 ) {
-                    if (BuildConfig.KNINE_PERSONAL_UI) App()
-                    else androidx.compose.foundation.layout.Box(
-                        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-                    ) { App() }
+                    // The edition for others is closed until a key from the KOne console opens it.
+                    if (BuildConfig.KONE_ACTIVATION && !io.nekohasekai.sfa.managed.ManagedState.snapshot.bound) {
+                        io.nekohasekai.sfa.compose.screen.activation.ActivationScreen()
+                    } else {
+                        App()
+                    }
                 }
             }
         }
@@ -454,6 +470,10 @@ class MainActivity :
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
         val currentRoute = currentDestination?.route
+        // The ink mountains keep their seal and birds for the dashboard alone.
+        SideEffect { io.nekohasekai.sfa.compose.theme.InkStage.onDashboard.value = currentRoute == null || currentRoute == Screen.Dashboard.route }
+        // The painting's weather belongs to a connection; without one it clears.
+        SideEffect { if (currentServiceStatus != Status.Started) io.nekohasekai.sfa.compose.theme.InkStage.weather.value = null }
         val scope = rememberCoroutineScope()
         val importHandler = remember { ProfileImportHandler(this@MainActivity) }
 
@@ -577,12 +597,18 @@ class MainActivity :
             ServiceAlertDialog(
                 alertType = alertType,
                 message = message,
-                onDismiss = { currentAlert = null },
+                onDismiss = {
+                    currentAlert = null
+                    // A failed reload is reported by both the service and its RPC caller.
+                    // Dismiss the companion report together, rather than stacking dialogs.
+                    showErrorDialog = false
+                    errorMessage = ""
+                },
             )
         }
 
         // Handle UiEvent.ShowError dialog
-        if (showErrorDialog) {
+        if (showErrorDialog && currentAlert == null) {
             SelectableMessageDialog(
                 title = stringResource(R.string.error_title),
                 message = errorMessage,
@@ -694,143 +720,6 @@ class MainActivity :
                         pendingImportLocalProfileUri = null
                     }) {
                         Text(stringResource(R.string.cancel))
-                    }
-                },
-            )
-        }
-
-        // Handle update check prompt dialog (shown only once on first launch)
-        var showUpdateCheckPrompt by remember { mutableStateOf(!Settings.updateCheckPrompted) }
-        if (showUpdateCheckPrompt) {
-            AlertDialog(
-                onDismissRequest = {
-                    Settings.updateCheckPrompted = true
-                    showUpdateCheckPrompt = false
-                },
-                title = { Text(stringResource(R.string.check_update)) },
-                text = {
-                    MarkdownText(
-                        markdown = stringResource(
-                            if (BuildConfig.FLAVOR == "play") {
-                                R.string.check_update_prompt_play
-                            } else {
-                                R.string.check_update_prompt_github
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        Settings.updateCheckPrompted = true
-                        Settings.checkUpdateEnabled = true
-                        showUpdateCheckPrompt = false
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                val result = Vendor.checkUpdateAsync()
-                                UpdateState.setUpdate(result)
-                            } catch (_: Exception) {
-                                UpdateState.setUpdate(null)
-                            }
-                        }
-                    }) {
-                        Text(stringResource(R.string.ok))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        Settings.updateCheckPrompted = true
-                        showUpdateCheckPrompt = false
-                    }) {
-                        Text(stringResource(R.string.no_thanks))
-                    }
-                },
-            )
-        }
-
-        // Handle update available dialog
-        val updateInfo by UpdateState.updateInfo
-        val shouldShowUpdateDialog = updateInfo != null &&
-            updateInfo!!.versionCode > Settings.lastShownUpdateVersion
-        var showUpdateDialog by remember { mutableStateOf(true) }
-
-        // Download dialog state
-        var showDownloadDialog by remember { mutableStateOf(false) }
-        var downloadJob by remember { mutableStateOf<Job?>(null) }
-        var downloadError by remember { mutableStateOf<String?>(null) }
-
-        if (showUpdateDialog && shouldShowUpdateDialog) {
-            UpdateAvailableDialog(
-                updateInfo = updateInfo!!,
-                onDismiss = {
-                    Settings.lastShownUpdateVersion = updateInfo!!.versionCode
-                    showUpdateDialog = false
-                },
-                onUpdate = {
-                    showDownloadDialog = true
-                    downloadError = null
-                    downloadJob = scope.launch {
-                        try {
-                            withContext(Dispatchers.IO) {
-                                Vendor.downloadAndInstall(
-                                    this@MainActivity,
-                                    updateInfo!!.downloadUrl,
-                                )
-                            }
-                            showDownloadDialog = false
-                        } catch (e: Exception) {
-                            downloadError = e.message
-                        }
-                    }
-                },
-            )
-        }
-
-        // Download progress dialog
-        if (showDownloadDialog) {
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text(stringResource(R.string.update)) },
-                text = {
-                    Column {
-                        if (downloadError != null) {
-                            Text(
-                                downloadError!!,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        } else {
-                            val progress by UpdateState.downloadProgress
-                            val progressValue = progress
-                            Column {
-                                if (progressValue != null) {
-                                    Text("${stringResource(R.string.downloading)} ${(progressValue * 100).toInt()}%")
-                                } else {
-                                    Text(stringResource(R.string.downloading))
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                if (progressValue != null) {
-                                    LinearProgressIndicator(
-                                        progress = { progressValue },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                } else {
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                                }
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            downloadJob?.cancel()
-                            downloadJob = null
-                            showDownloadDialog = false
-                            downloadError = null
-                            UpdateState.downloadProgress.value = null
-                        },
-                    ) {
-                        Text(stringResource(if (downloadError != null) R.string.ok else android.R.string.cancel))
                     }
                 },
             )
@@ -988,7 +877,10 @@ class MainActivity :
                 cancelStatus()
             }
         }
-        val showGroupsInNav = dashboardUiState.hasGroups
+        // Policy groups is offered only when some group actually has a choice;
+        // a single group holding a single node has nothing to pick.
+        val groupsWorthShowing = dashboardUiState.choosableGroupsCount > 0
+        val showGroupsInNav = groupsWorthShowing
         val connectionsAvailable = if (isRemote) remoteConnected else currentServiceStatus == Status.Started
 
         val railScreens =
@@ -1098,21 +990,60 @@ class MainActivity :
                     val showStatusBar = isRemote || serviceRunning || currentServiceStatus == Status.Stopping
                     val showStartFab = !isRemote && !serviceRunning && dashboardUiState.selectedProfileId != -1L
                     val bottomOverlayPadding = paddingValues.calculateBottomPadding()
+                    // The personal dashboard panel carries the start button and connection status itself.
+                    val knineDashboard = currentRoute == Screen.Dashboard.route && !isRemote
+                    val homeBackendState = (tailscaleState.endpoints.firstOrNull { it.endpointTag == PairedProfile.HOME_TAG } ?: tailscaleState.endpoints.firstOrNull())?.backendState
+                    val homeOn = HomeSettings.isEnabled
+                    // Every node switch reloads the core and the home tunnel with it: for a few seconds there is
+                    // no endpoint yet, or one still logging in. Call that connecting, and name a problem
+                    // (Login required, Not configured…) only once the same state has lasted.
+                    var homeSettled by remember(homeBackendState, currentServiceStatus) { mutableStateOf(false) }
+                    LaunchedEffect(homeBackendState, currentServiceStatus) {
+                        delay(15_000)
+                        homeSettled = true
+                    }
+                    val homeShownState = if (homeBackendState == "Running" || homeSettled) homeBackendState else "Starting"
+                    val homeState = when {
+                        !homeOn || currentServiceStatus != Status.Started -> HomeState.None
+                        homeShownState == "Running" -> HomeState.Online
+                        homeShownState in setOf("NeedsLogin", "NeedsMachineAuth", "Stopped") -> HomeState.NeedsAction
+                        homeShownState == null && tailscaleState.hasUpdate -> HomeState.NeedsAction
+                        else -> HomeState.Settling
+                    }
+                    val homeStatusText = if (homeOn && currentServiceStatus == Status.Started) {
+                        stringResource(when (homeShownState) {
+                            "Running" -> R.string.knine_home_online
+                            "NeedsLogin" -> R.string.knine_home_login
+                            "NeedsMachineAuth" -> R.string.knine_home_auth
+                            "Stopped" -> R.string.knine_home_stopped
+                            "Starting" -> R.string.knine_home_connecting
+                            null -> if (tailscaleState.hasUpdate) R.string.knine_home_unconfigured else R.string.knine_home_pending
+                            else -> R.string.knine_home_pending
+                        })
+                    } else ""
 
                     WallpaperContentFrame(
-                        preservePortrait = currentRoute == Screen.Dashboard.route,
+                        preservePortrait = currentRoute == Screen.Dashboard.route && !knineDashboard,
                         serviceRunning = showStatusBar,
-                        groupedContent = currentRoute == Screen.Tools.route || currentRoute == Screen.Settings.route,
+                        groupedContent = currentRoute == Screen.Tools.route || currentRoute == Screen.Settings.route || knineDashboard,
                         enabled = !useNavigationRail,
                         modifier = Modifier.fillMaxSize().padding(
                             bottom = when {
-                                useNavigationRail || isSubScreen -> 0.dp
+                                useNavigationRail || isSubScreen || knineDashboard -> 0.dp
                                 showStatusBar -> if (isRemote) remoteBarHeight else connectionBarHeight
                                 showStartFab -> 72.dp
                                 else -> 0.dp
                             },
                         ),
                     ) {
+                        CompositionLocalProvider(
+                            LocalKnineHost provides KnineHost(
+                                homeStatus = homeStatusText,
+                                homeState = homeState,
+                                openGroups = { showGroupsSheet = true },
+                                openConnections = { showConnectionsSheet = true },
+                            ),
+                        ) {
                         NavHost(
                             navController = navController,
                             serviceStatus = currentServiceStatus,
@@ -1132,6 +1063,7 @@ class MainActivity :
                             openVPNStatusViewModel = openVPNStatusViewModel,
                             modifier = Modifier.fillMaxSize(),
                         )
+                        }
                     }
                     if (!useNavigationRail) {
                         if (isRemote) {
@@ -1151,23 +1083,13 @@ class MainActivity :
                             )
                         } else {
                             ServiceStatusBar(
-                                visible = showStatusBar && !isSubScreen,
+                                visible = showStatusBar && !isSubScreen && !knineDashboard,
                                 serviceStatus = currentServiceStatus,
                                 onHeightChanged = { pixels -> connectionBarHeight = with(density) { pixels.toDp() } },
-                                homeStatus = if (currentServiceStatus == Status.Started) {
-                                    stringResource(when ((tailscaleState.endpoints.firstOrNull { it.endpointTag == PairedProfile.HOME_TAG } ?: tailscaleState.endpoints.firstOrNull())?.backendState) {
-                                        "Running" -> R.string.knine_home_online
-                                        "NeedsLogin" -> R.string.knine_home_login
-                                        "NeedsMachineAuth" -> R.string.knine_home_auth
-                                        "Stopped" -> R.string.knine_home_stopped
-                                        "Starting" -> R.string.knine_home_connecting
-                                        null -> if (tailscaleState.hasUpdate) R.string.knine_home_unconfigured else R.string.knine_home_pending
-                                        else -> R.string.knine_home_pending
-                                    })
-                                } else "",
+                                homeStatus = homeStatusText,
                                 startTime = dashboardUiState.serviceStartTime,
                                 groupsCount = dashboardUiState.groupsCount,
-                                hasGroups = dashboardUiState.hasGroups,
+                                hasGroups = groupsWorthShowing,
                                 onGroupsClick = { showGroupsSheet = true },
                                 connectionsCount = dashboardUiState.connectionsCount,
                                 onConnectionsClick = { showConnectionsSheet = true },
@@ -1177,7 +1099,7 @@ class MainActivity :
                         }
                     }
 
-                    val showPadFab = useNavigationRail && !isSubScreen && (showStartFab || showStatusBar)
+                    val showPadFab = useNavigationRail && !isSubScreen && !knineDashboard && (showStartFab || showStatusBar)
                     if (useNavigationRail) {
                         androidx.compose.animation.AnimatedVisibility(
                             visible = showPadFab,
@@ -1291,7 +1213,8 @@ class MainActivity :
                             visible = !isRemote &&
                                 currentServiceStatus == Status.Stopped &&
                                 dashboardUiState.selectedProfileId != -1L &&
-                                !isSubScreen,
+                                !isSubScreen &&
+                                !knineDashboard,
                             enter = scaleIn(),
                             exit = scaleOut(),
                             modifier = Modifier
@@ -1554,6 +1477,7 @@ class MainActivity :
                 selectedConnectionId = null
             }
 
+            val nodeName = dashboardUiState.profiles.firstOrNull { it.id == dashboardUiState.selectedProfileId }?.name ?: "Node"
             ModalBottomSheet(
                 onDismissRequest = {
                     showConnectionsSheet = false
@@ -1563,6 +1487,14 @@ class MainActivity :
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
+                CompositionLocalProvider(
+                    io.nekohasekai.sfa.compose.screen.connections.LocalOutboundNames provides mapOf(
+                        ShareLinks.NODE_TAG to nodeName,
+                        PairedProfile.PROXY_TAG to nodeName,
+                        PairedProfile.HOME_TAG to "Home",
+                        "direct" to "Direct",
+                    ),
+                ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1588,11 +1520,17 @@ class MainActivity :
                         )
                     }
                 }
+                }
             }
         }
     }
 
     override fun onServiceStatusChanged(status: Status) {
+        // Only kept, and only sent, when the user lets diagnostics go to their KOne console.
+        when {
+            status == Status.Started && currentServiceStatus != Status.Started -> io.nekohasekai.sfa.managed.ManagedState.record("connection_ok")
+            status == Status.Stopped && currentServiceStatus == Status.Started -> io.nekohasekai.sfa.managed.ManagedState.record("tunnel_stopped")
+        }
         currentServiceStatus = status
     }
 
@@ -1601,6 +1539,7 @@ class MainActivity :
     }
 
     override fun onServiceAlert(type: Alert, message: String?) {
+        if (type == Alert.StartService || type == Alert.CreateService) io.nekohasekai.sfa.managed.ManagedState.record("connection_failed")
         when (type) {
             Alert.RequestLocationPermission -> {
                 return requestLocationPermission()

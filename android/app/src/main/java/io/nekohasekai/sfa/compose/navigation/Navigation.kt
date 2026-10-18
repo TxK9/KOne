@@ -266,7 +266,7 @@ fun NavHost(
             val usbIPViewModel: USBIPStatusViewModel = usbIPStatusViewModel ?: viewModel()
             val openConnectViewModel: OpenConnectStatusViewModel = openConnectStatusViewModel ?: viewModel()
             val openVPNViewModel: OpenVPNStatusViewModel = openVPNStatusViewModel ?: viewModel()
-            ToolsScreen(navController = navController, tailscaleViewModel = tailscaleViewModel, sshSharedViewModel = sshSharedViewModel, usbIPViewModel = usbIPViewModel, openConnectViewModel = openConnectViewModel, openVPNViewModel = openVPNViewModel, showStatusBar = showStatusBar)
+            ToolsScreen(navController = navController, tailscaleViewModel = tailscaleViewModel, sshSharedViewModel = sshSharedViewModel, usbIPViewModel = usbIPViewModel, openConnectViewModel = openConnectViewModel, openVPNViewModel = openVPNViewModel, showStatusBar = showStatusBar, serviceStatus = serviceStatus)
         }
 
         // Tools subscreens with slide animations
@@ -277,7 +277,7 @@ fun NavHost(
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
         ) {
-            NetworkQualityScreen(navController = navController, serviceStatus = serviceStatus)
+            io.nekohasekai.sfa.compose.screen.tools.SpeedTestScreen(navController = navController, serviceStatus = serviceStatus)
         }
 
         composable(
@@ -369,7 +369,7 @@ fun NavHost(
             val endpointTag = Uri.decode(backStackEntry.arguments?.getString("endpointTag") ?: return@composable)
             val tailscaleViewModel: TailscaleStatusViewModel = tailscaleStatusViewModel ?: viewModel()
             val sshSharedViewModel: TailscaleSSHSharedViewModel = tailscaleSSHSharedViewModel ?: viewModel()
-            TailscaleEndpointScreen(navController = navController, viewModel = tailscaleViewModel, sshSharedViewModel = sshSharedViewModel, endpointTag = endpointTag)
+            TailscaleEndpointScreen(navController = navController, viewModel = tailscaleViewModel, sshSharedViewModel = sshSharedViewModel, endpointTag = endpointTag, serviceStatus = serviceStatus)
         }
 
         composable(
@@ -676,6 +676,16 @@ fun NavHost(
             popExitTransition = slideOutToRight,
         ) {
             PerAppProxyScreen(onBack = { navController.navigateUp() }, serviceStatus = serviceStatus)
+        }
+
+        composable(
+            route = "settings/profile_override/managed",
+            enterTransition = slideInFromRight,
+            exitTransition = slideOutToLeft,
+            popEnterTransition = slideInFromLeft,
+            popExitTransition = slideOutToRight,
+        ) {
+            PerAppProxyScreen(onBack = { navController.navigateUp() }, serviceStatus = serviceStatus, managed = true)
         }
 
         composable(

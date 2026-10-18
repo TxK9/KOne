@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text as NativeText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -24,6 +25,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
+
+/** When set, labels get a soft glow in this colour instead of a card behind them. */
+internal val LocalBackdropHalo = staticCompositionLocalOf<Color?> { null }
 
 internal fun ordinaryBackdropInk(color: Color, parent: Color): Boolean =
     color == Color.Unspecified || (color.red == parent.red && color.green == parent.green && color.blue == parent.blue)
@@ -129,7 +133,10 @@ private fun AdaptiveLabel(
     content(
         modifier,
         ink,
-        style.copy(shadow = if (LocalTransparentUi.current) Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, 1f), 3f) else Shadow.None),
+        style.copy(
+            shadow = LocalBackdropHalo.current?.let { Shadow(it, Offset.Zero, 22f) }
+                ?: if (LocalTransparentUi.current) Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, 1f), 3f) else Shadow.None,
+        ),
         onTextLayout,
     )
 }

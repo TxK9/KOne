@@ -39,6 +39,14 @@ object Settings {
     val dataStore = RoomPreferenceDataStore { instance.keyValuePairDao() }
     var selfUseWallpaper by dataStore.string("selfuse_wallpaper") { "portrait" }
     var selfUseWallpaperChangedAt by dataStore.long("selfuse_wallpaper_changed_at") { 0L }
+    var knineSwitcherStyle by dataStore.string("knine_switcher_style") { "dial" }
+    var knineWallpaperMode by dataStore.string("knine_wallpaper_mode") { "" }
+    var kninePanelCollapsed by dataStore.boolean("knine_panel_collapsed") { false }
+
+    // Tailscale Home defaults differ between private and managed editions.
+    var knineHomeEnabled by dataStore.boolean("knine_home_enabled") { BuildConfig.KNINE_OWNER }
+    var knineHomeSubnets by dataStore.string("knine_home_subnets") { BuildConfig.KNINE_HOME_SUBNETS }
+    var knineHomeHostname by dataStore.string("knine_home_hostname") { BuildConfig.KNINE_HOME_HOSTNAME }
     var selectedProfile by dataStore.long(SettingsKey.SELECTED_PROFILE) { -1L }
     var serviceMode by dataStore.string(SettingsKey.SERVICE_MODE) { ServiceMode.NORMAL }
     var startedByUser by dataStore.boolean(SettingsKey.STARTED_BY_USER)
@@ -83,6 +91,9 @@ object Settings {
     var perAppProxyManagedMode by dataStore.boolean(SettingsKey.PER_APP_PROXY_MANAGED_MODE) { false }
     var perAppProxyManagedList by dataStore.stringSet(SettingsKey.PER_APP_PROXY_MANAGED_LIST) { emptySet() }
 
+    // Apps the user keeps out of managed mode: always proxied, even when detected as China apps.
+    var perAppProxyManagedExempt by dataStore.stringSet(SettingsKey.PER_APP_PROXY_MANAGED_EXEMPT) { emptySet() }
+
     const val PACKAGE_QUERY_MODE_SHIZUKU = "SHIZUKU"
     const val PACKAGE_QUERY_MODE_ROOT = "ROOT"
     var perAppProxyPackageQueryMode by dataStore.string(SettingsKey.PER_APP_PROXY_PACKAGE_QUERY_MODE) { PACKAGE_QUERY_MODE_SHIZUKU }
@@ -94,7 +105,7 @@ object Settings {
     }
 
     fun getEffectivePerAppProxyList(): Set<String> = if (perAppProxyManagedMode) {
-        perAppProxyManagedList
+        perAppProxyManagedList - perAppProxyManagedExempt
     } else {
         perAppProxyList
     }

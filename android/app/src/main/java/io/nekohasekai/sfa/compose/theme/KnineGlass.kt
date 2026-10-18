@@ -70,15 +70,18 @@ fun KnineGlassBottomSheet(
     containerColor: Color = Color.Transparent,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     dragHandle: (@Composable () -> Unit)? = { BottomSheetDefaults.DragHandle() },
+    // Keeps a surface over dark photographs too, where sheets are otherwise see-through.
+    solid: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     WallpaperPopupVisibility()
     GlassTheme {
+        val surface = Color(if (MaterialTheme.colorScheme.onSurface.red > 0.5f) KninePalette.DARK_READING_SURFACE else KninePalette.LIGHT_READING_SURFACE)
         NativeModalBottomSheet(
             onDismissRequest = onDismissRequest,
             sheetState = sheetState,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            containerColor = wallpaperPanelColor(Color(if (MaterialTheme.colorScheme.onSurface.red > 0.5f) KninePalette.DARK_READING_SURFACE else KninePalette.LIGHT_READING_SURFACE).copy(alpha = 0.96f)),
+            containerColor = if (solid) surface.copy(alpha = 0.96f) else wallpaperPanelColor(surface.copy(alpha = 0.96f)),
             tonalElevation = 0.dp,
             contentColor = MaterialTheme.colorScheme.onSurface,
             scrimColor = Color.Black.copy(alpha = 0.30f),

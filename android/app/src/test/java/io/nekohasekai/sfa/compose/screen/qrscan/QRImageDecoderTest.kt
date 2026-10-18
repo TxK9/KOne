@@ -3,6 +3,7 @@ package io.nekohasekai.sfa.compose.screen.qrscan
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import io.nekohasekai.sfa.selfuse.HomeLink
 import io.nekohasekai.sfa.selfuse.PairedProfile
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -24,7 +25,7 @@ class QRImageDecoderTest {
     @Test fun nodeImageFeedsTheExistingPairedConfigurationBuilder() {
         val decoded = QRImageDecoder.decode(image(link, false), 480, 480)
         assertEquals(link, decoded)
-        val config = JSONObject(PairedProfile.fromVlessLink(decoded!!))
+        val config = JSONObject(PairedProfile.fromLink(decoded!!, HomeLink.Home(true, emptyList(), "phone")))
         assertEquals("tailscale-selfuse", config.getJSONArray("endpoints").getJSONObject(0).getString("state_directory"))
         PairedProfile.requirePaired(config.toString())
     }
@@ -44,9 +45,9 @@ class QRImageDecoderTest {
     }
 
     @Test fun unsupportedTransportExplainsTheLimitWithoutTheLink() {
-        val failure = runCatching { PairedProfile.fromVlessLink(link.replace("type=tcp", "type=ws")) }.exceptionOrNull() as Exception
+        val failure = runCatching { PairedProfile.fromLink(link.replace("type=tcp", "type=xhttp"), HomeLink.Home(true, emptyList(), "phone")) }.exceptionOrNull() as Exception
         val message = QRImportErrors.controlledMessage(failure)
-        assertTrue(message.contains("TCP"))
+        assertTrue(message.contains("transport"))
         assertFalse(message.contains("node.invalid"))
         assertFalse(message.contains("vless://"))
     }

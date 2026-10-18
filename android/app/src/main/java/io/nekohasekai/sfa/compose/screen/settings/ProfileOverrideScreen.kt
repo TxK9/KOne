@@ -33,7 +33,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -238,7 +238,7 @@ fun ProfileOverrideScreen(
                     )
                 },
                 trailingContent = {
-                    Switch(
+                    KnineSwitch(
                         checked = autoRedirect,
                         onCheckedChange = { checked ->
                             if (checked && !autoRedirect) {
@@ -373,7 +373,7 @@ fun ProfileOverrideScreen(
                         )
                     },
                     trailingContent = {
-                        Switch(
+                        KnineSwitch(
                             checked = perAppProxyEnabled,
                             onCheckedChange = { checked ->
                                 if (checked && showModeSelector) {
@@ -417,46 +417,33 @@ fun ProfileOverrideScreen(
                 )
 
                 if (perAppProxyEnabled && canUsePerAppProxy) {
-                    // Manage entry
-                    val manageEnabled = !managedModeEnabled
-                    val disabledAlpha = 0.38f
+                    // Manage entry; in managed mode it edits the apps kept out of management.
                     ListItem(
                         headlineContent = {
                             Text(
-                                stringResource(R.string.per_app_proxy_manage),
+                                if (managedModeEnabled) "Managed exceptions" else stringResource(R.string.per_app_proxy_manage),
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = if (manageEnabled) {
-                                    Color.Unspecified
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = disabledAlpha)
-                                },
                             )
                         },
                         leadingContent = {
                             Icon(
                                 imageVector = Icons.Outlined.AppShortcut,
                                 contentDescription = null,
-                                tint = if (manageEnabled) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = disabledAlpha)
-                                },
+                                tint = MaterialTheme.colorScheme.primary,
                             )
                         },
                         trailingContent = {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                                 contentDescription = null,
-                                tint = if (manageEnabled) {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = disabledAlpha)
-                                },
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         },
                         modifier =
-                        Modifier.alpha(if (manageEnabled) 1f else disabledAlpha).clickable(enabled = manageEnabled) {
-                            navController.navigate("settings/profile_override/manage")
+                        Modifier.clickable {
+                            navController.navigate(
+                                if (managedModeEnabled) "settings/profile_override/managed" else "settings/profile_override/manage",
+                            )
                         },
                         colors =
                         ListItemDefaults.colors(
@@ -494,7 +481,7 @@ fun ProfileOverrideScreen(
                                     strokeWidth = 2.dp,
                                 )
                             } else {
-                                Switch(
+                                KnineSwitch(
                                     checked = managedModeEnabled,
                                     onCheckedChange = { checked ->
                                         if (checked) {

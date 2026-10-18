@@ -40,6 +40,7 @@ import java.net.Inet6Address
 import java.net.InetSocketAddress
 import java.net.InterfaceAddress
 import java.net.NetworkInterface
+import java.net.SocketException
 import java.security.KeyStore
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -154,14 +155,21 @@ interface PlatformInterfaceWrapper : PlatformInterface {
             if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
                 dumpFlags = OsConstants.IFF_UP or OsConstants.IFF_RUNNING
             }
-            if (networkInterface.isLoopback) {
-                dumpFlags = dumpFlags or OsConstants.IFF_LOOPBACK
-            }
-            if (networkInterface.isPointToPoint) {
-                dumpFlags = dumpFlags or OsConstants.IFF_POINTOPOINT
-            }
-            if (networkInterface.supportsMulticast()) {
-                dumpFlags = dumpFlags or OsConstants.IFF_MULTICAST
+            try {
+                if (networkInterface.isLoopback) {
+                    dumpFlags = dumpFlags or OsConstants.IFF_LOOPBACK
+                }
+                if (networkInterface.isPointToPoint) {
+                    dumpFlags = dumpFlags or OsConstants.IFF_POINTOPOINT
+                }
+                if (networkInterface.supportsMulticast()) {
+                    dumpFlags = dumpFlags or OsConstants.IFF_MULTICAST
+                }
+            } catch (e: SocketException) {
+                // The interface went away after it was listed: a reload has just closed the old
+                // tunnel. Leave it out; throwing here fails the Tailscale endpoint and so the reload.
+                Log.w("PlatformInterface", "skip vanished interface ${boxInterface.name}", e)
+                continue
             }
             boxInterface.flags = dumpFlags
             boxInterface.metered =

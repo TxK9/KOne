@@ -118,6 +118,8 @@ private sealed class ScanResult {
 fun PerAppProxyScreen(
     onBack: () -> Unit,
     serviceStatus: Status = Status.Stopped,
+    // Managed mode edits its exemptions instead: chosen apps stay proxied despite the China scan.
+    managed: Boolean = false,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -135,6 +137,7 @@ fun PerAppProxyScreen(
     var displayPackages by remember { mutableStateOf<List<PackageCache>>(emptyList()) }
     var currentPackages by remember { mutableStateOf<List<PackageCache>>(emptyList()) }
     var selectedUids by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var managedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
     var isLoading by remember { mutableStateOf(true) }
 
     var isSearchActive by remember { mutableStateOf(false) }
@@ -178,7 +181,11 @@ fun PerAppProxyScreen(
     fun saveSelectedApplications(newUids: Set<Int>) {
         coroutineScope.launch {
             withContext(Dispatchers.IO) {
-                Settings.perAppProxyList = buildPackageList(newUids)
+                if (managed) {
+                    Settings.perAppProxyManagedExempt = buildPackageList(newUids)
+                } else {
+                    Settings.perAppProxyList = buildPackageList(newUids)
+                }
             }
             notifyApplyChange(UiEvent.ApplyServiceChange.Mode.Reload)
         }
@@ -271,7 +278,7 @@ fun PerAppProxyScreen(
                             val appInfo = packageInfo.applicationInfo ?: return@mapNotNull null
                             PackageCache(packageInfo, appInfo, packageManager)
                         }
-                    val selectedPackageNames = Settings.perAppProxyList.toMutableSet()
+                    val selectedPackageNames = (if (managed) Settings.perAppProxyManagedExempt else Settings.perAppProxyList).toMutableSet()
                     val selectedUidSet =
                         packageCaches.mapNotNull { packageCache ->
                             if (selectedPackageNames.contains(packageCache.packageName)) {
@@ -295,6 +302,7 @@ fun PerAppProxyScreen(
             return@LaunchedEffect
         }
         proxyMode = loadResult.proxyMode
+        if (managed) managedPackages = withContext(Dispatchers.IO) { Settings.perAppProxyManagedList }
         packages = loadResult.packages
         selectedUids = loadResult.selectedUids
         applyFilter()
@@ -304,7 +312,7 @@ fun PerAppProxyScreen(
 
     OverrideTopBar {
         TopAppBar(
-            title = { Text(stringResource(R.string.per_app_proxy)) },
+            title = { Text(if (managed) "Managed exceptions" else stringResource(R.string.per_app_proxy)) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -330,6 +338,7 @@ fun PerAppProxyScreen(
                     )
                 }
                 PerAppProxyMenus(
+                    showModeAndScan = !managed,
                     proxyMode = proxyMode,
                     sortMode = sortMode,
                     sortReverse = sortReverse,
@@ -447,7 +456,9 @@ fun PerAppProxyScreen(
         ) {
             Text(
                 text =
-                if (proxyMode == Settings.PER_APP_PROXY_INCLUDE) {
+                if (managed) {
+                    "The opened app is unmanaged and always uses the proxy."
+                } else if (proxyMode == Settings.PER_APP_PROXY_INCLUDE) {
                     stringResource(R.string.per_app_proxy_mode_include_description)
                 } else {
                     stringResource(R.string.per_app_proxy_mode_exclude_description)
@@ -536,6 +547,7 @@ fun PerAppProxyScreen(
                     onCopyLabel = { clipboardText = packageCache.applicationLabel },
                     onCopyPackage = { clipboardText = packageCache.packageName },
                     onCopyUid = { clipboardText = packageCache.uid.toString() },
+                    badge = if (packageCache.packageName in managedPackages) "China apps" else null,
                 )
             }
         }
@@ -620,6 +632,7 @@ fun PerAppProxyScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PerAppProxyMenus(
+    showModeAndScan: Boolean,
     proxyMode: Int,
     sortMode: SortMode,
     sortReverse: Boolean,
@@ -663,82 +676,84 @@ private fun PerAppProxyMenus(
                 showScanMenu = false
             },
         ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.per_app_proxy_mode)) },
-                onClick = { showModeMenu = !showModeMenu },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        imageVector =
-                        if (showModeMenu) {
-                            Icons.Default.ExpandLess
-                        } else {
-                            Icons.Default.ExpandMore
+            if (showModeAndScan) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.per_app_proxy_mode)) },
+                    onClick = { showModeMenu = !showModeMenu },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector =
+                            if (showModeMenu) {
+                                Icons.Default.ExpandLess
+                            } else {
+                                Icons.Default.ExpandMore
+                            },
+                            contentDescription = null,
+                        )
+                    },
+                )
+                if (showModeMenu) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.per_app_proxy_mode_include)) },
+                        onClick = {
+                            onModeChange(Settings.PER_APP_PROXY_INCLUDE)
+                            showMainMenu = false
+                            showModeMenu = false
                         },
-                        contentDescription = null,
+                        leadingIcon = {
+                            Icon(
+                                imageVector =
+                                if (proxyMode == Settings.PER_APP_PROXY_INCLUDE) {
+                                    Icons.Default.RadioButtonChecked
+                                } else {
+                                    Icons.Default.RadioButtonUnchecked
+                                },
+                                contentDescription = null,
+                                tint =
+                                if (proxyMode == Settings.PER_APP_PROXY_INCLUDE) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.padding(start = 12.dp),
+                            )
+                        },
                     )
-                },
-            )
-            if (showModeMenu) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.per_app_proxy_mode_include)) },
-                    onClick = {
-                        onModeChange(Settings.PER_APP_PROXY_INCLUDE)
-                        showMainMenu = false
-                        showModeMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector =
-                            if (proxyMode == Settings.PER_APP_PROXY_INCLUDE) {
-                                Icons.Default.RadioButtonChecked
-                            } else {
-                                Icons.Default.RadioButtonUnchecked
-                            },
-                            contentDescription = null,
-                            tint =
-                            if (proxyMode == Settings.PER_APP_PROXY_INCLUDE) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.padding(start = 12.dp),
-                        )
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.per_app_proxy_mode_exclude)) },
-                    onClick = {
-                        onModeChange(Settings.PER_APP_PROXY_EXCLUDE)
-                        showMainMenu = false
-                        showModeMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector =
-                            if (proxyMode == Settings.PER_APP_PROXY_EXCLUDE) {
-                                Icons.Default.RadioButtonChecked
-                            } else {
-                                Icons.Default.RadioButtonUnchecked
-                            },
-                            contentDescription = null,
-                            tint =
-                            if (proxyMode == Settings.PER_APP_PROXY_EXCLUDE) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.padding(start = 12.dp),
-                        )
-                    },
-                )
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.per_app_proxy_mode_exclude)) },
+                        onClick = {
+                            onModeChange(Settings.PER_APP_PROXY_EXCLUDE)
+                            showMainMenu = false
+                            showModeMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector =
+                                if (proxyMode == Settings.PER_APP_PROXY_EXCLUDE) {
+                                    Icons.Default.RadioButtonChecked
+                                } else {
+                                    Icons.Default.RadioButtonUnchecked
+                                },
+                                contentDescription = null,
+                                tint =
+                                if (proxyMode == Settings.PER_APP_PROXY_EXCLUDE) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.padding(start = 12.dp),
+                            )
+                        },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                }
             }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.per_app_proxy_sort_mode)) },
@@ -1138,45 +1153,47 @@ private fun PerAppProxyMenus(
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.per_app_proxy_scan)) },
-                onClick = { showScanMenu = !showScanMenu },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.ManageSearch,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        imageVector =
-                        if (showScanMenu) {
-                            Icons.Default.ExpandLess
-                        } else {
-                            Icons.Default.ExpandMore
-                        },
-                        contentDescription = null,
-                    )
-                },
-            )
-            if (showScanMenu) {
+            if (showModeAndScan) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.per_app_proxy_scan_china_apps)) },
-                    onClick = {
-                        onScanChinaApps()
-                        showMainMenu = false
-                        showScanMenu = false
-                    },
+                    text = { Text(stringResource(R.string.per_app_proxy_scan)) },
+                    onClick = { showScanMenu = !showScanMenu },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.ManageSearch,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 12.dp),
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector =
+                            if (showScanMenu) {
+                                Icons.Default.ExpandLess
+                            } else {
+                                Icons.Default.ExpandMore
+                            },
+                            contentDescription = null,
                         )
                     },
                 )
+                if (showScanMenu) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.per_app_proxy_scan_china_apps)) },
+                        onClick = {
+                            onScanChinaApps()
+                            showMainMenu = false
+                            showScanMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.ManageSearch,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(start = 12.dp),
+                            )
+                        },
+                    )
+                }
             }
         }
     }

@@ -1,0 +1,4 @@
+<resources>
+    <string name="knine_group_type_selector">Selector</string>
+    <string name="knine_group_type_urltest">URLTest</string>
+</resources>

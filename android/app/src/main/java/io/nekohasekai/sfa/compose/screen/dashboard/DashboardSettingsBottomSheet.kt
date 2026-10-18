@@ -42,7 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import io.nekohasekai.sfa.compose.theme.KnineGlassBottomSheet as ModalBottomSheet
 import androidx.compose.material3.SheetState
 import io.nekohasekai.sfa.compose.theme.KnineSurface as Surface
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -410,7 +410,7 @@ fun DashboardItemCard(
             }
 
             // Visibility toggle - Profiles card cannot be disabled
-            Switch(
+            KnineSwitch(
                 checked = isVisible,
                 onCheckedChange = { onToggleVisibility() },
                 enabled = cardGroup != CardGroup.Profiles, // Disable switch for Profiles card

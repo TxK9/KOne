@@ -17,6 +17,9 @@ import java.net.InetAddress
 import java.net.Proxy
 import java.net.URL
 
+/** The address a proxy exit presents, and the country Cloudflare places it in, when known. */
+internal data class ExitInfo(val ip: String, val country: String?)
+
 /** A read-only check through this app's existing VPN; never falls back to Wi-Fi/mobile. */
 internal class ExitIpDetector(context: Context) {
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
@@ -46,9 +49,10 @@ internal class ExitIpDetector(context: Context) {
         awaitClose { connectivity.unregisterNetworkCallback(callback) }
     }.distinctUntilChanged()
 
-    suspend fun detect(network: Network): String? = runInterruptible(Dispatchers.IO) {
+    suspend fun detect(network: Network): ExitInfo? = runInterruptible(Dispatchers.IO) {
         if (currentVpn() != network) return@runInterruptible null
-        val connection = network.openConnection(URL("https://api64.ipify.org"), Proxy.NO_PROXY) as HttpURLConnection
+        // One request returns both the exit address and its country code.
+        val connection = network.openConnection(URL("https://www.cloudflare.com/cdn-cgi/trace"), Proxy.NO_PROXY) as HttpURLConnection
         try {
             connection.connectTimeout = 4_000
             connection.readTimeout = 4_000
@@ -56,9 +60,9 @@ internal class ExitIpDetector(context: Context) {
             connection.useCaches = false
             connection.setRequestProperty("Accept", "text/plain")
             if (connection.responseCode != 200) return@runInterruptible null
-            // The endpoint returns only an IP literal. Cap the response before parsing.
+            // The trace is a few short "key=value" lines. Cap the response before parsing.
             val text = connection.inputStream.bufferedReader(Charsets.US_ASCII).use { reader ->
-                val buffer = CharArray(129)
+                val buffer = CharArray(2048)
                 var size = 0
                 while (size < buffer.size) {
                     val count = reader.read(buffer, size, buffer.size - size)
@@ -67,11 +71,22 @@ internal class ExitIpDetector(context: Context) {
                 }
                 String(buffer, 0, size)
             }
-            if (currentVpn() != network) null else parseExitIp(text)
+            if (currentVpn() != network) null else parseExitTrace(text)
         } finally {
             connection.disconnect()
         }
     }
+}
+
+/** Reads "ip=" and "loc=" from a Cloudflare trace; anything unexpected has no display value. */
+internal fun parseExitTrace(response: String): ExitInfo? {
+    val fields = response.lineSequence()
+        .mapNotNull { line -> line.indexOf('=').takeIf { it > 0 }?.let { line.substring(0, it).trim() to line.substring(it + 1).trim() } }
+        .toMap()
+    val ip = fields["ip"]?.let(::parseExitIp) ?: return null
+    // "XX" is unknown and "T1" is Tor; neither is a country.
+    val country = fields["loc"]?.uppercase()?.takeIf { it.length == 2 && it.all { c -> c in 'A'..'Z' } && it != "XX" && it != "T1" }
+    return ExitInfo(ip, country)
 }
 
 internal fun parseExitIp(response: String): String? {

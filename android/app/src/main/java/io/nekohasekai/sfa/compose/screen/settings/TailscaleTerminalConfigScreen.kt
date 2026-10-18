@@ -29,7 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -158,7 +158,7 @@ fun TailscaleTerminalConfigScreen(navController: NavController) {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.tailscale_terminal_font_follow_theme)) },
                     trailingContent = {
-                        Switch(
+                        KnineSwitch(
                             checked = fontFollowTheme,
                             onCheckedChange = null,
                         )
@@ -302,7 +302,7 @@ private fun SchemeSection(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.tailscale_terminal_custom_config)) },
                 trailingContent = {
-                    Switch(
+                    KnineSwitch(
                         checked = customEnabled,
                         onCheckedChange = null,
                     )

@@ -12,7 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import io.nekohasekai.sfa.compose.theme.KnineGlassAlertDialog as AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,7 +53,7 @@ fun ReportShareDialog(
                             stringResource(R.string.report_with_log),
                             modifier = Modifier.weight(1f),
                         )
-                        Switch(checked = includeLog, onCheckedChange = { includeLog = it })
+                        KnineSwitch(checked = includeLog, onCheckedChange = { includeLog = it })
                     }
                 }
                 if (hasConfig) {
@@ -65,7 +65,7 @@ fun ReportShareDialog(
                             stringResource(R.string.report_with_config),
                             modifier = Modifier.weight(1f),
                         )
-                        Switch(checked = includeConfig, onCheckedChange = { includeConfig = it })
+                        KnineSwitch(checked = includeConfig, onCheckedChange = { includeConfig = it })
                     }
                 }
                 if (hasConfig || hasLog) {
@@ -88,7 +88,7 @@ fun ReportShareDialog(
                         stringResource(R.string.report_with_age_encryption),
                         modifier = Modifier.weight(1f),
                     )
-                    Switch(checked = useAgeEncryption, onCheckedChange = { useAgeEncryption = it })
+                    KnineSwitch(checked = useAgeEncryption, onCheckedChange = { useAgeEncryption = it })
                 }
                 MarkdownText(
                     markdown = stringResource(R.string.report_age_encryption_description),

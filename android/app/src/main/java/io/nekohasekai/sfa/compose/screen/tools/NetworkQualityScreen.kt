@@ -29,7 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -226,7 +226,7 @@ fun NetworkQualityScreen(
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.weight(1f).padding(end = 16.dp),
                     )
-                    Switch(
+                    KnineSwitch(
                         checked = state.serial,
                         onCheckedChange = { viewModel.setSerial(it) },
                         enabled = !state.isRunning,
@@ -243,7 +243,7 @@ fun NetworkQualityScreen(
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.weight(1f).padding(end = 16.dp),
                     )
-                    Switch(
+                    KnineSwitch(
                         checked = state.http3,
                         onCheckedChange = { viewModel.setHttp3(it) },
                         enabled = !state.isRunning,

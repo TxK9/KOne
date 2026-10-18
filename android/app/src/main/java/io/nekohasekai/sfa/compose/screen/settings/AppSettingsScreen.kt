@@ -34,11 +34,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.AdminPanelSettings
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.DeleteSweep
@@ -52,6 +55,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SystemUpdateAlt
+import io.nekohasekai.sfa.selfuse.KoneBackup
 import io.nekohasekai.sfa.compose.theme.KnineGlassAlertDialog as AlertDialog
 import io.nekohasekai.sfa.compose.theme.KnineBadge as Badge
 import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
@@ -68,7 +72,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -101,7 +105,10 @@ import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.compose.theme.KnineAppearance
 import io.nekohasekai.sfa.compose.theme.KnineSectionLabel
+import io.nekohasekai.sfa.compose.theme.KnineSwitcherStyle
+import io.nekohasekai.sfa.compose.theme.KnineThemeMode
 import io.nekohasekai.sfa.compose.base.UiEvent
 import io.nekohasekai.sfa.compose.base.rememberApplyServiceChangeNotifier
 import io.nekohasekai.sfa.compose.component.UpdateAvailableDialog
@@ -125,6 +132,13 @@ import org.xmlpull.v1.XmlPullParser
 import java.io.File
 import java.util.Locale
 import android.provider.Settings as AndroidSettings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material.icons.outlined.DarkMode
+import io.nekohasekai.sfa.compose.theme.WallpaperCatalog
+import io.nekohasekai.sfa.compose.theme.WallpaperMode
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -148,6 +162,11 @@ fun AppSettingsScreen(
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Show the app version and KOne's core display label in the same entry.
+    val appName = stringResource(R.string.app_name)
+    val versionLine = remember {
+        "$appName ${BuildConfig.VERSION_NAME}\nCore KOne0.0.1"
+    }
     val hasUpdate by UpdateState.hasUpdate
     val updateInfo by UpdateState.updateInfo
     val isChecking by UpdateState.isChecking
@@ -497,7 +516,7 @@ fun AppSettingsScreen(
                         },
                         supportingContent = {
                             Text(
-                                BuildConfig.VERSION_NAME,
+                                versionLine,
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         },
@@ -509,9 +528,7 @@ fun AppSettingsScreen(
                             )
                         },
                         trailingContent = {
-                            if (hasUpdate) {
-                                Badge(containerColor = MaterialTheme.colorScheme.primary) { Text(stringResource(R.string.update)) }
-                            }
+
                         },
                         modifier =
                         Modifier
@@ -539,7 +556,7 @@ fun AppSettingsScreen(
                                     )
                                 },
                                 onClick = {
-                                    clipboardText = BuildConfig.VERSION_NAME
+                                    clipboardText = versionLine
                                     Toast.makeText(
                                         context,
                                         R.string.copied_to_clipboard,
@@ -564,7 +581,7 @@ fun AppSettingsScreen(
                             stringResource(R.string.system_default)
                         } else {
                             val locale = Locale.forLanguageTag(currentLocaleTag)
-                            locale.getDisplayName(locale).replaceFirstChar { it.uppercase(locale) }
+                            locale.getDisplayName(Locale.ENGLISH).replaceFirstChar { it.uppercase(Locale.ENGLISH) }
                         }
                         Text(displayName, style = MaterialTheme.typography.bodyMedium)
                     },
@@ -584,13 +601,212 @@ fun AppSettingsScreen(
                     ),
                 )
 
+                // How the categories lay out when the current one is tapped again; as small as the language row.
+                var showSwitcherMenu by remember { mutableStateOf(false) }
+                Box {
+                    ListItem(
+                        headlineContent = { Text("Category navigation", style = MaterialTheme.typography.bodyLarge) },
+                        supportingContent = { Text(KnineAppearance.switcher.label, style = MaterialTheme.typography.bodyMedium) },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Outlined.Category,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        modifier = Modifier.clickable { showSwitcherMenu = true },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                    Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+                        DropdownMenu(
+                            expanded = showSwitcherMenu,
+                            onDismissRequest = { showSwitcherMenu = false },
+                        ) {
+                            KnineSwitcherStyle.entries.forEach { style ->
+                                DropdownMenuItem(
+                                    text = { Text(style.label) },
+                                    trailingIcon = if (style == KnineAppearance.switcher) {
+                                        { Icon(imageVector = Icons.Filled.Check, contentDescription = null) }
+                                    } else {
+                                        null
+                                    },
+                                    onClick = {
+                                        KnineAppearance.switcher = style
+                                        showSwitcherMenu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // The wallpaper: the built-in photos when this copy has them, a photo of the
+                // user's own, or none. Picking My photos again changes the photo.
+                var showWallpaperMenu by remember { mutableStateOf(false) }
+                val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+                    if (uri != null) {
+                        scope.launch {
+                            try {
+                                WallpaperCatalog.usePhoto(context, uri)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "This photo cannot be used.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+                Box {
+                    ListItem(
+                        headlineContent = { Text("Wallpaper", style = MaterialTheme.typography.bodyLarge) },
+                        supportingContent = { Text(WallpaperCatalog.mode.label, style = MaterialTheme.typography.bodyMedium) },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Outlined.Wallpaper,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        modifier = Modifier.clickable { showWallpaperMenu = true },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                    Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+                        DropdownMenu(
+                            expanded = showWallpaperMenu,
+                            onDismissRequest = { showWallpaperMenu = false },
+                        ) {
+                            WallpaperMode.entries.filter { it != WallpaperMode.Builtin || WallpaperCatalog.hasBundledPhotos }.forEach { mode ->
+                                DropdownMenuItem(
+                                    text = { Text(mode.label) },
+                                    trailingIcon = if (mode == WallpaperCatalog.mode) {
+                                        { Icon(imageVector = Icons.Filled.Check, contentDescription = null) }
+                                    } else {
+                                        null
+                                    },
+                                    onClick = {
+                                        showWallpaperMenu = false
+                                        val pickNew = mode == WallpaperMode.Photo &&
+                                            (WallpaperCatalog.mode == WallpaperMode.Photo || !WallpaperCatalog.photoFile.isFile)
+                                        if (pickNew) {
+                                            pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                        } else {
+                                            WallpaperCatalog.setMode(mode)
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Light or dark: as the phone is, or KOne's own; the paintings follow it too.
+                var showThemeMenu by remember { mutableStateOf(false) }
+                Box {
+                    ListItem(
+                        headlineContent = { Text("Appearance", style = MaterialTheme.typography.bodyLarge) },
+                        supportingContent = { Text(KnineAppearance.theme.label, style = MaterialTheme.typography.bodyMedium) },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Outlined.DarkMode,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        modifier = Modifier.clickable { showThemeMenu = true },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                    Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+                        DropdownMenu(
+                            expanded = showThemeMenu,
+                            onDismissRequest = { showThemeMenu = false },
+                        ) {
+                            KnineThemeMode.entries.forEach { mode ->
+                                DropdownMenuItem(
+                                    text = { Text(mode.label) },
+                                    trailingIcon = if (mode == KnineAppearance.theme) {
+                                        { Icon(imageVector = Icons.Filled.Check, contentDescription = null) }
+                                    } else {
+                                        null
+                                    },
+                                    onClick = {
+                                        showThemeMenu = false
+                                        KnineAppearance.theme = mode
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Backup: everything that makes this KOne, in one file to carry to another phone.
+                var showBackupMenu by remember { mutableStateOf(false) }
+                val exportBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+                    if (uri != null) {
+                        scope.launch {
+                            val message = try {
+                                "Backed up ${KoneBackup.write(context, uri)} nodes"
+                            } catch (failure: Exception) {
+                                (failure as? KoneBackup.BackupException)?.message ?: "Backup incomplete"
+                            }
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                val importBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                    if (uri != null) {
+                        scope.launch {
+                            val message = try {
+                                val restored = KoneBackup.read(context, uri)
+                                when {
+                                    restored.added == 0 && restored.existing > 0 -> "All ${restored.existing} backup nodes already exist"
+                                    restored.existing > 0 -> "Restored ${restored.added} nodes; ${restored.existing} already existed"
+                                    else -> "Restored ${restored.added} nodes"
+                                }
+                            } catch (failure: Exception) {
+                                (failure as? KoneBackup.BackupException)?.message ?: "This backup cannot be restored"
+                            }
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                Box {
+                    ListItem(
+                        headlineContent = { Text("Backup", style = MaterialTheme.typography.bodyLarge) },
+                        supportingContent = { Text("Nodes, categories and settings", style = MaterialTheme.typography.bodyMedium) },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Outlined.Backup,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        modifier = Modifier.clickable { showBackupMenu = true },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                    Box(modifier = Modifier.align(Alignment.BottomEnd)) {
+                        DropdownMenu(
+                            expanded = showBackupMenu,
+                            onDismissRequest = { showBackupMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Export backup") },
+                                onClick = {
+                                    showBackupMenu = false
+                                    exportBackup.launch("KOne Backup ${java.time.LocalDate.now()}.json")
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Restore backup") },
+                                onClick = {
+                                    showBackupMenu = false
+                                    importBackup.launch(arrayOf("application/json", "application/octet-stream", "text/plain"))
+                                },
+                            )
+                        }
+                    }
+                }
+
+                // One row: the size, and Clear beside it while there is something to clear.
                 ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(R.string.cache_size),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
+                    headlineContent = { Text("Cache", style = MaterialTheme.typography.bodyLarge) },
                     supportingContent = {
                         if (cacheSizeText.isNotEmpty()) {
                             Text(cacheSizeText, style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"))
@@ -603,40 +819,9 @@ fun AppSettingsScreen(
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     },
-                    modifier =
-                    Modifier
-                        .clip(
-                            if (cacheSize > 0L) {
-                                RoundedCornerShape(0.dp)
-                            } else {
-                                RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                            },
-                        ),
-                    colors =
-                    ListItemDefaults.colors(
-                        containerColor = Color.Transparent,
-                    ),
-                )
-
-                if (cacheSize > 0L) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.clear_cache),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.DeleteForever,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                            .clickable {
+                    trailingContent = {
+                        if (cacheSize > 0L) {
+                            TextButton(onClick = {
                                 scope.launch(Dispatchers.IO) {
                                     context.cacheDir?.listFiles()?.forEach { it.deleteRecursively() }
                                     withContext(Dispatchers.Main) {
@@ -644,53 +829,13 @@ fun AppSettingsScreen(
                                         cacheSizeText = Formatter.formatFileSize(context, 0L)
                                     }
                                 }
-                            },
-                        colors =
-                        ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                        ),
-                    )
-                }
+                            }) { Text("Clear") }
+                        }
+                    },
+                    modifier = Modifier.clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)),
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
             }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        KnineSectionLabel(text = stringResource(R.string.tailscale))
-
-        Card(
-            modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ),
-        ) {
-            ListItem(
-                headlineContent = {
-                    Text(
-                        stringResource(R.string.tailscale_terminal_config),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                },
-                leadingContent = {
-                    Icon(
-                        imageVector = Icons.Default.Terminal,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                modifier =
-                Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { navController.navigate("settings/tailscale/terminal_config") },
-                colors =
-                ListItemDefaults.colors(
-                    containerColor = Color.Transparent,
-                ),
-            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -723,7 +868,7 @@ fun AppSettingsScreen(
                         )
                     },
                     trailingContent = {
-                        Switch(
+                        KnineSwitch(
                             checked = notificationEnabled,
                             onCheckedChange = null,
                         )
@@ -752,7 +897,7 @@ fun AppSettingsScreen(
                         )
                     },
                     trailingContent = {
-                        Switch(
+                        KnineSwitch(
                             checked = dynamicNotification,
                             onCheckedChange = { checked ->
                                 dynamicNotification = checked
@@ -773,592 +918,6 @@ fun AppSettingsScreen(
                         containerColor = Color.Transparent,
                     ),
                 )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        KnineSectionLabel(text = stringResource(R.string.update_settings))
-
-        Card(
-            modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ),
-        ) {
-            Column {
-                val isFDroid = UpdateSource.fromString(currentSource) == UpdateSource.FDROID
-                val updateItemCount =
-                    run {
-                        var count = 0
-                        if (Vendor.updateSources.size > 1) {
-                            count += 1
-                        }
-                        if (Vendor.hasCustomUpdate) {
-                            count += 1
-                        }
-                        if (Vendor.hasCustomUpdate && !isFDroid) {
-                            count += 1
-                        }
-                        if (isFDroid) {
-                            count += 1
-                        }
-                        count += 1
-                        if (Vendor.hasCustomUpdate) {
-                            count += 1
-                            if (silentInstallEnabled) {
-                                count += 1
-                                if (silentInstallMethod == "SHIZUKU" && !isMethodAvailable) {
-                                    count += 1
-                                }
-                                if (silentInstallMethod == "PACKAGE_INSTALLER" && !isMethodAvailable) {
-                                    count += 1
-                                }
-                            }
-                        }
-                        if (Vendor.hasCustomUpdate) {
-                            count += 1
-                        }
-                        count
-                    }
-
-                var updateItemIndex = 0
-                fun updateItemModifier(): Modifier {
-                    val index = updateItemIndex++
-                    return when {
-                        updateItemCount == 1 -> Modifier.clip(RoundedCornerShape(12.dp))
-                        index == 0 -> Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        index == updateItemCount - 1 ->
-                            Modifier.clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                        else -> Modifier
-                    }
-                }
-
-                if (Vendor.updateSources.size > 1) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.update_source),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        supportingContent = {
-                            val sourceName = when (UpdateSource.fromString(currentSource)) {
-                                UpdateSource.GITHUB -> stringResource(R.string.update_source_github)
-                                UpdateSource.FDROID -> stringResource(R.string.update_source_fdroid)
-                            }
-                            Text(sourceName, style = MaterialTheme.typography.bodyMedium)
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.NewReleases,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        modifier =
-                        updateItemModifier()
-                            .clickable { showSourceDialog = true },
-                        colors =
-                        ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                        ),
-                    )
-                }
-
-                if (Vendor.hasCustomUpdate) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.update_track),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        supportingContent = {
-                            val trackName = if (isFDroid) {
-                                stringResource(R.string.update_track_stable)
-                            } else {
-                                when (UpdateTrack.fromString(currentTrack)) {
-                                    UpdateTrack.STABLE -> stringResource(R.string.update_track_stable)
-                                    UpdateTrack.BETA -> stringResource(R.string.update_track_beta)
-                                }
-                            }
-                            Text(trackName, style = MaterialTheme.typography.bodyMedium)
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.NewReleases,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        modifier =
-                        updateItemModifier().let {
-                            if (isFDroid) it.alpha(0.38f) else it.clickable { showTrackDialog = true }
-                        },
-                        colors =
-                        ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                        ),
-                    )
-                }
-
-                if (Vendor.hasCustomUpdate && !isFDroid) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.github_token),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.github_token_description),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.Key,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        modifier =
-                        updateItemModifier()
-                            .clickable { showGitHubTokenDialog = true },
-                        colors =
-                        ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                        ),
-                    )
-                }
-
-                if (isFDroid) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.fdroid_mirror),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        supportingContent = {
-                            val mirrorUrl = Settings.fdroidMirrorUrl
-                            val mirrorName = remember(mirrorUrl) {
-                                val iter = Libbox.getFDroidMirrors()
-                                var name: String? = null
-                                while (iter.hasNext()) {
-                                    val m = iter.next()
-                                    if (m.url == mirrorUrl) {
-                                        name = m.name
-                                        break
-                                    }
-                                }
-                                if (name == null) {
-                                    val customMirrors = Settings.fdroidCustomMirrors
-                                    for (entry in customMirrors) {
-                                        val parts = entry.split("|", limit = 2)
-                                        if (parts.size == 2 && parts[1] == mirrorUrl) {
-                                            name = parts[0]
-                                            break
-                                        }
-                                    }
-                                }
-                                name ?: mirrorUrl
-                            }
-                            Text(
-                                mirrorName,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.Speed,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        modifier =
-                        updateItemModifier()
-                            .clickable { navController.navigate("settings/fdroid_mirror") },
-                        colors =
-                        ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                        ),
-                    )
-                }
-
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(R.string.check_update_automatic),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Outlined.Autorenew,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = checkUpdateEnabled,
-                            onCheckedChange = { checked ->
-                                checkUpdateEnabled = checked
-                                scope.launch(Dispatchers.IO) {
-                                    Settings.checkUpdateEnabled = checked
-                                }
-                            },
-                        )
-                    },
-                    modifier = updateItemModifier(),
-                    colors =
-                    ListItemDefaults.colors(
-                        containerColor = Color.Transparent,
-                    ),
-                )
-
-                if (Vendor.hasCustomUpdate) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.silent_install),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                silentInstallError ?: stringResource(R.string.silent_install_description),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (silentInstallError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.AdminPanelSettings,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        trailingContent = {
-                            if (isVerifyingMethod) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            } else {
-                                Switch(
-                                    checked = silentInstallEnabled,
-                                    onCheckedChange = { checked ->
-                                        silentInstallEnabled = checked
-                                        Settings.silentInstallEnabled = checked
-                                        if (checked) {
-                                            isVerifyingMethod = true
-                                            scope.launch {
-                                                val success = withContext(Dispatchers.IO) {
-                                                    Vendor.verifySilentInstallMethod(silentInstallMethod)
-                                                }
-                                                isVerifyingMethod = false
-                                                isMethodAvailable = success
-                                                silentInstallError = if (success) {
-                                                    null
-                                                } else {
-                                                    when (silentInstallMethod) {
-                                                        "PACKAGE_INSTALLER" -> context.getString(R.string.package_installer_not_available)
-                                                        "SHIZUKU" -> context.getString(R.string.shizuku_not_available)
-                                                        else -> context.getString(R.string.silent_install_verify_failed, silentInstallMethod)
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            silentInstallError = null
-                                        }
-                                    },
-                                )
-                            }
-                        },
-                        modifier = updateItemModifier(),
-                        colors =
-                        ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                        ),
-                    )
-
-                    if (silentInstallEnabled) {
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    stringResource(R.string.silent_install_method),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    if (xposedActivated) {
-                                        stringResource(R.string.install_method_root)
-                                    } else {
-                                        when (silentInstallMethod) {
-                                            "PACKAGE_INSTALLER" -> stringResource(R.string.install_method_package_installer)
-                                            "SHIZUKU" -> stringResource(R.string.install_method_shizuku)
-                                            "ROOT" -> stringResource(R.string.install_method_root)
-                                            else -> silentInstallMethod
-                                        }
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            },
-                            leadingContent = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Settings,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            modifier =
-                            updateItemModifier()
-                                .let { if (!xposedActivated) it.clickable { showInstallMethodMenu = true } else it },
-                            colors =
-                            ListItemDefaults.colors(
-                                containerColor = Color.Transparent,
-                            ),
-                        )
-
-                        if (silentInstallMethod == "SHIZUKU" && !isMethodAvailable) {
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        stringResource(R.string.get_shizuku),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        stringResource(R.string.shizuku_description),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Download,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                },
-                                modifier =
-                                updateItemModifier()
-                                    .clickable {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://shizuku.rikka.app/"))
-                                        context.startActivity(intent)
-                                    },
-                                colors =
-                                ListItemDefaults.colors(
-                                    containerColor = Color.Transparent,
-                                ),
-                            )
-                        }
-
-                        if (silentInstallMethod == "PACKAGE_INSTALLER" && !isMethodAvailable) {
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        stringResource(R.string.grant_install_permission),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        stringResource(R.string.grant_install_permission_description),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Settings,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                },
-                                modifier =
-                                updateItemModifier()
-                                    .clickable {
-                                        val intent = Intent(
-                                            AndroidSettings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                            Uri.parse("package:${context.packageName}"),
-                                        )
-                                        context.startActivity(intent)
-                                    },
-                                colors =
-                                ListItemDefaults.colors(
-                                    containerColor = Color.Transparent,
-                                ),
-                            )
-                        }
-                    }
-                }
-
-                if (Vendor.hasCustomUpdate) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.auto_update),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.auto_update_description),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.SystemUpdateAlt,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = autoUpdateEnabled,
-                                onCheckedChange = { checked ->
-                                    autoUpdateEnabled = checked
-                                    scope.launch(Dispatchers.IO) {
-                                        Settings.autoUpdateEnabled = checked
-                                        Vendor.scheduleAutoUpdate()
-                                    }
-                                },
-                            )
-                        },
-                        modifier = updateItemModifier(),
-                        colors =
-                        ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                        ),
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Action Section
-        KnineSectionLabel(text = stringResource(R.string.action))
-
-        Card(
-            modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ),
-        ) {
-            Column {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(R.string.check_update),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Outlined.Refresh,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    trailingContent = {
-                        if (isChecking) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                            )
-                        }
-                    },
-                    modifier =
-                    Modifier
-                        .clip(
-                            if (hasUpdate) {
-                                RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-                            } else {
-                                RoundedCornerShape(12.dp)
-                            },
-                        )
-                        .clickable(enabled = !isChecking) {
-                            scope.launch {
-                                UpdateState.isChecking.value = true
-                                withContext(Dispatchers.IO) {
-                                    try {
-                                        val result = Vendor.checkUpdateAsync()
-                                        UpdateState.setUpdate(result)
-                                        if (result == null) {
-                                            showErrorDialog = context.getString(R.string.no_updates_available)
-                                        } else {
-                                            showUpdateAvailableDialog = true
-                                        }
-                                    } catch (_: UpdateCheckException.TrackNotSupported) {
-                                        UpdateState.setUpdate(null)
-                                        showErrorDialog = context.getString(R.string.update_track_not_supported)
-                                    } catch (e: Exception) {
-                                        Log.e("AppSettingsScreen", "checkUpdateAsync failed", e)
-                                        UpdateState.setUpdate(null)
-                                        showErrorDialog = e.message
-                                    }
-                                }
-                                UpdateState.isChecking.value = false
-                            }
-                        },
-                    colors =
-                    ListItemDefaults.colors(
-                        containerColor = Color.Transparent,
-                    ),
-                )
-
-                if (hasUpdate && updateInfo != null) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.update),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                updateInfo!!.versionName,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.Download,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                            .clickable {
-                                showUpdateAvailableDialog = true
-                            },
-                        colors =
-                        ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                        ),
-                    )
-                }
             }
         }
     }
@@ -1552,7 +1111,7 @@ private fun LanguageDialog(
                             onClick = null,
                         )
                         Text(
-                            text = locale.getDisplayName(locale).replaceFirstChar { it.uppercase(locale) },
+                            text = locale.getDisplayName(Locale.ENGLISH).replaceFirstChar { it.uppercase(Locale.ENGLISH) },
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(start = 8.dp),
                         )

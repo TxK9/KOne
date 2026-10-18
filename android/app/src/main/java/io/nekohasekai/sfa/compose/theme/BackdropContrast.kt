@@ -60,6 +60,8 @@ internal data class BackdropContext(
     val layoutTheme: WallpaperTheme = theme,
     val onReadingTopChanged: ((Float?) -> Unit)? = null,
     val painter: Painter? = null,
+    // Follows the photo on screen, so the panel moves while a wallpaper change has faded it out.
+    val panelAtTop: Boolean = false,
 )
 
 internal val LocalBackdrop = staticCompositionLocalOf<BackdropContext?> { null }
@@ -242,7 +244,7 @@ fun BackdropCard(
     border: BorderStroke? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    BackdropContrastScope(modifier = modifier) {
+    BackdropContrastScope(modifier = modifier.readingBleed()) {
         WallpaperGlass(shape = shape) {
         MaterialCard(
             shape = shape,
@@ -269,7 +271,7 @@ fun BackdropCard(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    BackdropContrastScope(modifier = modifier) {
+    BackdropContrastScope(modifier = modifier.readingBleed()) {
         WallpaperGlass(shape = shape) {
         MaterialCard(
             onClick = onClick,

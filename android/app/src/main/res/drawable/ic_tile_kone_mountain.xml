@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- SystemUI supplies the active/inactive tint and press feedback. -->
+    <path android:fillColor="#FFFFFF" android:pathData="M10,12 L18,18 L13,10 L23,20 L21,12 C27,22 31,25 36,25 L39,23 L43,24 L45,27 L41,27 L40,29 C46,32 51,33 58,32 L54,36 L58,35 L53,38 L56,38 C49,42 41,39 37,34 L34,39 L29,37 L33,32 C25,28 17,24 10,12 Z" />
+    <path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="M10,96 L23,82 L33,73 L44,70 L50,58 L54,49 L58,39 L62,33 L66,22 L69,24 L73,27 L78,42 L81,48 L84,58 L89,61 L95,76 L104,96 L77,93 L55,93 L32,96 Z M68,29 L73,53 L89,88 L76,74 L65,40 Z M52,58 L57,66 L61,84 L71,91 L54,76 L48,70 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M52,45 H54 V43 H56 V45 H59 V50 H56 V49 H54 V51 H52 Z" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M30,80 C38,74 44,72 48,61 S50,53 55,48 L60,42 L65,38" />
+</vector>

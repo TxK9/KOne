@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Usb
+import androidx.compose.material.icons.outlined.Apartment
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Hub
@@ -47,18 +49,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.bg.CrashReportManager
 import io.nekohasekai.sfa.bg.OOMReportManager
 import io.nekohasekai.sfa.bg.PowerReportManager
 import io.nekohasekai.sfa.compose.component.RemoteControlMenuItems
 import io.nekohasekai.sfa.compose.component.rememberRemoteServers
+import io.nekohasekai.sfa.compose.screen.console.ConsoleActivity
 import io.nekohasekai.sfa.compose.screen.usbip.USBIPStatusViewModel
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
+import io.nekohasekai.sfa.selfuse.HomeSettings
+import io.nekohasekai.sfa.selfuse.PairedProfile
+import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.terminal.DEFAULT_SSH_TERMINAL_TYPE
 import io.nekohasekai.sfa.terminal.TailscaleSSHPresentedSession
@@ -74,6 +82,7 @@ fun ToolsScreen(
     openConnectViewModel: OpenConnectStatusViewModel,
     openVPNViewModel: OpenVPNStatusViewModel,
     showStatusBar: Boolean = false,
+    serviceStatus: Status = Status.Stopped,
 ) {
     val remoteServers by rememberRemoteServers()
 
@@ -129,7 +138,8 @@ fun ToolsScreen(
         val tailscaleEndpoints = tailscaleState.endpoints
         val openConnectEndpoints = openConnectState.endpoints
         val openVPNEndpoints = openVPNState.endpoints
-        val endpointRowCount = tailscaleEndpoints.size + openConnectEndpoints.size + openVPNEndpoints.size
+        val tailscaleTags = tailscaleEntryTags(tailscaleEndpoints.map { it.endpointTag }, local = remoteServer == null)
+        val endpointRowCount = tailscaleTags.size + openConnectEndpoints.size + openVPNEndpoints.size
         if (endpointRowCount > 0) {
             io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.tailscale_endpoints))
 
@@ -141,26 +151,35 @@ fun ToolsScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
             ) {
-                val endpoints = tailscaleEndpoints
-                endpoints.forEachIndexed { index, endpoint ->
+                tailscaleTags.forEachIndexed { index, endpointTag ->
+                    val endpoint = tailscaleEndpoints.firstOrNull { it.endpointTag == endpointTag }
                     val shape = endpointRowShape(index, endpointRowCount)
                     var showSSHMenu by remember { mutableStateOf(false) }
                     val sshPeers = remember(endpoint) {
-                        endpoint.userGroups.flatMap { it.peers }.filter { peer ->
+                        endpoint?.userGroups.orEmpty().flatMap { it.peers }.filter { peer ->
                             peer.online && peer.sshHostKeys.isNotEmpty() &&
-                                peer.tailscaleIPs.isNotEmpty() && peer.id != endpoint.selfPeer?.id
+                                peer.tailscaleIPs.isNotEmpty() && peer.id != endpoint?.selfPeer?.id
                         }
                     }
                     Box {
                         ListItem(
                             headlineContent = {
                                 Text(
-                                    if (endpoints.size == 1) {
+                                    if (tailscaleTags.size == 1) {
                                         stringResource(R.string.tailscale)
                                     } else {
-                                        stringResource(R.string.tailscale_with_tag, endpoint.endpointTag)
+                                        stringResource(R.string.tailscale_with_tag, endpointTag)
                                     },
                                     style = MaterialTheme.typography.bodyLarge,
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    if (remoteServer == null && endpointTag == PairedProfile.HOME_TAG) {
+                                        tailscaleConnectionLabel(HomeSettings.isEnabled, serviceStatus, endpoint?.backendState, tailscaleState.hasUpdate)
+                                    } else endpoint?.stateText.orEmpty(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             },
                             leadingContent = {
@@ -171,13 +190,13 @@ fun ToolsScreen(
                                 )
                             },
                             trailingContent = {
-                                if (taildropSendSessions.any { it.endpointTag == endpoint.endpointTag && it.errorMessage != null }) {
+                                if (taildropSendSessions.any { it.endpointTag == endpointTag && it.errorMessage != null }) {
                                     Badge(containerColor = MaterialTheme.colorScheme.error) {
                                         Text("!")
                                     }
-                                } else if (endpoint.unreadFileCount > 0) {
+                                } else if ((endpoint?.unreadFileCount ?: 0) > 0) {
                                     Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                        Text("${endpoint.unreadFileCount}")
+                                        Text("${endpoint?.unreadFileCount}")
                                     }
                                 }
                             },
@@ -185,7 +204,7 @@ fun ToolsScreen(
                                 .clip(shape)
                                 .combinedClickable(
                                     onClick = {
-                                        navController.navigate("tools/tailscale/${Uri.encode(endpoint.endpointTag)}")
+                                        navController.navigate("tools/tailscale/${Uri.encode(endpointTag)}")
                                     },
                                     onLongClick = {
                                         if (sshPeers.isNotEmpty()) {
@@ -211,7 +230,7 @@ fun ToolsScreen(
                                             navController,
                                             sshSharedViewModel,
                                             sshPeers[0],
-                                            endpoint.endpointTag,
+                                            endpointTag,
                                         )
                                     },
                                 )
@@ -233,7 +252,7 @@ fun ToolsScreen(
                                                 navController,
                                                 sshSharedViewModel,
                                                 peer,
-                                                endpoint.endpointTag,
+                                                endpointTag,
                                             )
                                         },
                                     )
@@ -262,7 +281,7 @@ fun ToolsScreen(
                             )
                         },
                         modifier = Modifier
-                            .clip(endpointRowShape(tailscaleEndpoints.size + index, endpointRowCount))
+                            .clip(endpointRowShape(tailscaleTags.size + index, endpointRowCount))
                             .clickable {
                                 navController.navigate("tools/openconnect/${Uri.encode(endpoint.endpointTag)}")
                             },
@@ -291,7 +310,7 @@ fun ToolsScreen(
                         modifier = Modifier
                             .clip(
                                 endpointRowShape(
-                                    tailscaleEndpoints.size + openConnectEndpoints.size + index,
+                                    tailscaleTags.size + openConnectEndpoints.size + index,
                                     endpointRowCount,
                                 ),
                             )
@@ -352,6 +371,41 @@ fun ToolsScreen(
             }
         }
 
+        // The private edition console, reached over Home; only the private edition build carries its address.
+        if (BuildConfig.KNINE_OWNER && BuildConfig.KONE_ADMIN.isNotBlank()) {
+            val context = LocalContext.current
+            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = "Management")
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            ) {
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            "Management console",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Outlined.Apartment,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { context.startActivity(Intent(context, ConsoleActivity::class.java)) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+        }
+
         io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.title_network))
 
         Card(
@@ -365,7 +419,7 @@ fun ToolsScreen(
             ListItem(
                 headlineContent = {
                     Text(
-                        stringResource(R.string.network_quality),
+                        "Speed test",
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 },
@@ -377,27 +431,8 @@ fun ToolsScreen(
                     )
                 },
                 modifier = Modifier
-                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { navController.navigate("tools/network_quality") },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            )
-            ListItem(
-                headlineContent = {
-                    Text(
-                        stringResource(R.string.stun_test),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                },
-                leadingContent = {
-                    Icon(
-                        imageVector = Icons.Outlined.SwapHoriz,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                modifier = Modifier
-                    .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                    .clickable { navController.navigate("tools/stun_test") },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             )
         }

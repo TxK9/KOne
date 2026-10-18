@@ -37,7 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -56,6 +56,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.nekohasekai.libbox.Libbox
+import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.theme.KnineSectionLabel
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
@@ -86,7 +87,8 @@ fun CoreSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var dataSize by remember { mutableStateOf("") }
-    val version = remember { Libbox.version() }
+    val version = "${stringResource(R.string.app_name)} ${BuildConfig.VERSION_NAME}"
+    val coreVersion = remember { Libbox.version().takeUnless { it.isBlank() || it == "unknown" } ?: BuildConfig.CORE_VERSION }
     var showVersionMenu by remember { mutableStateOf(false) }
     var disableDeprecatedWarnings by remember { mutableStateOf(Settings.disableDeprecatedWarnings) }
 
@@ -229,7 +231,7 @@ fun CoreSettingsScreen(navController: NavController) {
             }
         }
 
-        if (version.contains("-")) {
+        if (coreVersion.removePrefix("sing-box ").contains("-")) {
             Spacer(modifier = Modifier.height(16.dp))
 
             KnineSectionLabel(text = stringResource(R.string.beta_settings))
@@ -259,7 +261,7 @@ fun CoreSettingsScreen(navController: NavController) {
                         )
                     },
                     trailingContent = {
-                        Switch(
+                        KnineSwitch(
                             checked = disableDeprecatedWarnings,
                             onCheckedChange = { checked ->
                                 disableDeprecatedWarnings = checked
