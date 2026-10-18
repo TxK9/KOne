@@ -155,10 +155,12 @@ object KoneConfig {
                     putJsonArray("outbounds") { if (auto) add(AUTO_TAG); nodes.forEach { add(it.tag) } }
                     put("default", start)
                 })
+                // The App tests the node in use every few seconds and every node often, which also
+                // feeds this group; its own sweep of every node can be rare, so large subscriptions stay cheap.
                 if (auto) add(buildJsonObject {
                     put("type", "urltest"); put("tag", AUTO_TAG)
                     putJsonArray("outbounds") { nodes.forEach { add(it.tag) } }
-                    put("url", "https://www.gstatic.com/generate_204"); put("interval", "3m"); put("tolerance", 50)
+                    put("url", "https://www.gstatic.com/generate_204"); put("interval", "10m"); put("tolerance", 50)
                 })
                 memberOutbounds.forEach { add(it) }
                 supportOutbounds.forEach { add(it) }

@@ -223,10 +223,12 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		choices = append([]any{autoTag}, choices...)
 	}
 	outbounds := []any{map[string]any{"type": "selector", "tag": proxyTag, "outbounds": choices, "default": start}}
+	// The App tests the node in use every few seconds and every node often, which also feeds this
+	// group; its own sweep of every node can be rare, so large subscriptions stay cheap.
 	if auto {
 		outbounds = append(outbounds, map[string]any{
 			"type": "urltest", "tag": autoTag, "outbounds": anyList(nodes),
-			"url": "https://www.gstatic.com/generate_204", "interval": "3m", "tolerance": 50,
+			"url": "https://www.gstatic.com/generate_204", "interval": "10m", "tolerance": 50,
 		})
 	}
 	for i, member := range members {
