@@ -285,6 +285,7 @@ fun main(args: Array<String>) {
                                               onAddRule = model::addRule,
                                               onRemoveRule = model::removeRule,
                                               onMoveRule = model::moveRule,
+                                              onUpdateLists = { model.updateLists(force = true) },
                                           ),
                                       )
                                       Page.Tools -> ToolsView(

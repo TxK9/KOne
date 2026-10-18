@@ -1,6 +1,7 @@
 package cc.txwd.kone
 
 import cc.txwd.kone.app.Account
+import cc.txwd.kone.app.CategoryLists
 import cc.txwd.kone.app.SystemProxy
 import cc.txwd.kone.app.BindingStore
 import cc.txwd.kone.app.Vault
@@ -13,6 +14,7 @@ import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.ServiceLink
 import cc.txwd.kone.core.ServiceStatus
+import cc.txwd.kone.core.UserRule
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -111,7 +113,21 @@ class ServiceEndToEndTest {
                 // Connect: no prompt, the service does it.
                 val link = assertNotNull(ServiceLink.open(service))
                 assertNotNull(link.hello())
-                assertNull(link.connect(source, null), "the service started the core")
+
+                // A category list, made here with the installed sing-box: the service refuses junk,
+                // keeps a real list in rules\sets\, and a rule naming it is applied after the Claude block.
+                val listSource = File(folder, "list.json").apply { writeText("""{"version": 3, "rules": [{"domain_suffix": ["example.org"]}]}""") }
+                val listFile = File(folder, "geosite-kone-e2e.srs")
+                command(File(service.parentFile, "sing-box.exe").path, "rule-set", "compile", "--output", listFile.path, listSource.path)
+                val list = listFile.readBytes()
+                val junk = "SRS\u0001not a rule set".toByteArray()
+                assertFalse(link.putRuleSet("geosite-kone-e2e", junk, CategoryLists.sha256(junk)), "a list sing-box cannot read is refused")
+                assertFalse(link.putRuleSet("geosite-kone-e2e", list, CategoryLists.sha256(junk)), "a list that is not what was sent is refused")
+                assertFalse(link.putRuleSet("..\\geosite-kone-e2e", list, CategoryLists.sha256(list)), "only list names are taken")
+                assertTrue(link.putRuleSet("geosite-kone-e2e", list, CategoryLists.sha256(list)), "the service keeps a real list")
+                assertEquals(CategoryLists.sha256(list), link.ruleSets()?.get("geosite-kone-e2e"))
+                val routes = listOf(UserRule("set", "geosite-kone-e2e", "block"), UserRule("set", "geosite-never-handed-over", "block"))
+                assertNull(link.connect(source, null, routes = routes), "the service started the core")
                 val running = waitForRunning(link)
                 assertTrue(tunnelUp(), "the KOne adapter is there")
 
@@ -130,6 +146,10 @@ class ServiceEndToEndTest {
                 // …and a connection made by address is refused once its TLS names claude.ai.
                 assertFailsWith<IOException>("TLS to claude.ai must be refused") { tls(claudeAddress, "claude.ai") }
                 assertFalse("claude.ai" in serverLog.readText() || "anthropic.com" in serverLog.readText(), "nothing of Claude reached the node")
+                // The category rule: example.org is refused, example.com still goes through; the list never handed over is simply left out.
+                flushDns()
+                assertFailsWith<UnknownHostException>("example.org is in the blocked list") { InetAddress.getByName("www.example.org") }
+                assertEquals(200, get("https://www.example.com/", fresh = true))
 
                 // Disconnect: the core stops, the adapter goes, the network works directly.
                 link.disconnect()

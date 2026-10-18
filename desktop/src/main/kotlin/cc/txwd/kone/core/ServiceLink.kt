@@ -128,6 +128,23 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
         )
     }
 
+    /** The category lists the service keeps, with the SHA-256 of each; null when it cannot say (an older service). */
+    fun ruleSets(): Map<String, String>? = runCatching {
+        val reply = request(buildJsonObject { put("op", "ruleSets") })
+        if (!reply.ok) return null
+        (reply["sets"] as? JsonObject)?.mapNotNull { (name, sha) -> sha.text()?.let { name to it } }?.toMap()
+    }.getOrNull()
+
+    /** Hands the service one category list, which it checks again before keeping; true when kept. */
+    fun putRuleSet(name: String, bytes: ByteArray, sha256: String): Boolean = runCatching {
+        request(buildJsonObject {
+            put("op", "putRuleSet")
+            put("name", name)
+            put("data", java.util.Base64.getEncoder().encodeToString(bytes))
+            put("sha256", sha256)
+        }).ok
+    }.getOrDefault(false)
+
     fun disconnect() {
         runCatching { request(buildJsonObject { put("op", "disconnect") }) }
     }

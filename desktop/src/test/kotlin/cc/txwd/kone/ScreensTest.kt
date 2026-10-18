@@ -56,6 +56,7 @@ import cc.txwd.kone.ui.TitleBar
 import cc.txwd.kone.ui.ToolsActions
 import cc.txwd.kone.ui.ToolsState
 import cc.txwd.kone.ui.DnsLookupState
+import cc.txwd.kone.app.ListStatus
 import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.ToolsView
 import cc.txwd.kone.ui.TrayIcon
@@ -367,12 +368,23 @@ class ScreensTest {
             rules = listOf(
                 UserRule("keyword", "tracker", "block"), UserRule("suffix", "example.net", "proxy"), UserRule("cidr", "203.0.113.0/24", "direct"),
                 UserRule("program", "Game.exe", "direct"), UserRule("port", "6881-6889", "direct"),
+                UserRule("set", "geosite-netflix", "proxy"), UserRule("set", "geoip-jp", "direct"), UserRule("set", "geosite-category-games", "proxy"),
+                UserRule("set", "geosite-example", "block"),
             ),
             blockAds = true,
+            lists = mapOf(
+                "geosite-netflix" to ListStatus(kept = true, checked = 1_000L, error = null),
+                "geoip-jp" to ListStatus(kept = true, checked = 1_000L, error = "Could not reach the list's server"),
+                "geosite-category-games" to ListStatus(kept = false, checked = null, error = null),
+                "geosite-example" to ListStatus(kept = false, checked = null, error = "No such list"),
+            ),
+            now = 1_000L + 3 * 3_600_000L,
         )
         for (dark in listOf(false, true)) {
             shoot("rules", dark) { WithRail(Page.Rules, {}) { RulesView(state, RulesActions()) } }
         }
+        // Adding a category: the common lists by group, under the field.
+        shoot("rules-category", dark = false) { WithRail(Page.Rules, {}) { RulesView(state.copy(rules = state.rules.take(2)), RulesActions(), openWith = "set") } }
     }
 
     /** Settings with a newer KOne out, and Start with Windows off as it starts. */

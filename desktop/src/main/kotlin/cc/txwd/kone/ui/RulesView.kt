@@ -47,6 +47,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cc.txwd.kone.app.ListStatus
+import cc.txwd.kone.core.Categories
 import cc.txwd.kone.core.UserRule
 
 /** Rules as the App fills it: the programs and sites lists, the person's own rules in order, and ad blocking. */
@@ -57,6 +59,11 @@ data class RulesState(
     val proxied: List<String> = emptyList(),
     val rules: List<UserRule> = emptyList(),
     val blockAds: Boolean = false,
+    /** How each category list the rules name stands, and whether KOne is looking at them now. */
+    val lists: Map<String, ListStatus> = emptyMap(),
+    val listsBusy: Boolean = false,
+    /** The time now, for "updated 3 h ago". */
+    val now: Long = System.currentTimeMillis(),
 )
 
 class RulesActions(
@@ -73,13 +80,17 @@ class RulesActions(
     val onRemoveRule: (Int) -> Unit = {},
     /** Moves the rule at an index one place up (true) or down. */
     val onMoveRule: (Int, Boolean) -> Unit = { _, _ -> },
+    /** Downloads every category list again if it changed. */
+    val onUpdateLists: () -> Unit = {},
 )
 
 /** The kinds and actions as the page names them. */
-private val KINDS = listOf("suffix" to "Suffix", "domain" to "Domain", "keyword" to "Keyword", "cidr" to "IP range", "program" to "App", "port" to "Port")
+private val KINDS = listOf(
+    "set" to "Category", "suffix" to "Suffix", "domain" to "Domain", "keyword" to "Keyword", "cidr" to "IP range", "program" to "App", "port" to "Port",
+)
 private val ACTIONS = listOf("proxy" to "Proxy", "direct" to "Direct", "block" to "Block")
 private val HINTS = mapOf(
-    "suffix" to "example.com", "domain" to "www.example.com", "keyword" to "example", "cidr" to "203.0.113.0/24", "program" to "Example.exe", "port" to "443 or 8000-9000",
+    "set" to "Pick one below, or geosite-… / geoip-…", "suffix" to "example.com", "domain" to "www.example.com", "keyword" to "example", "cidr" to "203.0.113.0/24", "program" to "Example.exe", "port" to "443 or 8000-9000",
 )
 
 /**
@@ -87,9 +98,10 @@ private val HINTS = mapOf(
  * tried in order after them; the first that matches wins. The Claude block comes before all of it.
  */
 @Composable
-fun RulesView(state: RulesState, actions: RulesActions) {
+fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null) {
     val ink = LocalInk.current
-    var adding by remember { mutableStateOf(false) }
+    // [openWith] opens the new rule's form on that kind (the screenshots use it).
+    var adding by remember { mutableStateOf(openWith != null) }
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
             Line("Block ads") { Switch(state.blockAds) { actions.onBlockAds(!state.blockAds) } }
@@ -114,11 +126,27 @@ fun RulesView(state: RulesState, actions: RulesActions) {
             Spacer(Modifier.width(22.dp))
             if (state.rules.isNotEmpty()) Label("First match wins", 13.sp, ink.soft)
             Spacer(Modifier.weight(1f))
+            if (state.lists.isNotEmpty()) {
+                val oldest = state.lists.values.mapNotNull { it.checked }.minOrNull()
+                Label(
+                    when {
+                        state.listsBusy -> "Updating category lists"
+                        oldest == null -> "Category lists not downloaded yet"
+                        else -> "Category lists checked ${ago(state.now - oldest)}"
+                    },
+                    13.sp, ink.soft,
+                )
+                Spacer(Modifier.width(18.dp))
+                Box(Modifier.height(34.dp).press(enabled = !state.listsBusy, bleed = 8.dp) { if (!state.listsBusy) actions.onUpdateLists() }, contentAlignment = Alignment.Center) {
+                    Label("Update", 14.sp, if (state.listsBusy) ink.soft else ink.ink, FontWeight.SemiBold)
+                }
+                Spacer(Modifier.width(22.dp))
+            }
             Box(Modifier.height(34.dp).press(bleed = 8.dp) { adding = !adding }, contentAlignment = Alignment.Center) {
                 Label("Add rule", 14.sp, weight = FontWeight.SemiBold)
             }
         }
-        if (adding) NewRule(onAdd = { rule -> actions.onAddRule(rule).also { if (it) adding = false } }, onCancel = { adding = false })
+        if (adding) NewRule(openWith ?: "suffix", onAdd = { rule -> actions.onAddRule(rule).also { if (it) adding = false } }, onCancel = { adding = false })
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
             itemsIndexed(state.rules) { index, rule ->
                 Row(
@@ -127,7 +155,21 @@ fun RulesView(state: RulesState, actions: RulesActions) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Box(Modifier.width(90.dp)) { Label(KINDS.firstOrNull { it.first == rule.kind }?.second ?: rule.kind, 13.sp, ink.soft) }
-                    Box(Modifier.weight(1f)) { Label(rule.value, 13.sp) }
+                    if (rule.kind == "set") {
+                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Label(Categories.title(rule.value) ?: rule.value, 13.sp)
+                            if (Categories.title(rule.value) != null) Label(rule.value, 12.sp, ink.soft)
+                            val status = state.lists[rule.value]
+                            when {
+                                status == null || (!status.kept && status.error == null) ->
+                                    Label(if (state.listsBusy) "Downloading" else "Not downloaded yet", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                !status.kept -> Label("Not in use: ${status.error}", 12.sp, NodeWeather.Cut.ink(ink.dark))
+                                status.error != null -> Label("Update failed, using the last copy", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                            }
+                        }
+                    } else {
+                        Box(Modifier.weight(1f)) { Label(rule.value, 13.sp) }
+                    }
                     Box(Modifier.width(70.dp)) {
                         val color = if (rule.action == "block") NodeWeather.Cut.ink(ink.dark) else ink.ink
                         Label(ACTIONS.firstOrNull { it.first == rule.action }?.second ?: rule.action, 13.sp, color, FontWeight.SemiBold)
@@ -146,9 +188,9 @@ fun RulesView(state: RulesState, actions: RulesActions) {
 
 /** A rule being written: its kind, its value, and where it goes. Enter or Add keeps it; Esc closes. */
 @Composable
-private fun NewRule(onAdd: (UserRule) -> Boolean, onCancel: () -> Unit) {
+private fun NewRule(startKind: String, onAdd: (UserRule) -> Boolean, onCancel: () -> Unit) {
     val ink = LocalInk.current
-    var kind by remember { mutableStateOf("suffix") }
+    var kind by remember { mutableStateOf(startKind) }
     var action by remember { mutableStateOf("direct") }
     var text by remember { mutableStateOf("") }
     var wrong by remember { mutableStateOf(false) }
@@ -184,9 +226,38 @@ private fun NewRule(onAdd: (UserRule) -> Boolean, onCancel: () -> Unit) {
                 Label("Add", 14.sp, weight = FontWeight.SemiBold)
             }
         }
+        if (kind == "set") Catalog(text.trim().lowercase()) { text = it; wrong = false }
     }
     LaunchedEffect(Unit) { focus.requestFocus() }
 }
+
+/** The common category lists by group, in pills; the one picked is filled in above. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Catalog(picked: String, onPick: (String) -> Unit) {
+    val ink = LocalInk.current
+    Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (group in listOf(Categories.SERVICES, Categories.WEBSITES, Categories.REGIONS)) {
+            Row {
+                Box(Modifier.width(90.dp).padding(top = 6.dp)) { Label(group, 13.sp, ink.soft) }
+                FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Categories.ALL.filter { it.group == group }.forEach { category ->
+                        val on = category.name == picked
+                        Box(
+                            Modifier.height(28.dp).clip(RoundedCornerShape(14.dp)).background(if (on) ink.ink else ink.press)
+                                .press { onPick(category.name) }.padding(horizontal = 11.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Label(category.title, 12.sp, if (on) ink.paper else ink.ink)
+                        }
+                    }
+                }
+            }
+        }
+        Label("Region lists match addresses; the others match names. A list is downloaded once and checked daily.", 12.sp, ink.soft)
+    }
+}
+
 
 @Composable
 private fun Small(text: String, enabled: Boolean = true, onClick: () -> Unit) {

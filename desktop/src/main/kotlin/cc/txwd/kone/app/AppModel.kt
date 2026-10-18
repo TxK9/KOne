@@ -126,6 +126,21 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** How much each node and each program carried, day by day (Tools → Usage → Details). */
     private val traffic = Traffic(File(Places.data, "traffic.properties"))
 
+    /**
+     * The category lists the rules name, downloaded and checked by the App, then handed to the
+     * service, which checks and keeps its own copy. sing-box reads each the way the template will
+     * before it is kept; without an installed core only its header is checked.
+     */
+    private val lists = CategoryLists(
+        File(Places.data, "rule-sets"),
+        fetch = { url, etag -> CategoryLists.download(url, etag, proxied) },
+        parses = { file -> Places.core?.let { CategoryLists.singBoxReads(it, file) } ?: true },
+    )
+    private var updatingLists: Job? = null
+
+    /** The lists the running connection was started with; one that becomes ready later starts it afresh. */
+    private var runningLists: Set<String> = emptySet()
+
     var screen by mutableStateOf(if (account.binding != null) Screen.Dashboard else Screen.Key)
         private set
     var key by mutableStateOf(KeyState())
@@ -218,6 +233,14 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     subscriptions.all.filter { it.due(now) }.forEach { updateSubscription(it.id, first = false) }
                 }
                 delay(TimeUnit.MINUTES.toMillis(15))
+            }
+        }
+        scope.launch {
+            // The category lists are looked at every hour; each is downloaded again only once a day, and only if it changed.
+            delay(30_000)
+            while (isActive) {
+                updateLists()
+                delay(TimeUnit.HOURS.toMillis(1))
             }
         }
         scope.launch {
@@ -338,6 +361,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 if (Places.launcher != null && Places.service == null) null else ServiceLink.open(Places.service)
             }
             val refused = if (link == null) "no service" else withContext(Dispatchers.IO) {
+                runningLists = deliverLists(link)
                 runCatching {
                     link.connect(
                         source, binding.selected, preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
@@ -424,9 +448,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             probeApi = null
             val api = CoreApi(freePort(), token())
             val port = freePort()
+            val listed = withContext(Dispatchers.IO) { listsReady() }
+            runningLists = listed
             val config = runCatching {
                 KoneConfig.build(source, rules, api, account.binding?.selected, tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
-                    direct = preferences.direct, proxied = preferences.proxied, routes = preferences.rules, blockAds = preferences.blockAds,
+                    direct = preferences.direct, proxied = preferences.proxied, routes = routesWith(listed), blockAds = preferences.blockAds,
                     remoteDns = preferences.remoteDns, directDns = preferences.directDns, ipv6 = preferences.ipv6,
                 ).config.toString()
             }.getOrNull()
@@ -1038,6 +1064,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         backup.failover?.let { preferences.failover = it }
         tools = tools.copy(bypass = preferences.bypass)
         rulesPage = rulesNow()
+        if (backup.rules.any { it.kind == "set" }) updateLists()
         network = NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover)
         val added = backup.subscriptions.mapNotNull { (name, url, hours) ->
             if (!SubscriptionContent.acceptable(url)) return@mapNotNull null
@@ -1107,7 +1134,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     // Rules
 
-    private fun rulesNow() = RulesState(preferences.bypass, preferences.direct, preferences.proxied, preferences.rules, preferences.blockAds)
+    private fun rulesNow() = RulesState(
+        preferences.bypass, preferences.direct, preferences.proxied, preferences.rules, preferences.blockAds,
+        lists = namedLists().associateWith { lists.status(it) }, listsBusy = listsBusy,
+    )
 
     fun setBlockAds(on: Boolean) {
         preferences.blockAds = on
@@ -1121,13 +1151,89 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         if (rule.action !in UserRules.ACTIONS) return false
         val before = preferences.rules
         if (before.size >= UserRules.MOST) return false
-        preferences.rules = before + UserRule(rule.kind, value, rule.action)
+        val added = UserRule(rule.kind, value, rule.action)
+        if (added.kind == "set" && value !in namedLists() && namedLists().size >= UserRules.MOST_SETS) return false
+        preferences.rules = before + added
         if (preferences.rules != before) {
             rulesPage = rulesNow()
-            restart()
+            // A list not kept yet is downloaded first; the connection starts afresh once it is ready.
+            if (added.kind == "set" && lists.digest(value) == null) updateLists() else restart()
         }
         return true
     }
+
+    // Category lists (Rules)
+
+    /** The lists the person's rules name, each once. */
+    private fun namedLists() = UserRules.sets(UserRules.clean(preferences.rules))
+
+    /**
+     * Looks at the lists the rules name: each due (or every one, when [force]) is downloaded if it
+     * changed and checked; then the service is handed what it lacks. A list that is ready for the
+     * first time starts a running connection afresh, so its rules take effect; an update to a
+     * list already in use waits for the next connection rather than interrupting this one.
+     */
+    fun updateLists(force: Boolean = false) {
+        if (updatingLists?.isActive == true) return
+        val names = namedLists()
+        updatingLists = scope.launch {
+            listsBusy = true
+            rulesPage = rulesNow()
+            withContext(Dispatchers.IO) {
+                lists.keepOnly(names.toSet())
+                val now = System.currentTimeMillis()
+                names.filter { force || lists.due(it, now) }.forEach { lists.update(it, now) }
+            }
+            val ready = withContext(Dispatchers.IO) { listsReady() }
+            listsBusy = false
+            rulesPage = rulesNow()
+            if (connection == Connection.Online && !runningLists.containsAll(ready)) restart()
+        }
+    }
+
+    private var listsBusy = false
+
+    /**
+     * Makes the kept lists available to the core that will run, and says which are: handed to the
+     * service over [link] (it checks each again, and keeps only what passes), or, with no service
+     * (a development run), copied into the App's own rules folder.
+     */
+    private fun deliverLists(link: ServiceLink?): Set<String> {
+        val names = namedLists()
+        if (link != null) {
+            val kept = link.ruleSets() ?: return emptySet()
+            return names.filter { name ->
+                val sha = lists.digest(name) ?: return@filter kept.containsKey(name)
+                kept[name] == sha || (lists.bytes(name)?.let { link.putRuleSet(name, it, sha) } ?: false) || kept.containsKey(name)
+            }.toSet()
+        }
+        val folder = File(rules, "sets")
+        return names.filter { name ->
+            val sha = lists.digest(name)
+            val target = File(folder, "$name.srs")
+            if (sha != null && (!target.isFile || CategoryLists.sha256(target.readBytes()) != sha)) {
+                runCatching { folder.mkdirs(); lists.bytes(name)?.let(target::writeBytes) }
+            }
+            target.isFile
+        }.toSet()
+    }
+
+    /**
+     * Hands the kept lists to whoever keeps them for the core, and says which the core can read:
+     * the service (over the connection's pipe, or one opened for this) when KOne is installed, as
+     * its core and the App's own both read the service's rules folder; the App's own rules folder
+     * in a development run. Blocks; not on the main thread.
+     */
+    private fun listsReady(): Set<String> {
+        if (Places.rules == null) return deliverLists(null)
+        service?.let { return deliverLists(it) }
+        val opened = runCatching { ServiceLink.open(Places.service) }.getOrNull()
+        return opened?.use { deliverLists(it) } ?: namedLists().filter { File(rules, "sets/$it.srs").isFile }.toSet()
+    }
+
+    /** The rules for a core the App runs itself: those naming a list not in [ready] are left out, as the service does. */
+    private fun routesWith(ready: Set<String>): List<UserRule> =
+        preferences.rules.filter { rule -> rule.kind != "set" || UserRules.value("set", rule.value) in ready }
 
     fun removeRule(index: Int) {
         val rules = preferences.rules
