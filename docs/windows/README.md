@@ -52,6 +52,20 @@ Domain restrictions, DNS handling, TLS/IP bypass resistance and direct exception
 need their own tests. A label or successful start call does not establish policy
 enforcement. Never add browsing-content collection as part of a UI change.
 
+Imported nodes (dashboard ⋮ → Import from clipboard / Import from file) use the
+Android share-link reader ported unchanged to `desktop/.../node/ShareLinks.kt`.
+Each is checked by sing-box before it is kept, sealed with DPAPI in
+`imported.bin`, appended after the managed nodes and built through the same
+template, so managed reject rules apply to it. They are usable only on an
+activated device that has a managed configuration; the selected imported node
+can be removed with its ×. Manual entry and custom categories are not built, so
+the menu omits them.
+
+Tailscale Home is not implemented on Windows. It would run Tailscale inside the
+SYSTEM service and keep its login on the device, and home routes must stay
+limited to private ranges so they cannot bypass managed rejects. It needs an
+owner decision first.
+
 ## Interface and rendering
 
 The dashboard, activation, logs, tools, settings, tray icon and tray panel share

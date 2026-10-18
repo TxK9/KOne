@@ -14,15 +14,17 @@ real supported x64 and ARM64 Windows devices as applicable:
    protection and handling of revoked, expired and unassigned accounts.
 3. Connect in TUN mode and check the actual egress. Exercise proxy/direct rules and
    assigned domain restrictions, including DNS and TLS/IP bypass paths.
-4. Exercise system-proxy mode. Confirm the prior settings are restored after
+4. Import a share link from the clipboard and from a file; connect through it and
+   confirm the assigned domain restrictions still apply; remove it.
+5. Exercise system-proxy mode. Confirm the prior settings are restored after
    disconnect, application exit, upgrade failure and uninstall.
-5. Test tray, shortcuts, autostart, window visibility, DPI, both themes and the
+6. Test tray, shortcuts, autostart, window visibility, DPI, both themes and the
    selected scene. Weather uses scene coordinates; audio remains opt-in.
-6. Reopen the application, reboot and suspend/resume. Check service authentication
+7. Reopen the application, reboot and suspend/resume. Check service authentication
    and cleanup; an ordinary process must not gain an unrestricted service channel.
-7. Upgrade in place, preserve account data, reject a downgrade and test update
+8. Upgrade in place, preserve account data, reject a downgrade and test update
    manifest/signature/hash/size failures. Test interrupted updates and recovery.
-8. Uninstall and verify that the application's service, adapter and owned files
+9. Uninstall and verify that the application's service, adapter and owned files
    are removed and unrelated network settings remain intact.
 
 Record exact versions, artifact digests, platform, executed tests and failures.
