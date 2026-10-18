@@ -56,6 +56,8 @@ import cc.txwd.kone.ui.TitleBar
 import cc.txwd.kone.ui.ToolsActions
 import cc.txwd.kone.ui.ToolsState
 import cc.txwd.kone.ui.DnsLookupState
+import cc.txwd.kone.ui.Command
+import cc.txwd.kone.ui.Palette
 import cc.txwd.kone.ui.NodeQr
 import cc.txwd.kone.ui.SiteCheckState
 import cc.txwd.kone.app.SiteCheck
@@ -135,6 +137,13 @@ class ScreensTest {
             tab = "Auto", selected = "auto",
         )
         shoot("dashboard-auto", dark = false) { WithRail(Page.Dashboard, {}) { DashboardView(auto, DashboardActions(), false, {}, moving = false) } }
+        // The command palette over the dashboard, a site typed.
+        shoot("palette", dark = false) {
+            androidx.compose.foundation.layout.Box {
+                WithRail(Page.Dashboard, {}) { DashboardView(sample, DashboardActions(), false, {}, moving = false) }
+                Palette({ listOf(Command("Check example.org", "Straight out and through nodes") {}, Command("Look up example.org", "DNS, every way") {}, Command("Connect", "United States") {}, Command("Use United States", "US · 245 ms") {}) }, onClose = {})
+            }
+        }
         // A hotel network holding traffic for its sign-in page, while connected; then waiting for the person.
         shoot("dashboard-sign-in", dark = false) {
             WithRail(Page.Dashboard, {}) { DashboardView(online.copy(signIn = SignInState("http://portal.example.net/login", waiting = false)), DashboardActions(), false, {}, moving = false) }

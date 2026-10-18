@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerIcon
@@ -52,6 +53,7 @@ import cc.txwd.kone.ink.InkGallery
 import cc.txwd.kone.ui.Appearance
 import cc.txwd.kone.ui.Backdrop
 import cc.txwd.kone.ui.Connection
+import cc.txwd.kone.ui.Palette
 import cc.txwd.kone.ui.DashboardActions
 import cc.txwd.kone.ui.DashboardView
 import cc.txwd.kone.ui.Frame
@@ -134,6 +136,8 @@ fun main(args: Array<String>) {
         // When the panel lost focus to a click on the tray icon, that click must not open it again.
         var panelClosedAt by remember { mutableStateOf(0L) }
         var page by remember { mutableStateOf(Page.Dashboard) }
+        // The command palette (Ctrl+K), once a key is in.
+        var palette by remember { mutableStateOf(false) }
         var menu by remember { mutableStateOf(false) }
         val icon = remember { BitmapPainter(Image.makeFromEncoded(resource("kone.png")).toComposeImageBitmap()) }
         val ambient = remember { Ambient() }
@@ -198,6 +202,11 @@ fun main(args: Array<String>) {
                     if (model.screen == Screen.Dashboard && SystemTray.isSupported()) shown = false else quit()
                 },
                 state = window, visible = shown, title = "KOne", icon = icon, undecorated = true,
+                onPreviewKeyEvent = { event ->
+                    // Ctrl+K opens the command palette from anywhere, a text field included.
+                    (event.type == KeyEventType.KeyDown && event.isCtrlPressed && event.key == Key.K && model.screen == Screen.Dashboard)
+                        .also { if (it) palette = !palette }
+                },
                 onKeyEvent = { event ->
                     // Esc folds the ⋮ menu away.
                     (event.key == Key.Escape && event.type == KeyEventType.KeyDown && menu).also { if (it) menu = false }
@@ -349,6 +358,7 @@ fun main(args: Array<String>) {
                               }
                           }
                       }
+                        if (palette) Palette({ query -> commands(model, query) { page = it } }, onClose = { palette = false })
                         // The edges a window frame would have: drag the right, the bottom or the corner.
                         ResizeHandles(window)
                     }
@@ -533,3 +543,29 @@ private fun copyText(text: String) {
 private fun clipboardText(): String? = runCatching {
     Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as? String
 }.getOrNull()?.trim()
+
+/**
+ * What the command palette offers for [query]: a typed site first (check it, look it up), then
+ * connecting, the nodes by name, the modes and ways, the pages, and the tools. [go] shows a page.
+ */
+private fun commands(model: AppModel, query: String, go: (Page) -> Unit): List<cc.txwd.kone.ui.Command> = buildList {
+    val state = model.dashboard
+    cc.txwd.kone.app.DnsLookup.clean(query)?.takeIf { '.' in query }?.let { site ->
+        add(cc.txwd.kone.ui.Command("Check $site", "Straight out and through nodes") { go(Page.Tools); model.checkSite(site) })
+        add(cc.txwd.kone.ui.Command("Look up $site", "DNS, every way") { go(Page.Tools); model.lookUp(site) })
+    }
+    add(cc.txwd.kone.ui.Command(if (state.connection == Connection.Idle) "Connect" else "Disconnect", state.current?.name.orEmpty()) { model.power() })
+    state.nodes.forEach { node ->
+        add(cc.txwd.kone.ui.Command("Use ${node.name}", listOfNotNull(node.category, node.delay?.let { "$it ms" }).joinToString(" · ")) { go(Page.Dashboard); model.pickNode(node.id) })
+    }
+    for (mode in listOf("Rule", "Global", "Direct")) add(cc.txwd.kone.ui.Command("Mode: $mode", "Tools") { model.pickMode(mode) })
+    add(cc.txwd.kone.ui.Command("Connect with the virtual adapter", "Tools") { model.pickWay("Adapter") })
+    add(cc.txwd.kone.ui.Command("Connect as the system proxy", "Tools") { model.pickWay("Proxy") })
+    add(cc.txwd.kone.ui.Command("Run diagnosis", "Tools") { go(Page.Tools); model.diagnose() })
+    add(cc.txwd.kone.ui.Command("Test all nodes", "Nodes") { go(Page.Nodes); model.testAll() })
+    add(cc.txwd.kone.ui.Command("Update category lists", "Rules") { go(Page.Rules); model.updateLists(force = true) })
+    add(cc.txwd.kone.ui.Command("Import from clipboard", "Nodes") { model.importText(clipboardText().orEmpty()) })
+    for (target in listOf(Page.Dashboard, Page.Nodes, Page.Rules, Page.Log, Page.Tools, Page.Settings)) {
+        add(cc.txwd.kone.ui.Command("Go to ${target.title}", "Page") { go(target) })
+    }
+}
