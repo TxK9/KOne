@@ -26,8 +26,15 @@ data class ReachCheck(val reach: Reach, val page: String? = null)
  * template sends straight out (sing-box.exe), so it sees the network as it is, not the tunnel.
  */
 object NetworkReach {
-    /** An address to ask, and how it answers on an open network. */
-    class Target(val url: String, val answers: (status: Int, body: String) -> Boolean)
+    /**
+     * An address to ask, and how it answers on an open network. Sending the asker on to the same
+     * address over HTTPS is an open network's answer too: a sign-in page cannot hold a valid
+     * certificate for the address, so it never sends people there.
+     */
+    class Target(val url: String, val answers: (status: Int, body: String) -> Boolean) {
+        fun usual(status: Int, body: String, location: String?): Boolean =
+            answers(status, body) || (status in 300..399 && location != null && location == "https://" + url.removePrefix("http://"))
+    }
 
     val TARGETS = listOf(
         // Cloudflare's trace page names the host it was asked for.
@@ -50,8 +57,9 @@ object NetworkReach {
             val request = HttpRequest.newBuilder(URI(target.url)).timeout(Duration.ofMillis(timeoutMillis)).header("Cache-Control", "no-cache").GET().build()
             client.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream()).thenApply { response ->
                 val body = response.body().use { stream -> String(stream.readNBytes(16 * 1024), Charsets.UTF_8) }
-                if (target.answers(response.statusCode(), body)) Heard.Usual
-                else Heard.Other(response.headers().firstValue("Location").orElse(null))
+                val location = response.headers().firstValue("Location").orElse(null)
+                if (target.usual(response.statusCode(), body, location)) Heard.Usual
+                else Heard.Other(location)
             }.exceptionally { Heard.Nothing }
         }
         // The first usual answer settles it; otherwise every address has its time.

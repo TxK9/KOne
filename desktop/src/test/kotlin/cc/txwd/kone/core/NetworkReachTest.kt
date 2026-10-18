@@ -43,6 +43,24 @@ class NetworkReachTest {
     }
 
     @Test
+    fun theSameAddressOverHttpsIsAnOpenNetworksAnswer() {
+        // Cloudflare's trace now sends plain HTTP on to itself over HTTPS (seen from CI's runners).
+        val server = network { Triple(301, "", null) }
+        val port = server.address.port
+        try {
+            val target = NetworkReach.Target("http://127.0.0.1:$port/trace") { status, body -> status == 200 && "fl=" in body }
+            assertEquals(true, target.usual(301, "", "https://127.0.0.1:$port/trace"))
+            assertEquals(true, target.usual(308, "", "https://127.0.0.1:$port/trace"))
+            // Elsewhere, or the same address over plain HTTP again: a sign-in page's answer.
+            assertEquals(false, target.usual(302, "", "https://portal.example.net/login"))
+            assertEquals(false, target.usual(302, "", "http://127.0.0.1:$port/trace"))
+            assertEquals(false, target.usual(200, "<html>sign in</html>", null))
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
     fun aNetworkThatRedirectsToItsPageWantsASignIn() {
         val portal = "http://portal.example.net/login?from=kone"
         assertEquals(ReachCheck(Reach.SignIn, portal), checked { Triple(302, "", portal) })
@@ -76,8 +94,8 @@ class NetworkReachTest {
     @Test
     fun theRealAddressesAnswerAsExpected() {
         assumeTrue(System.getProperty("kone.live") == "true", "asks real services (-Pkone.live=true)")
-        for (target in NetworkReach.TARGETS) {
-            assertEquals(ReachCheck(Reach.Open), NetworkReach.check(targets = listOf(target), timeoutMillis = 8_000), target.url)
-        }
+        // Each address on its own, every one reported, so one that changes does not hide another.
+        val answers = NetworkReach.TARGETS.associate { target -> target.url to NetworkReach.check(targets = listOf(target), timeoutMillis = 8_000) }
+        assertEquals(NetworkReach.TARGETS.associate { it.url to ReachCheck(Reach.Open) }, answers)
     }
 }
