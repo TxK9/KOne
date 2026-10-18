@@ -86,6 +86,29 @@ class ClashApi(private val api: CoreApi) {
         Carried(json.number("downloadTotal"), json.number("uploadTotal"), list)
     }.getOrNull()
 
+    /**
+     * Asks the core's own DNS, with its rules, for [name] of [type] (A or AAAA): the response code
+     * and answers as [DnsWire.read] gives them. Null when the core does not answer or the lookup failed.
+     */
+    fun dnsQuery(name: String, type: String): DnsReply? = runCatching {
+        val response = client.send(request("/dns/query?name=${encode(name)}&type=$type", Duration.ofSeconds(12)).GET().build(), HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() != 200) return null
+        val json = Json.parseToJsonElement(response.body()) as JsonObject
+        val code = (json["Status"] as? JsonPrimitive)?.longOrNull?.toInt() ?: return null
+        val answers = (json["Answer"] as? JsonArray).orEmpty().mapNotNull { item ->
+            val record = item as? JsonObject ?: return@mapNotNull null
+            val data = (record["data"] as? JsonPrimitive)?.contentOrNull?.trim()?.trimEnd('.') ?: return@mapNotNull null
+            when ((record["type"] as? JsonPrimitive)?.longOrNull?.toInt()) {
+                DnsWire.A -> "A $data"
+                DnsWire.AAAA -> "AAAA $data"
+                DnsWire.CNAME -> "CNAME $data"
+                else -> null
+            }
+        }
+        // Only the type asked for (a fixed answer in the rules may carry every type), and aliases.
+        DnsReply(code, answers.filter { it.startsWith("$type ") || it.startsWith("CNAME ") })
+    }.getOrNull()
+
     /** Ends one connection, or every one when [id] is null; the program behind it opens a new one as it needs. */
     fun close(id: String?): Boolean = runCatching {
         val path = if (id == null) "/connections" else "/connections/${encode(id)}"

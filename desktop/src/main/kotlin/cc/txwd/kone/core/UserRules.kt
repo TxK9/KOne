@@ -106,7 +106,7 @@ object UserRules {
     }
 
     /** An IPv6 address in its short form (RFC 5952): the first longest run of two or more zero groups as "::". */
-    private fun compressed(bytes: ByteArray): String {
+    internal fun compressed(bytes: ByteArray): String {
         val groups = (0 until 8).map { ((bytes[it * 2].toInt() and 0xff) shl 8) or (bytes[it * 2 + 1].toInt() and 0xff) }
         var bestStart = -1
         var bestLength = 1

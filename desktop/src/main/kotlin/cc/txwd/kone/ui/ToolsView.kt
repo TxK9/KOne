@@ -70,7 +70,11 @@ data class ToolsState(
     val checking: Boolean = false,
     /** One suggestion for the first check that failed. */
     val advice: String? = null,
+    /** The last DNS lookup: the name, each way it was asked, and what they add up to. */
+    val lookup: DnsLookupState? = null,
 )
+
+data class DnsLookupState(val name: String, val checks: List<Check>, val running: Boolean, val verdict: String? = null)
 
 class ToolsActions(
     val onMode: (String) -> Unit = {},
@@ -82,6 +86,9 @@ class ToolsActions(
     val onDiagnose: () -> Unit = {},
     /** Puts the last diagnosis away, giving its room back to the connections. */
     val onClearChecks: () -> Unit = {},
+    /** Looks a name up every way KOne can; false when it is not a domain name. */
+    val onLookUp: (String) -> Boolean = { true },
+    val onClearLookup: () -> Unit = {},
 )
 
 private val MODE_NAMES = listOf("Rule" to "Rule", "Global" to "Global", "Direct" to "Direct")
@@ -121,14 +128,59 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
                 }
             }
             if (state.checks.isNotEmpty()) Checks(state.checks, state.advice)
+            Lookup(state.lookup, actions)
         }
         state.carried?.let { carried -> Connections(carried, state.bypass, actions) }
     }
 }
 
-/** A diagnosis, one row per check: what, how it went, and a few words; then the suggestion. */
+/** DNS lookup: a name, then one row for each way it was asked, and a sentence on what they add up to. */
 @Composable
-private fun Checks(checks: List<Check>, advice: String?) {
+private fun Lookup(lookup: DnsLookupState?, actions: ToolsActions) {
+    val ink = LocalInk.current
+    var name by remember { mutableStateOf(lookup?.name.orEmpty()) }
+    var wrong by remember { mutableStateOf(false) }
+    val running = lookup?.running == true
+    fun go() {
+        if (!running) wrong = !actions.onLookUp(name)
+    }
+    Line("DNS lookup") {
+        BasicTextField(
+            name, { name = it; wrong = false },
+            Modifier.width(220.dp).height(30.dp).hairline(if (wrong) NodeWeather.Cut.ink(ink.dark) else ink.hair, bottom = true, width = 1.5.dp)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && (event.key == Key.Enter || event.key == Key.NumPadEnter)) { go(); true } else false
+                },
+            singleLine = true,
+            textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.ui, fontSize = 13.sp),
+            cursorBrush = SolidColor(ink.ink),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { go() }),
+            decorationBox = { field ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                    if (name.isEmpty()) Label("example.com", 13.sp, ink.soft)
+                    field()
+                }
+            },
+        )
+        Spacer(Modifier.width(22.dp))
+        if (lookup != null && !running) {
+            Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onClearLookup), contentAlignment = Alignment.Center) {
+                Label("Clear", 14.sp, ink.soft)
+            }
+            Spacer(Modifier.width(22.dp))
+        }
+        Box(Modifier.height(34.dp).press(enabled = !running, bleed = 8.dp) { go() }, contentAlignment = Alignment.Center) {
+            Label(if (running) "Looking up" else "Look up", 14.sp, if (running) ink.soft else ink.ink, FontWeight.SemiBold)
+        }
+    }
+    if (wrong) Label("Enter a domain name, such as example.com", 13.sp, NodeWeather.Cut.ink(ink.dark), modifier = Modifier.padding(top = 6.dp))
+    if (lookup != null && lookup.checks.isNotEmpty()) Checks(lookup.checks, lookup.verdict, verdict = true)
+}
+
+/** A diagnosis, one row per check: what, how it went, and a few words; then the suggestion (or, for a lookup, the verdict). */
+@Composable
+private fun Checks(checks: List<Check>, advice: String?, verdict: Boolean = false) {
     val ink = LocalInk.current
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).hairline(ink.hair, bottom = true).padding(bottom = 8.dp)) {
         checks.forEach { check ->
@@ -145,7 +197,7 @@ private fun Checks(checks: List<Check>, advice: String?) {
                 Label(check.detail, 13.sp, if (check.outcome == Outcome.Fail) NodeWeather.Cut.ink(ink.dark) else ink.ink, tabular = true)
             }
         }
-        advice?.let { Label(it, 13.sp, NodeWeather.Mist.ink(ink.dark), FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp)) }
+        advice?.let { Label(it, 13.sp, if (verdict) ink.ink else NodeWeather.Mist.ink(ink.dark), FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp)) }
     }
 }
 

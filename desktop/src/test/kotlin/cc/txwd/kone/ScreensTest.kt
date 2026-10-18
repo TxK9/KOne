@@ -55,6 +55,7 @@ import cc.txwd.kone.ui.SourceKind
 import cc.txwd.kone.ui.TitleBar
 import cc.txwd.kone.ui.ToolsActions
 import cc.txwd.kone.ui.ToolsState
+import cc.txwd.kone.ui.DnsLookupState
 import cc.txwd.kone.ui.ToolsView
 import cc.txwd.kone.ui.TrayIcon
 import cc.txwd.kone.ui.TrayPanel
@@ -305,6 +306,20 @@ class ScreensTest {
         for (dark in listOf(false, true)) {
             shoot("tools", dark) { WithRail(Page.Tools, {}) { ToolsView(state, ToolsActions()) } }
         }
+        // A DNS lookup, disconnected so the direct server is asked too (example addresses only).
+        val lookup = ToolsState(
+            "Rule", emptyList(),
+            lookup = DnsLookupState(
+                "www.example.com",
+                listOf(
+                    Check("Apps", Outcome.Pass, "203.0.113.10, 2001:db8::10 · 18 ms"), Check("KOne", Outcome.Pass, "198.51.100.20 · 64 ms"),
+                    Check("Direct", Outcome.Pass, "203.0.113.10 · 21 ms"), Check("Remote", Outcome.Fail, "No answer"),
+                ),
+                running = false,
+                verdict = "Some servers do not answer: the others are enough while they work",
+            ),
+        )
+        shoot("tools-lookup", dark = false) { WithRail(Page.Tools, {}) { ToolsView(lookup, ToolsActions()) } }
     }
 
     /** Logs: the core's lines, warnings and errors in their weather's ink (example addresses only). */

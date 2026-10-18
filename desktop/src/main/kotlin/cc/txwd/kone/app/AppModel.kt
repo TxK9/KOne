@@ -30,6 +30,7 @@ import cc.txwd.kone.node.ShareLinks
 import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
+import cc.txwd.kone.ui.DnsLookupState
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
 import cc.txwd.kone.ui.NodeEditing
@@ -945,6 +946,53 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     fun clearChecks() {
         if (!tools.checking) tools = tools.copy(checks = emptyList(), advice = null)
+    }
+
+    /**
+     * Looks [input] up every way KOne can, at once, showing each as it answers: as programs see it,
+     * through KOne's own DNS (while it runs), from the direct server (unless the adapter is on, when
+     * KOne answers for it) and from the remote one. False when [input] is not a domain name.
+     */
+    fun lookUp(input: String): Boolean {
+        val name = DnsLookup.clean(input) ?: return false
+        if (tools.lookup?.running == true) return true
+        val refused = DnsLookup.refused(name, account.binding?.source)
+        val ipv6 = preferences.ipv6
+        val api = clash ?: probeApi?.let(::ClashApi)
+        val adapterOn = service != null
+        val viaPort = proxied
+        val ways = buildList<Pair<String, () -> Check>> {
+            add("Apps" to { DnsLookup.system(name) })
+            if (api != null) add("KOne" to { DnsLookup.core(api, name, ipv6) })
+            if (!adapterOn) add("Direct" to { DnsLookup.direct(DnsLookup.directServer(preferences.directDns), name) })
+            add("Remote" to { DnsLookup.remote(DnsLookup.remoteUrl(preferences.remoteDns), name, viaPort) })
+        }
+        if (refused) {
+            tools = tools.copy(lookup = DnsLookupState(name, emptyList(), running = false, verdict = DnsLookup.verdict(emptyList(), refused = true, ipv6 = ipv6)))
+            return true
+        }
+        val done = arrayOfNulls<Check>(ways.size)
+        fun show() {
+            val checks = ways.mapIndexed { i, (title, _) -> done[i] ?: Check(title, Outcome.Running) }
+            val finished = done.all { it != null }
+            tools = tools.copy(lookup = DnsLookupState(name, checks, running = !finished, verdict = if (finished) DnsLookup.verdict(checks, refused = false, ipv6 = ipv6) else null))
+        }
+        show()
+        scope.launch {
+            coroutineScope {
+                ways.forEachIndexed { i, (_, ask) ->
+                    launch {
+                        done[i] = withContext(Dispatchers.IO) { ask() }
+                        show()
+                    }
+                }
+            }
+        }
+        return true
+    }
+
+    fun clearLookup() {
+        if (tools.lookup?.running != true) tools = tools.copy(lookup = null)
     }
 
     // Backup (Settings)

@@ -296,6 +296,8 @@ fun main(args: Array<String>) {
                                               onClose = model::closeConnection,
                                               onDiagnose = model::diagnose,
                                               onClearChecks = model::clearChecks,
+                                              onLookUp = model::lookUp,
+                                              onClearLookup = model::clearLookup,
                                           ),
                                       )
                                       Page.Settings -> SettingsView(
