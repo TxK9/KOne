@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_settings_no_results">没有匹配结果</string>
+    <string name="knine_settings_search_hint">试试其他关键词。</string>
+    <string name="knine_settings_show_secret">显示密钥</string>
+    <string name="knine_settings_hide_secret">隐藏密钥</string>
+    <string name="knine_settings_increase_font">增大字号</string>
+    <string name="knine_settings_decrease_font">减小字号</string>
+</resources>

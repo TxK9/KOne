@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_profile_actions">配置操作</string>
+    <string name="knine_categories_summary">节点分类</string>
+    <string name="knine_categories_expand">展开分类</string>
+    <string name="knine_categories_collapse">收起分类</string>
+    <string name="knine_node_preview">节点预览</string>
+    <string name="knine_node_use">选用节点</string>
+    <string name="knine_node_exit_unverified">出口 IP 尚未验证。</string>
+    <string name="knine_classify_current">将当前配置归入这里</string>
+    <string name="knine_country_empty">暂无节点</string>
+    <string name="knine_country_selected">当前节点</string>
+    <string name="knine_country_change">调整分类</string>
+    <string name="knine_country_more">其余 %1$d 个节点</string>
+    <string name="knine_country_show_two">收起其余</string>
+    <string name="knine_country_custom_name">自定义分类名称</string>
+</resources>

@@ -10,11 +10,12 @@
   the service and everything installed. The person's own data (%LOCALAPPDATA%\KOne) stays.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
-  <Product Id="*" Name="KOne" Language="2052" Codepage="936" Version="$(var.Version)" Manufacturer="KOne"
+  <Product Id="*" Name="KOne" Language="$(var.InstallerLanguage)" Codepage="$(var.InstallerCodepage)" Version="$(var.Version)" Manufacturer="KOne"
            UpgradeCode="38e977e1-5745-41c2-97b8-6aeef34d6e22">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64"
-             Languages="2052" SummaryCodepage="936" Description="KOne" Manufacturer="KOne" />
+             Languages="$(var.InstallerLanguage)" SummaryCodepage="$(var.InstallerCodepage)" Description="KOne" Manufacturer="KOne" />
 
+    <!-- WiX 3 MajorUpgrade detects the same UpgradeCode across all product languages. -->
     <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="!(loc.Downgrade)" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
@@ -94,9 +95,9 @@
     <UIRef Id="KOneUI" />
 
     <UI Id="KOneUI">
-      <TextStyle Id="WixUI_Font_Normal" FaceName="Microsoft YaHei UI" Size="9" />
-      <TextStyle Id="WixUI_Font_Bigger" FaceName="Microsoft YaHei UI" Size="12" />
-      <TextStyle Id="WixUI_Font_Title" FaceName="Microsoft YaHei UI" Size="9" Bold="yes" />
+      <TextStyle Id="WixUI_Font_Normal" FaceName="$(var.InstallerFont)" Size="9" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="$(var.InstallerFont)" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="$(var.InstallerFont)" Size="9" Bold="yes" />
       <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
       <Property Id="WixUI_Mode" Value="Minimal" />
 
