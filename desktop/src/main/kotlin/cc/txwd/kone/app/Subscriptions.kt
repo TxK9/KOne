@@ -41,7 +41,12 @@ data class Subscription(
     val info: UserInfo? = null,
     val nodes: List<JsonObject> = emptyList(),
     val error: String? = null,
+    /** Words that leave out the nodes named with them ([NodeFilter]). */
+    val leaveOut: String = "",
 ) {
+    /** The nodes KOne uses: the last good fetch, less notices and what the person left out. */
+    val kept: NodeFilter.Kept get() = NodeFilter.apply(nodes, leaveOut)
+
     /** Whether an automatic update is due at [now]: its interval since the last good fetch, or an hour after a failed try. */
     fun due(now: Long): Boolean {
         if (hours <= 0) return false
@@ -134,6 +139,7 @@ class Subscriptions(private val file: File, private val vault: Vault) {
         put("updated", subscription.updated)
         put("tried", subscription.tried)
         subscription.error?.let { put("error", it) }
+        if (subscription.leaveOut.isNotEmpty()) put("leaveOut", subscription.leaveOut)
         subscription.info?.let { info ->
             put("info", buildJsonObject {
                 put("upload", info.upload); put("download", info.download); put("total", info.total)
@@ -157,6 +163,7 @@ class Subscriptions(private val file: File, private val vault: Vault) {
             info = info,
             nodes = (json["nodes"] as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty(),
             error = text("error"),
+            leaveOut = text("leaveOut").orEmpty(),
         )
     }
 

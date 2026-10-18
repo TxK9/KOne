@@ -107,6 +107,7 @@ real Windows PC yet.
 | Import nodes from a pasted or picked Clash profile or sing-box configuration, as well as share links | Done |
 | A connection's site sent straight out or through the node from the connection list | Done |
 | A subscription that has ended, ends within days, or has used 90 % of its data is said once | Done |
+| A provider's notices among its nodes ("剩余流量", "官网", "Expire:") left out of every list and Automatic; words of the person's own leave out more, per subscription, with chains through them | Done |
 
 **Category rules (Option B, chosen by the owner).** A category is one more rule kind,
 `set`, in the person's ordered rule list: `geosite-netflix → Proxy`, `geoip-jp → Direct`.

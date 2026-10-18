@@ -284,7 +284,7 @@ class ScreensTest {
                         Node("s1c", "Germany 03", "DE", "Germany", null, protocol = "tuic", loss = 0.6, history = listOf(310, null, null, 330, null, null)),
                     ),
                     info = UserInfo(2_000_000_000, 11_000_000_000, 107_374_182_400, (now / 1000) + 40L * 86_400),
-                    updated = now - 3 * 3_600_000L, hours = 12, url = "https://example.com/sub",
+                    updated = now - 3 * 3_600_000L, hours = 12, url = "https://example.com/sub", left = 2,
                 ),
                 NodeSection("s2", SourceKind.Subscription, "Backup", emptyList(), error = "The provider cannot be reached", hours = 24, url = "https://example.net/sub"),
             ),

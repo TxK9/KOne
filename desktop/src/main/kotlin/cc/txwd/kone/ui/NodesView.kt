@@ -67,6 +67,10 @@ data class NodeSection(
     val hours: Int = 0,
     val url: String = "",
     val updating: Boolean = false,
+    /** Words that leave out the nodes named with them. */
+    val leaveOut: String = "",
+    /** How many of its entries are left out: the provider's notices, and nodes named with [leaveOut]. */
+    val left: Int = 0,
 )
 
 /** A node being written by hand: which imported node it replaces (null for a new one), its fields, and how saving went. */
@@ -96,7 +100,7 @@ class NodesActions(
     /** A subscription link typed or pasted; false when it is not one KOne fetches. */
     val onAddSubscription: (String) -> Boolean = { true },
     val onUpdate: (String) -> Unit = {},
-    val onEdit: (id: String, name: String, url: String, hours: Int) -> Boolean = { _, _, _, _ -> true },
+    val onEdit: (id: String, name: String, url: String, hours: Int, leaveOut: String) -> Boolean = { _, _, _, _, _ -> true },
     val onRemoveSubscription: (String) -> Unit = {},
     val onRemoveNode: (String) -> Unit = {},
     /** Copies an imported or subscribed node as a share link. */
@@ -194,7 +198,7 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
                 }
                 if (editing == section.id && section.kind == SourceKind.Subscription) {
                     item(key = "edit:" + section.id) {
-                        Editor(section, onSave = { name, url, hours -> actions.onEdit(section.id, name, url, hours).also { if (it) editing = null } }, onCancel = { editing = null })
+                        Editor(section, onSave = { name, url, hours, leaveOut -> actions.onEdit(section.id, name, url, hours, leaveOut).also { if (it) editing = null } }, onCancel = { editing = null })
                     }
                 }
                 if (open) {
@@ -223,6 +227,7 @@ private fun Header(section: NodeSection, open: Boolean, now: Long, onToggle: () 
             Label(section.title, 15.sp, weight = FontWeight.SemiBold)
             Label("${section.nodes.size}", 13.sp, ink.soft, tabular = true)
         }
+        if (section.left > 0) Label("${section.left} left out", 13.sp, ink.soft, tabular = true)
         section.info?.let { info ->
             if (info.total > 0) Label("${size(info.used)} / ${size(info.total)}", 13.sp, ink.soft, tabular = true)
             info.expire?.let { expire -> Expiry(expire, now) }
@@ -331,11 +336,12 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
 
 /** A subscription's name, link and interval, saved together. */
 @Composable
-private fun Editor(section: NodeSection, onSave: (String, String, Int) -> Boolean, onCancel: () -> Unit) {
+private fun Editor(section: NodeSection, onSave: (String, String, Int, String) -> Boolean, onCancel: () -> Unit) {
     val ink = LocalInk.current
     var name by remember(section.id) { mutableStateOf(section.title) }
     var url by remember(section.id) { mutableStateOf(section.url) }
     var hours by remember(section.id) { mutableStateOf(section.hours) }
+    var leaveOut by remember(section.id) { mutableStateOf(section.leaveOut) }
     var wrong by remember(section.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp).hairline(ink.hair, bottom = true).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         EditLine("Name") { Text(name, { name = it }, Modifier.width(300.dp)) }
@@ -345,9 +351,11 @@ private fun Editor(section: NodeSection, onSave: (String, String, Int) -> Boolea
                 INTERVALS.forEach { (value, title) -> Choice(title, value == hours) { hours = value } }
             }
         }
+        // The provider's notices ("剩余流量", "官网") are left out without asking.
+        EditLine("Leave out") { Text(leaveOut, { leaveOut = it }, Modifier.width(420.dp), hint = "Nodes named with, e.g. 0.1x | Test") }
         Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             Spacer(Modifier.width(90.dp))
-            Action("Save") { if (!onSave(name.trim(), url.trim(), hours)) wrong = true }
+            Action("Save") { if (!onSave(name.trim(), url.trim(), hours, leaveOut)) wrong = true }
             Action("Cancel", onClick = onCancel)
         }
     }

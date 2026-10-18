@@ -726,11 +726,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         return keep(nodes)
     }
 
-    /** A subscription's name, link and interval; false when the link is not one KOne fetches. A new link is fetched at once. */
-    fun editSubscription(id: String, name: String, url: String, hours: Int): Boolean {
+    /** A subscription's name, link, interval and the words that leave nodes out; false when the link is not one KOne fetches. A new link is fetched at once. */
+    fun editSubscription(id: String, name: String, url: String, hours: Int, leaveOut: String = ""): Boolean {
         if (!SubscriptionContent.acceptable(url) || hours !in 0..720) return false
         val before = subscriptions.all.firstOrNull { it.id == id } ?: return false
-        subscriptions.change(id) { it.copy(name = name.ifBlank { it.name }.take(32), url = url, hours = hours) }
+        subscriptions.change(id) { it.copy(name = name.ifBlank { it.name }.take(32), url = url, hours = hours, leaveOut = NodeFilter.clean(leaveOut)) }
         loadNodes()
         if (url != before.url) updateSubscription(id, first = false)
         return true
@@ -1810,7 +1810,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
      */
     private fun merged(): Merge.Merged? {
         val managed = account.binding?.source ?: return null
-        val groups = listOf(imports.all) + subscriptions.all.map { it.nodes }
+        val groups = listOf(imports.all) + subscriptions.all.map { it.kept.nodes }
         return sequenceOf(groups, listOf(imports.all) + subscriptions.all.map { emptyList() }, groups.map { emptyList() })
             .map { Merge.into(managed, it) }
             .firstOrNull { builds(it.source) } ?: Merge.into(managed, groups.map { emptyList() })
@@ -1940,6 +1940,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                         NodeSection(
                             subscription.id, SourceKind.Subscription, subscription.name, listed.filter { subscribed[it.id]?.id == subscription.id },
                             subscription.info, subscription.updated, subscription.error, subscription.hours, subscription.url, subscription.id in updating,
+                            leaveOut = subscription.leaveOut, left = subscription.kept.left,
                         ),
                     )
                 }
