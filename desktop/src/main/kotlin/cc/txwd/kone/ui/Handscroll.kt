@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import cc.txwd.kone.ink.InkGallery
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 /**
  * Whether Windows draws this window in software (a virtual machine, a remote desktop), where each
@@ -83,8 +84,12 @@ fun scaled(painting: ImageBitmap, w: Int, h: Int): ImageBitmap {
 
 /**
  * Seconds of motion so far, published [perSecond] times a second (asked each time) while
- * [moving]. A stall (the window hidden, the machine asleep) counts as a tenth of a second at
- * most, so nothing jumps.
+ * [moving]. A stall (the window hidden, the machine asleep) counts as a step and a tenth of a
+ * second at most, so nothing jumps.
+ *
+ * Between steps the clock sleeps rather than waiting on every frame: a coroutine waiting for a
+ * frame makes the window draw one, all of it, at the screen's rate, so a clock that only needed
+ * four steps a second kept a software-drawn window redrawing sixty times a second.
  */
 @Composable
 fun rememberClock(moving: Boolean, perSecond: () -> Int): State<Double> {
@@ -94,10 +99,12 @@ fun rememberClock(moving: Boolean, perSecond: () -> Int): State<Double> {
             var last = withFrameNanos { it }
             var time = clock.doubleValue
             while (true) {
+                val step = 1.0 / perSecond().coerceAtLeast(1)
+                delay((step * 1000).toLong())
                 val now = withFrameNanos { it }
-                time += ((now - last) / 1e9).coerceIn(0.0, 0.1)
+                time += ((now - last) / 1e9).coerceIn(0.0, step + 0.1)
                 last = now
-                if (time - clock.doubleValue >= 1.0 / perSecond()) clock.doubleValue = time
+                clock.doubleValue = time
             }
         }
     }

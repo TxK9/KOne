@@ -18,7 +18,7 @@ yet.
 | Monitoring | Rates, connections, usage by node and program over 30 days, logs | unit, screens |
 | Install | MSI, x64 and ARM64, upgrade and uninstall leave nothing behind | CI |
 | Size | MSI about 143 MB (x64), of which 63 MB are the City backdrop's 604 pictures | CI artefacts |
-| Memory, CPU | Measured from this round in CI's job summary (idle, no key) | CI |
+| Memory, CPU | Idle, no key, whole process tree: 220 to 230 MB private, 33 to 35 threads; 0.1 to 0.4 % of a core minimised. Shown, drawn in software, it took 83 % of a core: the backdrop's clock made the window redraw at the screen's rate, now fixed to its 4 steps a second | CI (run 41, x64 and ARM64) |
 | Code | 16,900 lines of Kotlin (AppModel alone 1,800), 2,300 of Go, 3,900 of tests | source |
 
 ## Where the leading clients are ahead
@@ -33,10 +33,10 @@ Honestly, in most of what years of users bring:
   KOne leaves out raw configuration, scripts, LAN sharing and other cores on purpose
   (`ROADMAP.md`); custom groups are the one omission experts will miss most.
 - **DNS options.** Fake-IP, per-domain nameserver policy, hosts. KOne has validated presets
-  and custom servers, no fake-IP and no hosts yet.
+  and custom servers and hosts, no fake-IP yet.
 - **Footprint.** A JVM with Skia is heavier than Clash Verge Rev's Tauri shell or v2rayN's
-  .NET; KOne's installer is larger than either. This round adds the measurements; the numbers
-  decide whether it matters.
+  .NET; KOne's installer is larger than either. Idle it keeps about 230 MB private, several
+  times a Tauri shell; minimised it costs next to nothing.
 - **Platforms.** Both run on more than Windows.
 
 ## What people struggle with in those clients
