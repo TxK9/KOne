@@ -68,19 +68,20 @@
               <Component Id="Rules" Guid="d96c7415-ad9d-4233-bfe4-3ed7891b755b" Win64="yes">
                 <File Id="GeositeCn" Source="$(var.CoreDir)\rules\geosite-cn.srs" KeyPath="yes" />
                 <File Id="GeoipCn" Source="$(var.CoreDir)\rules\geoip-cn.srs" />
+                <!-- The person's category lists, which the service keeps in sets\ as it is handed them,
+                     go with the rules in the same step, so rules\ and core\ are empty when the
+                     installer comes to remove them. -->
+                <RemoveFile Id="CategoryListFiles" Directory="SetsDir" Name="*" On="uninstall" />
+                <RemoveFolder Id="CategoryListFolder" Directory="SetsDir" On="uninstall" />
+                <RemoveFolder Id="RulesFolder" Directory="RulesDir" On="uninstall" />
+                <RemoveFolder Id="CoreFolder" Directory="CoreDir" On="uninstall" />
               </Component>
               <!-- A component of its own, so an upgrade from a KOne without it follows the component rules. -->
               <Component Id="AdsRules" Guid="1c7233d4-c8c7-45b3-8fbc-2ecf873e2408" Win64="yes">
                 <File Id="GeositeAds" Source="$(var.CoreDir)\rules\geosite-category-ads-all.srs" KeyPath="yes" />
               </Component>
-              <!-- The person's category lists, which the service keeps here as it is handed them: all removed with KOne. -->
-              <Directory Id="SetsDir" Name="sets">
-                <Component Id="CategoryLists" Guid="4ae8cba5-44f0-4692-bf01-8dbc71d198ba" Win64="yes" KeyPath="yes">
-                  <CreateFolder />
-                  <RemoveFile Id="CategoryListFiles" Name="*" On="uninstall" />
-                  <RemoveFolder Id="CategoryListFolder" On="uninstall" />
-                </Component>
-              </Directory>
+              <!-- Made by the service when it is first handed a list; nothing is installed into it. -->
+              <Directory Id="SetsDir" Name="sets" />
             </Directory>
           </Directory>
         </Directory>
@@ -95,7 +96,6 @@
       <ComponentRef Id="SingBox" />
       <ComponentRef Id="Rules" />
       <ComponentRef Id="AdsRules" />
-      <ComponentRef Id="CategoryLists" />
       <ComponentGroupRef Id="AppFiles" />
     </Feature>
 
