@@ -75,19 +75,28 @@ From their issue trackers and forums:
 The aim is not more switches. It is fewer moments where a person has to understand networking
 to get what they want. In order of value for effort:
 
-### Without a decision (KOne's own judgement; in progress or next)
+### Without a decision (KOne's own judgement)
 
-1. **Outcome-based routing: "make this site work".** Name a site; KOne tries it straight out
-   and through the nodes (the core can test any address through any outbound), shows what
-   works and how fast, and with one press writes the rule. Rules from evidence instead of from
-   syntax. Sites the console refuses are never tried.
-2. **Network profiles.** Remember, per network, how KOne should behave (home: Direct mode;
-   office: System proxy; elsewhere: Automatic), recognised by its gateway, kept locally.
-3. **Passive health.** Read stalls in real connections to notice a failing node sooner and
+Done this round (unit tested; CI as noted in the roadmap):
+
+- **Sign-in networks** and **other VPNs**, above.
+- **Outcome-based routing: Site check.** Name a site; KOne tries it straight out and through
+  the node in use and the best three others, in a core of its own so the running one's
+  Automatic group is not disturbed, says which way serves it, and one press keeps it on
+  Direct sites or Proxied sites. Rules from evidence instead of syntax. Sites the console
+  refuses are never tried.
+- **Routing that explains itself.** Every connection in Tools says why it went its way, in
+  the person's terms (their direct sites, a category, the China list, the mode, everything
+  else), read from the rule the core matched.
+- **QR export** of the person's own nodes, for KOne on a phone.
+
+Next:
+
+1. **Passive health.** Read stalls in real connections to notice a failing node sooner and
    probe less.
-4. **AppModel in parts.** 1,800 lines in one class is where bugs will hide; split into
+2. **AppModel in parts.** About 2,000 lines in one class is where bugs will hide; split into
    connection, nodes, rules and tools controllers, a part at a time, each with tests.
-5. **Hosts and QR export.** Small, expected, already on the roadmap.
+3. **Hosts.** Fixed answers for chosen names; a typed template field in Go and Kotlin.
 
 ### Needing the owner
 
@@ -98,6 +107,7 @@ to get what they want. In order of value for effort:
 | Custom groups (fallback, load-balance) | The expert feature most missed | More surface in the template; must stay typed and validated |
 | Opt-in crash and health reports | Turns field hours into evidence | Privacy; a service to receive them |
 | Real-device test round | The one gap no code closes | Hardware and time |
+| Network profiles (behave per network: Direct at home, proxy at the office) | Fewer manual switches | Telling networks apart reliably: Windows 11 24H2 shows the Wi-Fi name only with location permission, and gateway addresses repeat across homes; asking for location is a privacy cost |
 | Other platforms | Reach | A second packaging and service model |
 
 ## How progress is judged

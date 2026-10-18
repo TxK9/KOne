@@ -86,7 +86,12 @@ real Windows PC yet.
 | Copy an imported or subscribed node as a share link (managed nodes are never written out) | Done |
 | Backup and restore of the setup (never the key or the binding) | Done |
 | Add or edit a node by protocol without a link | Done |
-| QR export of a node | Planned |
+| QR export of a node | Done |
+| Sign-in networks (hotels, airports) detected, with one press to sign in and reconnect | Done |
+| Other VPNs and Windows' proxy elsewhere named in diagnosis and on fall-back | Done |
+| Site check: a site tried straight out and through nodes, the better way kept | Done |
+| Each connection's reason shown in the person's terms | Done |
+| Memory and CPU measured in CI on x64 and ARM64 | Done |
 | Bandwidth test through a chosen node | Done |
 | Hosts: fixed answers for chosen names | Planned |
 | Per-node and per-app traffic over the day | Done |
