@@ -54,6 +54,8 @@ dependencies {
     implementation("net.java.dev.jna:jna-platform:5.19.1")
     // Share links read as the phone reads them (node/ShareLinks.kt, ported as it is).
     implementation("org.json:json:20250517")
+    // Clash (mihomo) subscriptions, read with the safe constructor only (node/ClashProxies.kt).
+    implementation("org.yaml:snakeyaml:2.4")
 
     testImplementation(kotlin("test"))
 }
