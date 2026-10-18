@@ -1,0 +1,4 @@
+<resources>
+    <string name="knine_vpn_revoked_title">VPN 连接已关闭</string>
+    <string name="knine_vpn_revoked_message">系统已撤销 Knine 的 VPN 连接权限。其他 VPN 应用接管连接或取消 VPN 授权时会发生这种情况。请检查其他代理 App 和系统的“始终开启 VPN”设置。</string>
+</resources>
