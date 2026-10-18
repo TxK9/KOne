@@ -1,0 +1,156 @@
+<!doctype html>
+<!--
+  KOne's download page, for the owner's own website. The workflow fills in __VERSION__ and the
+  rest and puts it in the KOne-website artifact with the MSI and the paintings (SiteArt.kt).
+  It is meant for an address only the people given it know: search engines are asked to stay out.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<title>KOne for Windows</title>
+<style>
+:root {
+  --paper: #F0F2F5;
+  --ink: #1C2622;
+  --soft: #4A5550;
+  --hair: rgba(28, 38, 34, 0.12);
+  --press: rgba(28, 38, 34, 0.06);
+  --veil: 240, 242, 245;
+  --on-ink: #F0F2F5;
+  --show-light: flex;
+  --show-dark: none;
+  --ui: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif;
+  --mono: Consolas, "SF Mono", Menlo, monospace;
+  /* The handscroll: each painting three quarters as wide as it is tall, sharing 26.18% with the next. */
+  --h: 100svh;
+  --w: calc(var(--h) * 0.75);
+  --shared: calc(var(--w) * 0.2618);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #181A1F; --ink: #D8E2DE; --soft: #A9B4B0; --hair: rgba(216, 226, 222, 0.13);
+    --press: rgba(216, 226, 222, 0.10); --veil: 24, 26, 31; --on-ink: #181A1F;
+    --show-light: none; --show-dark: flex;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: var(--ui); -webkit-font-smoothing: antialiased; }
+svg { display: block; }
+
+.stage { position: relative; min-height: 100svh; overflow: hidden; }
+
+/* The four paintings side by side, panning slowly one way and back, as in the App. Each fades
+   into the next across the paper they share, added rather than laid over each other. */
+.scroll { position: absolute; inset: 0; isolation: isolate; }
+.strip { position: absolute; top: 0; left: 0; height: var(--h); animation: pan 150s ease-in-out infinite alternate; }
+.strip.light { display: var(--show-light); }
+.strip.dark { display: var(--show-dark); }
+.strip img {
+  height: var(--h); width: var(--w); max-width: none; flex: none; mix-blend-mode: plus-lighter;
+  --fade: linear-gradient(to right, transparent 0%, rgba(0,0,0,.156) 6.545%, rgba(0,0,0,.5) 13.09%, rgba(0,0,0,.844) 19.635%, #000 26.18%,
+          #000 73.82%, rgba(0,0,0,.844) 80.365%, rgba(0,0,0,.5) 86.91%, rgba(0,0,0,.156) 93.455%, transparent 100%);
+  -webkit-mask-image: var(--fade); mask-image: var(--fade);
+}
+.strip img + img { margin-left: calc(var(--shared) * -1); }
+@keyframes pan { from { transform: translateX(0); } to { transform: translateX(calc(100vw - var(--w) * 3.2146)); } }
+/* Still, it rests on the middle of the scroll, the Golden Gate. */
+@media (prefers-reduced-motion: reduce) { .strip { animation: none; transform: translateX(calc((100vw - var(--w) * 3.2146) / 2)); } }
+.mist { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; background: linear-gradient(to bottom, rgba(var(--veil), 0) 0%, rgba(var(--veil), 0.84) 55%, var(--paper) 100%); }
+.veil { position: absolute; top: 0; bottom: 0; left: 0; width: min(640px, 100%); background: linear-gradient(to right, rgba(var(--veil), 0.94) 0%, rgba(var(--veil), 0.84) 62%, rgba(var(--veil), 0) 100%); }
+
+/* What to do, on the paper at the left, as the App's key page. */
+.card {
+  position: relative; min-height: 100svh; width: min(460px, 100%);
+  padding: max(56px, env(safe-area-inset-top)) clamp(20px, 6vw, 72px) max(40px, env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; justify-content: center; gap: 26px;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand svg { width: 44px; height: 44px; color: var(--ink); }
+.brand h1 { margin: 0; font-size: 46px; line-height: 1.05; font-weight: 700; letter-spacing: 0.01em; }
+.lead { margin: -14px 0 0; color: var(--soft); font-size: 16px; }
+
+.download {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 52px; padding: 0 28px;
+  border-radius: 26px; background: var(--ink); color: var(--on-ink); text-decoration: none; font-size: 17px; font-weight: 600;
+  align-self: flex-start; transition: transform .12s ease, box-shadow .12s ease;
+}
+.download svg { width: 20px; height: 20px; }
+.download:hover { box-shadow: 0 8px 22px rgba(20, 28, 25, 0.22); transform: translateY(-1px); }
+.download:active { transform: translateY(0); box-shadow: none; }
+.download:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.meta { margin: -14px 0 0; color: var(--soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; counter-reset: step; }
+.steps li { display: flex; align-items: baseline; gap: 12px; font-size: 15px; counter-increment: step; }
+.steps li::before {
+  content: counter(step); flex: none; width: 22px; height: 22px; border-radius: 4px; display: inline-grid; place-items: center;
+  background: #B3362A; color: #fff; font-size: 13px; font-weight: 700; transform: translateY(3px);
+}
+.steps span { color: var(--soft); font-size: 13px; }
+
+.note { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--press); color: var(--soft); font-size: 13px; line-height: 1.7; }
+.note b { color: var(--ink); font-weight: 600; white-space: nowrap; }
+
+details { color: var(--soft); font-size: 12px; }
+summary { cursor: pointer; width: max-content; list-style: none; padding: 4px 0; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: " ›"; }
+details[open] summary::after { content: " ‹"; }
+code { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12px; word-break: break-all; user-select: all; }
+
+/* A phone, or a narrow window: the painting in a band across the top, what to do below it. */
+@media (max-width: 720px) {
+  :root { --h: 56svh; }
+  .scroll { bottom: auto; height: var(--h); }
+  .veil { display: none; }
+  .mist { top: calc(var(--h) * 0.55); bottom: auto; height: calc(var(--h) * 0.45 + 1px); background: linear-gradient(to bottom, rgba(var(--veil), 0) 0%, rgba(var(--veil), 0.7) 60%, var(--paper) 100%); }
+  .card { justify-content: flex-start; width: 100%; gap: 22px; padding-top: calc(var(--h) - 40px); }
+  .brand h1 { font-size: 38px; }
+}
+</style>
+</head>
+<body>
+<main class="stage">
+  <div class="scroll" aria-hidden="true">
+    <div class="strip light"><img src="art/liberty-light.jpg" alt=""><img src="art/goldengate-light.jpg" alt=""><img src="art/halfdome-light.jpg" alt=""><img src="art/rainier-light.jpg" alt=""></div>
+    <div class="strip dark"><img src="art/liberty-dark.jpg" alt=""><img src="art/goldengate-dark.jpg" alt=""><img src="art/halfdome-dark.jpg" alt=""><img src="art/rainier-dark.jpg" alt=""></div>
+  </div>
+  <div class="mist" aria-hidden="true"></div>
+  <div class="veil" aria-hidden="true"></div>
+
+  <section class="card">
+    <div class="brand">
+      <svg viewBox="0 0 108 108" aria-hidden="true"><g transform="translate(0,-4)" fill="currentColor"><path fill-rule="evenodd" d="M12,90 L27,72 L33,66 L43,63 L49,51 L53,45 L55,38 L60,33 L64,25 L68,28 L70,29 L74,40 L76,43 L78,49 L82,50 L88,62 L95,73 L105,90 L74,87 L52,86 L34,88 Z M66,31 L69,49 L82,76 L86,85 L73,69 L65,43 Z M52,52 L55,59 L58,75 L66,83 L51,70 L47,64 Z"/><path d="M52,41 H55 V39 H56 V41 H58 V44 H56 V43 H55 V45 H52 Z"/></g></svg>
+      <h1>KOne</h1>
+    </div>
+    <p class="lead">Windows edition</p>
+
+    <a class="download" href="__MSI__" download>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10.5 12 15.5 17 10.5"/><path d="M5 19.5h14"/></svg>
+      Download KOne
+    </a>
+    <p class="meta">__VERSION__ · __SIZE__ · Windows 10 / 11 64-bit</p>
+
+    <ol class="steps">
+      <li>Install <span>Double-click the downloaded file</span></li>
+      <li>Enter your key <span>Paste the access key you received</span></li>
+      <li>Connect</li>
+    </ol>
+
+    <!--unsigned-->
+    <p class="note">If Windows displays “Windows protected your PC”, select <b>More info</b>, then <b>Run anyway</b>.</p>
+    <!--/unsigned-->
+
+    <details>
+      <summary>Verify files</summary>
+      <code>SHA-256 __SHA256__</code>
+    </details>
+  </section>
+</main>
+</body>
+</html>

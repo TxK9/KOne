@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The KOne installer, built by desktop/packaging/build-msi.ps1 on the Windows runner.
+
+  For everyone on the computer (Program Files, one UAC prompt when installing): the app image
+  that Compose makes (KOne.exe, app\, runtime\), and beside it core\ with sing-box.exe, the rule
+  sets and kone-service.exe, registered as the KOne service (SYSTEM, starts with Windows), so
+  connecting needs no administrator rights afterwards. kone:// links open KOne. A newer MSI
+  replaces an older one (same UpgradeCode, version 1.0.<build>); uninstalling stops and removes
+  the service and everything installed. The person's own data (%LOCALAPPDATA%\KOne) stays.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <Product Id="*" Name="KOne" Language="2052" Codepage="936" Version="$(var.Version)" Manufacturer="KOne"
+           UpgradeCode="38e977e1-5745-41c2-97b8-6aeef34d6e22">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64"
+             Languages="2052" SummaryCodepage="936" Description="KOne" Manufacturer="KOne" />
+
+    <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="!(loc.Downgrade)" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Condition Message="!(loc.Needs64)">VersionNT64</Condition>
+    <Condition Message="!(loc.NeedsWindows10)"><![CDATA[Installed OR VersionNT >= 603]]></Condition>
+
+    <Icon Id="KOne.ico" SourceFile="$(var.Packaging)\kone.ico" />
+    <Property Id="ARPPRODUCTICON" Value="KOne.ico" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <?ifdef Site?>
+    <Property Id="ARPURLINFOABOUT" Value="$(var.Site)" />
+    <?endif?>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="KOne">
+          <Component Id="Launcher" Guid="bf9e97fb-195c-4246-ba65-9c8f240dc220" Win64="yes">
+            <File Id="KOneExe" Source="$(var.AppDir)\KOne.exe" KeyPath="yes">
+              <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="KOne" WorkingDirectory="INSTALLDIR" Icon="KOne.ico" Advertise="yes" />
+              <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="KOne" WorkingDirectory="INSTALLDIR" Icon="KOne.ico" Advertise="yes" />
+            </File>
+            <!-- kone://claim?server=…&code=… opens KOne with the key filled in. -->
+            <RegistryKey Root="HKLM" Key="Software\Classes\kone">
+              <RegistryValue Type="string" Value="URL:KOne" />
+              <RegistryValue Type="string" Name="URL Protocol" Value="" />
+              <RegistryKey Key="DefaultIcon">
+                <RegistryValue Type="string" Value="&quot;[#KOneExe]&quot;,0" />
+              </RegistryKey>
+              <RegistryKey Key="shell\open\command">
+                <RegistryValue Type="string" Value="&quot;[#KOneExe]&quot; &quot;%1&quot;" />
+              </RegistryKey>
+            </RegistryKey>
+          </Component>
+
+          <Directory Id="CoreDir" Name="core">
+            <Component Id="Service" Guid="b0d6ea86-636d-47a0-98ca-6ad47d8fdbac" Win64="yes">
+              <File Id="ServiceExe" Source="$(var.CoreDir)\kone-service.exe" KeyPath="yes" />
+              <ServiceInstall Id="KOneService" Name="KOneService" DisplayName="KOne" Description="!(loc.ServiceDescription)"
+                              Type="ownProcess" Start="auto" ErrorControl="normal" Account="LocalSystem" Arguments="run" Vital="yes">
+                <util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart" ThirdFailureActionType="none"
+                                    RestartServiceDelayInSeconds="5" ResetPeriodInDays="1" />
+              </ServiceInstall>
+              <ServiceControl Id="KOneServiceControl" Name="KOneService" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
+            </Component>
+            <Component Id="SingBox" Guid="902e3fef-144f-4ff2-9985-9a9323565257" Win64="yes">
+              <File Id="SingBoxExe" Source="$(var.CoreDir)\sing-box.exe" KeyPath="yes" />
+            </Component>
+            <Directory Id="RulesDir" Name="rules">
+              <Component Id="Rules" Guid="d96c7415-ad9d-4233-bfe4-3ed7891b755b" Win64="yes">
+                <File Id="GeositeCn" Source="$(var.CoreDir)\rules\geosite-cn.srs" KeyPath="yes" />
+                <File Id="GeoipCn" Source="$(var.CoreDir)\rules\geoip-cn.srs" />
+              </Component>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder" />
+      <Directory Id="DesktopFolder" />
+    </Directory>
+
+    <Feature Id="KOne" Title="KOne" Level="1" Absent="disallow">
+      <ComponentRef Id="Launcher" />
+      <ComponentRef Id="Service" />
+      <ComponentRef Id="SingBox" />
+      <ComponentRef Id="Rules" />
+      <ComponentGroupRef Id="AppFiles" />
+    </Feature>
+
+    <!-- Welcome → Install → Finish, with Launch KOne ticked at the end; nothing to choose, no licence page. -->
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.ArtDir)\dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.ArtDir)\banner.bmp" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.Launch)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WixShellExecTarget" Value="[#KOneExe]" />
+    <!-- From the installer's own window, so KOne starts as the person, not as administrator. -->
+    <CustomAction Id="LaunchKOne" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+    <UIRef Id="KOneUI" />
+
+    <UI Id="KOneUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Microsoft YaHei UI" Size="9" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Microsoft YaHei UI" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Microsoft YaHei UI" Size="9" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WixUI_Mode" Value="Minimal" />
+
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <DialogRef Id="WelcomeDlg" />
+
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="1">NOT Installed</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed</Publish>
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchKOne">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+    </UI>
+    <UIRef Id="WixUI_Common" />
+  </Product>
+</Wix>

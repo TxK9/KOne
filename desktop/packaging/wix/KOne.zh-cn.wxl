@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English localization; filename retained for the existing build reference. -->
+<WixLocalization Culture="en-us" Codepage="1252" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="Downgrade">A newer version of KOne is already installed.</String>
+  <String Id="Needs64">KOne requires 64-bit Windows.</String>
+  <String Id="NeedsWindows10">KOne requires Windows 10 or later.</String>
+  <String Id="Launch">Launch KOne</String>
+  <String Id="ServiceDescription">KOne connection service; administrator approval is not required for each connection.</String>
+</WixLocalization>

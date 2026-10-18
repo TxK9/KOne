@@ -1,0 +1,326 @@
+package cc.txwd.kone
+
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.window.WindowDraggableArea
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPlacement
+import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.WindowState
+import androidx.compose.ui.window.application
+import cc.txwd.kone.app.AppModel
+import cc.txwd.kone.app.Places
+import cc.txwd.kone.app.Preferences
+import cc.txwd.kone.app.Screen
+import cc.txwd.kone.app.SettingsModel
+import cc.txwd.kone.app.SingleInstance
+import cc.txwd.kone.app.WindowPlace
+import cc.txwd.kone.app.WindowsShell
+import cc.txwd.kone.ui.Appearance
+import cc.txwd.kone.ui.Connection
+import cc.txwd.kone.ui.DashboardActions
+import cc.txwd.kone.ui.DashboardView
+import cc.txwd.kone.ui.Frame
+import cc.txwd.kone.ui.KeyView
+import cc.txwd.kone.ui.KoneTheme
+import cc.txwd.kone.ui.LogView
+import cc.txwd.kone.ui.NodeWeather
+import cc.txwd.kone.ui.Page
+import cc.txwd.kone.ui.SettingsActions
+import cc.txwd.kone.ui.SettingsView
+import cc.txwd.kone.ui.TitleBar
+import cc.txwd.kone.ui.TrayIcon
+import cc.txwd.kone.ui.TrayPanel
+import cc.txwd.kone.ui.UpdateState
+import cc.txwd.kone.ui.WithRail
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
+import org.jetbrains.skia.Image
+import java.awt.GraphicsEnvironment
+import java.awt.MenuItem
+import java.awt.PopupMenu
+import java.awt.SystemTray
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
+import kotlin.math.roundToInt
+
+fun main(args: Array<String>) {
+    // A kone:// link clicked in a browser arrives as the first argument; --tray when Windows
+    // starts KOne as the person signs in (Settings → Start with Windows).
+    val link = args.firstOrNull { it.startsWith("kone://", ignoreCase = true) }
+    val atSignIn = "--tray" in args
+    val inbox = Channel<String>(Channel.UNLIMITED)
+    if (!SingleInstance(Places.data).claim(link ?: if (atSignIn) "tray" else "show") { inbox.trySend(it) }) return
+    link?.let { inbox.trySend(it) }
+
+    application {
+        val scope = rememberCoroutineScope()
+        val model = remember { AppModel(scope) }
+        val preferences = remember { Preferences(Places.data) }
+        // Where the person left it, if that is still on a screen; else 1280 by 800 in the middle.
+        val window = remember {
+            val place = preferences.window?.takeIf(::onScreen)
+            WindowState(
+                placement = if (place?.maximized == true) WindowPlacement.Maximized else WindowPlacement.Floating,
+                size = place?.let { DpSize(it.width.dp, it.height.dp) } ?: firstSize(),
+                position = place?.let { WindowPosition(it.x.dp, it.y.dp) } ?: WindowPosition.Aligned(androidx.compose.ui.Alignment.Center),
+            )
+        }
+        LaunchedEffect(window) {
+            // Kept as it changes, a second after it settles, so even a shutdown leaves it noted.
+            // Maximized, the place it will return to stays the one noted last.
+            snapshotFlow { Triple(window.position, window.size, window.placement) }.drop(1).debounce(1000).collect { (position, size, placement) ->
+                when {
+                    placement == WindowPlacement.Maximized -> preferences.window?.let { preferences.window = it.copy(maximized = true) }
+                    position is WindowPosition.Absolute -> preferences.window =
+                        WindowPlace(position.x.value.roundToInt(), position.y.value.roundToInt(), size.width.value.roundToInt(), size.height.value.roundToInt(), maximized = false)
+                }
+            }
+        }
+        // Started at sign-in with a key in place, KOne waits by the clock; otherwise it opens.
+        var shown by remember { mutableStateOf(!(atSignIn && model.screen == Screen.Dashboard && SystemTray.isSupported())) }
+        var panel by remember { mutableStateOf(false) }
+        // When the panel lost focus to a click on the tray icon, that click must not open it again.
+        var panelClosedAt by remember { mutableStateOf(0L) }
+        var page by remember { mutableStateOf(Page.Dashboard) }
+        var menu by remember { mutableStateOf(false) }
+        val icon = remember { BitmapPainter(Image.makeFromEncoded(resource("kone.png")).toComposeImageBitmap()) }
+
+        fun quit() {
+            model.close()
+            exitApplication()
+        }
+
+        val settings = remember { SettingsModel(scope, preferences, onQuit = ::quit) }
+        var systemDark by remember { mutableStateOf(WindowsShell.appsDark()) }
+        LaunchedEffect(settings.state.appearance) {
+            // Following Windows: a change there shows here within a few seconds.
+            while (settings.state.appearance == Appearance.System) {
+                systemDark = WindowsShell.appsDark()
+                delay(3000)
+            }
+        }
+        val dark = when (settings.state.appearance) {
+            Appearance.System -> systemDark
+            Appearance.Light -> false
+            Appearance.Dark -> true
+        }
+
+        LaunchedEffect(Unit) {
+            for (message in inbox) {
+                if (message == "tray") continue
+                if (message.startsWith("kone://", ignoreCase = true)) model.offerKey(message)
+                shown = true
+                window.isMinimized = false
+            }
+        }
+
+        Tray(
+            model,
+            onOpen = { shown = true; window.isMinimized = false },
+            onPanel = { if (panel || System.currentTimeMillis() - panelClosedAt > 400) panel = !panel },
+            onQuit = ::quit,
+        )
+
+        Window(
+            onCloseRequest = {
+                // With a binding, closing keeps KOne by the clock, connected or not; without one there is nothing to keep.
+                if (model.screen == Screen.Dashboard && SystemTray.isSupported()) shown = false else quit()
+            },
+            state = window, visible = shown, title = "KOne", icon = icon, undecorated = true,
+            onKeyEvent = { event ->
+                // Esc folds the ⋮ menu away.
+                (event.key == Key.Escape && event.type == KeyEventType.KeyDown && menu).also { if (it) menu = false }
+            },
+        ) {
+            LaunchedEffect(shown) { if (shown) { this@Window.window.toFront(); this@Window.window.requestFocus() } }
+            LaunchedEffect(Unit) { this@Window.window.minimumSize = java.awt.Dimension(MINIMUM.width.value.toInt(), MINIMUM.height.value.toInt()) }
+            KoneTheme(dark) {
+                Box {
+                  Frame({
+                      TitleBar(
+                          onMinimize = { window.isMinimized = true },
+                          onMaximize = {
+                              window.placement = if (window.placement == WindowPlacement.Maximized) WindowPlacement.Floating else WindowPlacement.Maximized
+                          },
+                          onClose = { if (model.screen == Screen.Dashboard && SystemTray.isSupported()) shown = false else quit() },
+                          drag = { content -> WindowDraggableArea { androidx.compose.foundation.layout.Row(content = content) } },
+                      )
+                  }) {
+                      when (model.screen) {
+                          Screen.Key -> KeyView(
+                              model.key,
+                              onKey = model::typeKey,
+                              onPaste = { clipboardText()?.let(model::typeKey) },
+                              onStart = model::claim,
+                          )
+                          // Tools joins the rail once it has something in it.
+                          Screen.Dashboard -> WithRail(
+                              page, { page = it }, listOf(Page.Dashboard, Page.Log, Page.Settings),
+                              marked = if (settings.state.update is UpdateState.Available) setOf(Page.Settings) else emptySet(),
+                          ) {
+                              when (page) {
+                                  Page.Log -> LogView(model.logs)
+                                  Page.Settings -> SettingsView(
+                                      settings.state,
+                                      SettingsActions(
+                                          onAppearance = settings::pickAppearance,
+                                          onAutostart = settings::setAutostart,
+                                          onCheck = settings::check,
+                                          onUpdate = settings::update,
+                                      ),
+                                  )
+                                  else -> DashboardView(
+                                      model.dashboard,
+                                      DashboardActions(onTab = model::pickTab, onNode = model::pickNode, onPower = model::power),
+                                      menu, { menu = it },
+                                  )
+                              }
+                          }
+                      }
+                  }
+                    // The edges a window frame would have: drag the right, the bottom or the corner.
+                    ResizeHandles(window)
+                }
+            }
+        }
+
+        if (panel) {
+            val area = GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
+            val panelState = remember { WindowState(size = DpSize(360.dp, 420.dp)) }
+            panelState.position = WindowPosition((area.x + area.width - 360 - 12).dp, (area.y + area.height - 420 - 12).dp)
+            Window(
+                onCloseRequest = { panel = false }, state = panelState, undecorated = true, resizable = false, alwaysOnTop = true, focusable = true, title = "KOne",
+                onKeyEvent = { event -> (event.key == Key.Escape && event.type == KeyEventType.KeyDown).also { if (it) panel = false } },
+            ) {
+                DisposableEffect(Unit) {
+                    val listener = object : java.awt.event.WindowAdapter() {
+                        override fun windowDeactivated(e: java.awt.event.WindowEvent?) {
+                            panel = false
+                            panelClosedAt = System.currentTimeMillis()
+                        }
+                    }
+                    this@Window.window.addWindowListener(listener)
+                    onDispose { this@Window.window.removeWindowListener(listener) }
+                }
+                KoneTheme(dark) {
+                    TrayPanel(
+                        model.dashboard,
+                        onPower = model::power,
+                        onOpen = { panel = false; shown = true; window.isMinimized = false },
+                        onQuit = ::quit,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The icon by the clock: the mark with the weather's seal, its tip naming the node; a click opens
+ * the tray panel, the right button offers Open KOne and Quit.
+ */
+@Composable
+private fun Tray(model: AppModel, onOpen: () -> Unit, onPanel: () -> Unit, onQuit: () -> Unit) {
+    if (!SystemTray.isSupported()) return
+    val darkTaskbar = remember { WindowsShell.taskbarDark() }
+    val tray = remember {
+        java.awt.TrayIcon(TrayIcon.image(NodeWeather.Rest, darkTaskbar), "KOne").apply {
+            isImageAutoSize = true
+            popupMenu = PopupMenu().apply {
+                add(MenuItem("Open KOne").apply { addActionListener { onOpen() } })
+                add(MenuItem("Quit").apply { addActionListener { onQuit() } })
+            }
+            addMouseListener(object : MouseAdapter() {
+                override fun mouseClicked(e: MouseEvent) {
+                    if (e.button == MouseEvent.BUTTON1) onPanel()
+                }
+            })
+        }
+    }
+    DisposableEffect(Unit) {
+        SystemTray.getSystemTray().add(tray)
+        onDispose { SystemTray.getSystemTray().remove(tray) }
+    }
+    val state = model.dashboard
+    val online = state.connection == Connection.Online
+    val weather = if (online) state.current?.weather ?: NodeWeather.Rest else NodeWeather.Rest
+    LaunchedEffect(weather, darkTaskbar) { tray.image = TrayIcon.image(weather, darkTaskbar) }
+    LaunchedEffect(state.current, online, state.current?.delay) { tray.toolTip = TrayIcon.tip(state.current, online) }
+}
+
+/** The smallest the window goes: the dashboard's deck and the rail still fit. */
+private val MINIMUM = DpSize(960.dp, 620.dp)
+
+/** The preview's 1280 by 800, or less on a smaller screen (a laptop at 150% has 1280 by 720), keeping its shape. */
+private fun firstSize(): DpSize {
+    val area = GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
+    val scale = minOf(1f, area.width * 0.92f / 1280f, area.height * 0.92f / 800f)
+    return DpSize((1280 * scale).coerceAtLeast(MINIMUM.width.value).dp, (800 * scale).coerceAtLeast(MINIMUM.height.value).dp)
+}
+
+/**
+ * Handles along the right and bottom edges and in the corner, since a window drawn without
+ * Windows' own frame has none: the resize pointer over them, and dragging resizes.
+ */
+@Composable
+private fun BoxScope.ResizeHandles(state: WindowState) {
+    if (state.placement != WindowPlacement.Floating) return
+    val density = LocalDensity.current
+    fun Modifier.resizes(width: Boolean, height: Boolean, cursor: Int) = pointerHoverIcon(PointerIcon(java.awt.Cursor(cursor)))
+        .pointerInput(width, height) {
+            detectDragGestures { change, drag ->
+                change.consume()
+                val size = state.size
+                val grow = with(density) { DpSize(if (width) drag.x.toDp() else 0.dp, if (height) drag.y.toDp() else 0.dp) }
+                state.size = DpSize(maxOf(MINIMUM.width, size.width + grow.width), maxOf(MINIMUM.height, size.height + grow.height))
+            }
+        }
+    Box(Modifier.align(Alignment.CenterEnd).width(6.dp).fillMaxHeight().resizes(width = true, height = false, java.awt.Cursor.E_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.BottomCenter).height(6.dp).fillMaxWidth().resizes(width = false, height = true, java.awt.Cursor.S_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.BottomEnd).size(14.dp).resizes(width = true, height = true, java.awt.Cursor.SE_RESIZE_CURSOR))
+}
+
+/** Whether a window put at [place] would show its title bar on one of the screens there are now. */
+private fun onScreen(place: WindowPlace): Boolean = place.width >= 400 && place.height >= 300 &&
+    GraphicsEnvironment.getLocalGraphicsEnvironment().screenDevices.any { it.defaultConfiguration.bounds.contains(place.x + 120, place.y + 18) }
+
+private fun resource(name: String): ByteArray =
+    checkNotNull(object {}.javaClass.getResourceAsStream("/$name")) { "missing $name" }.use { it.readBytes() }
+
+private fun clipboardText(): String? = runCatching {
+    Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as? String
+}.getOrNull()?.trim()

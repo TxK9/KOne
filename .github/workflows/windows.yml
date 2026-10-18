@@ -1,0 +1,343 @@
+# KOne for Windows (docs/windows/README.md): the core (sing-box.exe) and the KOne service, then
+# the desktop app tested, rendered to screenshots and packed into the MSI with WiX, then the MSI
+# tried on a clean runner: installed over an older one, connected through the service on a real
+# TUN with the Claude block checked, and uninstalled. Nothing here publishes anything.
+name: Windows
+
+on:
+  push:
+    branches:
+      - claude/windows-desktop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 1.0.<run>: every build newer than the last, so Windows upgrades in place.
+  KONE_VERSION: 1.0.${{ github.run_number }}
+
+jobs:
+  core:
+    name: sing-box.exe and kone-service.exe
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Read the Go version
+        id: go
+        shell: bash
+        run: echo "version=$(python -c "import json; print(json.load(open('docs/CORE_BUILD.json'))['go'])")" >> "$GITHUB_OUTPUT"
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          cache-dependency-path: |
+            core/go.sum
+            desktop/service/go.sum
+      - name: Read the core's version
+        id: core
+        shell: bash
+        run: |
+          commit=$(python -c "import json; print(json.load(open('SNAPSHOT.json'))['upstream_commits']['core'])")
+          echo "version=$(go list -m -f '{{.Version}}' "github.com/sagernet/sing-box@$commit" | sed 's/^v//')" >> "$GITHUB_OUTPUT"
+        env:
+          GOTOOLCHAIN: local
+      - name: Build sing-box.exe
+        working-directory: core
+        run: |
+          $TAGS = Get-Content release/DEFAULT_BUILD_TAGS_WINDOWS
+          $LDFLAGS_SHARED = Get-Content release/LDFLAGS
+          New-Item -ItemType Directory -Force ../dist | Out-Null
+          go build -v -trimpath -o ../dist/sing-box.exe -tags "$TAGS" `
+            -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${{ steps.core.outputs.version }}' $LDFLAGS_SHARED -s -w -buildid=" `
+            ./cmd/sing-box
+        env:
+          CGO_ENABLED: "0"
+          GOOS: windows
+          GOARCH: amd64
+          GOTOOLCHAIN: local
+      - name: Test and build kone-service.exe
+        working-directory: desktop/service
+        run: |
+          go vet ./...
+          go test ./...
+          go build -trimpath -ldflags "-X main.version=$env:KONE_VERSION -s -w -buildid=" -o ../../dist/kone-service.exe .
+        env:
+          CGO_ENABLED: "0"
+          GOOS: windows
+          GOARCH: amd64
+          GOTOOLCHAIN: local
+      - name: Check
+        shell: bash
+        run: |
+          ./dist/sing-box.exe version
+          ./dist/sing-box.exe check -c .github/windows/smoke-config.json
+          ./dist/kone-service.exe version
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-windows-amd64
+          path: |
+            dist/sing-box.exe
+            dist/kone-service.exe
+          if-no-files-found: error
+
+  desktop:
+    name: KOne MSI
+    runs-on: windows-latest
+    needs: core
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      # Each of these stays off until the owner sets it up (docs/windows/RELEASE.md): signing
+      # with Azure Artifact Signing, and the signed latest.json that tells KOne of a new version.
+      SIGNING: ${{ vars.KONE_SIGNING_ACCOUNT != '' && secrets.AZURE_CLIENT_SECRET != '' }}
+      MANIFEST: ${{ vars.KONE_DOWNLOADS != '' && vars.KONE_UPDATE_KEY != '' && secrets.KONE_UPDATE_SIGNING_KEY != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Setup Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            desktop/*.gradle.kts
+            desktop/gradle/wrapper/gradle-wrapper.properties
+      - name: Take the core
+        uses: actions/download-artifact@v5
+        with:
+          name: core-windows-amd64
+          path: desktop/build/core
+      - name: Test and render the screens
+        shell: bash
+        run: ./gradlew --no-daemon test "-Pkone.build=${{ github.run_number }}"
+      - name: Build the app image and the installer's pictures
+        shell: bash
+        run: |
+          # KOne looks for updates only when the build knows both where and with which key.
+          updates=""
+          if [ "$MANIFEST" = "true" ]; then updates="${KONE_DOWNLOADS%/}/latest.json"; fi
+          ./gradlew --no-daemon createDistributable coreRules installerArt siteArt "-Pkone.build=${{ github.run_number }}" \
+            "-Pkone.console=${{ vars.KONE_CONSOLE }}" "-Pkone.updates=$updates" "-Pkone.updateKey=${{ vars.KONE_UPDATE_KEY }}"
+        env:
+          KONE_DOWNLOADS: ${{ vars.KONE_DOWNLOADS }}
+      - name: Sign KOne.exe
+        if: env.SIGNING == 'true'
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ vars.KONE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.KONE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.KONE_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\desktop\build\compose\binaries\main\app\KOne
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Sign kone-service.exe and sing-box.exe
+        if: env.SIGNING == 'true'
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ vars.KONE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.KONE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.KONE_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\desktop\build\core
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Get WiX 3.14.1
+        run: |
+          $zip = "$env:RUNNER_TEMP\wix.zip"
+          Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip -OutFile $zip
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash
+          if ($hash -ne "6AC824E1642D6F7277D0ED7EA09411A508F6116BA6FAE0AA5F2C7DAA2FF43D31") { Write-Error "WiX download has hash $hash"; exit 1 }
+          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP\wix"
+      - name: Build the MSI
+        run: |
+          $common = @{ Wix = "$env:RUNNER_TEMP\wix"; AppDir = (Resolve-Path build/compose/binaries/main/app/KOne).Path
+                       CoreDir = (Resolve-Path build/core).Path; ArtDir = (Resolve-Path build/wix).Path; Site = "${{ vars.KONE_SITE }}" }
+          New-Item -ItemType Directory -Force build/msi, build/msi-old | Out-Null
+          ./packaging/build-msi.ps1 @common -Version $env:KONE_VERSION -Out "$PWD\build\msi\KOne-$env:KONE_VERSION.msi"
+          # The same app as an older version, for trying the upgrade on the next job.
+          ./packaging/build-msi.ps1 @common -Version 1.0.0 -Out "$PWD\build\msi-old\KOne-1.0.0.msi"
+      - name: Sign the MSI
+        if: env.SIGNING == 'true'
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ vars.KONE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.KONE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.KONE_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\desktop\build\msi
+          files-folder-filter: msi
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Check the signatures
+        if: env.SIGNING == 'true'
+        run: |
+          $files = @("build/compose/binaries/main/app/KOne/KOne.exe", "build/core/kone-service.exe", "build/core/sing-box.exe", "build/msi/KOne-$env:KONE_VERSION.msi")
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature $file
+            Write-Host "${file}: $($signature.Status) $($signature.SignerCertificate.Subject)"
+            if ($signature.Status -ne "Valid") { Write-Error "$file is not signed"; exit 1 }
+          }
+      - name: Write the MSI's SHA-256 and the update manifest
+        run: |
+          $msi = "KOne-$env:KONE_VERSION.msi"
+          $hash = (Get-FileHash -Algorithm SHA256 "build/msi/$msi").Hash.ToLowerInvariant()
+          Set-Content -NoNewline -Encoding ascii -Path "build/msi/$msi.sha256" -Value "$hash  $msi"
+          Write-Host "$msi sha256 $hash"
+          if ($env:MANIFEST -eq "true") {
+            $base = $env:KONE_DOWNLOADS.TrimEnd("/")
+            ./gradlew.bat --no-daemon updateManifest "-Pkone.build=${{ github.run_number }}" "-Pkone.msi=$PWD\build\msi\$msi" "-Pkone.msiUrl=$base/$msi"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Copy-Item build/update/latest.json, build/update/latest.json.sig build/msi/
+            Get-Content build/msi/latest.json
+          }
+        env:
+          KONE_DOWNLOADS: ${{ vars.KONE_DOWNLOADS }}
+          KONE_UPDATE_SIGNING_KEY: ${{ secrets.KONE_UPDATE_SIGNING_KEY }}
+      - name: Make the website folder
+        run: |
+          # build/website/kone: the download page with this MSI's details, its paintings, the MSI,
+          # its SHA-256 and (with updates on) latest.json, ready to put on the owner's website.
+          $msi = "KOne-$env:KONE_VERSION.msi"
+          $site = "build/website/kone"
+          New-Item -ItemType Directory -Force "$site/art" | Out-Null
+          Copy-Item build/site/art/*.jpg "$site/art/"
+          Copy-Item "build/msi/$msi", "build/msi/$msi.sha256" $site
+          if (Test-Path build/msi/latest.json) { Copy-Item build/msi/latest.json, build/msi/latest.json.sig $site }
+          $hash = (Get-FileHash -Algorithm SHA256 "build/msi/$msi").Hash.ToLowerInvariant()
+          $size = "{0} MB" -f [math]::Round((Get-Item "build/msi/$msi").Length / 1MB)
+          $page = (Get-Content -Raw -Encoding utf8 packaging/site/index.html).Replace("__MSI__", $msi).Replace("__VERSION__", $env:KONE_VERSION).Replace("__SIZE__", $size).Replace("__SHA256__", $hash)
+          # A signed KOne opens without Windows' warning, so the page stops explaining it.
+          if ($env:SIGNING -eq "true") { $page = [regex]::Replace($page, "(?s)\s*<!--unsigned-->.*?<!--/unsigned-->", "") }
+          if ($page -match "__[A-Z0-9]+__") { Write-Error "the page still has $($Matches[0])"; exit 1 }
+          [System.IO.File]::WriteAllText((Join-Path $PWD "$site/index.html"), $page, (New-Object System.Text.UTF8Encoding $false))
+          Get-ChildItem -Recurse $site | ForEach-Object { Write-Host $_.FullName.Substring($PWD.Path.Length + 1) }
+      - name: Upload the MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOne-msi
+          path: |
+            desktop/build/msi/KOne-*
+            desktop/build/msi/latest.json*
+          if-no-files-found: error
+      - name: Upload the website folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOne-website
+          path: desktop/build/website
+          if-no-files-found: error
+      - name: Upload the older MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOne-msi-older
+          path: desktop/build/msi-old/KOne-1.0.0.msi
+          if-no-files-found: error
+          retention-days: 3
+      - name: Upload the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: desktop/build/screens/*.png
+          if-no-files-found: warn
+      - name: Upload the test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: desktop/build/reports/tests
+          if-no-files-found: ignore
+
+  try:
+    name: Install, connect, uninstall
+    runs-on: windows-latest
+    needs: desktop
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Setup Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            desktop/*.gradle.kts
+            desktop/gradle/wrapper/gradle-wrapper.properties
+      - name: Take the MSIs
+        uses: actions/download-artifact@v5
+        with:
+          pattern: KOne-msi*
+          path: ${{ runner.temp }}/msi
+          merge-multiple: true
+      - name: Install the older KOne, then upgrade it
+        run: |
+          function Install([string] $Msi, [string] $Log) {
+            $run = Start-Process msiexec.exe -Wait -PassThru -ArgumentList "/i `"$Msi`" /qn /l*v `"$Log`""
+            return $run.ExitCode
+          }
+          $old = Install "$env:RUNNER_TEMP\msi\KOne-1.0.0.msi" "$env:RUNNER_TEMP\install-old.log"
+          if ($old -ne 0) { Get-Content "$env:RUNNER_TEMP\install-old.log" -Tail 80; exit 1 }
+          ../.github/windows/installed.ps1 -Version 1.0.0
+          $new = Install "$env:RUNNER_TEMP\msi\KOne-$env:KONE_VERSION.msi" "$env:RUNNER_TEMP\install.log"
+          if ($new -ne 0) { Get-Content "$env:RUNNER_TEMP\install.log" -Tail 80; exit 1 }
+          ../.github/windows/installed.ps1 -Version $env:KONE_VERSION
+          # An older MSI may not replace a newer one.
+          $down = Install "$env:RUNNER_TEMP\msi\KOne-1.0.0.msi" "$env:RUNNER_TEMP\downgrade.log"
+          if ($down -eq 0) { Write-Error "the older MSI installed over the newer one"; exit 1 }
+          ../.github/windows/installed.ps1 -Version $env:KONE_VERSION
+      - name: KOne starts
+        run: |
+          $app = Start-Process "$env:ProgramFiles\KOne\KOne.exe" -PassThru
+          Start-Sleep -Seconds 20
+          if ($app.HasExited) { Write-Error "KOne.exe quit by itself with $($app.ExitCode)"; exit 1 }
+          Stop-Process -Id $app.Id -Force
+      - name: The service turns away anything but KOne.exe
+        run: ./gradlew.bat --no-daemon test --tests "cc.txwd.kone.ServiceEndToEndTest" "-Pkone.e2e=reject"
+      - name: Key, connection, Claude block, disconnection
+        run: |
+          # The test drives the service from the test JVM, which the service only serves when allowed.
+          New-Item -Force "HKLM:\SOFTWARE\KOne" | Out-Null
+          New-ItemProperty -Force -Path "HKLM:\SOFTWARE\KOne" -Name AllowAnyClient -PropertyType DWord -Value 1 | Out-Null
+          ./gradlew.bat --no-daemon test --tests "cc.txwd.kone.ServiceEndToEndTest" "-Pkone.e2e=full"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Take the test permission back
+        if: always()
+        run: Remove-Item -Recurse -Force "HKLM:\SOFTWARE\KOne" -ErrorAction SilentlyContinue
+      - name: Uninstall
+        run: |
+          $run = Start-Process msiexec.exe -Wait -PassThru -ArgumentList "/x `"$env:RUNNER_TEMP\msi\KOne-$env:KONE_VERSION.msi`" /qn /l*v `"$env:RUNNER_TEMP\uninstall.log`""
+          if ($run.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\uninstall.log" -Tail 80; exit 1 }
+          ../.github/windows/installed.ps1 -Gone
+      - name: Upload the logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: try-logs
+          path: |
+            ${{ runner.temp }}/*.log
+            desktop/build/reports/tests
+          if-no-files-found: ignore

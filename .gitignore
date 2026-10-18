@@ -14,6 +14,9 @@
 **/private/
 **/device/
 **/backups/
+# sing-box's own sources that the two rules above would also catch.
+!core/cmd/internal/build/
+!core/transport/device/
 
 # Built APKs and build logs (tools/build_*.sh)
 dist/

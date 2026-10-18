@@ -7,6 +7,7 @@ The checked-in source and build metadata define this branch's capabilities.
 - `core/`: pinned sing-box source.
 - `dependencies/`: recorded Android core artifacts.
 - `docs/`: development specifications and historical evidence.
+- `desktop/`: Kotlin/Compose desktop application, core integration, and Windows packaging source.
 - `tools/`: existing build and integration helpers.
 
 Read `HANDOFF.md` for the development boundary. `SNAPSHOT.json` describes the initial

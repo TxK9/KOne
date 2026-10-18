@@ -17,6 +17,10 @@ and external inputs must be configured explicitly. Keep signing keys and private
 photographs outside version control. Validate package/signature compatibility
 before an authorized in-place installation; never uninstall to bypass a mismatch.
 
+`desktop/` contains a real desktop implementation and Windows packaging source.
+Read `docs/windows/README.md` and the desktop build scripts. Source presence does
+not establish a successful Windows installer, tunnel, service, or runtime test.
+
 Record the exact checks executed and their limits. Compilation, unit tests,
 rendering, installation, live networking, update recovery, and visual acceptance
 are separate evidence levels. Obtain deployment and billing authorization before
