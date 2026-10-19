@@ -1,0 +1,49 @@
+name: Android
+
+# KOne for Android, as development checks it: the shared edition (no personal photographs or
+# presets) built with the debug key, its unit tests run. Release builds stay with the authorized
+# signing path in tools/; no APK is uploaded here, so a debug-signed build is never mistaken for
+# one to install over the real App.
+on:
+  push:
+    branches: [claude/windows-desktop]
+    paths:
+      - "android/**"
+      - "dependencies/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Unit tests and debug build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Take the core (the committed libbox builds)
+        run: |
+          mkdir -p android/app/libs
+          cp dependencies/libbox.aar dependencies/libbox-legacy.aar android/app/libs/
+      - name: Unit tests and debug build, shared edition
+        working-directory: android
+        run: ./gradlew --no-daemon :app:testOtherDebugUnitTest :app:assembleOtherDebug -PkoneEdition=share
+      - name: Upload the test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: android/app/build/reports/tests
+          if-no-files-found: ignore
+          retention-days: 3
