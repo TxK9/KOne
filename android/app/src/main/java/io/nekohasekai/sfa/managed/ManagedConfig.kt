@@ -54,7 +54,9 @@ object ManagedConfig {
         val members = proxies.filter { it.optString("tag") !in support.keys }
         if (members.isEmpty()) throw ManagedException(ManagedFailure.ConfigInvalid)
 
-        // The first node becomes the template's "node"; any other tag that clashes with the template moves aside.
+        // A single node becomes the template's "node", as a share link's does; several keep their own
+        // names, so the node list reads as the provider wrote it. A tag that clashes with the
+        // template moves aside.
         val used = mutableSetOf<String>()
         val renamed = mutableMapOf<String, String>()
         fun claim(wanted: String): String {
@@ -68,7 +70,7 @@ object ManagedConfig {
         used += ShareLinks.NODE_TAG
         members.forEachIndexed { index, outbound ->
             val old = outbound.optString("tag")
-            val tag = if (index == 0) ShareLinks.NODE_TAG else claim(old)
+            val tag = if (index == 0 && members.size == 1) ShareLinks.NODE_TAG else claim(old)
             if (old.isNotBlank()) renamed[old] = tag
             outbound.put("tag", tag)
         }

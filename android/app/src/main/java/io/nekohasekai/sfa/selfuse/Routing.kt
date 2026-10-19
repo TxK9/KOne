@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.Countries
 import cc.txwd.kone.shared.FakeIp
 import cc.txwd.kone.shared.Host
 import cc.txwd.kone.shared.Hosts
@@ -245,22 +246,29 @@ object Routing {
 
     /**
      * The Automatic choice ([AUTO]) among the node choices, first and the default, when [on] and
-     * there are two nodes or more; gone otherwise, with the first node the default again. Which
-     * node the person picked is kept by sing-box itself (its cache file), so a pick survives.
+     * there are two nodes or more; and after it one per country with two nodes or more
+     * ("Automatic · Japan"), when not every node is in that country. Gone otherwise, with the
+     * first node the default again. Which node the person picked is kept by sing-box itself (its
+     * cache file), so a pick survives.
      */
     private fun setAutomatic(config: JSONObject, on: Boolean) {
         val outbounds = objects(config.optJSONArray("outbounds"))
         val selector = outbounds.firstOrNull { it.optString("tag") == PROXY && it.optString("type") == "selector" } ?: return
-        val members = (0 until (selector.optJSONArray("outbounds")?.length() ?: 0)).map { selector.getJSONArray("outbounds").optString(it) }.filter { it != AUTO }
-        val kept = outbounds.filterNot { it.optString("tag") == AUTO && it.optString("type") == "urltest" }.toMutableList()
+        fun ours(tag: String) = tag == AUTO || tag.startsWith("$AUTO · ")
+        val members = (0 until (selector.optJSONArray("outbounds")?.length() ?: 0)).map { selector.getJSONArray("outbounds").optString(it) }.filterNot(::ours)
+        val kept = outbounds.filterNot { it.optString("type") == "urltest" && ours(it.optString("tag")) }.toMutableList()
         if (on && members.size >= 2) {
+            fun test(tag: String, of: List<String>) = JSONObject().put("type", "urltest").put("tag", tag).put("outbounds", JSONArray(of))
+                .put("url", "https://www.gstatic.com/generate_204").put("interval", "5m").put("tolerance", 50)
+            val countries = members.groupBy { tag -> Countries.all.filter { it.matches(tag) }.singleOrNull() }
+                .filter { (country, tags) -> country != null && tags.size >= 2 && tags.size < members.size }
+                .map { (country, tags) -> test("$AUTO · ${country!!.en}", tags) }
             val index = kept.indexOf(selector) + 1
-            kept.add(index, JSONObject().put("type", "urltest").put("tag", AUTO).put("outbounds", JSONArray(members))
-                .put("url", "https://www.gstatic.com/generate_204").put("interval", "5m").put("tolerance", 50))
-            selector.put("outbounds", JSONArray(listOf(AUTO) + members)).put("default", AUTO)
+            kept.addAll(index, listOf(test(AUTO, members)) + countries)
+            selector.put("outbounds", JSONArray(listOf(AUTO) + countries.map { it.getString("tag") } + members)).put("default", AUTO)
         } else {
             selector.put("outbounds", JSONArray(members))
-            if (selector.optString("default") == AUTO || selector.optString("default") !in members) selector.put("default", members.firstOrNull())
+            if (ours(selector.optString("default")) || selector.optString("default") !in members) selector.put("default", members.firstOrNull())
         }
         config.put("outbounds", JSONArray(kept))
     }

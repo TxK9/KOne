@@ -40,9 +40,10 @@ class ManagedConfigTest {
         val byTag = outbounds(config).associateBy { it.getString("tag") }
         val selector = byTag.getValue(PairedProfile.PROXY_TAG)
         val choices = (0 until selector.getJSONArray("outbounds").length()).map { selector.getJSONArray("outbounds").getString(it) }
-        // hk is the first node; the source's own "proxy" moves aside; the relay is kept but not offered.
-        assertEquals(listOf(ShareLinks.NODE_TAG, "proxy-2"), choices)
-        assertEquals("relay", byTag.getValue(ShareLinks.NODE_TAG).getString("detour"))
+        // Several nodes keep their names, hk first; the source's own "proxy" moves aside; the relay is kept but not offered.
+        assertEquals(listOf("hk", "proxy-2"), choices)
+        assertEquals("relay", byTag.getValue("hk").getString("detour"))
+        assertTrue(HomeLink.isKOneConfig(config))
         assertEquals("hysteria2", byTag.getValue("relay").getString("type"))
         assertFalse(byTag.containsKey("pick"))
         assertFalse(byTag.containsKey("block"))

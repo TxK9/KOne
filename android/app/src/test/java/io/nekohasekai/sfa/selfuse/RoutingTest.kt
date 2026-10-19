@@ -246,6 +246,28 @@ class RoutingTest {
     }
 
     @Test
+    fun aCountryWithSeveralNodesGetsItsOwnAutomatic() {
+        val three = SubscriptionProfile.build(
+            listOf(
+                "trojan://example-password@node1.invalid:443?sni=example.org#Tokyo 1",
+                "trojan://example-password@node2.invalid:443?sni=example.org#Osaka",
+                "trojan://example-password@node3.invalid:443?sni=example.org#Frankfurt",
+            ).joinToString("\n"),
+            HomeLink.Home.OFF,
+        )
+        val config = JSONObject(Routing.apply(three, Routing.Choices(automatic = true)))
+        val outbounds = config.getJSONArray("outbounds").let { array -> (0 until array.length()).map { array.getJSONObject(it) } }
+        val selector = outbounds.single { it.optString("tag") == PairedProfile.PROXY_TAG }
+        val choices = (0 until selector.getJSONArray("outbounds").length()).map { selector.getJSONArray("outbounds").getString(it) }
+        assertEquals(listOf(Routing.AUTO, "${Routing.AUTO} · Japan"), choices.take(2))
+        // One node in Germany has nothing to choose between.
+        assertFalse(choices.any { it.endsWith("Germany") })
+        assertEquals(2, outbounds.single { it.optString("tag") == "${Routing.AUTO} · Japan" }.getJSONArray("outbounds").length())
+        assertEquals(config.toString(2), Routing.apply(config.toString(), Routing.Choices(automatic = true)))
+        assertEquals(JSONObject(three).toString(2), Routing.apply(config.toString(), Routing.Choices()))
+    }
+
+    @Test
     fun anotherClientsRulesComeOverWithTheAppsKinds() {
         val clash = """
             rules:

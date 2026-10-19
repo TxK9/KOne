@@ -31,8 +31,9 @@ object HomeLink {
         val tags = (0 until outbounds.length()).mapNotNull { outbounds.optJSONObject(it) }
         val selector = tags.firstOrNull { it.optString("tag") == PairedProfile.PROXY_TAG && it.optString("type") == "selector" } ?: return false
         val members = selector.optJSONArray("outbounds") ?: return false
-        return (0 until members.length()).any { members.optString(it) == ShareLinks.NODE_TAG } &&
-            tags.any { it.optString("tag") == ShareLinks.NODE_TAG }
+        // A single node is KOne's "node"; a group of nodes keeps their names and is known by the template itself.
+        return ((0 until members.length()).any { members.optString(it) == ShareLinks.NODE_TAG } &&
+            tags.any { it.optString("tag") == ShareLinks.NODE_TAG }) || Routing.isTemplate(config)
     }
 
     /** Whether the configuration has the Home endpoint. */

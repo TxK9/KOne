@@ -26,8 +26,8 @@ class SubscriptionProfileTest {
         val config = SubscriptionProfile.build(body, home)
         assertTrue(Routing.isTemplate(JSONObject(config)))
         val all = outbounds(config)
-        // The first node is the template's own; the provider's notice is not a node.
-        assertEquals("node1.invalid", all.single { it.optString("tag") == ShareLinks.NODE_TAG }.getString("server"))
+        // The nodes keep the provider's names; its notice is not a node.
+        assertEquals("node1.invalid", all.single { it.optString("tag") == "Tokyo" }.getString("server"))
         assertTrue(all.any { it.optString("server") == "node3.invalid" })
         assertFalse(all.any { it.optString("server") == "node2.invalid" })
         val selector = all.single { it.optString("tag") == PairedProfile.PROXY_TAG }
