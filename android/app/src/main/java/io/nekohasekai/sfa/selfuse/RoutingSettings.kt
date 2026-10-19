@@ -2,6 +2,7 @@ package io.nekohasekai.sfa.selfuse
 
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.database.Settings
+import org.json.JSONArray
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -14,6 +15,7 @@ object RoutingSettings {
     fun current(): Routing.Choices = Routing.Choices(
         direct = lines(Settings.knineRoutingDirect),
         proxied = lines(Settings.knineRoutingProxied),
+        rules = rules(Settings.knineRoutingRules),
         blockAds = Settings.knineRoutingBlockAds,
         unmatchedDirect = Settings.knineRoutingUnmatchedDirect,
         remoteDns = Settings.knineRoutingRemoteDns.takeIf { it in Routing.REMOTE }.orEmpty(),
@@ -23,10 +25,16 @@ object RoutingSettings {
 
     private fun lines(text: String) = text.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
 
+    private fun rules(text: String): List<OwnRules.Rule> = runCatching {
+        val array = JSONArray(text)
+        OwnRules.clean((0 until array.length()).mapNotNull { OwnRules.Rule.fromJson(array.optJSONObject(it)) })
+    }.getOrDefault(emptyList())
+
     /** Keeps [choices] (sites cleaned), rewrites the saved configurations and reloads the service. */
     suspend fun save(choices: Routing.Choices) = withContext(Dispatchers.IO) {
         Settings.knineRoutingDirect = Routing.sites(choices.direct).joinToString("\n")
         Settings.knineRoutingProxied = Routing.sites(choices.proxied).joinToString("\n")
+        Settings.knineRoutingRules = JSONArray(OwnRules.clean(choices.rules).map { it.toJson() }).toString()
         Settings.knineRoutingBlockAds = choices.blockAds
         Settings.knineRoutingUnmatchedDirect = choices.unmatchedDirect
         Settings.knineRoutingRemoteDns = choices.remoteDns.takeIf { it in Routing.REMOTE }.orEmpty()

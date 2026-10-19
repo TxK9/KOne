@@ -51,6 +51,7 @@ object Settings {
     // Routing choices (Settings → Routing), applied to every configuration KOne built: see Routing.
     var knineRoutingDirect by dataStore.string("knine_routing_direct") { "" }
     var knineRoutingProxied by dataStore.string("knine_routing_proxied") { "" }
+    var knineRoutingRules by dataStore.string("knine_routing_rules") { "[]" }
     var knineRoutingBlockAds by dataStore.boolean("knine_routing_block_ads") { false }
     var knineRoutingUnmatchedDirect by dataStore.boolean("knine_routing_unmatched_direct") { false }
     var knineRoutingRemoteDns by dataStore.string("knine_routing_remote_dns") { "" }

@@ -96,4 +96,37 @@ class RoutingTest {
         assertNull(Routing.site("localhost"))
         assertNull(Routing.site("bad name.com"))
     }
+
+    @Test
+    fun ownRulesComeInOrderAfterTheSitesAndBeforeAds() {
+        val rules = listOf(
+            OwnRules.Rule("suffix", "Example.ORG", "direct"), OwnRules.Rule("keyword", "tracker", "block"),
+            OwnRules.Rule("cidr", "203.0.113.7/24", "direct"), OwnRules.Rule("port", "1000:2000", "proxy"),
+            OwnRules.Rule("app", "com.example.app", "direct"), OwnRules.Rule("port", "0443", "block"),
+            OwnRules.Rule("app", "not a package", "direct"), OwnRules.Rule("suffix", "example.org", "direct"),
+        )
+        val config = JSONObject(Routing.apply(managed(), choices.copy(rules = rules)))
+        val route = rules(config, "route")
+        val first = route.indexOfFirst { it.optJSONArray("domain_suffix")?.optString(0) == "example.org" }
+        val ads = route.indexOfFirst { it.optJSONArray("rule_set")?.optString(0) == Routing.ADS }
+        val proxied = route.indexOfFirst { it.optString("outbound") == PairedProfile.PROXY_TAG && it.has("domain_suffix") }
+        assertTrue(proxied < first && first < ads)
+        // Checked and written one way; the bad ones and the repeat left out.
+        val own = route.subList(first, ads).map { it.toString() }
+        assertEquals(
+            listOf(
+                """{"domain_suffix":["example.org"],"outbound":"direct"}""",
+                """{"domain_keyword":["tracker"],"action":"reject"}""",
+                """{"ip_cidr":["203.0.113.0/24"],"outbound":"direct"}""",
+                """{"port_range":["1000:2000"],"clash_mode":"Rule","outbound":"proxy"}""",
+                """{"package_name":["com.example.app"],"outbound":"direct"}""",
+            ).map { JSONObject(it).toString() },
+            own.map { JSONObject(it).toString() },
+        )
+        // Names are answered where their traffic goes; addresses and ports have no DNS rule.
+        val dns = rules(config, "dns")
+        assertTrue(dns.any { it.optJSONArray("domain_keyword")?.optString(0) == "tracker" && it.optString("action") == "reject" })
+        assertTrue(dns.any { it.optJSONArray("package_name")?.optString(0) == "com.example.app" && it.optString("server") == "local-dns" })
+        assertFalse(dns.any { it.has("ip_cidr") || it.has("port_range") })
+    }
 }

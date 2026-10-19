@@ -13,6 +13,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -40,6 +42,7 @@ import io.nekohasekai.sfa.compose.theme.KnineSegmented
 import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
+import io.nekohasekai.sfa.selfuse.OwnRules
 import io.nekohasekai.sfa.selfuse.PrivateDns
 import io.nekohasekai.sfa.selfuse.Routing
 import io.nekohasekai.sfa.selfuse.RoutingSettings
@@ -51,6 +54,7 @@ import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 
 private val REMOTE_NAMES = listOf("Cloudflare", "Google", "Quad9")
 private val DIRECT_NAMES = listOf("AliDNS", "DNSPod")
+private val KINDS = listOf("domain", "suffix", "keyword", "cidr", "app", "port")
 
 /**
  * Settings → Routing: sites straight out or through the node, Block ads, what nothing matches,
@@ -121,6 +125,12 @@ fun RoutingSettingsScreen(navController: NavController) {
                     }) { Text(stringResource(R.string.knine_routing_save_sites)) }
                 }
             }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        KnineSectionLabel(text = stringResource(R.string.knine_routing_rules))
+        Section {
+            RulesEditor(choices.rules) { keep(choices.copy(rules = it)) }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -199,5 +209,83 @@ private fun ChoiceRow(detail: String, options: List<String>, selected: Int, onSe
     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(detail, style = MaterialTheme.typography.bodyMedium)
         KnineSegmented(options = options, selected = selected, onSelect = onSelect, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun kindName(kind: String): String = stringResource(
+    when (kind) {
+        "domain" -> R.string.knine_routing_kind_domain
+        "suffix" -> R.string.knine_routing_kind_suffix
+        "keyword" -> R.string.knine_routing_kind_keyword
+        "cidr" -> R.string.knine_routing_kind_cidr
+        "app" -> R.string.knine_routing_kind_app
+        else -> R.string.knine_routing_kind_port
+    },
+)
+
+@Composable
+private fun actionName(action: String): String = stringResource(
+    when (action) {
+        "direct" -> R.string.knine_routing_action_direct
+        "block" -> R.string.knine_routing_action_block
+        else -> R.string.knine_routing_action_proxy
+    },
+)
+
+@Composable
+private fun kindHint(kind: String): String = stringResource(
+    when (kind) {
+        "domain" -> R.string.knine_routing_rule_hint_domain
+        "suffix" -> R.string.knine_routing_rule_hint_suffix
+        "keyword" -> R.string.knine_routing_rule_hint_keyword
+        "cidr" -> R.string.knine_routing_rule_hint_cidr
+        "app" -> R.string.knine_routing_rule_hint_app
+        else -> R.string.knine_routing_rule_hint_port
+    },
+)
+
+/** The person's rules in order, each movable up and removable, and a form to add one at the end. */
+@Composable
+private fun RulesEditor(rules: List<OwnRules.Rule>, onChange: (List<OwnRules.Rule>) -> Unit) {
+    var kind by remember { mutableStateOf(0) }
+    var action by remember { mutableStateOf(0) }
+    var value by remember { mutableStateOf("") }
+    var wrong by remember { mutableStateOf(false) }
+    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.knine_routing_rules_detail), style = MaterialTheme.typography.bodyMedium)
+        if (rules.isEmpty()) Text(stringResource(R.string.knine_routing_rules_none), style = MaterialTheme.typography.bodyMedium)
+        rules.forEachIndexed { index, rule ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("${kindName(rule.kind)} · ${rule.value} → ${actionName(rule.action)}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                IconButton(onClick = {
+                    if (index > 0) onChange(rules.toMutableList().also { it[index] = it[index - 1].also { _ -> it[index - 1] = rule } })
+                }, enabled = index > 0) {
+                    Icon(imageVector = Icons.Outlined.KeyboardArrowUp, contentDescription = null)
+                }
+                IconButton(onClick = { onChange(rules.filterIndexed { i, _ -> i != index }) }) {
+                    Icon(imageVector = Icons.Outlined.Close, contentDescription = null)
+                }
+            }
+        }
+        KnineSegmented(options = KINDS.map { kindName(it) }, selected = kind, onSelect = { kind = it; wrong = false }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = value, onValueChange = { value = it; wrong = false },
+            modifier = Modifier.fillMaxWidth(), singleLine = true, isError = wrong,
+            label = { Text(stringResource(R.string.knine_routing_rule_value)) },
+            supportingText = { Text(if (wrong) stringResource(R.string.knine_routing_rule_wrong) else kindHint(KINDS[kind])) },
+        )
+        KnineSegmented(options = OwnRules.ACTIONS.map { actionName(it) }, selected = action, onSelect = { action = it }, modifier = Modifier.fillMaxWidth())
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = {
+                val checked = OwnRules.value(KINDS[kind], value)
+                if (checked == null || rules.size >= OwnRules.MOST) {
+                    wrong = true
+                } else {
+                    onChange(OwnRules.clean(rules + OwnRules.Rule(KINDS[kind], checked, OwnRules.ACTIONS[action])))
+                    value = ""
+                }
+            }) { Text(stringResource(R.string.knine_routing_rule_add)) }
+        }
     }
 }

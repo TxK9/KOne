@@ -20,6 +20,8 @@ object Routing {
         val direct: List<String> = emptyList(),
         /** Sites sent through the node in Rule mode too. */
         val proxied: List<String> = emptyList(),
+        /** The person's own rules, in order, after the site lists ([OwnRules]). */
+        val rules: List<OwnRules.Rule> = emptyList(),
         /** Refuse the domains of the ad list. */
         val blockAds: Boolean = false,
         /** In Rule mode, what nothing matched goes straight out instead of through the node. */
@@ -81,6 +83,7 @@ object Routing {
     internal fun apply(config: JSONObject, choices: Choices) {
         val direct = sites(choices.direct)
         val proxied = sites(choices.proxied).filter { it !in direct }
+        val own = OwnRules.clean(choices.rules)
 
         // Route: the stretch between the leading rules and the Direct mode rule is KOne's.
         val route = config.getJSONObject("route")
@@ -90,6 +93,8 @@ object Routing {
         val ours = buildList {
             if (direct.isNotEmpty()) add(JSONObject().put("domain_suffix", JSONArray(direct)).put("outbound", "direct"))
             if (proxied.isNotEmpty()) add(JSONObject().put("clash_mode", "Rule").put("domain_suffix", JSONArray(proxied)).put("outbound", PROXY))
+            own.forEach { add(OwnRules.route(it)) }
+            // Ads after the person's own rules, so a site they let through stays reachable.
             if (choices.blockAds) add(JSONObject().put("rule_set", JSONArray().put(ADS)).put("action", "reject"))
         }
         val routed = rules.take(start) + ours + rules.drop(end)
@@ -108,6 +113,7 @@ object Routing {
         val dnsOurs = buildList {
             if (direct.isNotEmpty()) add(JSONObject().put("domain_suffix", JSONArray(direct)).put("server", LOCAL_DNS))
             if (proxied.isNotEmpty()) add(JSONObject().put("clash_mode", "Rule").put("domain_suffix", JSONArray(proxied)).put("server", PROXY_DNS))
+            own.forEach { rule -> OwnRules.dns(rule)?.let { add(it) } }
             if (choices.blockAds) add(JSONObject().put("rule_set", JSONArray().put(ADS)).put("action", "reject"))
         }
         val unmatched = { rule: JSONObject -> rule.length() == 2 && rule.optString("clash_mode") == "Rule" && rule.optString("server") == LOCAL_DNS }
