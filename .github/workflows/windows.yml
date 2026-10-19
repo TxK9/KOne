@@ -102,6 +102,7 @@ jobs:
             dist/sing-box.exe
             dist/kone-service.exe
           if-no-files-found: error
+          retention-days: 1
 
   desktop:
     name: KOne MSI (${{ matrix.arch }})
@@ -253,6 +254,7 @@ jobs:
             desktop/build/msi/KOne-*
             desktop/build/msi/latest*.json*
           if-no-files-found: error
+          retention-days: 3
       - name: Upload the older MSI
         uses: actions/upload-artifact@v4
         with:
@@ -275,6 +277,7 @@ jobs:
           name: screenshots${{ matrix.suffix }}
           path: desktop/build/screens/*.png
           if-no-files-found: warn
+          retention-days: 3
       - name: Upload the test reports
         if: failure()
         uses: actions/upload-artifact@v4
@@ -282,6 +285,7 @@ jobs:
           name: test-reports${{ matrix.suffix }}
           path: desktop/build/reports/tests
           if-no-files-found: ignore
+          retention-days: 3
 
   website:
     name: Website folder
@@ -327,6 +331,7 @@ jobs:
           name: KOne-website
           path: desktop/build/website
           if-no-files-found: error
+          retention-days: 3
 
   try:
     name: Install, connect, uninstall (${{ matrix.arch }})
@@ -470,3 +475,4 @@ jobs:
             ${{ runner.temp }}/*.log
             desktop/build/reports/tests
           if-no-files-found: ignore
+          retention-days: 3
