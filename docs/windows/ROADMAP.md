@@ -113,6 +113,9 @@ real Windows PC yet.
 | A connection's site sent straight out or through the node from the connection list | Done |
 | A subscription that has ended, ends within days, or has used 90 % of its data is said once | Done |
 | A provider's notices among its nodes ("剩余流量", "官网", "Expire:") left out of every list and Automatic; words of the person's own leave out more, per subscription, with chains through them | Done |
+| Fake IP as an option, in the service and the App alike (consistency test), accepted by the real sing-box; name lookups say when an answer is its stand-in; its trade-off for address rules said where it is chosen | Done |
+| Restoring a backup twice adds nothing twice (rules, hosts, DNS for domains) | Done |
+| The App's model in controllers: rules, network, subscriptions, site tools, sign-in networks, own nodes, diagnosis, backup, connections | Done; the connection and steering wait for the device round |
 
 **Category rules (Option B, chosen by the owner).** A category is one more rule kind,
 `set`, in the person's ordered rule list: `geosite-netflix → Proxy`, `geoip-jp → Direct`.
