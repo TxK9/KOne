@@ -20,5 +20,6 @@
     <string name="knine_routing_direct_dns">Straight out</string>
     <string name="knine_routing_ipv6">IPv6</string>
     <string name="knine_routing_ipv6_detail">Answer names with IPv6 addresses too, IPv4 first</string>
+    <string name="knine_routing_private_dns">Android\'s Private DNS is set to %1$s, which answers apps past these servers. Set it to Automatic in Android\'s network settings for these choices to apply.</string>
     <string name="knine_routing_claude_note">The provider\'s blocks always come first: no choice here reaches round them.</string>
 </resources>

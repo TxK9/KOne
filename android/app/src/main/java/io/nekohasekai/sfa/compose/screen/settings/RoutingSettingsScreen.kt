@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -39,6 +40,7 @@ import io.nekohasekai.sfa.compose.theme.KnineSegmented
 import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
+import io.nekohasekai.sfa.selfuse.PrivateDns
 import io.nekohasekai.sfa.selfuse.Routing
 import io.nekohasekai.sfa.selfuse.RoutingSettings
 import kotlinx.coroutines.launch
@@ -73,6 +75,8 @@ fun RoutingSettingsScreen(navController: NavController) {
     var direct by remember { mutableStateOf(choices.direct.joinToString("\n")) }
     var proxied by remember { mutableStateOf(choices.proxied.joinToString("\n")) }
     var saved by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val privateDns = remember { PrivateDns.hostname(context) }
 
     fun keep(next: Routing.Choices) {
         choices = next
@@ -152,6 +156,15 @@ fun RoutingSettingsScreen(navController: NavController) {
             ) { keep(choices.copy(directDns = if (it == 0) "" else Routing.DIRECT.keys.elementAt(it))) }
             SwitchRow(stringResource(R.string.knine_routing_ipv6), stringResource(R.string.knine_routing_ipv6_detail), choices.ipv6) {
                 keep(choices.copy(ipv6 = it))
+            }
+            // Android's Private DNS set to a provider answers apps past these servers: said where they are chosen.
+            if (privateDns != null) {
+                Text(
+                    stringResource(R.string.knine_routing_private_dns, privateDns.ifEmpty { "a provider" }),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                )
             }
         }
 
