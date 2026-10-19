@@ -72,7 +72,13 @@ object KoneBackup {
                     .put("switcher", KnineAppearance.switcher.id)
                     .put("home_enabled", Settings.knineHomeEnabled)
                     .put("home_subnets", Settings.knineHomeSubnets)
-                    .put("home_hostname", Settings.knineHomeHostname),
+                    .put("home_hostname", Settings.knineHomeHostname)
+                    .put("routing", RoutingSettings.current().let { routing ->
+                        JSONObject()
+                            .put("direct", JSONArray(routing.direct)).put("proxied", JSONArray(routing.proxied))
+                            .put("block_ads", routing.blockAds).put("unmatched_direct", routing.unmatchedDirect)
+                            .put("remote_dns", routing.remoteDns).put("direct_dns", routing.directDns).put("ipv6", routing.ipv6)
+                    }),
             )
         val stream = context.contentResolver.openOutputStream(uri, "wt") ?: throw BackupException("Cannot write to this location")
         stream.use { it.write(backup.toString(2).toByteArray()) }
@@ -159,6 +165,16 @@ object KoneBackup {
                     settings.optBoolean("home_enabled"),
                     runCatching { HomeLink.parseSubnets(settings.optString("home_subnets")) }.getOrDefault(emptyList()),
                     settings.optString("home_hostname"),
+                )
+            }
+            settings.optJSONObject("routing")?.let { routing ->
+                fun names(key: String) = routing.optJSONArray(key)?.let { array -> (0 until array.length()).map { array.optString(it) } }.orEmpty()
+                RoutingSettings.save(
+                    Routing.Choices(
+                        direct = names("direct"), proxied = names("proxied"),
+                        blockAds = routing.optBoolean("block_ads"), unmatchedDirect = routing.optBoolean("unmatched_direct"),
+                        remoteDns = routing.optString("remote_dns"), directDns = routing.optString("direct_dns"), ipv6 = routing.optBoolean("ipv6"),
+                    ),
                 )
             }
         }
