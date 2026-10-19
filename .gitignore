@@ -14,3 +14,8 @@
 **/private/
 **/device/
 **/backups/
+
+# Upstream sing-box source directories that share names with the private
+# patterns above. Keep them tracked so the core builds from a clean checkout.
+!core/transport/device/
+!core/cmd/internal/build/
