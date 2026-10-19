@@ -18,7 +18,7 @@ yet.
 | Monitoring | Rates, connections, usage by node and program over 30 days, logs | unit, screens |
 | Install | MSI, x64 and ARM64, upgrade and uninstall leave nothing behind | CI |
 | Size | MSI about 143 MB (x64), of which 63 MB are the City backdrop's 604 pictures | CI artefacts |
-| Memory, CPU | Idle, no key, whole process tree: 220 to 230 MB private, 33 to 35 threads; 0.1 to 0.4 % of a core minimised. Shown, drawn in software, it took 83 % of a core: the backdrop's clock made the window redraw at the screen's rate, now fixed to its 4 steps a second | CI (run 41, x64 and ARM64) |
+| Memory, CPU | Idle, no key, whole process tree: 220 to 230 MB private, 33 to 35 threads; 0.1 to 0.4 % of a core minimised. Shown, drawn in software, it took 83 % of a core: the backdrop's clock made the window redraw at the screen's rate; it now wakes the window only for its 4 steps a second, not yet measured (run 43 measured a launcher error box: the App stopped at start, since fixed and now caught by a test and by CI's window check) | CI (run 41, x64 and ARM64) |
 | Code | 16,900 lines of Kotlin (AppModel alone 1,800), 2,300 of Go, 3,900 of tests | source |
 
 ## Where the leading clients are ahead

@@ -407,8 +407,12 @@ jobs:
           $tree = Tree $app.Id
           Write-Host "Measured: $(($tree | ForEach-Object { "$($_.ProcessName)($($_.Id))" }) -join ', ')"
           $shown = Busy $app.Id 30
-          Add-Type -Namespace KOne -Name Window -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr window, int show);'
-          $window = (Tree $app.Id | ForEach-Object { $_.Refresh(); $_ } | Where-Object { $_.MainWindowHandle -ne [System.IntPtr]::Zero } | Select-Object -First 1)
+          Add-Type -Namespace KOne -Name Window -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr window, int show); [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(System.IntPtr window, System.Text.StringBuilder name, int size);'
+          function Kind([System.IntPtr] $handle) { $name = New-Object System.Text.StringBuilder 256; [KOne.Window]::GetClassName($handle, $name, 256) | Out-Null; $name.ToString() }
+          # The App's own window (AWT's frame), not any window: a launcher's error box (#32770) once passed for it.
+          $windows = @(Tree $app.Id | ForEach-Object { $_.Refresh(); $_ } | Where-Object { $_.MainWindowHandle -ne [System.IntPtr]::Zero })
+          $windows | ForEach-Object { Write-Host "Window: $($_.ProcessName)($($_.Id)) '$($_.MainWindowTitle)' $(Kind $_.MainWindowHandle)" }
+          $window = $windows | Where-Object { (Kind $_.MainWindowHandle) -eq "SunAwtFrame" } | Select-Object -First 1
           $minimised = "n/a"
           if ($window) {
             [KOne.Window]::ShowWindow($window.MainWindowHandle, 6) | Out-Null
@@ -426,7 +430,7 @@ jobs:
           "### What KOne costs, idle with no key (one core = 100 %)`n`n| Arch | Processes | Working set | Private | Threads | CPU shown (software drawing) | CPU minimised |`n| --- | --- | --- | --- | --- | --- | --- |`n$line" >> $env:GITHUB_STEP_SUMMARY
           $tree | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
           # A measurement of a launcher alone is no measurement: the App's window must be found.
-          if (-not $window) { Write-Error "KOne's window was not found among $names"; exit 1 }
+          if (-not $window) { Write-Error "KOne's own window was not found among $names"; exit 1 }
           # Ceilings for what would be a real regression, not targets.
           if ($private -gt 1024) { Write-Error "KOne uses $private MB of private memory idle"; exit 1 }
           if ($minimised -gt 10) { Write-Error "KOne keeps $minimised % of a core busy while minimised"; exit 1 }
