@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.ShareLinks
+import cc.txwd.kone.shared.ShareLinkException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

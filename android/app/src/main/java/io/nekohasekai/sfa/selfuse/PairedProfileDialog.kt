@@ -1,5 +1,8 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.ShareLinks
+import cc.txwd.kone.shared.SharedNode
+import cc.txwd.kone.shared.ShareLinkException
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column

@@ -74,8 +74,8 @@ import io.nekohasekai.libbox.ProfileContent
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.selfuse.PairedProfileDialog
 import io.nekohasekai.sfa.selfuse.ImportedNode
-import io.nekohasekai.sfa.selfuse.ShareLinkException
-import io.nekohasekai.sfa.selfuse.ShareLinks
+import cc.txwd.kone.shared.ShareLinkException
+import cc.txwd.kone.shared.ShareLinks
 import io.nekohasekai.sfa.selfuse.clashNodes
 import io.nekohasekai.sfa.selfuse.createPairedProfile
 import cc.txwd.kone.shared.ClashProxies

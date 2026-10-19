@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.ShareLinks
 import android.content.Context
 import android.net.Uri
 import io.nekohasekai.sfa.BuildConfig

@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.ShareLinks
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

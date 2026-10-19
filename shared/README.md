@@ -2,8 +2,12 @@
 
 Kotlin both Apps build from source: KOne for Windows (`desktop/`, through its `kotlin.srcDir`)
 and KOne for Android (`android/app`, through its `java.srcDir`). Plain Kotlin,
-kotlinx-serialization and SnakeYAML only, no platform code, JVM 17.
+kotlinx-serialization, SnakeYAML and org.json (part of Android; a dependency on Windows) only,
+no platform code, JVM 17.
 
+- `ShareLinks.kt`: share links (VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, AnyTLS) read
+  into sing-box outbounds, one way for both Apps.
+- `Hosts.kt`, `NameServers.kt`: fixed answers and DNS servers for domains.
 - `Names.kt`: sites, programs, apps, address ranges and ports, read and written one way.
 - `Rules.kt`: the person's routing rules, their kinds and how each is checked.
 - `RuleImport.kt`: rules brought over from Clash and v2rayN.

@@ -122,7 +122,7 @@ import io.nekohasekai.sfa.compose.component.RemoteStatusBar
 import io.nekohasekai.sfa.compose.component.KnineConnectionBar as ServiceStatusBar
 import io.nekohasekai.sfa.compose.component.KnineStartAction
 import io.nekohasekai.sfa.selfuse.PairedProfile
-import io.nekohasekai.sfa.selfuse.ShareLinks
+import cc.txwd.kone.shared.ShareLinks
 import io.nekohasekai.sfa.selfuse.HomeSettings
 import io.nekohasekai.sfa.compose.component.SnackbarHost
 import io.nekohasekai.sfa.compose.component.UpdateAvailableDialog

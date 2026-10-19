@@ -20,7 +20,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.Libbox
-import io.nekohasekai.sfa.selfuse.ShareLinks
+import cc.txwd.kone.shared.ShareLinks
 import io.nekohasekai.sfa.qrs.QRSDecoder
 import io.nekohasekai.sfa.qrs.readIntLE
 import io.nekohasekai.sfa.vendor.Vendor

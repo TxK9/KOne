@@ -7,7 +7,7 @@ import com.google.zxing.ReaderException
 import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeReader
-import io.nekohasekai.sfa.selfuse.ShareLinkException
+import cc.txwd.kone.shared.ShareLinkException
 
 /** Local image pixels only; camera and gallery share the node import path. */
 internal object QRImageDecoder {

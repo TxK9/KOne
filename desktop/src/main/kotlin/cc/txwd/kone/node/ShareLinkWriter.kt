@@ -1,5 +1,6 @@
 package cc.txwd.kone.node
 
+import cc.txwd.kone.shared.ShareLinks
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive

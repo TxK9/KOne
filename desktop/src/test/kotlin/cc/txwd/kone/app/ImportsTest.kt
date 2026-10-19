@@ -3,7 +3,7 @@ package cc.txwd.kone.app
 import cc.txwd.kone.console.FakeConsole
 import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.KoneConfig
-import cc.txwd.kone.node.ShareLinks
+import cc.txwd.kone.shared.ShareLinks
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive

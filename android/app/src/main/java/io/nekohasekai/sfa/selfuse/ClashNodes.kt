@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.ShareLinks
+import cc.txwd.kone.shared.SharedNode
 import cc.txwd.kone.shared.ClashProxies
 import cc.txwd.kone.shared.NodeFilter
 import org.json.JSONObject

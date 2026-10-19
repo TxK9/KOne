@@ -2,7 +2,7 @@ package io.nekohasekai.sfa.managed
 
 import io.nekohasekai.sfa.selfuse.HomeLink
 import io.nekohasekai.sfa.selfuse.PairedProfile
-import io.nekohasekai.sfa.selfuse.ShareLinks
+import cc.txwd.kone.shared.ShareLinks
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
