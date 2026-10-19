@@ -42,6 +42,7 @@ import io.nekohasekai.sfa.compose.theme.KnineSegmented
 import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
+import io.nekohasekai.sfa.ktx.clipboardText
 import cc.txwd.kone.shared.Rule
 import cc.txwd.kone.shared.Region
 import io.nekohasekai.sfa.selfuse.OwnRules
@@ -133,7 +134,12 @@ fun RoutingSettingsScreen(navController: NavController) {
         Spacer(Modifier.height(16.dp))
         KnineSectionLabel(text = stringResource(R.string.knine_routing_rules))
         Section {
-            RulesEditor(choices.rules) { keep(choices.copy(rules = it)) }
+            RulesEditor(choices.rules, onImport = {
+                // Another client's rules, from the clipboard: Clash's rules: lines or v2rayN's JSON.
+                val imported = Routing.importRules(choices, clipboardText.orEmpty())
+                if (imported.choices != choices) keep(imported.choices)
+                imported.said
+            }) { keep(choices.copy(rules = it)) }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -262,7 +268,8 @@ private fun kindHint(kind: String): String = stringResource(
 
 /** The person's rules in order, each movable up and removable, and a form to add one at the end. */
 @Composable
-private fun RulesEditor(rules: List<Rule>, onChange: (List<Rule>) -> Unit) {
+private fun RulesEditor(rules: List<Rule>, onImport: () -> String, onChange: (List<Rule>) -> Unit) {
+    var said by remember { mutableStateOf<String?>(null) }
     var kind by remember { mutableStateOf(0) }
     var action by remember { mutableStateOf(0) }
     var value by remember { mutableStateOf("") }
@@ -291,7 +298,9 @@ private fun RulesEditor(rules: List<Rule>, onChange: (List<Rule>) -> Unit) {
             supportingText = { Text(if (wrong) stringResource(R.string.knine_routing_rule_wrong) else kindHint(KINDS[kind])) },
         )
         KnineSegmented(options = OwnRules.ACTIONS.map { actionName(it) }, selected = action, onSelect = { action = it }, modifier = Modifier.fillMaxWidth())
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            said?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f)) }
+            TextButton(onClick = { said = onImport() }) { Text(stringResource(R.string.knine_routing_rule_import)) }
             TextButton(onClick = {
                 val checked = OwnRules.value(KINDS[kind], value)
                 if (checked == null || rules.size >= OwnRules.MOST) {

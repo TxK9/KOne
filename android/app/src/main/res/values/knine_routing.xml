@@ -13,6 +13,7 @@
     <string name="knine_routing_rules_none">No rules of your own yet</string>
     <string name="knine_routing_rule_value">Matches</string>
     <string name="knine_routing_rule_add">Add rule</string>
+    <string name="knine_routing_rule_import">Paste from Clash or v2rayN</string>
     <string name="knine_routing_rule_wrong">That does not fit the kind chosen</string>
     <string name="knine_routing_kind_domain">Site</string>
     <string name="knine_routing_kind_suffix">Ends</string>

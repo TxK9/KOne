@@ -42,7 +42,8 @@ Other gaps, in order of what people meet first:
   KOne built, managed or from a share link, in one stretch of the template after the console's
   refusals, so no choice reaches round the Claude block. Own ordered rules (site, name ending,
   word, address range, app by package, port). A notice when Android's Private DNS answers apps
-  past KOne's DNS. All kept in backups. Built and unit-tested in CI (`android.yml`, run 2);
+  past KOne's DNS. Rules pasted from Clash or v2rayN (an app by its package; a rule blocking
+  the ad list turns on Block ads). All kept in backups. Built and unit-tested in CI (`android.yml`);
   not run on a device, which the owner has deferred until the App is ready for it.
 - **Where you are**: outside China by default in the shared edition (no China split, Cloudflare
   as the direct DNS), China kept for the owner's edition and as a choice; switching back
@@ -55,12 +56,10 @@ Other gaps, in order of what people meet first:
 
 ## Next, without a decision
 
-1. Category lists, and the rule import (Clash, v2rayN) on the Routing screen, now that the
-   shared core reads them.
-2. Diagnosis for Android: network, sign-in, clock, Private DNS, battery limits, DNS, node.
-3. Clash YAML and v2rayN rule import, and provider notices left out of subscriptions.
+1. Diagnosis for Android: network, sign-in, clock, Private DNS, battery limits, DNS, node.
+2. Clash YAML node import and provider notices left out, through the shared core.
+3. Category lists on the Routing screen.
 4. Hosts and DNS for domains.
-5. Routing in KOne's backup.
 
 ## Needing the owner
 

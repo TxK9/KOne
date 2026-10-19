@@ -71,8 +71,8 @@ object RuleImport {
                 ads = true
                 return
             }
-            // A program on Android is its package, where the client named one.
-            val fitted = if (kind == "program" && kind !in kinds && "app" in kinds) "app" else kind
+            // A program on Android is its package, where the client named one; a Windows file (Steam.exe) is not one.
+            val fitted = if (kind == "program" && kind !in kinds && "app" in kinds && !Names.isProgram(text)) "app" else kind
             val value = if (fitted in kinds) Rules.value(fitted, text) else null
             if (value == null) left++ else rules += Rule(fitted, value, action)
         }

@@ -147,4 +147,24 @@ class RoutingTest {
         // Back in China, the template is as it was built.
         assertEquals(JSONObject(built).toString(2), Routing.apply(abroad, Routing.Choices(region = "china")))
     }
+
+    @Test
+    fun anotherClientsRulesComeOverWithTheAppsKinds() {
+        val clash = """
+            rules:
+              - DOMAIN-SUFFIX,example.com,Proxy
+              - PROCESS-NAME,com.example.chat,DIRECT
+              - PROCESS-NAME,Steam.exe,DIRECT
+              - GEOSITE,category-ads-all,REJECT
+              - RULE-SET,custom,Proxy
+              - MATCH,Proxy
+        """.trimIndent()
+        val imported = Routing.importRules(Routing.Choices(), clash)
+        // An Android app by its package; a Windows program and a rule set are not rules here.
+        assertEquals(listOf(Rule("suffix", "example.com", "proxy"), Rule("app", "com.example.chat", "direct")), imported.choices.rules)
+        assertTrue(imported.choices.blockAds)
+        assertEquals("2 rules added; Block ads turned on; 2 left out", imported.said)
+        // Again: nothing new.
+        assertEquals("No rules found", Routing.importRules(imported.choices, "nothing here").said)
+    }
 }

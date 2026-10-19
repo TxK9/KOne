@@ -3,6 +3,8 @@ package io.nekohasekai.sfa.selfuse
 import cc.txwd.kone.shared.Names
 import cc.txwd.kone.shared.Region
 import cc.txwd.kone.shared.Rule
+import cc.txwd.kone.shared.RuleImport
+import cc.txwd.kone.shared.Rules
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -61,6 +63,31 @@ object Routing {
 
     /** Sites as the template takes them: each one cleaned, once, [MOST_SITES] at most. */
     fun sites(names: List<String>): List<String> = names.mapNotNull(::site).distinct().take(MOST_SITES)
+
+    /** What a paste of another client's rules did: the choices to keep, and a line to say. */
+    data class Imported(val choices: Choices, val said: String)
+
+    /**
+     * Rules pasted from a Clash profile or v2rayN (the shared core reads both), added after the
+     * person's own, each checked as any rule is; one blocking the ad list turns on Block ads.
+     */
+    fun importRules(choices: Choices, text: String): Imported {
+        val read = RuleImport.read(text, Rules.ANDROID)
+        val ads = read.blockAds && !choices.blockAds
+        val rules = OwnRules.clean(choices.rules + read.rules)
+        val added = rules.size - OwnRules.clean(choices.rules).size
+        val skipped = read.rules.size - added + read.left
+        val said = when {
+            added == 0 && !ads && read.left > 0 -> "None of these ${read.left} rules is one KOne takes"
+            added == 0 && !ads -> "No rules found"
+            else -> listOfNotNull(
+                "$added rules added".takeIf { added > 0 },
+                "Block ads turned on".takeIf { ads },
+                "$skipped left out".takeIf { skipped > 0 },
+            ).joinToString("; ")
+        }
+        return Imported(choices.copy(rules = rules, blockAds = choices.blockAds || read.blockAds), said)
+    }
 
     /** Whether [config] is KOne's template: its node selector, its two DNS servers and the Direct mode rule. */
     fun isTemplate(config: JSONObject): Boolean {
