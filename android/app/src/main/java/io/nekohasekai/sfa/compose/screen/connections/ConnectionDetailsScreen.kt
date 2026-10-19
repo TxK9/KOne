@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.connections
 
+import cc.txwd.kone.shared.Why
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -223,6 +224,17 @@ fun ConnectionDetailsScreen(
                     label = stringResource(R.string.connection_from_outbound),
                     value = connection.fromOutbound,
                     monospace = true,
+                )
+            }
+            // Why it went its way, in the person's own terms, as KOne for Windows says it.
+            val why = remember(connection.rule) {
+                val routing = io.nekohasekai.sfa.selfuse.RoutingSettings.current()
+                Why.explain(connection.rule, Why.Lists(emptyList(), routing.direct, routing.proxied), io.nekohasekai.sfa.selfuse.PairedProfile.HOME_TAG)
+            }
+            if (why != null) {
+                DetailRow(
+                    label = stringResource(R.string.knine_connection_why),
+                    value = why,
                 )
             }
             if (connection.rule.isNotEmpty()) {

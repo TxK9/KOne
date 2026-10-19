@@ -1,5 +1,6 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.shared.Why
 import cc.txwd.kone.core.ClashApi
 import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.KoneConfig
