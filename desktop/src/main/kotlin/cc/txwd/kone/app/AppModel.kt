@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import cc.txwd.kone.console.ClaimLink
 import cc.txwd.kone.console.ConsoleException
-import cc.txwd.kone.core.Carried
 import cc.txwd.kone.core.ClashApi
 import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.Ends
@@ -26,7 +25,6 @@ import cc.txwd.kone.node.Countries
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
-import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
 import cc.txwd.kone.ui.NodeSection
@@ -191,7 +189,6 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
     })
     val rulesPage get() = ruleBook.page
-    private var watching: Job? = null
 
     private var nodes: List<SourceNode> = emptyList()
     private val delays = HashMap<String, Int?>()
@@ -913,23 +910,30 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     fun moveRule(index: Int, up: Boolean) = ruleBook.move(index, up)
 
-    /** While Tools is open and KOne connected, what the core carries, once a second. */
-    fun watchConnections(on: Boolean) {
-        watching?.cancel()
-        watching = null
-        if (!on) return
-        watching = scope.launch {
-            while (isActive) {
-                val api = clash
-                val carried = if (api == null) null else withContext(Dispatchers.IO) { api.connections() }
-                carried?.let(::count)
-                // Why each went its way, in the person's terms.
-                val lists = Why.Lists(preferences.bypass, preferences.direct, preferences.proxied)
-                tools = tools.copy(carried = carried?.let { it.copy(connections = it.connections.map { one -> one.copy(why = Why.explain(one.rule, lists)) }) })
-                delay(1000)
-            }
+    // Connections and usage (Tools): see ConnectionsPage.
+
+    private val connections = ConnectionsPage(scope, traffic, object : ConnectionsPage.Host {
+        override val tools get() = this@AppModel.tools
+        override fun update(change: (ToolsState) -> ToolsState) {
+            this@AppModel.tools = change(this@AppModel.tools)
         }
-    }
+        override val api get() = clash
+        override val lists get() = Why.Lists(preferences.bypass, preferences.direct, preferences.proxied)
+        override val mode get() = preferences.mode
+        override fun inUse() = this@AppModel.inUse()
+        override fun nameOf(tag: String) = this@AppModel.nameOf(tag)
+        override fun stalling(tag: String) {
+            health.record(tag, null)
+            log("Connections through ${nameOf(tag)} are stalling; testing it now")
+            nudges.trySend(Unit)
+        }
+        override fun addSite(site: String, direct: Boolean) = this@AppModel.addSite(site, direct)
+        override fun hint(text: String) = this@AppModel.hint(text)
+        override fun notice(text: String) = onNotice(text)
+    })
+
+    /** While Tools is open and KOne connected, what the core carries, once a second. */
+    fun watchConnections(on: Boolean) = connections.watch(on)
 
     /**
      * While connected, every five seconds (each second while Tools shows the connections, which
@@ -939,59 +943,19 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         traffic.forget()
         while (clash === api) {
             delay(5_000)
-            if (watching == null) withContext(Dispatchers.IO) { api.connections() }?.let(::count)
+            if (!connections.showing) withContext(Dispatchers.IO) { api.connections() }?.let(connections::count)
         }
     }
 
-    private fun count(carried: Carried) {
-        traffic.sample(carried.connections, ::nameOf)
-        tools.details?.let { tools = tools.copy(details = details(it.span)) }
-        val now = System.currentTimeMillis()
-        watched.sample(carried.connections, now)
-        // Passive health: stalling connections through the node in use count against it, and it is tested now.
-        inUse()?.let { tag ->
-            if (watched.stalling(tag, now) && now - nudgedAt >= 20_000) {
-                nudgedAt = now
-                health.record(tag, null)
-                log("Connections through ${nameOf(tag)} are stalling; testing it now")
-                nudges.trySend(Unit)
-            }
-        }
-        // Sites failing straight out, in Rule mode, where sending them through the node is the person's to choose.
-        val advice = if (preferences.mode == "Rule") watched.advice().take(3) else emptyList()
-        advice.filter { advised.add(it.site) }.forEach { onNotice("${it.site} does not answer straight out; Tools can send it through the node") }
-        if (advice != tools.siteAdvice) tools = tools.copy(siteAdvice = advice)
-    }
+    fun sendSite(site: String, direct: Boolean) = connections.sendSite(site, direct)
 
-    /** A connection's site sent the other way from now on: on Direct sites (every mode) or Proxied sites (Rule mode). */
-    fun sendSite(site: String, direct: Boolean) {
-        if (addSite(site, direct)) hint(if (direct) "$site now goes straight out" else "$site now goes through the node")
-    }
+    fun takeAdvice(site: String) = connections.takeAdvice(site)
 
-    /** Takes an advice: the site goes on Proxied sites (Rules), so Rule mode sends it through the node. */
-    fun takeAdvice(site: String) {
-        watched.dismiss(site)
-        if (addSite(site, direct = false)) hint("$site now goes through the node")
-        tools = tools.copy(siteAdvice = tools.siteAdvice.filter { it.site != site })
-    }
+    fun dismissAdvice(site: String) = connections.dismissAdvice(site)
 
-    fun dismissAdvice(site: String) {
-        watched.dismiss(site)
-        tools = tools.copy(siteAdvice = tools.siteAdvice.filter { it.site != site })
-    }
+    fun showUsage(span: Int?) = connections.showUsage(span)
 
-    /** Usage by node, by program and by day over [span] days, or put away for null. */
-    fun showUsage(span: Int?) {
-        tools = tools.copy(details = span?.takeIf { it in setOf(1, 7, 30) }?.let(::details))
-    }
-
-    private fun details(span: Int) = UsageDetails(span, traffic.top(TrafficBy.Node, span), traffic.top(TrafficBy.App, span), traffic.daily(span))
-
-    /** Ends one connection, or all of them when [id] is null. */
-    fun closeConnection(id: String?) {
-        val api = clash ?: return
-        scope.launch(Dispatchers.IO) { api.close(id) }
-    }
+    fun closeConnection(id: String?) = connections.close(id)
 
     private fun restart() {
         if (connection != Connection.Online) return
@@ -1065,13 +1029,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
     }
 
-    /** What real traffic says about sites and nodes (see ConnectionWatch). */
-    private val watched = ConnectionWatch()
-
     /** Wakes the watchdog early: the node in use is stalling. */
     private val nudges = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
-    private var nudgedAt = 0L
-    private val advised = HashSet<String>()
 
     private suspend fun steerAutomatic(api: ClashApi) {
         val current = drivenPick ?: withContext(Dispatchers.IO) { api.now(KoneConfig.AUTO_TAG) }
