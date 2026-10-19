@@ -48,18 +48,27 @@ Other gaps, in order of what people meet first:
 - **Where you are**: outside China by default in the shared edition (no China split, Cloudflare
   as the direct DNS), China kept for the owner's edition and as a choice; switching back
   restores the template exactly.
-- **One shared core** (`shared/`), approved by the owner: names, rule kinds and checks, and the
-  Clash and v2rayN rule import, built into both Apps from source and tested in the Windows
+- **One shared core** (`shared/`), approved by the owner: names, rule kinds and checks, the
+  Clash and v2rayN rule import, the category catalog and list keeper, the Clash proxies reader,
+  regions and diagnosis checks, built into both Apps from source and tested in the Windows
   build beside the Go consistency test.
+- **Category lists** in rules (List: Netflix, YouTube, OpenAI, regions and the rest of the
+  Windows catalog, or any SagerNet list by name). The phone keeps each list itself, checked by
+  its own sing-box, and the configurations read local copies: a rule waits for its list, and
+  says why, so a list that cannot be downloaded never stops KOne from starting. Refreshed daily
+  by ETag; a list that arrives later reloads the service once.
+- **Clash profile import**: a Clash profile on the clipboard imports each usable proxy as a
+  node, as share links do, provider notices left out, through the shared reader.
+- **Diagnose** (Tools): the network as Android judged it, another VPN, Private DNS, battery
+  limits, Data Saver, the clock, names and sites, then the one thing to do.
 - **Android CI**: the shared edition with the debug key, unit tests and an assembled build. No
   APK is uploaded; releases keep the authorized signing path in `tools/`.
 
 ## Next, without a decision
 
-1. Diagnosis for Android: network, sign-in, clock, Private DNS, battery limits, DNS, node.
-2. Clash YAML node import and provider notices left out, through the shared core.
-3. Category lists on the Routing screen.
-4. Hosts and DNS for domains.
+1. Hosts and DNS for domains.
+2. Subscriptions of links or Clash profiles that refresh on their own, as on Windows.
+3. Speed tests and smart selection by measured loss, from the Windows App.
 
 ## Needing the owner
 
