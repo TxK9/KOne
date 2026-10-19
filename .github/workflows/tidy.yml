@@ -1,0 +1,49 @@
+name: Tidy artifacts
+
+# The Windows workflow's MSIs, screenshots and paintings filled the repository's artifact
+# storage once (runs 46 and 47 stopped at their first upload). This deletes that workflow's
+# artifacts from this branch once they are half a day old: nothing of another branch or another
+# workflow is touched, and the run in progress keeps its own. GitHub counts the space freed
+# within 6 to 12 hours.
+on:
+  push:
+    branches: [claude/windows-desktop]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+concurrency:
+  group: tidy-artifacts
+  cancel-in-progress: false
+
+jobs:
+  tidy:
+    name: Delete old Windows artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete this branch's Windows artifacts older than 12 hours
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: claude/windows-desktop
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d '12 hours ago' +%s)
+          # The Windows workflow's runs on this branch, by id.
+          gh api --paginate "repos/$REPO/actions/workflows/windows.yml/runs?branch=$BRANCH&per_page=100" --jq '.workflow_runs[].id' > runs.txt
+          deleted=0; freed=0
+          gh api --paginate "repos/$REPO/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired | not) | "\(.id) \(.workflow_run.id) \(.created_at) \(.size_in_bytes) \(.name)"' |
+          while read -r id run created size name; do
+            grep -qx "$run" runs.txt || continue
+            [ "$(date -u -d "$created" +%s)" -lt "$cutoff" ] || continue
+            gh api -X DELETE "repos/$REPO/actions/artifacts/$id" > /dev/null
+            deleted=$((deleted + 1)); freed=$((freed + size))
+            echo "Deleted $name of run $run ($((size / 1048576)) MB)"
+            echo "$deleted $freed" > tally.txt
+          done
+          read -r deleted freed < tally.txt 2>/dev/null || { deleted=0; freed=0; }
+          echo "Deleted $deleted artifacts, $((freed / 1048576)) MB" | tee -a "$GITHUB_STEP_SUMMARY"
