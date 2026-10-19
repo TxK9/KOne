@@ -383,9 +383,10 @@ jobs:
           ../.github/windows/installed.ps1 -Version $env:KONE_VERSION
       - name: KOne starts, and what it costs
         run: |
+          Add-Type -Namespace KOne -Name Window -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr window, int show); [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(System.IntPtr window, System.Text.StringBuilder name, int size);'
+          function Kind([System.IntPtr] $handle) { $name = New-Object System.Text.StringBuilder 256; [KOne.Window]::GetClassName($handle, $name, 256) | Out-Null; $name.ToString() }
+          $clock = [System.Diagnostics.Stopwatch]::StartNew()
           $app = Start-Process "$env:ProgramFiles\KOne\KOne.exe" -PassThru
-          Start-Sleep -Seconds 20
-          if ($app.HasExited) { Write-Error "KOne.exe quit by itself with $($app.ExitCode)"; exit 1 }
           # Everything KOne.exe started, however deep (the launcher may hand over to a child): measured together.
           function Tree([int] $root) {
             $all = Get-CimInstance Win32_Process
@@ -404,11 +405,20 @@ jobs:
             $after = Cpu (Tree $root)
             return [math]::Round(100 * ($after - $before) / $seconds, 1)
           }
+          # Cold start: from launching KOne.exe to the App's own window (AWT's frame), a minute at most.
+          $started = "n/a"
+          while ($clock.Elapsed.TotalSeconds -lt 60 -and -not $app.HasExited) {
+            if (Tree $app.Id | ForEach-Object { $_.Refresh(); $_ } | Where-Object { $_.MainWindowHandle -ne [System.IntPtr]::Zero -and (Kind $_.MainWindowHandle) -eq "SunAwtFrame" }) {
+              $started = [math]::Round($clock.Elapsed.TotalSeconds, 1); break
+            }
+            Start-Sleep -Milliseconds 250
+          }
+          if ($app.HasExited) { Write-Error "KOne.exe quit by itself with $($app.ExitCode)"; exit 1 }
+          # Settled before measuring: the backdrop loaded, the first tests done.
+          Start-Sleep -Seconds 15
           $tree = Tree $app.Id
           Write-Host "Measured: $(($tree | ForEach-Object { "$($_.ProcessName)($($_.Id))" }) -join ', ')"
           $shown = Busy $app.Id 30
-          Add-Type -Namespace KOne -Name Window -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr window, int show); [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(System.IntPtr window, System.Text.StringBuilder name, int size);'
-          function Kind([System.IntPtr] $handle) { $name = New-Object System.Text.StringBuilder 256; [KOne.Window]::GetClassName($handle, $name, 256) | Out-Null; $name.ToString() }
           # The App's own window (AWT's frame), not any window: a launcher's error box (#32770) once passed for it.
           $windows = @(Tree $app.Id | ForEach-Object { $_.Refresh(); $_ } | Where-Object { $_.MainWindowHandle -ne [System.IntPtr]::Zero })
           $windows | ForEach-Object { Write-Host "Window: $($_.ProcessName)($($_.Id)) '$($_.MainWindowTitle)' $(Kind $_.MainWindowHandle)" }
@@ -425,9 +435,9 @@ jobs:
           $private = [math]::Round((($tree | Measure-Object -Property PrivateMemorySize64 -Sum).Sum) / 1MB)
           $threads = ($tree | ForEach-Object { $_.Threads.Count } | Measure-Object -Sum).Sum
           $names = ($tree | ForEach-Object { $_.ProcessName }) -join " + "
-          $line = "| ${{ matrix.arch }} | $names | $working MB | $private MB | $threads | $shown % | $minimised % |"
-          Write-Host "Processes, working set, private, threads, CPU shown, CPU minimised: $line"
-          "### What KOne costs, idle with no key (one core = 100 %)`n`n| Arch | Processes | Working set | Private | Threads | CPU shown (software drawing) | CPU minimised |`n| --- | --- | --- | --- | --- | --- | --- |`n$line" >> $env:GITHUB_STEP_SUMMARY
+          $line = "| ${{ matrix.arch }} | $started s | $names | $working MB | $private MB | $threads | $shown % | $minimised % |"
+          Write-Host "Window after, processes, working set, private, threads, CPU shown, CPU minimised: $line"
+          "### What KOne costs, idle with no key (one core = 100 %)`n`n| Arch | Window after | Processes | Working set | Private | Threads | CPU shown (software drawing) | CPU minimised |`n| --- | --- | --- | --- | --- | --- | --- | --- |`n$line" >> $env:GITHUB_STEP_SUMMARY
           $tree | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
           # A measurement of a launcher alone is no measurement: the App's window must be found.
           if (-not $window) { Write-Error "KOne's own window was not found among $names"; exit 1 }
