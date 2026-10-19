@@ -31,18 +31,21 @@ object SubscriptionProfile {
         return (json.optJSONArray("inbounds")?.length() ?: 0) > 0
     }
 
-    /** The nodes in [body] in KOne's template; throws [IllegalArgumentException] saying why when there are none. */
-    fun build(body: String, home: HomeLink.Home, rulesDirectory: String = "rules"): String {
+    /**
+     * The nodes in [body] in KOne's template, those named with one of [leaveOut]'s words left
+     * out; throws [IllegalArgumentException] saying why when there are none.
+     */
+    fun build(body: String, home: HomeLink.Home, rulesDirectory: String = "rules", leaveOut: String = ""): String {
         val read = SubscriptionContent.read(body, ManagedConfig.PROXY_TYPES)
-        val kept = NodeFilter.apply(read.nodes, "").nodes
-        require(kept.isNotEmpty()) { read.refusal ?: "No nodes found in the subscription" }
+        val kept = NodeFilter.apply(read.nodes, leaveOut).nodes
+        require(kept.isNotEmpty()) { if (read.nodes.isNotEmpty()) "Every node is left out by the words set for it" else read.refusal ?: "No nodes found in the subscription" }
         val source = JSONObject().put("outbounds", JSONArray(kept.map { JSONObject(it.toString()) }))
         return ManagedConfig.build(source, home, rulesDirectory)
     }
 
     /** [body] as the remote profile keeps it: as sent when whole, else built here with the phone's Home settings. */
-    fun prepare(body: String): String =
-        if (isWholeConfig(body)) body else build(body, HomeSettings.current(), InitialRuleSets.ensure(Application.application))
+    fun prepare(body: String, leaveOut: String = ""): String =
+        if (isWholeConfig(body)) body else build(body, HomeSettings.current(), InitialRuleSets.ensure(Application.application), leaveOut)
 
     /** What a remote profile's link sent: the configuration KOne keeps, and the provider's terms if it gave them. */
     class Fetched(val content: String, val info: UserInfo?)
@@ -54,7 +57,7 @@ object SubscriptionProfile {
      * Fetches [url] as sing-box for Android always has (its user agent, so a provider sends the
      * same), reading the provider's `subscription-userinfo` header too, and prepares the body.
      */
-    fun fetch(url: String): Fetched {
+    fun fetch(url: String, leaveOut: String = ""): Fetched {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 15_000
@@ -73,7 +76,7 @@ object SubscriptionProfile {
                 }
             }
             val info = UserInfo.parse(connection.getHeaderField("subscription-userinfo"))
-            return Fetched(prepare(out.toString(Charsets.UTF_8.name())), info)
+            return Fetched(prepare(out.toString(Charsets.UTF_8.name()), leaveOut), info)
         } finally {
             connection.disconnect()
         }
@@ -88,4 +91,11 @@ object SubscriptionProfile {
     fun terms(profileId: Long): UserInfo? = SubscriptionTerms.read(Settings.knineSubscriptionTerms, profileId)
 
     fun summary(name: String, info: UserInfo): Pair<String, Boolean>? = SubscriptionTerms.summary(name, info)
+
+    /** The words that leave nodes out of [profileId]'s subscription ("" for none). */
+    fun leaveOut(profileId: Long): String = SubscriptionTerms.words(Settings.knineSubscriptionLeaveOut, profileId)
+
+    fun setLeaveOut(profileId: Long, words: String) {
+        Settings.knineSubscriptionLeaveOut = SubscriptionTerms.withWords(Settings.knineSubscriptionLeaveOut, profileId, words)
+    }
 }

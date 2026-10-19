@@ -41,4 +41,17 @@ class SubscriptionProfileTest {
         val refusal = runCatching { SubscriptionProfile.build("nothing to see", home) }.exceptionOrNull()
         assertEquals("No nodes found in the subscription", refusal?.message)
     }
+
+    @Test
+    fun wordsLeaveNodesOutAndSayWhenNothingIsLeft() {
+        val links = listOf(
+            "trojan://example-password@node1.invalid:443?sni=example.org#Tokyo",
+            "trojan://example-password@node2.invalid:443?sni=example.org#Trial Frankfurt",
+        ).joinToString("\n")
+        val config = SubscriptionProfile.build(links, home, leaveOut = "trial")
+        assertFalse(outbounds(config).any { it.optString("server") == "node2.invalid" })
+        assertTrue(outbounds(config).any { it.optString("server") == "node1.invalid" })
+        val refusal = runCatching { SubscriptionProfile.build(links, home, leaveOut = "Tokyo | Trial") }.exceptionOrNull()
+        assertEquals("Every node is left out by the words set for it", refusal?.message)
+    }
 }

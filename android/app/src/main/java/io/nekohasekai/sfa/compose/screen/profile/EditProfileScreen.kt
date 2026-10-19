@@ -220,6 +220,7 @@ fun EditProfileScreen(
                 onRemoteUrl = viewModel::updateRemoteUrl,
                 onAutoUpdate = viewModel::updateAutoUpdate,
                 onAutoUpdateInterval = viewModel::updateAutoUpdateInterval,
+                onLeaveOut = viewModel::updateLeaveOut,
                 onUpdateNow = viewModel::updateRemoteProfile,
                 onDeleted = onNavigateBack,
                 modifier = Modifier

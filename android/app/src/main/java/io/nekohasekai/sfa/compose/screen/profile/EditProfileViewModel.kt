@@ -33,6 +33,8 @@ data class EditProfileUiState(
     val remoteUrl: String = "",
     val autoUpdate: Boolean = false,
     val autoUpdateInterval: Int = 60,
+    /** Words that leave nodes out of a subscription, separated by |. */
+    val leaveOut: String = "",
     val lastUpdated: Date? = null,
     // Original values for change detection
     val originalName: String = "",
@@ -40,6 +42,7 @@ data class EditProfileUiState(
     val originalRemoteUrl: String = "",
     val originalAutoUpdate: Boolean = false,
     val originalAutoUpdateInterval: Int = 60,
+    val originalLeaveOut: String = "",
     // State flags
     val hasChanges: Boolean = false,
     val isLoading: Boolean = true,
@@ -88,6 +91,8 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                         originalAutoUpdate = typedProfile.autoUpdate,
                         autoUpdateInterval = typedProfile.autoUpdateInterval,
                         originalAutoUpdateInterval = typedProfile.autoUpdateInterval,
+                        leaveOut = io.nekohasekai.sfa.selfuse.SubscriptionProfile.leaveOut(profile.id),
+                        originalLeaveOut = io.nekohasekai.sfa.selfuse.SubscriptionProfile.leaveOut(profile.id),
                         lastUpdated = typedProfile.lastUpdated,
                         isLoading = false,
                     )
@@ -182,7 +187,12 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun updateLeaveOut(words: String) {
+        _uiState.update { state -> state.copy(leaveOut = words, hasChanges = checkHasChanges(state.copy(leaveOut = words))) }
+    }
+
     private fun checkHasChanges(state: EditProfileUiState): Boolean = state.name != state.originalName ||
+        state.leaveOut.trim() != state.originalLeaveOut ||
         state.icon != state.originalIcon ||
         state.remoteUrl != state.originalRemoteUrl ||
         state.autoUpdate != state.originalAutoUpdate ||
@@ -212,6 +222,10 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
 
                 // Save to database
                 ProfileManager.update(profile)
+                // New words rebuild the node list from the provider's own, now.
+                val wordsChanged = state.leaveOut.trim() != state.originalLeaveOut
+                if (wordsChanged) io.nekohasekai.sfa.selfuse.SubscriptionProfile.setLeaveOut(profile.id, state.leaveOut)
+                val words = io.nekohasekai.sfa.selfuse.SubscriptionProfile.leaveOut(profile.id)
 
                 // Reconfigure updater if auto-update was enabled
                 if (autoUpdateChanged && state.autoUpdate) {
@@ -226,10 +240,13 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                         originalRemoteUrl = state.remoteUrl,
                         originalAutoUpdate = state.autoUpdate,
                         originalAutoUpdateInterval = state.autoUpdateInterval,
+                        leaveOut = words,
+                        originalLeaveOut = words,
                         hasChanges = false,
                         isSaving = false,
                     )
                 }
+                if (wordsChanged && profile.typed.type == TypedProfile.Type.Remote) updateRemoteProfile()
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -256,7 +273,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 // Fetch remote config
                 // Links, base64 or a Clash profile become KOne's own template (a whole sing-box configuration
                 // is kept); the provider's terms come with it.
-                val fetched = io.nekohasekai.sfa.selfuse.SubscriptionProfile.fetch(profile.typed.remoteURL)
+                val fetched = io.nekohasekai.sfa.selfuse.SubscriptionProfile.fetch(profile.typed.remoteURL, io.nekohasekai.sfa.selfuse.SubscriptionProfile.leaveOut(profile.id))
                 val content = fetched.content
                 Libbox.checkConfig(content)
                 io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info)

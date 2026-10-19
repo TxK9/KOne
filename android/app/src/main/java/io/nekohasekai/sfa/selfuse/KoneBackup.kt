@@ -49,6 +49,7 @@ object KoneBackup {
                     .put("remote_url", profile.typed.remoteURL)
                     .put("auto_update", profile.typed.autoUpdate)
                     .put("auto_update_interval", profile.typed.autoUpdateInterval)
+                    .put("leave_out", SubscriptionProfile.leaveOut(profile.id))
                     .put("content", content),
             )
         }
@@ -133,6 +134,7 @@ object KoneBackup {
                 .apply { userOrder = ProfileManager.nextOrder() }
             val created = ProfileManager.create(profile, andSelect = oldId == wanted)
             ids[oldId] = created.id
+            node.optString("leave_out").takeIf { it.isNotBlank() }?.let { SubscriptionProfile.setLeaveOut(created.id, it) }
             newIds += created.id
             added++
         }

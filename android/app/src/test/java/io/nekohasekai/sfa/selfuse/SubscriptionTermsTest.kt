@@ -31,4 +31,12 @@ class SubscriptionTermsTest {
         // Nothing to say without a total or an end.
         assertNull(SubscriptionTerms.summary("Example Cloud", UserInfo(0, gb, 0, null), now))
     }
+
+    @Test
+    fun wordsAreKeptCleanAndForgottenWhenEmpty() {
+        val all = SubscriptionTerms.withWords("{}", 7, " Trial|Russia ,  Trial ")
+        assertEquals("Trial | Russia", SubscriptionTerms.words(all, 7))
+        assertEquals("", SubscriptionTerms.words(SubscriptionTerms.withWords(all, 7, "  "), 7))
+        assertEquals("", SubscriptionTerms.words("not json", 7))
+    }
 }

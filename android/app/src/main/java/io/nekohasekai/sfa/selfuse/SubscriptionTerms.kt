@@ -1,12 +1,26 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.NodeFilter
 import cc.txwd.kone.shared.UserInfo
 import org.json.JSONObject
 import java.time.Instant
 import java.time.ZoneId
 
-/** Each remote profile's provider terms as kept (one JSON object by profile id) and said on its row. */
+/**
+ * What KOne keeps beside each remote profile, by profile id in one JSON object each: the
+ * provider's terms, said on its row, and the words that leave nodes out of it.
+ */
 object SubscriptionTerms {
+    /** [all] (as kept) with [profileId]'s words set, cleaned; removed when there are none. */
+    fun withWords(all: String, profileId: Long, words: String): String {
+        val json = runCatching { JSONObject(all) }.getOrDefault(JSONObject())
+        val clean = NodeFilter.clean(words)
+        if (clean.isEmpty()) json.remove(profileId.toString()) else json.put(profileId.toString(), clean)
+        return json.toString()
+    }
+
+    fun words(all: String, profileId: Long): String = runCatching { JSONObject(all).optString(profileId.toString()) }.getOrDefault("")
+
     /** [all] (as kept) with [profileId]'s terms set to [info], or removed when null. */
     fun with(all: String, profileId: Long, info: UserInfo?): String {
         val json = runCatching { JSONObject(all) }.getOrDefault(JSONObject())

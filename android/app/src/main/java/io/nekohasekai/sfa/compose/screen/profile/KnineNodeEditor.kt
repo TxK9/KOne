@@ -119,6 +119,7 @@ internal fun KnineNodeEditor(
     onRemoteUrl: (String) -> Unit,
     onAutoUpdate: (Boolean) -> Unit,
     onAutoUpdateInterval: (String) -> Unit,
+    onLeaveOut: (String) -> Unit,
     onUpdateNow: () -> Unit,
     onDeleted: () -> Unit,
     modifier: Modifier = Modifier,
@@ -174,7 +175,7 @@ internal fun KnineNodeEditor(
                 if (remote) {
                     ActionRow(Icons.Default.QrCode2, "QR code", onClick = { showQrCode = true })
                     Hairline()
-                    RemoteOptions(state, onRemoteUrl, onAutoUpdate, onAutoUpdateInterval, onUpdateNow)
+                    RemoteOptions(state, onRemoteUrl, onAutoUpdate, onAutoUpdateInterval, onLeaveOut, onUpdateNow)
                 }
             }
             if (managed) {
@@ -381,6 +382,7 @@ private fun RemoteOptions(
     onRemoteUrl: (String) -> Unit,
     onAutoUpdate: (Boolean) -> Unit,
     onAutoUpdateInterval: (String) -> Unit,
+    onLeaveOut: (String) -> Unit,
     onUpdateNow: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -388,6 +390,12 @@ private fun RemoteOptions(
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             BText("Subscription URL", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp).graphicsLayer { alpha = 0.7f })
             PillField(value = state.remoteUrl, onValueChange = onRemoteUrl, modifier = Modifier.fillMaxWidth())
+        }
+        // Words that leave nodes out, as KOne for Windows offers per subscription.
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            BText("Leave out nodes named", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp).graphicsLayer { alpha = 0.7f })
+            PillField(value = state.leaveOut, onValueChange = onLeaveOut, modifier = Modifier.fillMaxWidth(), keyboardType = KeyboardType.Text)
+            BText("Words separated by |, e.g. Trial | Russia", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 2.dp, top = 4.dp).graphicsLayer { alpha = 0.6f })
         }
         ActionRow(Icons.Default.Update, "Automatic updates", onClick = { onAutoUpdate(!state.autoUpdate) }) {
             KnineSwitch(checked = state.autoUpdate, onCheckedChange = onAutoUpdate)
