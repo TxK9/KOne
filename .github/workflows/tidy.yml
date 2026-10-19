@@ -5,9 +5,8 @@ name: Tidy artifacts
 # artifacts from this branch once they are half a day old: nothing of another branch or another
 # workflow is touched, and the run in progress keeps its own. GitHub counts the space freed
 # within 6 to 12 hours.
+# Once a day is enough: a run on every push cost a runner each time for nothing.
 on:
-  push:
-    branches: [claude/windows-desktop]
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:

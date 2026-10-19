@@ -4,12 +4,22 @@
 # TUN with the Claude block checked, and uninstalled. All of it twice, for x64 PCs and for ARM
 # ones (Snapdragon), each on a runner of its own kind; then one website folder with both MSIs.
 # Nothing here publishes anything.
+#
+# Windows runners count double against the account's Actions minutes, and ARM ones are scarce,
+# so a push builds and tries x64 alone, and only when something Windows is built from changed.
+# Started by hand (workflow_dispatch), it builds both architectures and the website folder, as a
+# release needs.
 name: Windows
 
 on:
   push:
     branches:
       - claude/windows-desktop
+    paths:
+      - "desktop/**"
+      - "shared/**"
+      - "core/**"
+      - ".github/workflows/windows.yml"
   workflow_dispatch:
 
 permissions:
@@ -29,11 +39,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        include:
-          - arch: amd64
-            runner: windows-latest
-          - arch: arm64
-            runner: windows-11-arm
+        # x64 on a push; both when started by hand (see the top).
+        include: ${{ fromJSON(github.event_name == 'push'
+          && '[{"arch":"amd64","runner":"windows-latest"}]'
+          || '[{"arch":"amd64","runner":"windows-latest"},{"arch":"arm64","runner":"windows-11-arm"}]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -110,18 +119,11 @@ jobs:
     needs: core
     strategy:
       matrix:
-        include:
-          # x64 keeps the names it always had; ARM's MSI and update manifest carry -arm64.
-          - arch: amd64
-            runner: windows-latest
-            jdk: temurin
-            wix: x64
-            suffix: ""
-          - arch: arm64
-            runner: windows-11-arm
-            jdk: microsoft
-            wix: arm64
-            suffix: "-arm64"
+        # x64 keeps the names it always had; ARM's MSI and update manifest carry -arm64.
+        # x64 on a push; both when started by hand (see the top).
+        include: ${{ fromJSON(github.event_name == 'push'
+          && '[{"arch":"amd64","runner":"windows-latest","jdk":"temurin","wix":"x64","suffix":""}]'
+          || '[{"arch":"amd64","runner":"windows-latest","jdk":"temurin","wix":"x64","suffix":""},{"arch":"arm64","runner":"windows-11-arm","jdk":"microsoft","wix":"arm64","suffix":"-arm64"}]') }}
     defaults:
       run:
         working-directory: desktop
@@ -291,6 +293,8 @@ jobs:
     name: Website folder
     runs-on: windows-latest
     needs: desktop
+    # Both MSIs are needed: only when started by hand.
+    if: github.event_name != 'push'
     env:
       SIGNING: ${{ vars.KONE_SIGNING_ACCOUNT != '' && secrets.AZURE_CLIENT_SECRET != '' }}
     defaults:
@@ -340,15 +344,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: amd64
-            runner: windows-latest
-            jdk: temurin
-            suffix: ""
-          - arch: arm64
-            runner: windows-11-arm
-            jdk: microsoft
-            suffix: "-arm64"
+        # x64 on a push; both when started by hand (see the top).
+        include: ${{ fromJSON(github.event_name == 'push'
+          && '[{"arch":"amd64","runner":"windows-latest","jdk":"temurin","suffix":""}]'
+          || '[{"arch":"amd64","runner":"windows-latest","jdk":"temurin","suffix":""},{"arch":"arm64","runner":"windows-11-arm","jdk":"microsoft","suffix":"-arm64"}]') }}
     defaults:
       run:
         working-directory: desktop
