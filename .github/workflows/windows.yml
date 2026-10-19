@@ -258,7 +258,7 @@ jobs:
           name: KOne-msi-older${{ matrix.suffix }}
           path: desktop/build/msi-old/KOne-1.0.0${{ matrix.suffix }}.msi
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 1
       - name: Upload the website's paintings
         if: matrix.arch == 'amd64'
         uses: actions/upload-artifact@v4
@@ -266,7 +266,7 @@ jobs:
           name: site-art
           path: desktop/build/site/art/*.jpg
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 1
       - name: Upload the screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -274,7 +274,7 @@ jobs:
           name: screenshots${{ matrix.suffix }}
           path: desktop/build/screens/*.png
           if-no-files-found: warn
-          retention-days: 3
+          retention-days: 1
       - name: Upload the test reports
         if: failure()
         uses: actions/upload-artifact@v4
@@ -282,7 +282,7 @@ jobs:
           name: test-reports${{ matrix.suffix }}
           path: desktop/build/reports/tests
           if-no-files-found: ignore
-          retention-days: 3
+          retention-days: 1
 
   website:
     name: Website folder
@@ -469,4 +469,4 @@ jobs:
             ${{ runner.temp }}/*.log
             desktop/build/reports/tests
           if-no-files-found: ignore
-          retention-days: 3
+          retention-days: 1
