@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import cc.txwd.kone.shared.Check
+import cc.txwd.kone.shared.Checks
 import cc.txwd.kone.shared.Outcome
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
@@ -38,6 +39,7 @@ import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.selfuse.PhoneDiagnosis
 import io.nekohasekai.sfa.selfuse.PhoneProbe
+import io.nekohasekai.sfa.selfuse.RoutingSettings
 import kotlinx.coroutines.launch
 import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
@@ -104,6 +106,23 @@ fun DiagnosisScreen(navController: NavController, serviceStatus: Status = Status
                     )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    // The result as plain text for whoever helps, as on Windows: no key, no node addresses.
+                    if (done) TextButton(onClick = {
+                        val report = Checks.report(
+                            checks, PhoneDiagnosis.advice(checks),
+                            listOf(
+                                "Version" to io.nekohasekai.sfa.BuildConfig.VERSION_NAME,
+                                "Android" to android.os.Build.VERSION.RELEASE,
+                                "Region" to RoutingSettings.current().region,
+                                "Connected" to (serviceStatus == Status.Started).toString(),
+                            ),
+                        )
+                        val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                        clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("KOne diagnosis", report))
+                        android.widget.Toast.makeText(context, context.getString(R.string.knine_diagnose_copied), android.widget.Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text(stringResource(R.string.knine_diagnose_copy))
+                    }
                     TextButton(onClick = ::start, enabled = !running) {
                         Text(stringResource(if (done) R.string.knine_diagnose_again else R.string.knine_diagnose_run))
                     }

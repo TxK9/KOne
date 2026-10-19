@@ -30,6 +30,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -236,6 +240,27 @@ fun ConnectionDetailsScreen(
                     label = stringResource(R.string.knine_connection_why),
                     value = why,
                 )
+            }
+            // The site sent one way from now on, as Tools offers it on Windows.
+            val site = remember(connection.domain) { connection.domain.takeIf { it.isNotBlank() }?.let(io.nekohasekai.sfa.selfuse.Routing::site) }
+            if (site != null) {
+                val scope = rememberCoroutineScope()
+                val context = LocalContext.current
+                fun send(direct: Boolean) {
+                    scope.launch {
+                        val choices = io.nekohasekai.sfa.selfuse.RoutingSettings.current()
+                        io.nekohasekai.sfa.selfuse.RoutingSettings.save(
+                            if (direct) choices.copy(direct = choices.direct + site, proxied = choices.proxied - site)
+                            else choices.copy(proxied = choices.proxied + site, direct = choices.direct - site),
+                        )
+                        val said = context.getString(if (direct) R.string.knine_connection_sent_direct else R.string.knine_connection_sent_node, site)
+                        android.widget.Toast.makeText(context, said, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { send(direct = true) }) { Text(stringResource(R.string.knine_connection_send_direct)) }
+                    TextButton(onClick = { send(direct = false) }) { Text(stringResource(R.string.knine_connection_send_node)) }
+                }
             }
             if (connection.rule.isNotEmpty()) {
                 DetailRow(

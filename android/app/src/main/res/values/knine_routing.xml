@@ -72,4 +72,10 @@
     <string name="knine_diagnose_fine">Nothing to fix</string>
     <string name="knine_subscription_hint">A sing-box configuration, or a provider\'s subscription: links, base64 or a Clash profile</string>
     <string name="knine_connection_why">Why</string>
+    <string name="knine_connection_send_direct">Always straight out</string>
+    <string name="knine_connection_send_node">Always through the node</string>
+    <string name="knine_connection_sent_direct">%1$s now goes straight out</string>
+    <string name="knine_connection_sent_node">%1$s now goes through the node</string>
+    <string name="knine_diagnose_copy">Copy report</string>
+    <string name="knine_diagnose_copied">Diagnosis copied</string>
 </resources>

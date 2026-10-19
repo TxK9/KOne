@@ -37,4 +37,26 @@ object Checks {
             else -> Check(CLOCK, Outcome.Fail, words)
         }
     }
+
+    /**
+     * A diagnosis as plain text for whoever helps: [context] first (version, mode, way), then each
+     * check with how it went, then the suggestion. The exit address is left out: it is the node's
+     * own, and a report travels further than the screen.
+     */
+    fun report(checks: List<Check>, advice: String?, context: List<Pair<String, String>>): String = buildString {
+        appendLine("KOne diagnosis")
+        context.forEach { (name, value) -> appendLine("$name: $value") }
+        appendLine()
+        checks.forEach { check ->
+            val mark = when (check.outcome) {
+                Outcome.Pass -> "ok  "
+                Outcome.Warn -> "warn"
+                Outcome.Fail -> "FAIL"
+                Outcome.Running -> "... "
+            }
+            val detail = if (check.title == "Exit") "(left out of the report)" else check.detail
+            appendLine("$mark ${check.title.padEnd(9)} $detail".trimEnd())
+        }
+        advice?.let { appendLine(); appendLine("Suggestion: $it") }
+    }.trimEnd()
 }
