@@ -1,6 +1,5 @@
 package cc.txwd.kone.app
 
-import cc.txwd.kone.shared.NodeFilter
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -25,7 +24,6 @@ import cc.txwd.kone.core.SpeedTest
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.node.Countries
 import cc.txwd.kone.node.NodeDraft
-import cc.txwd.kone.shared.SubscriptionContent
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
 import cc.txwd.kone.ui.UsageDetails
@@ -833,70 +831,30 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     fun clearLookup() = siteTools.clearLookup()
 
-    // Backup (Settings)
+    // Backup (Settings): see Backups.
+
+    private val backups = Backups(scope, preferences, subscriptions, imports, object : Backups.Host {
+        override val tools get() = this@AppModel.tools
+        override fun update(change: (ToolsState) -> ToolsState) {
+            this@AppModel.tools = change(this@AppModel.tools)
+        }
+        override val managed get() = account.binding?.source
+        override fun accepted(managed: JsonObject, nodes: List<JsonObject>) = acceptedNodes(managed, nodes)
+        override fun showSettings() {
+            ruleBook.show()
+            networkSettings.show()
+        }
+        override fun updateLists() = this@AppModel.updateLists()
+        override fun fetch(id: String) = feeds.update(id)
+        override fun nodesChanged() = this@AppModel.nodesChanged()
+        override fun restart() = this@AppModel.restart()
+    })
 
     /** The person's setup as a backup file's text; never the key or the device's binding. */
-    fun backup(): String = Backup(
-        mode = preferences.mode, way = preferences.way, bypass = preferences.bypass, direct = preferences.direct, proxied = preferences.proxied,
-        rules = preferences.rules, blockAds = preferences.blockAds, remoteDns = preferences.remoteDns, directDns = preferences.directDns,
-        ipv6 = preferences.ipv6, failover = preferences.failover, hosts = preferences.hosts, unmatchedDirect = preferences.unmatchedDirect,
-        nameServers = preferences.nameServers, region = preferences.region,
-        subscriptions = subscriptions.all.map { Backup.Entry(it.name, it.url, it.hours, it.leaveOut) },
-        imported = imports.all,
-    ).write()
+    fun backup(): String = backups.write()
 
-    /**
-     * Restores a backup into what is here: every value through its usual checks, lists joined
-     * rather than replaced, subscriptions added and fetched, imported nodes checked by sing-box.
-     * What happened, in a line; null when [text] is not a KOne backup.
-     */
-    fun restore(text: String): String? {
-        val backup = Backup.read(text) ?: return null
-        backup.mode?.takeIf { it in KoneConfig.MODES }?.let { mode ->
-            preferences.mode = mode
-            tools = tools.copy(mode = mode)
-        }
-        backup.way?.takeIf { it == WAY_ADAPTER || it == WAY_PROXY }?.let { way ->
-            preferences.way = way
-            tools = tools.copy(way = way)
-        }
-        preferences.bypass = (preferences.bypass + backup.bypass).distinctBy { it.lowercase() }
-        preferences.direct = (preferences.direct + backup.direct.mapNotNull(KoneConfig::site)).distinct()
-        preferences.proxied = (preferences.proxied + backup.proxied.mapNotNull(KoneConfig::site)).filter { it !in preferences.direct }.distinct()
-        preferences.rules = preferences.rules + backup.rules
-        backup.blockAds?.let { preferences.blockAds = it }
-        backup.remoteDns?.let { preferences.remoteDns = it }
-        backup.directDns?.let { preferences.directDns = it }
-        backup.ipv6?.let { preferences.ipv6 = it }
-        backup.failover?.let { preferences.failover = it }
-        if (backup.hosts.isNotEmpty()) preferences.hosts = preferences.hosts + backup.hosts
-        if (backup.nameServers.isNotEmpty()) preferences.nameServers = preferences.nameServers + backup.nameServers
-        backup.region?.let { preferences.region = it }
-        backup.unmatchedDirect?.let { preferences.unmatchedDirect = it }
-        tools = tools.copy(bypass = preferences.bypass)
-        ruleBook.show()
-        if (backup.rules.any { it.kind == "set" }) updateLists()
-        networkSettings.show()
-        val added = backup.subscriptions.mapNotNull { entry ->
-            if (!SubscriptionContent.acceptable(entry.url)) return@mapNotNull null
-            subscriptions.add(entry.url, entry.name.take(32))?.also {
-                subscriptions.change(it.id) { kept -> kept.copy(hours = entry.hours.coerceIn(0, 720), leaveOut = NodeFilter.clean(entry.leaveOut)) }
-            }
-        }
-        added.forEach { feeds.update(it.id) }
-        val managed = account.binding?.source
-        if (managed != null && backup.imported.isNotEmpty()) {
-            scope.launch {
-                val kept = withContext(Dispatchers.IO) {
-                    val checked = acceptedNodes(managed, backup.imported.map { JsonObject(it - "tag") })
-                    imports.addOutbounds(checked.map { node -> node to backup.imported.firstOrNull { JsonObject(it - "tag") == node }?.let { (it["tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content } })
-                }
-                if (kept > 0) nodesChanged()
-            }
-        }
-        restart()
-        return "Backup restored"
-    }
+    /** Restores a backup into what is here; what happened, in a line, or null when [text] is not a KOne backup. */
+    fun restore(text: String): String? = backups.restore(text)
 
     // Network (Settings)
 
