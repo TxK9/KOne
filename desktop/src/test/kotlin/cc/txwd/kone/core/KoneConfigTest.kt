@@ -151,6 +151,11 @@ class KoneConfigTest {
             Host("range.example.org", "192.0.2.0/24"), Host("zone.example.org", "fe80::1%eth0"), Host("mapped.example.org", "::ffff:c000:201"),
             Host("leading.example.org", "192.0.02.1"), Host("word.example.org", "localhost"), Host("\u212Aelvin.example.org", "192.0.2.30"),
         ) + (1..70).map { Host("h$it.example.org", "198.51.100.${it % 250 + 1}") } + (1..12).map { Host("h1.example.org", "203.0.113.$it") }
+        val servers = listOf(
+            NameServer(" Corp.Example.org ", "192.0.2.53"), NameServer("lab.example.org", "2001:DB8::53"), NameServer("intra.example.net", "192.0.2.53"),
+            NameServer("corp.example.org", "198.51.100.53"), NameServer("claude.ai", "192.0.2.66"), NameServer("single", "192.0.2.53"),
+            NameServer("word.example.org", "dns.example.org"), NameServer("range.example.org", "192.0.2.0/24"), NameServer("\u212Aelvin.example.org", "192.0.2.53"),
+        ) + (1..20).map { NameServer("d$it.example.org", "198.51.100.${it + 1}") }
         for (source in sources) for ((tun, mixed) in listOf(true to 0, false to 0, false to 7890)) for ((selected, mode, straight) in cases) {
             val sites = if (straight.isEmpty()) emptyList() else direct
             val through = if (mode == "Rule") emptyList() else proxied
@@ -165,9 +170,10 @@ class KoneConfigTest {
             val ipv6 = mode == "Global"
             // Fixed answers in Rule and Direct: written one way, wrong ones dropped, bounded.
             val fixed = if (mode == "Global") emptyList() else hosts
+            val ownServers = if (mode == "Direct") emptyList() else servers
             val ours = KoneConfig.build(
                 source, rules, api, selected = selected, tun = tun, mode = mode, bypass = straight, mixed = mixed, direct = sites, proxied = through,
-                routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6, hosts = fixed, unmatchedDirect = !tun,
+                routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6, hosts = fixed, nameServers = ownServers, unmatchedDirect = !tun,
             ).config
             val request = buildJsonObject {
                 put("source", source); put("selected", selected); put("rules", rules)
@@ -177,6 +183,7 @@ class KoneConfigTest {
                 putJsonArray("routes") { own.forEach { add(it.toJson()) } }; put("blockAds", ads)
                 put("remoteDns", remote); put("directDns", direct); put("ipv6", ipv6)
                 putJsonArray("hosts") { fixed.forEach { add(it.toJson()) } }
+                putJsonArray("nameServers") { ownServers.forEach { add(it.toJson()) } }
                 put("unmatchedDirect", !tun)
             }
             val process = ProcessBuilder(found!!.path, "build-config").start()
@@ -203,6 +210,7 @@ class KoneConfigTest {
             ),
             blockAds = true, remoteDns = "https://dns.example.com:8443/q", directDns = "2001:db8::1", ipv6 = true,
             hosts = listOf(Host("nas.example.org", "192.0.2.10"), Host("nas.example.org", "2001:db8::10"), Host("printer.example.org", "192.0.2.20")),
+            nameServers = listOf(NameServer("corp.example.org", "192.0.2.53"), NameServer("lab.example.org", "2001:db8::53")),
         )
         val file = File(folder, "config.json").apply { writeText(built.config.toString()) }
         val process = ProcessBuilder(core.path, "check", "-c", file.path).redirectErrorStream(true).start()

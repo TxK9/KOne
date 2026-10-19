@@ -3,6 +3,8 @@ package cc.txwd.kone.app
 import cc.txwd.kone.core.Dns
 import cc.txwd.kone.core.Host
 import cc.txwd.kone.core.Hosts
+import cc.txwd.kone.core.NameServer
+import cc.txwd.kone.core.NameServers
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules
@@ -87,6 +89,16 @@ class Preferences(folder: File) {
         get() = values.getProperty("proxied")?.split('|')?.filter { it.isNotBlank() }.orEmpty()
         set(value) {
             values.setProperty("proxied", KoneConfig.sites(value).joinToString("|"))
+            save()
+        }
+
+    /** Servers of the person's own for chosen domains (Settings → DNS), kept as they are checked. */
+    var nameServers: List<NameServer>
+        get() = values.getProperty("nameServers")?.let { text ->
+            runCatching { (Json.parseToJsonElement(text) as JsonArray).mapNotNull { (it as? JsonObject)?.let(NameServer::fromJson) } }.getOrNull()
+        }.orEmpty()
+        set(value) {
+            values.setProperty("nameServers", JsonArray(NameServers.flatten(NameServers.clean(value)).map { it.toJson() }).toString())
             save()
         }
 

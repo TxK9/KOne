@@ -33,7 +33,7 @@ Honestly, in most of what years of users bring:
   KOne leaves out raw configuration, scripts, LAN sharing and other cores on purpose
   (`ROADMAP.md`); custom groups are the one omission experts will miss most.
 - **DNS options.** Fake-IP, per-domain nameserver policy, hosts. KOne has validated presets
-  and custom servers and hosts, no fake-IP yet.
+  and custom servers, hosts, and a server of the person's own per domain; no fake-IP yet.
 - **Footprint.** A JVM with Skia is heavier than Clash Verge Rev's Tauri shell or v2rayN's
   .NET; KOne's installer is larger than either. Idle it keeps about 230 MB private, several
   times a Tauri shell; minimised it costs next to nothing.

@@ -96,6 +96,8 @@ data class NetworkState(
     val failover: Boolean = true,
     /** Fixed answers for chosen names. */
     val hosts: List<cc.txwd.kone.core.Host> = emptyList(),
+    /** Servers of the person's own for chosen domains. */
+    val nameServers: List<cc.txwd.kone.core.NameServer> = emptyList(),
 )
 
 class NetworkActions(
@@ -108,6 +110,9 @@ class NetworkActions(
     /** A fixed answer typed as "name address"; false when it is not one. */
     val onAddHost: (String) -> Boolean = { true },
     val onRemoveHost: (cc.txwd.kone.core.Host) -> Unit = {},
+    /** A server for a domain typed as "domain server"; false when it is not one. */
+    val onAddNameServer: (String) -> Boolean = { true },
+    val onRemoveNameServer: (cc.txwd.kone.core.NameServer) -> Unit = {},
     /** Saves the setup to a file the person picks, or reads one back. */
     val onExport: () -> Unit = {},
     val onImport: () -> Unit = {},
@@ -142,7 +147,8 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
         }
         DnsLine("Remote DNS", REMOTE_DNS, network.remoteDns, "https://dns.example.com/dns-query", networkActions.onRemoteDns)
         DnsLine("Direct DNS", DIRECT_DNS, network.directDns, "203.0.113.53", networkActions.onDirectDns)
-        HostsLine(network.hosts, networkActions)
+        PairsLine("Hosts", network.hosts, { "${it.name}  ${it.address}" }, networkActions.onRemoveHost, networkActions.onAddHost, "nas.example.org 192.0.2.10")
+        PairsLine("DNS for domains", network.nameServers, { "${it.domain}  ${it.server}" }, networkActions.onRemoveNameServer, networkActions.onAddNameServer, "corp.example.org 192.0.2.53")
         Line("IPv6") { Switch(network.ipv6) { networkActions.onIpv6(!network.ipv6) } }
         Line("Fail over") { Switch(network.failover) { networkActions.onFailover(!network.failover) } }
         Line("Backup") {
@@ -253,36 +259,38 @@ private fun DnsLine(title: String, presets: List<Pair<String, String>>, chosen: 
 }
 
 /**
- * Hosts: each fixed answer as a pill (× takes it out), and Add, which opens a field for
- * "name address" or a hosts file's line. They answer before any DNS server, after the Claude block.
+ * A list of pairs typed as one line each: each as a pill (× takes it out), and Add, which opens a
+ * field. Hosts ("name address", or a hosts file's line) answer before any DNS server; DNS for
+ * domains ("domain server") sends the names under a domain to a server of the person's own, as
+ * an intranet's. Both come after the Claude block.
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun HostsLine(hosts: List<cc.txwd.kone.core.Host>, actions: NetworkActions) {
+private fun <T> PairsLine(title: String, items: List<T>, shown: (T) -> String, onRemove: (T) -> Unit, onAdd: (String) -> Boolean, hint: String) {
     val ink = LocalInk.current
     var adding by remember { mutableStateOf(false) }
     Column {
-        Line("Hosts") {
-            if (hosts.isEmpty() && !adding) Label("None", 14.sp, ink.soft)
+        Line(title) {
+            if (items.isEmpty() && !adding) Label("None", 14.sp, ink.soft)
             Spacer(Modifier.width(18.dp))
             Box(Modifier.height(34.dp).press(bleed = 8.dp) { adding = !adding }, contentAlignment = Alignment.Center) {
                 Label(if (adding) "Done" else "Add", 14.sp, weight = FontWeight.SemiBold)
             }
         }
-        if (hosts.isNotEmpty()) {
+        if (items.isNotEmpty()) {
             androidx.compose.foundation.layout.FlowRow(
                 Modifier.fillMaxWidth().padding(bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                hosts.forEach { host ->
+                items.forEach { item ->
                     Row(
                         Modifier.height(30.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(15.dp)).background(ink.press)
-                            .press { actions.onRemoveHost(host) }.padding(horizontal = 12.dp),
+                            .press { onRemove(item) }.padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Label("${host.name}  ${host.address}", 13.sp, tabular = true)
+                        Label(shown(item), 13.sp, tabular = true)
                         Label("×", 14.sp, ink.soft)
                     }
                 }
@@ -301,10 +309,10 @@ private fun HostsLine(hosts: List<cc.txwd.kone.core.Host>, actions: NetworkActio
                 textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.mono, fontSize = 13.sp),
                 cursorBrush = SolidColor(ink.ink),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (actions.onAddHost(text)) text = "" else wrong = true }),
+                keyboardActions = KeyboardActions(onDone = { if (onAdd(text)) text = "" else wrong = true }),
                 decorationBox = { field ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-                        if (text.isEmpty()) Label("nas.example.org 192.0.2.10", 13.sp, ink.soft)
+                        if (text.isEmpty()) Label(hint, 13.sp, ink.soft)
                         field()
                     }
                 },

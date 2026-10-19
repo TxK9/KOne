@@ -98,6 +98,7 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
         remoteDns: String = "", directDns: String = "", ipv6: Boolean = false,
         hosts: List<Host> = emptyList(),
         unmatchedDirect: Boolean = false,
+        nameServers: List<NameServer> = emptyList(),
     ): String? {
         val reply = request(buildJsonObject {
             put("op", "connect")
@@ -113,6 +114,7 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
             put("directDns", directDns)
             put("ipv6", ipv6)
             putJsonArray("hosts") { hosts.forEach { add(it.toJson()) } }
+            putJsonArray("nameServers") { nameServers.forEach { add(it.toJson()) } }
             put("unmatchedDirect", unmatchedDirect)
         })
         return if (reply.ok) null else reply["error"]?.text() ?: "failed"

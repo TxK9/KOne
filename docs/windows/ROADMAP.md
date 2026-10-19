@@ -94,6 +94,7 @@ real Windows PC yet.
 | Memory and CPU measured in CI on x64 and ARM64 | Done |
 | Bandwidth test through a chosen node | Done |
 | Hosts: fixed answers for chosen names (after the Claude block; resolved before routing) | Done |
+| DNS for domains: the names under a domain answered by a server of the person's own (an intranet's), after the Claude block and the hosts; DNS only, routing unchanged | Done |
 | Per-node and per-app traffic over the day | Done |
 | Automatic over large subscriptions: the template's url-test sweep now runs every ten minutes, as KOne steers and tests often itself | Done |
 | GEOSITE and GEOIP category rules (e.g. a streaming category to Proxy) | Done (Option B, below) |

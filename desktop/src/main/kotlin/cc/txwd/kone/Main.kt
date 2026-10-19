@@ -334,6 +334,7 @@ fun main(args: Array<String>) {
                                           NetworkActions(
                                               onRemoteDns = model::setRemoteDns, onDirectDns = model::setDirectDns, onIpv6 = model::setIpv6, onFailover = model::setFailover,
                                               onAddHost = model::addHost, onRemoveHost = model::removeHost,
+                                              onAddNameServer = model::addNameServer, onRemoveNameServer = model::removeNameServer,
                                               onExport = {
                                                   // It holds subscription links and node passwords: the person is told so.
                                                   if (saveText(this@Window.window, "kone-backup.json", model.backup())) model.onNotice("Backup saved. It holds your subscription links; keep it private.")

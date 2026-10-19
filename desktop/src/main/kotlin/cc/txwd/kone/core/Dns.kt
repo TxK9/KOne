@@ -90,7 +90,7 @@ object Dns {
     }
 
     /** One IPv4 or IPv6 address written as rules write them, without a range. */
-    private fun address(text: String): String? {
+    internal fun address(text: String): String? {
         val lower = text.trim().lowercase()
         if ('/' in lower) return null
         return UserRules.network(lower)?.substringBefore('/')

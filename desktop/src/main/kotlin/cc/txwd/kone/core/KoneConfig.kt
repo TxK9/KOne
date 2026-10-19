@@ -63,6 +63,8 @@ object KoneConfig {
         routes: List<UserRule> = emptyList(), blockAds: Boolean = false,
         remoteDns: String = "", directDns: String = "", ipv6: Boolean = false,
         hosts: List<Host> = emptyList(),
+        /** Servers of the person's own for the names under chosen domains, after the Claude block and the hosts. */
+        nameServers: List<NameServer> = emptyList(),
         /** What no rule, list or category matched goes straight out in Rule mode, not through the node. */
         unmatchedDirect: Boolean = false,
     ): Built {
@@ -119,6 +121,7 @@ object KoneConfig {
         val proxiedSites = sites(proxied)
         val own = UserRules.clean(routes)
         val fixed = Hosts.clean(hosts)
+        val ownServers = NameServers.clean(nameServers)
 
         val config = buildJsonObject {
             putJsonObject("log") { put("level", "warn"); put("timestamp", true) }
@@ -126,11 +129,14 @@ object KoneConfig {
                 putJsonArray("servers") {
                     add(Dns.direct(directDns))
                     add(Dns.remote(remoteDns))
+                    NameServers.servers(ownServers).forEach { add(it) }
                 }
                 putJsonArray("rules") {
                     refused.forEach { add(it) }
                     // Fixed answers, after the Claude block so none answers for a refused name.
                     Hosts.dnsRules(fixed).forEach { add(it) }
+                    // The person's own servers: after the Claude block too, so none answers for a refused name.
+                    NameServers.dnsRules(ownServers).forEach { add(it) }
                     if (straight.isNotEmpty()) add(buildJsonObject { putJsonArray("process_name") { straight.forEach { add(it) } }; put("server", "local-dns") })
                     if (straightSites.isNotEmpty()) add(buildJsonObject { putJsonArray("domain_suffix") { straightSites.forEach { add(it) } }; put("server", "local-dns") })
                     if (proxiedSites.isNotEmpty()) add(buildJsonObject {

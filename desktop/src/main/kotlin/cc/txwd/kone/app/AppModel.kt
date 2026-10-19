@@ -14,6 +14,8 @@ import cc.txwd.kone.core.Ends
 import cc.txwd.kone.core.ExitTrace
 import cc.txwd.kone.core.Host
 import cc.txwd.kone.core.Hosts
+import cc.txwd.kone.core.NameServer
+import cc.txwd.kone.core.NameServers
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.RuleImport
 import cc.txwd.kone.core.LocalCore
@@ -373,7 +375,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     link.connect(
                         source, startTag(binding.selected), preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
                         preferences.rules, preferences.blockAds, preferences.remoteDns, preferences.directDns, preferences.ipv6,
-                        preferences.hosts, preferences.unmatchedDirect,
+                        preferences.hosts, preferences.unmatchedDirect, preferences.nameServers,
                     )
                 }.getOrElse { "failed" }
             }
@@ -462,7 +464,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 KoneConfig.build(source, rules, api, startTag(account.binding?.selected), tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
                     direct = preferences.direct, proxied = preferences.proxied, routes = keeper.routesWith(listed), blockAds = preferences.blockAds,
                     remoteDns = preferences.remoteDns, directDns = preferences.directDns, ipv6 = preferences.ipv6, hosts = preferences.hosts,
-                    unmatchedDirect = preferences.unmatchedDirect,
+                    nameServers = preferences.nameServers, unmatchedDirect = preferences.unmatchedDirect,
                 ).config.toString()
             }.getOrNull()
             if (config == null || !withContext(Dispatchers.IO) { core.start(config) }) {
@@ -1183,6 +1185,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         mode = preferences.mode, way = preferences.way, bypass = preferences.bypass, direct = preferences.direct, proxied = preferences.proxied,
         rules = preferences.rules, blockAds = preferences.blockAds, remoteDns = preferences.remoteDns, directDns = preferences.directDns,
         ipv6 = preferences.ipv6, failover = preferences.failover, hosts = preferences.hosts, unmatchedDirect = preferences.unmatchedDirect,
+        nameServers = preferences.nameServers,
         subscriptions = subscriptions.all.map { Triple(it.name, it.url, it.hours) },
         imported = imports.all,
     ).write()
@@ -1212,11 +1215,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         backup.ipv6?.let { preferences.ipv6 = it }
         backup.failover?.let { preferences.failover = it }
         if (backup.hosts.isNotEmpty()) preferences.hosts = preferences.hosts + backup.hosts
+        if (backup.nameServers.isNotEmpty()) preferences.nameServers = preferences.nameServers + backup.nameServers
         backup.unmatchedDirect?.let { preferences.unmatchedDirect = it }
         tools = tools.copy(bypass = preferences.bypass)
         rulesPage = rulesNow()
         if (backup.rules.any { it.kind == "set" }) updateLists()
-        network = NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts)
+        network = NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts, preferences.nameServers)
         val added = backup.subscriptions.mapNotNull { (name, url, hours) ->
             if (!SubscriptionContent.acceptable(url)) return@mapNotNull null
             subscriptions.add(url, name.take(32))?.also { subscriptions.change(it.id) { kept -> kept.copy(hours = hours.coerceIn(0, 720)) } }
@@ -1239,7 +1243,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     // Network (Settings)
 
     /** The DNS servers and IPv6, as kept. */
-    var network by mutableStateOf(NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts))
+    var network by mutableStateOf(NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts, preferences.nameServers))
         private set
 
     /** Whether a chosen node that stops answering is stood in for; a stand-in in place goes back to the chosen node. */
@@ -1294,6 +1298,26 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         if (host !in before) return
         preferences.hosts = before - host
         network = network.copy(hosts = preferences.hosts)
+        restart()
+    }
+
+    /** A server of the person's own for a domain, typed as "domain server"; false when it is not one or there are 16 already. */
+    fun addNameServer(line: String): Boolean {
+        val entry = NameServers.parse(line) ?: return false
+        val before = preferences.nameServers
+        if (entry in before) return true
+        if (NameServers.flatten(NameServers.clean(before + entry)).size == before.size) return false
+        preferences.nameServers = before + entry
+        network = network.copy(nameServers = preferences.nameServers)
+        restart()
+        return true
+    }
+
+    fun removeNameServer(entry: NameServer) {
+        val before = preferences.nameServers
+        if (entry !in before) return
+        preferences.nameServers = before - entry
+        network = network.copy(nameServers = preferences.nameServers)
         restart()
     }
 

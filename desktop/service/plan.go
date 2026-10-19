@@ -50,6 +50,9 @@ type Options struct {
 	IPv6     bool     // answer names with IPv6 addresses too (IPv4 first)
 	Mixed    int      // a local proxy port on 127.0.0.1 for the system proxy, when not 0 (the App's own, never the service's)
 	Hosts    []Host   // fixed answers for chosen names, after the Claude block
+	// NameServers answer the names under chosen domains from servers of the person's own, after
+	// the Claude block and the fixed answers.
+	NameServers []NameServer
 	// UnmatchedDirect sends what no rule, list or category matched straight out in Rule mode
 	// (and answers its names from the direct DNS), instead of through the node.
 	UnmatchedDirect bool
@@ -260,6 +263,9 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		dnsRules = append(dnsRules, hostRules(hosts)...)
 		routeRules = append(routeRules, map[string]any{"domain": hostNamesOf(hosts), "action": "resolve"})
 	}
+	// The person's own servers for chosen domains: after the Claude block too, so none answers for a refused name.
+	ownServers := NameServers(options.NameServers)
+	dnsRules = append(dnsRules, nameServerRules(ownServers)...)
 	if straight := Programs(options.Bypass); len(straight) > 0 {
 		dnsRules = append(dnsRules, map[string]any{"process_name": straight, "server": "local-dns"})
 		routeRules = append(routeRules, map[string]any{"process_name": straight, "outbound": "direct"})
@@ -335,7 +341,7 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 	config := map[string]any{
 		"log": map[string]any{"level": "warn", "timestamp": true},
 		"dns": map[string]any{
-			"servers":  []any{directDNS(options.Domestic), remoteDNS(options.Remote)},
+			"servers":  append([]any{directDNS(options.Domestic), remoteDNS(options.Remote)}, nameServerServers(ownServers)...),
 			"rules":    dnsRules,
 			"final":    "proxy-dns",
 			"strategy": dnsStrategy(options.IPv6),
