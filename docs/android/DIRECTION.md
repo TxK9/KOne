@@ -40,14 +40,20 @@ Other gaps, in order of what people meet first:
 - **Routing** (Settings → Routing): sites straight out or through the node, Block ads, what
   nothing matches, the remote and direct DNS servers, IPv6. Applied to every configuration
   KOne built, managed or from a share link, in one stretch of the template after the console's
-  refusals, so no choice reaches round the Claude block. Unit tested on a plain JVM; the App
-  is built and tested in CI (`.github/workflows/android.yml`). Not yet run on a device.
+  refusals, so no choice reaches round the Claude block. Own ordered rules (site, name ending,
+  word, address range, app by package, port). A notice when Android's Private DNS answers apps
+  past KOne's DNS. All kept in backups. Built and unit-tested in CI (`android.yml`, run 2);
+  not run on a device, which the owner has deferred until the App is ready for it.
+- **One shared core** (`shared/`), approved by the owner: names, rule kinds and checks, and the
+  Clash and v2rayN rule import, built into both Apps from source and tested in the Windows
+  build beside the Go consistency test.
 - **Android CI**: the shared edition with the debug key, unit tests and an assembled build. No
   APK is uploaded; releases keep the authorized signing path in `tools/`.
 
 ## Next, without a decision
 
-1. Own rules (the Windows App's kinds and order) and category lists.
+1. Category lists, and the rule import (Clash, v2rayN) on the Routing screen, now that the
+   shared core reads them.
 2. Diagnosis for Android: network, sign-in, clock, Private DNS, battery limits, DNS, node.
 3. Clash YAML and v2rayN rule import, and provider notices left out of subscriptions.
 4. Hosts and DNS for domains.
@@ -57,7 +63,8 @@ Other gaps, in order of what people meet first:
 
 | Proposal | Why | Cost or risk |
 | --- | --- | --- |
-| One shared Kotlin core for Windows and Android (rules, links, imports, template choices) | One implementation of each rule kind, checked once, as the Go service and the Windows App are now held identical by a test | Moves code both Apps build from; the Android template (Home, Tailscale) stays its own |
-| Chinese strings for the new Routing screen | Android ships zh-CN and zh-TW; new labels fall back to English until translated | Language changes go through their own review (`HANDOFF.md`) |
 | Allow `jitpack.io` and `api.xposed.info` in this development environment's network settings | Local Android builds; today only CI can build the App | None for the App; a development setting |
-| A device test round | The one gap no code closes | Hardware and time |
+| A device test round | The one gap no code closes | Deferred by the owner until the App is ready |
+
+Decided by the owner: one shared core (done); no new Chinese text, as the market is outside
+China (the existing language packs stay); device testing later.
