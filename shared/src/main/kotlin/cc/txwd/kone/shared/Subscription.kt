@@ -1,7 +1,5 @@
-package cc.txwd.kone.node
+package cc.txwd.kone.shared
 
-import cc.txwd.kone.shared.ShareLinks
-import cc.txwd.kone.core.KoneConfig
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -44,10 +42,20 @@ object SubscriptionContent {
     /** More than this many nodes are left out: no provider needs them and every one costs a check. */
     const val MOST = 500
 
-    fun read(body: String): Read {
-        val text = body.trim().removePrefix("﻿")
-        if (text.startsWith("{")) return singBox(text)
-        if (ClashProxies.looksLikeClash(text)) return ClashProxies.read(text)
+    /**
+     * The outbounds kept as nodes from a sing-box configuration. naive is left out: on Windows it
+     * needs libcronet.dll, which the App does not carry; Android passes its own set.
+     */
+    val PROXY_TYPES = setOf(
+        "vless", "vmess", "trojan", "shadowsocks", "socks", "http", "hysteria", "hysteria2",
+        "tuic", "ssh", "anytls", "shadowtls",
+    )
+
+    /** [body] read into nodes; of a sing-box configuration, only outbounds of [types] are taken. */
+    fun read(body: String, types: Set<String> = PROXY_TYPES): Read {
+        val text = body.trim().removePrefix("\ufeff")
+        if (text.startsWith("{")) return singBox(text, types)
+        if (ClashProxies.looksLikeClash(text)) return clash(text)
         val links = ShareLinks.findAll(text)
         if (links.isEmpty()) return Read(emptyList(), 0, "No nodes found in the subscription")
         var refused = 0
@@ -58,11 +66,19 @@ object SubscriptionContent {
         return Read(tagged(named), refused, refusal)
     }
 
-    private fun singBox(text: String): Read {
+    /** A Clash (mihomo) profile's proxies ([ClashProxies]), each tagged as a subscription's nodes are. */
+    fun clash(text: String): Read {
+        val read = ClashProxies.read(text)
+        // A subscription's own words for one with nothing in it.
+        val refusal = if (read.named.isEmpty() && read.refused == 0 && read.refusal == "No nodes found in the profile") "No nodes found in the subscription" else read.refusal
+        return Read(tagged(read.named), read.refused, refusal)
+    }
+
+    private fun singBox(text: String, types: Set<String>): Read {
         val json = runCatching { Json.parseToJsonElement(text) as JsonObject }.getOrNull()
             ?: return Read(emptyList(), 0, "The subscription is not valid JSON")
         val all = (json["outbounds"] as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
-        val proxies = all.filter { it.text("type") in KoneConfig.PROXY_TYPES }
+        val proxies = all.filter { it.text("type") in types }
         val kept = proxies.filterNot(::namesAFile)
         var refused = proxies.size - kept.size
         // A node whose chain leaves the kept nodes cannot be carried.

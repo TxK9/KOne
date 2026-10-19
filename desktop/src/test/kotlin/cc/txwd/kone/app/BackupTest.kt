@@ -1,7 +1,7 @@
 package cc.txwd.kone.app
 
 import cc.txwd.kone.core.UserRule
-import cc.txwd.kone.node.SubscriptionContent
+import cc.txwd.kone.shared.SubscriptionContent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

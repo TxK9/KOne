@@ -1,4 +1,4 @@
-package cc.txwd.kone.node
+package cc.txwd.kone.shared
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -11,7 +11,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class ClashProxiesTest {
+class ClashSubscriptionTest {
     private val id = "00000000-0000-0000-0000-000000000001"
     private val realityKey = "A".repeat(43)
 
@@ -125,7 +125,7 @@ class ClashProxiesTest {
             for (level in 1..9) append("${'a' + level}: &${'a' + level} [*${'a' + level - 1}, *${'a' + level - 1}, *${'a' + level - 1}, *${'a' + level - 1}, *${'a' + level - 1}, *${'a' + level - 1}, *${'a' + level - 1}, *${'a' + level - 1}, *${'a' + level - 1}]\n")
             append("proxies: [*j]\n")
         }
-        val read = ClashProxies.read(bomb)
+        val read = SubscriptionContent.clash(bomb)
         assertTrue(read.nodes.isEmpty())
     }
 }

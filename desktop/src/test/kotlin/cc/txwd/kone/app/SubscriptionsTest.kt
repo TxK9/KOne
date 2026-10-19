@@ -3,9 +3,9 @@ package cc.txwd.kone.app
 import cc.txwd.kone.console.FakeConsole
 import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.KoneConfig
-import cc.txwd.kone.node.ClashProxiesTest
-import cc.txwd.kone.node.SubscriptionContent
-import cc.txwd.kone.node.UserInfo
+import cc.txwd.kone.shared.ClashSubscriptionTest
+import cc.txwd.kone.shared.SubscriptionContent
+import cc.txwd.kone.shared.UserInfo
 import com.sun.net.httpserver.HttpsConfigurator
 import com.sun.net.httpserver.HttpsServer
 import kotlinx.serialization.json.JsonArray
@@ -123,7 +123,7 @@ class SubscriptionsTest {
     /** What a provider sends, Clash or sing-box, comes out as nodes sing-box itself accepts. */
     @Test
     fun theCoreAcceptsEverySubscribedKind() {
-        val clash = SubscriptionContent.read(ClashProxiesTest().profile).nodes
+        val clash = SubscriptionContent.read(ClashSubscriptionTest().profile).nodes
         val singBox = SubscriptionContent.read(
             """{"outbounds": [{"type": "trojan", "tag": "a", "server": "203.0.113.5", "server_port": 443, "password": "x", "detour": "b"},
                 {"type": "shadowsocks", "tag": "b", "server": "203.0.113.6", "server_port": 8388, "method": "aes-128-gcm", "password": "x"}]}""",
@@ -143,7 +143,7 @@ class SubscriptionsTest {
 class SubscriptionWarningTest {
     private val now = 1_800_000_000_000L
     private fun subscription(used: Long, total: Long, expire: Long?) =
-        Subscription("s", "Example Cloud", "https://example.com/sub", info = cc.txwd.kone.node.UserInfo(0, used, total, expire))
+        Subscription("s", "Example Cloud", "https://example.com/sub", info = cc.txwd.kone.shared.UserInfo(0, used, total, expire))
 
     @org.junit.jupiter.api.Test
     fun theTermsRunningOutAreSaidBeforeTheNodesStop() {

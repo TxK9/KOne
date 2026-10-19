@@ -39,10 +39,7 @@ object KoneConfig {
     const val AUTO_TAG = "auto"
 
     /** The outbounds kept as nodes. naive is left out: it needs libcronet.dll, which the App does not carry. */
-    val PROXY_TYPES = setOf(
-        "vless", "vmess", "trojan", "shadowsocks", "socks", "http", "hysteria", "hysteria2",
-        "tuic", "ssh", "anytls", "shadowtls",
-    )
+    val PROXY_TYPES = cc.txwd.kone.shared.SubscriptionContent.PROXY_TYPES
 
     /** Tags the template uses itself; a source outbound with one of these is renamed. */
     val RESERVED = setOf(PROXY_TAG, AUTO_TAG, "direct", "block", "dns", "local-dns", "proxy-dns", "tun-in", "mixed-in")

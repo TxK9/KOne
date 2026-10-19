@@ -42,7 +42,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cc.txwd.kone.node.NodeDraft
-import cc.txwd.kone.node.UserInfo
+import cc.txwd.kone.shared.UserInfo
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId

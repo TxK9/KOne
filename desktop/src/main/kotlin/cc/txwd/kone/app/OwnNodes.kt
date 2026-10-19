@@ -3,7 +3,7 @@ package cc.txwd.kone.app
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.node.NodeForm
 import cc.txwd.kone.node.ShareLinkWriter
-import cc.txwd.kone.node.SubscriptionContent
+import cc.txwd.kone.shared.SubscriptionContent
 import cc.txwd.kone.ui.NodeEditing
 import cc.txwd.kone.ui.NodeQr
 import cc.txwd.kone.ui.qrModules
