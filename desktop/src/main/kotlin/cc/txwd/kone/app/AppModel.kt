@@ -25,17 +25,12 @@ import cc.txwd.kone.core.SpeedTest
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.node.Countries
 import cc.txwd.kone.node.NodeDraft
-import cc.txwd.kone.node.NodeForm
-import cc.txwd.kone.node.ShareLinkWriter
 import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
 import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
-import cc.txwd.kone.ui.NodeEditing
-import cc.txwd.kone.ui.NodeQr
-import cc.txwd.kone.ui.qrModules
 import cc.txwd.kone.ui.NodeSection
 import cc.txwd.kone.ui.NodesState
 import cc.txwd.kone.ui.SourceKind
@@ -54,8 +49,6 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.net.InetAddress
 import java.net.ServerSocket
@@ -85,8 +78,32 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** The imported nodes' tags in the order they are kept, so a listed node finds its place in [imports]. */
     private var importedOrder: List<String> = emptyList()
 
-    /** A node being written by hand on the Nodes page. */
-    private var editing: NodeEditing? = null
+    private val ownNodes = OwnNodes(scope, imports, object : OwnNodes.Host {
+        override val managed get() = account.binding?.source
+        override val selected get() = account.binding?.selected
+        override val imported get() = importedOrder
+        override fun theirs(tag: String) = tag in importedTags || tag in subscribed
+        override val outbounds get() = (merged()?.source?.get("outbounds") as? kotlinx.serialization.json.JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
+        override fun nameOf(tag: String) = this@AppModel.nameOf(tag)
+        override fun inUse() = this@AppModel.inUse()
+        override fun accepts(source: JsonObject) = this@AppModel.accepts(source)
+        override fun accepted(managed: JsonObject, nodes: List<JsonObject>) = acceptedNodes(managed, nodes)
+        override fun nodesChanged(gone: String?) {
+            gone?.let(delays::remove)
+            this@AppModel.nodesChanged()
+        }
+        override fun restart() = this@AppModel.restart()
+        override fun refresh() = this@AppModel.refresh()
+        override fun tell(message: String, error: Boolean) = this@AppModel.tell(message, error)
+        override fun imported(message: String, good: Boolean) {
+            if (good) {
+                notice = null
+                hint(message)
+            } else {
+                say(message)
+            }
+        }
+    })
 
     /** The last bandwidth test of each node, and the node being tested now (one at a time). */
     private val speeds = HashMap<String, Speed>()
@@ -561,55 +578,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         startProbe()
     }
 
-    /**
-     * The share links in [text] (from the clipboard or a file), each read as the phone reads it and
-     * checked by sing-box, added to the person's own nodes. Says how it went on the dashboard.
-     */
-    fun importText(text: String) {
-        val source = account.binding?.source ?: return
-        scope.launch {
-            val (message, good) = withContext(Dispatchers.IO) {
-                // Share links, a Clash profile or a sing-box configuration, as a subscription is read.
-                val read = SubscriptionContent.read(text)
-                // A chain names its next node by tag, and imported nodes are tagged anew: chains come by subscription.
-                val single = read.nodes.filter { it["detour"] == null }.take(100)
-                if (single.isEmpty()) {
-                    return@withContext when {
-                        read.nodes.isNotEmpty() -> "Chained nodes can be added as a subscription" to false
-                        read.refused > 0 -> (read.refusal ?: "No usable nodes") to false
-                        else -> "No nodes found" to false
-                    }
-                }
-                val fitting = acceptedNodes(source, single)
-                val refusal = read.refusal ?: if (fitting.size < single.size) "sing-box does not accept some nodes" else null
-                val added = imports.addOutbounds(fitting.map { it to it["tag"]?.jsonPrimitive?.contentOrNull })
-                when {
-                    added > 0 -> "Imported $added nodes" to true
-                    fitting.isNotEmpty() -> "These nodes are already here" to true
-                    else -> (refusal ?: "No usable nodes") to false
-                }
-            }
-            nodesChanged()
-            tell(message, error = !good)
-            if (good) {
-                notice = null
-                hint(message)
-            } else {
-                say(message)
-            }
-        }
-    }
+    // The person's own nodes: see OwnNodes.
 
-    /** Takes an imported node out; the console's are the console's to take. */
-    fun removeImported(tag: String) {
-        if (tag !in importedTags) return
-        scope.launch {
-            withContext(Dispatchers.IO) { imports.remove(tag) }
-            delays.remove(tag)
-            nodesChanged()
-            if (account.binding?.selected == tag) restart()
-        }
-    }
+    fun importText(text: String) = ownNodes.importText(text)
+
+    fun removeImported(tag: String) = ownNodes.remove(tag)
 
     // Nodes
 
@@ -636,22 +609,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     fun removeSubscription(id: String) = feeds.remove(id)
 
-    /**
-     * An imported or subscribed node as a share link, handed to [copy]. The console's nodes are
-     * never written out: they are the owner's, given to this key only.
-     */
-    fun copyLink(tag: String, copy: (String) -> Unit) {
-        if (tag !in importedTags && tag !in subscribed) return
-        val outbound = (merged()?.source?.get("outbounds") as? kotlinx.serialization.json.JsonArray)
-            ?.mapNotNull { it as? JsonObject }?.firstOrNull { (it["tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content == tag }
-        val link = outbound?.let { ShareLinkWriter.write(JsonObject(it - "tag"), nameOf(tag)) }
-        if (link == null) {
-            tell("This node cannot be written as a link", error = true)
-            return
-        }
-        copy(link)
-        tell("Link copied", error = false)
-    }
+    fun copyLink(tag: String, copy: (String) -> Unit) = ownNodes.copyLink(tag, copy)
 
     /**
      * Tests how fast [tag] carries data, through a core of its own, so the live connection is left
@@ -690,100 +648,17 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
     }
 
-    /**
-     * Shows an imported or subscribed node as a QR code (null closes it). The console's nodes are
-     * never written out, as for [copyLink].
-     */
-    fun showQr(tag: String?) {
-        if (tag == null) {
-            qr = null
-            refresh()
-            return
-        }
-        if (tag !in importedTags && tag !in subscribed) return
-        val outbound = (merged()?.source?.get("outbounds") as? kotlinx.serialization.json.JsonArray)
-            ?.mapNotNull { it as? JsonObject }?.firstOrNull { (it["tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content == tag }
-        val link = outbound?.let { ShareLinkWriter.write(JsonObject(it - "tag"), nameOf(tag)) }
-        if (link == null || qrModules(link) == null) {
-            tell("This node cannot be shown as a QR code", error = true)
-            return
-        }
-        qr = NodeQr(nameOf(tag), link)
-        refresh()
-    }
+    fun showQr(tag: String?) = ownNodes.showQr(tag)
 
-    private var qr: NodeQr? = null
+    fun addNode() = ownNodes.add()
 
-    /** Opens the form for a new node. */
-    fun addNode() {
-        editing = NodeEditing(null, NodeDraft())
-        refresh()
-    }
+    fun editNode(tag: String) = ownNodes.edit(tag)
 
-    /** Opens an imported node in the form; subscribed nodes are their provider's, the console's the owner's. */
-    fun editNode(tag: String) {
-        val outbound = imports.all.getOrNull(importedOrder.indexOf(tag)) ?: return
-        val draft = NodeForm.read(JsonObject(outbound - "tag"), nameOf(tag))
-        if (draft == null) {
-            tell("This node has settings the form cannot show", error = true)
-            return
-        }
-        editing = NodeEditing(tag, draft)
-        refresh()
-    }
+    fun cancelNode() = ownNodes.cancel()
 
-    fun cancelNode() {
-        editing = null
-        refresh()
-    }
+    fun saveNode(draft: NodeDraft) = ownNodes.save(draft)
 
-    /**
-     * Saves the node in the form, once sing-box accepts it beside the console's: a new one joins
-     * the imported nodes, an edited one takes its old place. A running connection on the edited
-     * node starts afresh with it.
-     */
-    fun saveNode(draft: NodeDraft) {
-        val open = editing ?: return
-        val outbound = NodeForm.build(draft).getOrElse { failure ->
-            editing = open.copy(draft = draft, error = failure.message ?: "The node is not complete")
-            refresh()
-            return
-        }
-        val managed = account.binding?.source ?: run {
-            editing = open.copy(draft = draft, error = "Waiting for the console's nodes")
-            refresh()
-            return
-        }
-        editing = open.copy(draft = draft, error = null, saving = true)
-        refresh()
-        scope.launch {
-            val clean = JsonObject(outbound - "tag")
-            val name = (outbound["tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
-            val accepted = withContext(Dispatchers.IO) { accepts(Merge.into(managed, listOf(listOf(outbound))).source) }
-            val saved = accepted && withContext(Dispatchers.IO) {
-                if (open.tag == null) imports.addOutbounds(listOf(clean to name)) > 0 else imports.replace(importedOrder.indexOf(open.tag), clean, name)
-            }
-            if (!saved) {
-                editing = editing?.copy(saving = false, error = if (accepted) "This node is already here" else "sing-box does not accept this node")
-                refresh()
-                return@launch
-            }
-            editing = null
-            nodesChanged()
-            tell(if (open.tag == null) "Node added" else "Node saved", error = false)
-            if (open.tag != null && (account.binding?.selected == open.tag || inUse() == open.tag)) restart()
-        }
-    }
-
-    /** Every imported and subscribed node as share links, one a line; never the console's. */
-    fun exportLinks(): String {
-        val outbounds = (merged()?.source?.get("outbounds") as? kotlinx.serialization.json.JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
-        return outbounds.mapNotNull { outbound ->
-            val tag = (outbound["tag"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: return@mapNotNull null
-            if (tag !in importedTags && tag !in subscribed) return@mapNotNull null
-            ShareLinkWriter.write(JsonObject(outbound - "tag"), nameOf(tag))
-        }.joinToString("\n")
-    }
+    fun exportLinks(): String = ownNodes.exportLinks()
 
     /** Every node's delay, now, several at a time. */
     fun testAll() {
@@ -1637,8 +1512,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     )
                 }
             },
-            editing = editing,
-            qr = qr,
+            editing = ownNodes.editing,
+            qr = ownNodes.qr,
             speedTesting = speedTesting,
             selected = selected,
             testing = testing,
