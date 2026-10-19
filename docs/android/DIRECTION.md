@@ -49,7 +49,7 @@ Other gaps, in order of what people meet first:
   as the direct DNS), China kept for the owner's edition and as a choice; switching back
   restores the template exactly.
 - **One shared core** (`shared/`), approved by the owner: names, rule kinds and checks, the
-  Clash and v2rayN rule import, the category catalog and list keeper, the Clash proxies reader,
+  Clash and v2rayN rule import, the category catalog and list keeper, share links, subscriptions and the Clash proxies reader, hosts and DNS servers for domains,
   regions and diagnosis checks, built into both Apps from source and tested in the Windows
   build beside the Go consistency test.
 - **Category lists** in rules (List: Netflix, YouTube, OpenAI, regions and the rest of the
@@ -61,14 +61,19 @@ Other gaps, in order of what people meet first:
   node, as share links do, provider notices left out, through the shared reader.
 - **Diagnose** (Tools): the network as Android judged it, another VPN, Private DNS, battery
   limits, Data Saver, the clock, names and sites, then the one thing to do.
+- **Names** (Settings → Routing): fixed answers, and DNS servers of one's own for the names
+  under a domain, after the console's refusals, kept in backups.
+- **Subscriptions**: a remote profile's link may be a provider's subscription (links, base64,
+  a Clash profile or a sing-box node list). It becomes KOne's own template around those nodes
+  and refreshes on the remote profile's interval; a whole sing-box configuration is kept as sent.
 - **Android CI**: the shared edition with the debug key, unit tests and an assembled build. No
   APK is uploaded; releases keep the authorized signing path in `tools/`.
 
 ## Next, without a decision
 
-1. Hosts and DNS for domains.
-2. Subscriptions of links or Clash profiles that refresh on their own, as on Windows.
-3. Speed tests and smart selection by measured loss, from the Windows App.
+1. Speed tests and smart selection by measured loss, from the Windows App.
+2. A provider's usage and expiry (its subscription-userinfo header) shown on the profile.
+3. Per-subscription words that leave nodes out, as on Windows.
 
 ## Needing the owner
 
