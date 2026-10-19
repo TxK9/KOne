@@ -54,8 +54,10 @@ class ImportedNode(val profile: Profile, val isNew: Boolean)
  * that is already here is returned instead of a copy. Throws [ShareLinkException] for a link
  * that cannot be imported.
  */
-suspend fun createPairedProfile(context: Context, link: String): ImportedNode = withContext(Dispatchers.IO) {
-    val shared = ShareLinks.parse(link)
+suspend fun createPairedProfile(context: Context, link: String): ImportedNode = createPairedProfile(context, ShareLinks.parse(link))
+
+/** [createPairedProfile] for a node already read, from a link or a Clash profile. */
+suspend fun createPairedProfile(context: Context, shared: SharedNode): ImportedNode = withContext(Dispatchers.IO) {
     existingProfile(shared.outbound)?.let { return@withContext ImportedNode(it, isNew = false) }
     val content = PairedProfile.build(shared.outbound, HomeSettings.current(), InitialRuleSets.ensure(context))
     Libbox.checkConfig(content)

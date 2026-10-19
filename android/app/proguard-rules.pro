@@ -21,3 +21,6 @@
 #-renamesourcefileattribute SourceFile
 
 -keep class com.itsaky.androidide.treesitter.** { *; }
+
+# SnakeYAML (Clash profiles) names java.beans, which Android lacks and SnakeYAML does not use there.
+-dontwarn java.beans.**

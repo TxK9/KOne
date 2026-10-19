@@ -1,5 +1,6 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.shared.NodeFilter
 import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.node.UserInfo
 import kotlinx.serialization.json.Json

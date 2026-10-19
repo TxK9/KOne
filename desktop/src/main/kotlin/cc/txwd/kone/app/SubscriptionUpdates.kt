@@ -1,5 +1,6 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.shared.NodeFilter
 import cc.txwd.kone.node.SubscriptionContent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

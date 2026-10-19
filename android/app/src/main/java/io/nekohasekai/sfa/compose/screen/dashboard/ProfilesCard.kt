@@ -76,7 +76,9 @@ import io.nekohasekai.sfa.selfuse.PairedProfileDialog
 import io.nekohasekai.sfa.selfuse.ImportedNode
 import io.nekohasekai.sfa.selfuse.ShareLinkException
 import io.nekohasekai.sfa.selfuse.ShareLinks
+import io.nekohasekai.sfa.selfuse.clashNodes
 import io.nekohasekai.sfa.selfuse.createPairedProfile
+import cc.txwd.kone.shared.ClashProxies
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import io.nekohasekai.sfa.compose.component.qr.QRCodeDialog
 import io.nekohasekai.sfa.compose.component.qr.QRSDialog
@@ -235,13 +237,27 @@ fun ProfilesCard(
 
     // Node links, from the clipboard or a QR code, are imported at once and the first is
     // selected. A node that is already here is selected instead of being added again.
-    fun importNodeLinks(links: List<String>) {
+    fun importNodeLinks(links: List<String>) = importNodes(links.size) { link -> createPairedProfile(context, links[link]) }
+
+    // A Clash profile's proxies, pasted as text, are imported the same way as links.
+    fun importClash(text: String) {
+        val read = clashNodes(text)
+        if (read.nodes.isEmpty()) {
+            Toast.makeText(context, read.refusal ?: "No nodes found in the profile", Toast.LENGTH_LONG).show()
+            return
+        }
+        importNodes(read.nodes.size, read.refused) { node -> createPairedProfile(context, read.nodes[node]) }
+    }
+
+    // Imports [count] nodes, selects the first and says what came of them in one line;
+    // [refused] are those already left out before import.
+    fun importNodes(count: Int, refused: Int = 0, create: suspend (Int) -> ImportedNode) {
         coroutineScope.launch {
             val imported = mutableListOf<ImportedNode>()
             var refusal: String? = null
-            links.forEach { link ->
+            repeat(count) { index ->
                 try {
-                    imported += createPairedProfile(context, link)
+                    imported += create(index)
                 } catch (failure: ShareLinkException) {
                     refusal = failure.message
                 } catch (_: Exception) {
@@ -251,11 +267,11 @@ fun ProfilesCard(
             imported.firstOrNull()?.let { onProfileSelected(it.profile.id) }
             val added = imported.count { it.isNew }
             val kept = imported.size - added
-            val failed = links.size - imported.size
+            val failed = count - imported.size + refused
             val message = when {
                 imported.isEmpty() -> refusal ?: "Could not import this link. Check it and try again."
-                links.size == 1 && added == 1 -> "Imported and selected ${imported[0].profile.name}"
-                links.size == 1 -> "${imported[0].profile.name} already exists and is selected."
+                count == 1 && failed == 0 && added == 1 -> "Imported and selected ${imported[0].profile.name}"
+                count == 1 && failed == 0 -> "${imported[0].profile.name} already exists and is selected."
                 else -> buildString {
                     append("Imported $added nodes")
                     if (kept > 0) append(", $kept already existed")
@@ -275,6 +291,7 @@ fun ProfilesCard(
         val remote = text.lineSequence().map { it.trim() }.firstOrNull { it.startsWith("sing-box://import-remote-profile", ignoreCase = true) }
         when {
             links.isNotEmpty() -> importNodeLinks(links)
+            ClashProxies.looksLikeClash(text) -> importClash(text)
             remote != null -> coroutineScope.launch {
                 when (val parsed = importHandler.parseQRCode(remote)) {
                     is ProfileImportHandler.QRCodeParseResult.RemoteProfile ->

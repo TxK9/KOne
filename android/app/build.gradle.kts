@@ -292,6 +292,8 @@ dependencies {
     implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    // Clash profiles, read by the shared core (shared/…/ClashProxies.kt); on Android it avoids java.beans by itself.
+    implementation("org.yaml:snakeyaml:2.4")
     implementation("com.android.tools.smali:smali-dexlib2:3.0.9") {
         exclude(group = "com.google.guava", module = "guava")
     }
