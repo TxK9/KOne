@@ -1379,21 +1379,34 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     }
 
     /**
-     * Rules pasted from a Clash profile, added after the person's own in one go (one reconnection,
-     * not one a rule), each checked as any rule is. What happened, in a line.
+     * Rules pasted from a Clash profile or v2rayN, added after the person's own in one go (one
+     * reconnection, not one a rule), each checked as any rule is; a rule blocking the ad list turns
+     * on Block ads. What happened, in a line.
      */
     fun importRules(text: String): String {
         val read = RuleImport.read(text)
-        if (read.rules.isEmpty()) return if (read.left > 0) "None of these ${read.left} rules is one KOne takes" else "No rules in the clipboard"
+        val ads = read.blockAds && !preferences.blockAds
+        if (ads) preferences.blockAds = true
+        if (read.rules.isEmpty()) {
+            if (ads) {
+                rulesPage = rulesNow()
+                restart()
+            }
+            return when {
+                ads -> "Block ads turned on" + if (read.left > 0) "; ${read.left} left out" else ""
+                read.left > 0 -> "None of these ${read.left} rules is one KOne takes"
+                else -> "No rules in the clipboard"
+            }
+        }
         val before = preferences.rules
         preferences.rules = UserRules.clean(before + read.rules)
         val added = preferences.rules.size - UserRules.clean(before).size
         rulesPage = rulesNow()
-        if (added > 0) {
-            if (read.rules.any { it.kind == "set" }) updateLists() else restart()
-        }
+        if (added > 0 && read.rules.any { it.kind == "set" }) updateLists()
+        // One reconnection for the rules and Block ads; a new category list restarts again once it is ready.
+        if (ads || (added > 0 && read.rules.none { it.kind == "set" })) restart()
         val skipped = read.rules.size - added + read.left
-        return "$added rules added" + if (skipped > 0) "; $skipped left out" else ""
+        return "$added rules added" + (if (ads) ", Block ads turned on" else "") + if (skipped > 0) "; $skipped left out" else ""
     }
 
     /** One line on the Rules page for a few seconds (what an import did). */

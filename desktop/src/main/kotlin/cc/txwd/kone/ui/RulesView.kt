@@ -86,7 +86,7 @@ class RulesActions(
     val onMoveRule: (Int, Boolean) -> Unit = { _, _ -> },
     /** Downloads every category list again if it changed. */
     val onUpdateLists: () -> Unit = {},
-    /** Rules pasted from a Clash profile (the clipboard). */
+    /** Rules pasted from a Clash profile or v2rayN (the clipboard). */
     val onImportRules: () -> Unit = {},
     /** What nothing matched: straight out (true) or through the node. */
     val onUnmatched: (Boolean) -> Unit = {},

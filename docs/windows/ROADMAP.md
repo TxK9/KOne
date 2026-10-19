@@ -106,6 +106,7 @@ real Windows PC yet.
 | Pause for 15 minutes, then connect again; copy a diagnosis report (no key, no node addresses, no exit address) | Done |
 | Each node's last ten delays drawn beside it | Done |
 | Import a Clash profile's rules (domain, suffix, keyword, IP range, process, port, GEOSITE, GEOIP); the rest counted and left out | Done |
+| Import v2rayN's routing rules or an Xray configuration's (domain:, full:, keyword:, geosite:, geoip:, addresses, ports, programs); a rule blocking the ad list turns on Block ads | Done |
 | Import nodes from a pasted or picked Clash profile or sing-box configuration, as well as share links | Done |
 | A connection's site sent straight out or through the node from the connection list | Done |
 | A subscription that has ended, ends within days, or has used 90 % of its data is said once | Done |
