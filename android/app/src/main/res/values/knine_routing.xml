@@ -65,4 +65,5 @@
     <string name="knine_diagnose_again">Run again</string>
     <string name="knine_diagnose_running">Checking…</string>
     <string name="knine_diagnose_fine">Nothing to fix</string>
+    <string name="knine_subscription_hint">A sing-box configuration, or a provider\'s subscription: links, base64 or a Clash profile</string>
 </resources>

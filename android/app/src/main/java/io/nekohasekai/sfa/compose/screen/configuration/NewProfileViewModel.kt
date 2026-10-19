@@ -309,7 +309,8 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
         typedProfile.path = configFile.path
 
         // Fetch initial config - this MUST succeed for remote profiles
-        val content = HTTPClient().use { it.getString(state.remoteUrl) }
+        // Links, base64 or a Clash profile become KOne's own template; a whole sing-box configuration is kept.
+        val content = io.nekohasekai.sfa.selfuse.SubscriptionProfile.prepare(HTTPClient().use { it.getString(state.remoteUrl) })
         Libbox.checkConfig(content)
         val configContent = content
 

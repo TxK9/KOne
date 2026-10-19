@@ -400,7 +400,7 @@ fun NewProfileScreen(
                                         text = error,
                                         color = MaterialTheme.colorScheme.error,
                                     )
-                                }
+                                } ?: Text(stringResource(R.string.knine_subscription_hint))
                             },
                         )
 

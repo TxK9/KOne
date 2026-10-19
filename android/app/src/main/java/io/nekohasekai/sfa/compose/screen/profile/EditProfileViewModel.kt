@@ -255,7 +255,8 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 var selectedProfileUpdated = false
 
                 // Fetch remote config
-                val content = HTTPClient().use { it.getString(profile.typed.remoteURL) }
+                // Links, base64 or a Clash profile become KOne's own template; a whole sing-box configuration is kept.
+                val content = io.nekohasekai.sfa.selfuse.SubscriptionProfile.prepare(HTTPClient().use { it.getString(profile.typed.remoteURL) })
                 Libbox.checkConfig(content)
 
                 // Check if content changed
