@@ -197,6 +197,8 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 notification.show(lastProfileName, R.string.status_started)
             }
             notification.start()
+            // The category lists the rules name, fetched or refreshed once a day, through KOne now it runs.
+            GlobalScope.launch(Dispatchers.IO) { runCatching { io.nekohasekai.sfa.selfuse.CategoryListKeeper.update() } }
         } catch (e: Exception) {
             stopAndAlert(Alert.StartService, e.message)
             return

@@ -149,6 +149,29 @@ class RoutingTest {
     }
 
     @Test
+    fun aCategoryListRuleWaitsForItsList() {
+        val listed = Routing.Choices(rules = listOf(Rule("set", "geosite-netflix", "proxy"), Rule("set", "geoip-jp", "direct")))
+        val kept = mapOf("geosite-netflix" to "/data/lists/geosite-netflix.srs")
+        val config = JSONObject(Routing.apply(managed(), listed, kept))
+        val route = rules(config, "route")
+        // The list on the phone is routed by; the one not downloaded yet waits, rather than stop the start.
+        assertTrue(route.any { it.optJSONArray("rule_set")?.optString(0) == "geosite-netflix" && it.optString("outbound") == PairedProfile.PROXY_TAG })
+        assertFalse(route.any { it.optJSONArray("rule_set")?.optString(0) == "geoip-jp" })
+        val sets = config.getJSONObject("route").getJSONArray("rule_set").let { array -> (0 until array.length()).map { array.getJSONObject(it) } }
+        val netflix = sets.single { it.getString("tag") == "geosite-netflix" }
+        assertEquals("local", netflix.getString("type"))
+        assertEquals("/data/lists/geosite-netflix.srs", netflix.getString("path"))
+        // A list of names steers DNS too; a list of addresses does not.
+        assertTrue(rules(config, "dns").any { it.optJSONArray("rule_set")?.optString(0) == "geosite-netflix" && it.optString("server") == "proxy-dns" })
+
+        // Once the other arrives it joins; once no rule names a list, it is gone and the template is as built.
+        val both = JSONObject(Routing.apply(managed(), listed, kept + ("geoip-jp" to "/data/lists/geoip-jp.srs")))
+        assertTrue(rules(both, "route").any { it.optJSONArray("rule_set")?.optString(0) == "geoip-jp" && it.optString("outbound") == "direct" })
+        assertFalse(rules(both, "dns").any { it.optJSONArray("rule_set")?.optString(0) == "geoip-jp" })
+        assertEquals(JSONObject(managed()).toString(2), Routing.apply(both.toString(), Routing.Choices(), kept))
+    }
+
+    @Test
     fun anotherClientsRulesComeOverWithTheAppsKinds() {
         val clash = """
             rules:

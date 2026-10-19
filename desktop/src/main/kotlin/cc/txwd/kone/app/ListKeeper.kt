@@ -1,6 +1,7 @@
 package cc.txwd.kone.app
 
 import cc.txwd.kone.core.ServiceLink
+import cc.txwd.kone.shared.CategoryLists
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules
 import kotlinx.coroutines.CoroutineScope
@@ -38,8 +39,8 @@ class ListKeeper(private val scope: CoroutineScope, private val host: Host) {
      */
     val lists = CategoryLists(
         File(Places.data, "rule-sets"),
-        fetch = { url, etag -> CategoryLists.download(url, etag, host.proxied) },
-        parses = { file -> Places.core?.let { CategoryLists.singBoxReads(it, file) } ?: true },
+        fetch = { url, etag -> CategoryDownload.download(url, etag, host.proxied) },
+        parses = { file -> Places.core?.let { CategoryDownload.singBoxReads(it, file) } ?: true },
     )
 
     var busy = false

@@ -1,6 +1,6 @@
 package cc.txwd.kone.app
 
-import cc.txwd.kone.core.Categories
+import cc.txwd.kone.shared.Categories
 import cc.txwd.kone.core.KoneConfig
 
 /**

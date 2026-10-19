@@ -1,4 +1,4 @@
-package cc.txwd.kone.core
+package cc.txwd.kone.shared
 
 /** A category list a rule can name: SagerNet's list ([name]), what people call it, and its group on the Rules page. */
 data class Category(val name: String, val title: String, val group: String)

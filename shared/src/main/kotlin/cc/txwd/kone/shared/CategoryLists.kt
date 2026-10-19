@@ -1,18 +1,8 @@
-package cc.txwd.kone.app
+package cc.txwd.kone.shared
 
-import cc.txwd.kone.core.Categories
-import cc.txwd.kone.core.UserRules
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
-import java.net.InetSocketAddress
-import java.net.ProxySelector
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.security.MessageDigest
-import java.time.Duration
 import java.util.Properties
 
 /** What a download gave: the list unchanged since [etag], or new bytes. */
@@ -25,9 +15,10 @@ sealed interface ListDownload {
 data class ListStatus(val kept: Boolean, val checked: Long?, val error: String?)
 
 /**
- * The category lists the person's rules name, kept by the App in rule-sets\ in its folder:
- * downloaded over HTTPS from SagerNet's fixed address, checked (size, the binary rule-set header,
- * and sing-box reading it, as [parses] does), and only then put in place of the copy before.
+ * The category lists the person's rules name, kept by the App in [folder] (rule-sets\ in its
+ * folder on Windows, the App's files on Android): downloaded over HTTPS from SagerNet's fixed
+ * address by [fetch], checked (size, the binary rule-set header, and sing-box reading it, as
+ * [parses] does), and only then put in place of the copy before.
  * A failed download or a list that fails a check leaves the last good copy as it was.
  *
  * Each list is looked at again once a day, asking only whether it changed (ETag); one that
@@ -70,7 +61,7 @@ class CategoryLists(
      * True when a new copy was put in place; the failure is kept for the page otherwise.
      */
     fun update(name: String, now: Long): Boolean {
-        if (!UserRules.isSetName(name)) return false
+        if (!Rules.isSetName(name)) return false
         val etag = synchronized(this) { values.getProperty("$name.etag")?.takeIf { digest(name) != null } }
         val fetched = runCatching { fetch(Categories.url(name), etag) }.getOrElse { failure ->
             fail(name, now, (failure as? IOException)?.message ?: "Download failed")
@@ -122,7 +113,7 @@ class CategoryLists(
         if (gone.isEmpty()) return
         gone.forEach { name ->
             listOf("sha", "checked", "etag", "error", "failed").forEach { values.remove("$name.$it") }
-            if (UserRules.isSetName(name)) file(name).delete()
+            if (Rules.isSetName(name)) file(name).delete()
         }
         save()
     }
@@ -154,49 +145,5 @@ class CategoryLists(
         /** The size and header of a sing-box binary rule set ("SRS", format 1 to 5), as the service checks them. */
         fun looksLikeAList(bytes: ByteArray) =
             bytes.size in 5..MOST_BYTES && bytes[0] == 'S'.code.toByte() && bytes[1] == 'R'.code.toByte() && bytes[2] == 'S'.code.toByte() && bytes[3].toInt() in 1..5
-
-        /**
-         * Downloads over HTTPS only, through KOne's local port when [viaPort] is given, reading at
-         * most [MOST_BYTES]: an answer larger than that is refused, not cut short.
-         */
-        fun download(url: String, etag: String?, viaPort: Int?): ListDownload {
-            require(url.startsWith("https://")) { "HTTPS only" }
-            val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NORMAL)
-                .proxy(if (viaPort != null) ProxySelector.of(InetSocketAddress("127.0.0.1", viaPort)) else HttpClient.Builder.NO_PROXY).build()
-            val request = HttpRequest.newBuilder(URI(url)).timeout(Duration.ofSeconds(30)).header("User-Agent", "KOne").GET()
-                .apply { if (etag != null) header("If-None-Match", etag) }.build()
-            val response = try {
-                client.send(request, HttpResponse.BodyHandlers.ofInputStream())
-            } catch (failure: IOException) {
-                throw IOException("Could not reach the list's server")
-            }
-            response.body().use { body ->
-                if (response.statusCode() == 304) return ListDownload.Same
-                if (response.statusCode() == 404) throw IOException("No such list")
-                if (response.statusCode() != 200 || !response.uri().scheme.equals("https", ignoreCase = true)) throw IOException("The server answered ${response.statusCode()}")
-                val out = ByteArrayOutputStream()
-                val buffer = ByteArray(64 * 1024)
-                while (true) {
-                    val read = body.read(buffer)
-                    if (read < 0) break
-                    out.write(buffer, 0, read)
-                    if (out.size() > MOST_BYTES) throw IOException("The list is too large")
-                }
-                return ListDownload.Got(out.toByteArray(), response.headers().firstValue("ETag").orElse(null))
-            }
-        }
-
-        /** Whether the sing-box at [core] reads [file] as the template will use it. */
-        fun singBoxReads(core: File, file: File): Boolean = runCatching {
-            val config = """{"route":{"rule_set":[{"type":"local","tag":"check","format":"binary","path":${kotlinx.serialization.json.JsonPrimitive(file.absolutePath.replace('\\', '/'))}}]}}"""
-            val process = ProcessBuilder(core.path, "check", "-c", "stdin", "--disable-color").redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
-            process.outputStream.use { it.write(config.toByteArray()) }
-            if (!process.waitFor(20, java.util.concurrent.TimeUnit.SECONDS)) {
-                process.destroyForcibly()
-                false
-            } else {
-                process.exitValue() == 0
-            }
-        }.getOrDefault(false)
     }
 }

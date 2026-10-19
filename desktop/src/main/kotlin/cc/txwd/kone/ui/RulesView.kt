@@ -47,8 +47,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cc.txwd.kone.app.ListStatus
-import cc.txwd.kone.core.Categories
+import cc.txwd.kone.shared.ListStatus
+import cc.txwd.kone.shared.Categories
 import cc.txwd.kone.core.UserRule
 
 /** Rules as the App fills it: the programs and sites lists, the person's own rules in order, and ad blocking. */

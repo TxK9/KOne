@@ -4,6 +4,10 @@ import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.RuleSets
 import cc.txwd.kone.core.UserRule
+import cc.txwd.kone.shared.Categories
+import cc.txwd.kone.shared.CategoryLists
+import cc.txwd.kone.shared.ListDownload
+import cc.txwd.kone.shared.ListStatus
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.Assumptions.assumeTrue
@@ -91,7 +95,7 @@ class CategoryListsTest {
         val folder = Files.createTempDirectory("kone").toFile()
         val lists = CategoryLists(folder, { _, _ -> ListDownload.Got(first, null) }) { true }
         assertTrue(lists.update("geoip-jp", now = 0))
-        assertEquals("https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-jp.srs", cc.txwd.kone.core.Categories.url("geoip-jp"))
+        assertEquals("https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-jp.srs", Categories.url("geoip-jp"))
         File(folder, "geoip-jp.srs").writeBytes(second)
         assertNull(lists.digest("geoip-jp"))
         assertNull(lists.bytes("geoip-jp"))
@@ -104,7 +108,7 @@ class CategoryListsTest {
         val lists = CategoryLists(Files.createTempDirectory("kone").toFile(), server::fetch) { true }
         for (name in listOf("geosite-cn", "../geosite-x", "geosite-a/b", "netflix", "https://example.com/x")) assertFalse(lists.update(name, now = 0))
         assertTrue(server.asked.isEmpty())
-        assertFailsWith<IllegalArgumentException> { CategoryLists.download("http://example.com/geosite-x.srs", null, null) }
+        assertFailsWith<IllegalArgumentException> { CategoryDownload.download("http://example.com/geosite-x.srs", null, null) }
     }
 
     @Test
@@ -139,9 +143,9 @@ class CategoryListsTest {
         val real = File(rules, "geosite-cn.srs").readBytes()
         val sets = File(rules, "sets").apply { mkdirs() }
         File(sets, "geosite-netflix.srs").writeBytes(real)
-        assertTrue(CategoryLists.singBoxReads(core!!, File(sets, "geosite-netflix.srs")))
+        assertTrue(CategoryDownload.singBoxReads(core!!, File(sets, "geosite-netflix.srs")))
         File(sets, "broken.srs").writeBytes(first)
-        assertFalse(CategoryLists.singBoxReads(core, File(sets, "broken.srs")))
+        assertFalse(CategoryDownload.singBoxReads(core, File(sets, "broken.srs")))
 
         val source = Json.parseToJsonElement("""{"outbounds": [{"type": "socks", "tag": "Example", "server": "203.0.113.1", "server_port": 1080}]}""") as JsonObject
         val routes = listOf(UserRule("set", "geosite-netflix", "proxy"), UserRule("set", "geosite-netflix", "block"))

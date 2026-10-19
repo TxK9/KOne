@@ -62,7 +62,7 @@ import cc.txwd.kone.ui.NodeQr
 import cc.txwd.kone.ui.SiteCheckState
 import cc.txwd.kone.app.SiteCheck
 import cc.txwd.kone.ui.SignInState
-import cc.txwd.kone.app.ListStatus
+import cc.txwd.kone.shared.ListStatus
 import cc.txwd.kone.ui.UsageDetails
 import cc.txwd.kone.ui.ToolsView
 import cc.txwd.kone.ui.TrayIcon

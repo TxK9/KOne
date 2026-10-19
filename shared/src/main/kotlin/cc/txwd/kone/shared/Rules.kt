@@ -32,7 +32,7 @@ object Rules {
 
     /** The kinds each App offers. */
     val WINDOWS = setOf("domain", "suffix", "keyword", "cidr", "program", "port", "set")
-    val ANDROID = setOf("domain", "suffix", "keyword", "cidr", "app", "port")
+    val ANDROID = setOf("domain", "suffix", "keyword", "cidr", "app", "port", "set")
 
     val ACTIONS = listOf("proxy", "direct", "block")
     const val MOST = 256

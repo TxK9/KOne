@@ -47,5 +47,7 @@ object RoutingSettings {
         HomeSettings.refreshSaved()
         // A service that is not running has nothing to reload.
         runCatching { Libbox.newStandaloneCommandClient().serviceReload() }
+        // A new category list is fetched now; its rules join once it is kept.
+        CategoryListKeeper.update()
     }
 }

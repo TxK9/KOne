@@ -1,7 +1,7 @@
 package cc.txwd.kone
 
 import cc.txwd.kone.app.Account
-import cc.txwd.kone.app.CategoryLists
+import cc.txwd.kone.shared.CategoryLists
 import cc.txwd.kone.app.SystemProxy
 import cc.txwd.kone.app.BindingStore
 import cc.txwd.kone.app.Vault

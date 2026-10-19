@@ -3,6 +3,8 @@ package io.nekohasekai.sfa.compose.screen.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -24,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,13 +47,18 @@ import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.ktx.clipboardText
+import cc.txwd.kone.shared.Categories
+import cc.txwd.kone.shared.ListStatus
 import cc.txwd.kone.shared.Rule
 import cc.txwd.kone.shared.Region
+import io.nekohasekai.sfa.selfuse.CategoryListKeeper
 import io.nekohasekai.sfa.selfuse.OwnRules
 import io.nekohasekai.sfa.selfuse.PrivateDns
 import io.nekohasekai.sfa.selfuse.Routing
 import io.nekohasekai.sfa.selfuse.RoutingSettings
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
@@ -58,7 +67,7 @@ import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 private val REMOTE_NAMES = listOf("Cloudflare", "Google", "Quad9")
 /** What each direct preset is called on screen. */
 private val DIRECT_NAMES = mapOf("alidns" to "AliDNS", "dnspod" to "DNSPod", "cloudflare" to "Cloudflare", "google" to "Google", "quad9" to "Quad9")
-private val KINDS = listOf("domain", "suffix", "keyword", "cidr", "app", "port")
+private val KINDS = listOf("domain", "suffix", "keyword", "cidr", "app", "port", "set")
 
 /**
  * Settings → Routing: sites straight out or through the node, Block ads, what nothing matches,
@@ -86,9 +95,16 @@ fun RoutingSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val privateDns = remember { PrivateDns.hostname(context) }
 
+    // How each category list the rules name stands: read off the main thread, again after each save.
+    var lists by remember { mutableStateOf<Map<String, ListStatus>>(emptyMap()) }
+    LaunchedEffect(Unit) { lists = withContext(Dispatchers.IO) { CategoryListKeeper.status() } }
+
     fun keep(next: Routing.Choices) {
         choices = next
-        scope.launch { RoutingSettings.save(next) }
+        scope.launch {
+            RoutingSettings.save(next)
+            lists = withContext(Dispatchers.IO) { CategoryListKeeper.status() }
+        }
     }
 
     fun lines(text: String) = text.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
@@ -134,7 +150,7 @@ fun RoutingSettingsScreen(navController: NavController) {
         Spacer(Modifier.height(16.dp))
         KnineSectionLabel(text = stringResource(R.string.knine_routing_rules))
         Section {
-            RulesEditor(choices.rules, onImport = {
+            RulesEditor(choices.rules, lists, onImport = {
                 // Another client's rules, from the clipboard: Clash's rules: lines or v2rayN's JSON.
                 val imported = Routing.importRules(choices, clipboardText.orEmpty())
                 if (imported.choices != choices) keep(imported.choices)
@@ -241,6 +257,7 @@ private fun kindName(kind: String): String = stringResource(
         "keyword" -> R.string.knine_routing_kind_keyword
         "cidr" -> R.string.knine_routing_kind_cidr
         "app" -> R.string.knine_routing_kind_app
+        "set" -> R.string.knine_routing_kind_set
         else -> R.string.knine_routing_kind_port
     },
 )
@@ -262,13 +279,17 @@ private fun kindHint(kind: String): String = stringResource(
         "keyword" -> R.string.knine_routing_rule_hint_keyword
         "cidr" -> R.string.knine_routing_rule_hint_cidr
         "app" -> R.string.knine_routing_rule_hint_app
+        "set" -> R.string.knine_routing_rule_hint_set
         else -> R.string.knine_routing_rule_hint_port
     },
 )
 
-/** The person's rules in order, each movable up and removable, and a form to add one at the end. */
+/**
+ * The person's rules in order, each movable up and removable, and a form to add one at the end.
+ * A rule on a category list says when its list is not on the phone yet ([lists]), and why.
+ */
 @Composable
-private fun RulesEditor(rules: List<Rule>, onImport: () -> String, onChange: (List<Rule>) -> Unit) {
+private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, onImport: () -> String, onChange: (List<Rule>) -> Unit) {
     var said by remember { mutableStateOf<String?>(null) }
     var kind by remember { mutableStateOf(0) }
     var action by remember { mutableStateOf(0) }
@@ -279,7 +300,15 @@ private fun RulesEditor(rules: List<Rule>, onImport: () -> String, onChange: (Li
         if (rules.isEmpty()) Text(stringResource(R.string.knine_routing_rules_none), style = MaterialTheme.typography.bodyMedium)
         rules.forEachIndexed { index, rule ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("${kindName(rule.kind)} · ${rule.value} → ${actionName(rule.action)}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    val shown = if (rule.kind == "set") Categories.title(rule.value) ?: rule.value else rule.value
+                    Text("${kindName(rule.kind)} · $shown → ${actionName(rule.action)}", style = MaterialTheme.typography.bodyLarge)
+                    val status = lists[rule.value]
+                    if (rule.kind == "set" && status?.kept != true) {
+                        val waiting = status?.error?.let { stringResource(R.string.knine_routing_list_failed, it) } ?: stringResource(R.string.knine_routing_list_waiting)
+                        Text(waiting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 IconButton(onClick = {
                     if (index > 0) onChange(rules.toMutableList().also { it[index] = it[index - 1].also { _ -> it[index - 1] = rule } })
                 }, enabled = index > 0) {
@@ -297,6 +326,7 @@ private fun RulesEditor(rules: List<Rule>, onImport: () -> String, onChange: (Li
             label = { Text(stringResource(R.string.knine_routing_rule_value)) },
             supportingText = { Text(if (wrong) stringResource(R.string.knine_routing_rule_wrong) else kindHint(KINDS[kind])) },
         )
+        if (KINDS[kind] == "set") CategoryPicker(picked = value.trim().lowercase()) { value = it; wrong = false }
         KnineSegmented(options = OwnRules.ACTIONS.map { actionName(it) }, selected = action, onSelect = { action = it }, modifier = Modifier.fillMaxWidth())
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             said?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f)) }
@@ -310,6 +340,22 @@ private fun RulesEditor(rules: List<Rule>, onImport: () -> String, onChange: (Li
                     value = ""
                 }
             }) { Text(stringResource(R.string.knine_routing_rule_add)) }
+        }
+    }
+}
+
+/** The common category lists by group; the one picked fills in the rule's value. Any other SagerNet list can be typed. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CategoryPicker(picked: String, onPick: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (group in listOf(Categories.SERVICES, Categories.WEBSITES, Categories.REGIONS)) {
+            Text(group, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Categories.ALL.filter { it.group == group }.forEach { category ->
+                    FilterChip(selected = category.name == picked, onClick = { onPick(category.name) }, label = { Text(category.title) })
+                }
+            }
         }
     }
 }

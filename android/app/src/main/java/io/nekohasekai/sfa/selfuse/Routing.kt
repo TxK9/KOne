@@ -97,18 +97,23 @@ object Routing {
         return selector && LOCAL_DNS in servers && PROXY_DNS in servers && directMode(config.optJSONObject("route")?.optJSONArray("rules")) >= 0
     }
 
-    /** [content] with [choices] applied when it is KOne's template; otherwise unchanged. */
-    fun apply(content: String, choices: Choices): String {
+    /**
+     * [content] with [choices] applied when it is KOne's template; otherwise unchanged. [lists]
+     * are the category lists kept on the phone (each name to its file): a rule naming a list not
+     * kept yet is left out until the list arrives, so a list that cannot be downloaded never
+     * stops KOne from starting.
+     */
+    fun apply(content: String, choices: Choices, lists: Map<String, String> = emptyMap()): String {
         val config = try { JSONObject(content) } catch (_: Exception) { return content }
         if (!isTemplate(config)) return content
-        apply(config, choices)
+        apply(config, choices, lists)
         return config.toString(2)
     }
 
-    internal fun apply(config: JSONObject, choices: Choices) {
+    internal fun apply(config: JSONObject, choices: Choices, lists: Map<String, String> = emptyMap()) {
         val direct = sites(choices.direct)
         val proxied = sites(choices.proxied).filter { it !in direct }
-        val own = OwnRules.clean(choices.rules)
+        val own = OwnRules.clean(choices.rules).filter { it.kind != "set" || it.value in lists }
 
         // Route: the stretch between the leading rules and the Direct mode rule is KOne's.
         val route = config.getJSONObject("route")
@@ -132,6 +137,7 @@ object Routing {
             ?.put("outbound", if (choices.unmatchedDirect) "direct" else PROXY)
         route.put("rules", JSONArray(routed))
         setAdList(route, choices.blockAds)
+        setCategoryLists(route, Rules.sets(own).associateWith { lists.getValue(it) })
 
         // DNS: the same stretch, each list's names answered where its traffic goes.
         val dns = config.getJSONObject("dns")
@@ -177,6 +183,17 @@ object Routing {
                 .apply { if (folder != null) put("initial_path", "$folder/$ADS.srs") }
                 .put("http_client", JSONObject().put("detour", PROXY).put("domain_resolver", LOCAL_DNS))
         }
+        route.put("rule_set", JSONArray(sets))
+    }
+
+    /**
+     * The category lists the rules name, read from the phone's own copies ([lists], name to file);
+     * the lists no rule names any more are gone. sing-box watches a local list, so a newer copy
+     * takes effect without a restart.
+     */
+    private fun setCategoryLists(route: JSONObject, lists: Map<String, String>) {
+        val sets = objects(route.optJSONArray("rule_set")).filterNot { it.optString("type") == "local" && Rules.isSetName(it.optString("tag")) }.toMutableList()
+        lists.forEach { (name, path) -> sets += JSONObject().put("type", "local").put("tag", name).put("format", "binary").put("path", path) }
         route.put("rule_set", JSONArray(sets))
     }
 

@@ -39,9 +39,9 @@ object OwnRules {
         }
     }
 
-    /** How names matching [rule] are answered; rules on addresses and ports have none. */
+    /** How names matching [rule] are answered; rules on addresses, ports and address lists (geoip-) have none. */
     fun dns(rule: Rule): JSONObject? {
-        if (rule.kind == "cidr" || rule.kind == "port") return null
+        if (rule.kind == "cidr" || rule.kind == "port" || (rule.kind == "set" && rule.value.startsWith("geoip-"))) return null
         return match(rule).apply {
             when (rule.action) {
                 "block" -> put("action", "reject")

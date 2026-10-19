@@ -21,6 +21,7 @@
     <string name="knine_routing_kind_cidr">IP</string>
     <string name="knine_routing_kind_app">App</string>
     <string name="knine_routing_kind_port">Port</string>
+    <string name="knine_routing_kind_set">List</string>
     <string name="knine_routing_action_proxy">Node</string>
     <string name="knine_routing_action_direct">Direct</string>
     <string name="knine_routing_action_block">Block</string>
@@ -30,6 +31,9 @@
     <string name="knine_routing_rule_hint_cidr">203.0.113.0/24, or one address</string>
     <string name="knine_routing_rule_hint_app">com.example.app</string>
     <string name="knine_routing_rule_hint_port">443, or 1000-2000</string>
+    <string name="knine_routing_rule_hint_set">Pick one below, or type a list such as geosite-netflix</string>
+    <string name="knine_routing_list_waiting">Downloading the list; the rule applies once it arrives</string>
+    <string name="knine_routing_list_failed">Not downloaded yet (%1$s); KOne tries again later</string>
     <string name="knine_routing_blocking">Blocking</string>
     <string name="knine_routing_block_ads">Block ads</string>
     <string name="knine_routing_block_ads_detail">The domains of a common ad list, in every mode</string>
