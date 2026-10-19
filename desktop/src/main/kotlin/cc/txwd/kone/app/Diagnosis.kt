@@ -69,7 +69,7 @@ object Diagnosis {
     /** One plain suggestion for the first check that failed, or null when nothing did. */
     fun advice(checks: List<Check>): String? {
         // The network, the key and the service come first; after them, other VPNs or proxies are the likeliest reason anything else fails.
-        val basic = checks.firstOrNull { it.outcome == Outcome.Fail && it.title in setOf("Network", "Key", "Service") }
+        val basic = checks.firstOrNull { it.outcome == Outcome.Fail && it.title in setOf("Network", CLOCK, "Key", "Service") }
         val others = checks.firstOrNull { it.title == Conflicts.TITLE && it.outcome == Outcome.Warn }
         if (basic == null && others != null) return "Turn off ${others.detail} while KOne is on: they can take traffic before it"
         val failed = basic ?: checks.firstOrNull { it.outcome == Outcome.Fail } ?: return null
@@ -77,6 +77,7 @@ object Diagnosis {
         return when {
             failed.title == "Network" && failed.detail == SIGN_IN -> "Sign in to this network: Sign in on the dashboard opens its page"
             failed.title == "Network" -> "This computer is offline: check Wi-Fi or the cable"
+            failed.title == CLOCK -> "Windows' clock is ${failed.detail}: turn on Set time automatically (Settings → Time & language), then connect again"
             failed.title == "Key" -> "Enter a key, or wait for the console to send nodes"
             failed.title == "Service" -> "Reinstall KOne, or choose System proxy in Tools"
             failed.title == "Node" -> "Try another node, or Test all on Nodes"
@@ -117,6 +118,29 @@ object Diagnosis {
     }
 
     const val SIGN_IN = "Wants you to sign in"
+
+    /**
+     * This computer's clock against a server's: VMess turns away a client more than 90 seconds
+     * off, and certificates fail when the clock is far out, so a node "does not work" for a reason
+     * no node can fix. Null when unknown.
+     */
+    fun clock(skew: Long?): Check? {
+        skew ?: return null
+        val off = kotlin.math.abs(skew)
+        val words = when {
+            off < 90 -> "${off} s"
+            off < 3_600 -> "${off / 60} min"
+            off < 2 * 86_400 -> "${off / 3_600} h"
+            else -> "${off / 86_400} days"
+        } + if (skew > 0) " ahead" else " behind"
+        return when {
+            off < 30 -> Check(CLOCK, Outcome.Pass, "Right")
+            off < 90 -> Check(CLOCK, Outcome.Warn, words)
+            else -> Check(CLOCK, Outcome.Fail, words)
+        }
+    }
+
+    const val CLOCK = "Clock"
 
     /** A delay in milliseconds as a check of [name]. */
     fun node(name: String, delay: Int?): Check = when {

@@ -7,13 +7,24 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.TimeUnit
 
 /** What the network the computer is on lets through, before any node: everything, nothing until someone signs in, or nothing at all. */
 enum class Reach { Open, SignIn, Offline }
 
 /** A [Reach], and for [Reach.SignIn] the page the network sent people to, when it said. */
-data class ReachCheck(val reach: Reach, val page: String? = null)
+data class ReachCheck(val reach: Reach, val page: String? = null) {
+    /**
+     * How far this computer's clock is from the server that answered as it always does, in
+     * seconds (positive: ahead); null when none did. A measurement beside the verdict, so not part
+     * of equality.
+     */
+    var skew: Long? = null
+        internal set
+}
 
 /**
  * Whether the network itself is open, asked of the network rather than through a node: plain
@@ -53,13 +64,18 @@ object NetworkReach {
     fun check(viaPort: Int? = null, targets: List<Target> = TARGETS, timeoutMillis: Long = 5_000): ReachCheck {
         val client = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMillis)).followRedirects(HttpClient.Redirect.NEVER)
             .proxy(if (viaPort != null) ProxySelector.of(InetSocketAddress("127.0.0.1", viaPort)) else HttpClient.Builder.NO_PROXY).build()
+        val clock = AtomicReference<Long?>(null)
         val asked = targets.map { target ->
             val request = HttpRequest.newBuilder(URI(target.url)).timeout(Duration.ofMillis(timeoutMillis)).header("Cache-Control", "no-cache").GET().build()
             client.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream()).thenApply { response ->
                 val body = response.body().use { stream -> String(stream.readNBytes(16 * 1024), Charsets.UTF_8) }
                 val location = response.headers().firstValue("Location").orElse(null)
-                if (target.usual(response.statusCode(), body, location)) Heard.Usual
-                else Heard.Other(location)
+                if (target.usual(response.statusCode(), body, location)) {
+                    response.headers().firstValue("Date").orElse(null)?.let(::skew)?.let { clock.compareAndSet(null, it) }
+                    Heard.Usual
+                } else {
+                    Heard.Other(location)
+                }
             }.exceptionally { Heard.Nothing }
         }
         // The first usual answer settles it; otherwise every address has its time.
@@ -70,12 +86,16 @@ object NetworkReach {
             val one = runCatching { future.get(left, TimeUnit.NANOSECONDS) }.getOrDefault(Heard.Nothing)
             if (one == Heard.Usual) {
                 asked.forEach { it.cancel(true) }
-                return ReachCheck(Reach.Open)
+                return ReachCheck(Reach.Open).also { it.skew = clock.get() }
             }
             heard += one
         }
         return verdict(heard)
     }
+
+    /** Seconds this computer's clock is ahead of a server's HTTP Date (behind when negative); null when it is not one. */
+    fun skew(date: String, now: Long = System.currentTimeMillis()): Long? =
+        runCatching { (now - ZonedDateTime.parse(date.trim(), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli()) / 1000 }.getOrNull()
 
     /** What the answers add up to; a sign-in page is only one the network named with http or https. */
     fun verdict(heard: List<Heard>): ReachCheck {

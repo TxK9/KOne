@@ -89,6 +89,7 @@ real Windows PC yet.
 | QR export of a node | Done |
 | Sign-in networks (hotels, airports) detected, with one press to sign in and reconnect | Done |
 | Other VPNs and Windows' proxy elsewhere named in diagnosis and on fall-back | Done |
+| Windows' clock checked against the network's own answer (HTTP Date): diagnosis says how far off and how to fix it, and a clock far enough off to turn nodes away is said once after failures | Done |
 | Site check: a site tried straight out and through nodes, the better way kept | Done |
 | Site check asks the running core first where the site goes now and by which rule (a real connection found in the core's own list, not an imitation of its rules); checked on sing-box through the proxy port, the adapter path only on Windows | Done |
 | Each connection's reason shown in the person's terms | Done |

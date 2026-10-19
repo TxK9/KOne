@@ -37,7 +37,10 @@ class NetworkReachTest {
 
     @Test
     fun anOpenNetworkAnswersAsItAlwaysDoes() {
-        assertEquals(ReachCheck(Reach.Open), checked { path -> if (path == "/trace") Triple(200, "fl=1\nh=1.1.1.1", null) else Triple(200, "{\"Status\":0}", null) })
+        val open = checked { path -> if (path == "/trace") Triple(200, "fl=1\nh=1.1.1.1", null) else Triple(200, "{\"Status\":0}", null) }
+        assertEquals(ReachCheck(Reach.Open), open)
+        // The answering server's Date gives this computer's clock against it (the same clock here).
+        kotlin.test.assertTrue(open.skew != null && kotlin.math.abs(open.skew!!) <= 2, "${open.skew}")
         // One usual answer is enough: the other address may be blocked where the person is.
         assertEquals(ReachCheck(Reach.Open), checked { path -> if (path == "/trace") Triple(503, "", null) else Triple(200, "{\"Status\":0}", null) })
     }

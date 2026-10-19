@@ -46,6 +46,7 @@ class SignInNetworks(private val scope: CoroutineScope, private val host: Host) 
         private set
     private var waiting: Job? = null
     private var asked = 0L
+    private var clockSaid = false
 
     /**
      * Asks the network itself whether it is open. While KOne's adapter carries everything, through
@@ -72,7 +73,11 @@ class SignInNetworks(private val scope: CoroutineScope, private val host: Host) 
         }
     }
 
-    /** After a failure: whether the network wants a sign-in, at most once a minute; said once, with the way to sign in. */
+    /**
+     * After a failure: whether the network wants a sign-in, at most once a minute; said once, with
+     * the way to sign in. An open network also shows how far off this computer's clock is, and a
+     * clock far enough off to turn nodes away is said once a session.
+     */
     fun look() {
         val now = System.currentTimeMillis()
         if (now - asked < 60_000 || waiting?.isActive == true) return
@@ -87,6 +92,12 @@ class SignInNetworks(private val scope: CoroutineScope, private val host: Host) 
                 state = SignInState(check.page ?: NetworkReach.ANY_PAGE, waiting = false)
             } else if (state?.waiting == false) {
                 state = null
+            }
+            val clock = Diagnosis.clock(check.skew)
+            if (clock?.outcome == Outcome.Fail && !clockSaid) {
+                clockSaid = true
+                host.log("This computer's clock is ${clock.detail}")
+                host.notice("Windows' clock is ${clock.detail}: nodes may turn KOne away. Turn on Set time automatically")
             }
             host.refresh()
         }

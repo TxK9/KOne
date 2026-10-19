@@ -975,10 +975,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 tools = tools.copy(checks = checks.toList() + listOfNotNull(running?.let { Check(it, Outcome.Running) }), checking = running != null, advice = null)
             }
             show("Network")
-            checks += when (val reached = signIns.reach()) {
+            val reached = signIns.reach()
+            checks += when (reached) {
                 null -> Check("Network", Outcome.Warn, "Could not check")
                 else -> Diagnosis.network(reached)
             }
+            Diagnosis.clock(reached?.skew)?.let { checks += it }
             show(Conflicts.TITLE)
             checks += withContext(Dispatchers.IO) { Conflicts.check(Conflicts.adapters(), SystemProxy.read(), proxied) }
             show("Key")

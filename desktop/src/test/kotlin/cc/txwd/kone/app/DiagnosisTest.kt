@@ -64,4 +64,22 @@ class DiagnosisReportTest {
         )
         kotlin.test.assertFalse("203.0.113.45" in report)
     }
+
+    @Test
+    fun aClockFarOffIsSaidWithTheWayToFixIt() {
+        assertNull(Diagnosis.clock(null))
+        assertEquals(Check("Clock", Outcome.Pass, "Right"), Diagnosis.clock(-12))
+        assertEquals(Check("Clock", Outcome.Warn, "45 s ahead"), Diagnosis.clock(45))
+        val off = Diagnosis.clock(-7 * 60)!!
+        assertEquals(Check("Clock", Outcome.Fail, "7 min behind"), off)
+        assertEquals(Check("Clock", Outcome.Fail, "3 days ahead"), Diagnosis.clock(3 * 86_400 + 5))
+        // Before the node: a node cannot fix the clock.
+        assertEquals(
+            "Windows' clock is 7 min behind: turn on Set time automatically (Settings → Time & language), then connect again",
+            Diagnosis.advice(listOf(Check("Network", Outcome.Pass, "Open"), off, Check("Node", Outcome.Fail, "Japan did not answer"))),
+        )
+        // The skew is read from a server's HTTP Date.
+        assertEquals(60L, cc.txwd.kone.core.NetworkReach.skew("Mon, 19 Oct 2026 10:00:00 GMT", now = java.time.Instant.parse("2026-10-19T10:01:00Z").toEpochMilli()))
+        assertNull(cc.txwd.kone.core.NetworkReach.skew("yesterday"))
+    }
 }
