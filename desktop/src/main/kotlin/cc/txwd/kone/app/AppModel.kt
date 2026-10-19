@@ -16,14 +16,12 @@ import cc.txwd.kone.core.NameServer
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.Probe
-import cc.txwd.kone.core.RouteProbe
 import cc.txwd.kone.core.RuleSets
 import cc.txwd.kone.core.ServiceLink
 import cc.txwd.kone.core.SourceNode
 import cc.txwd.kone.core.Speed
 import cc.txwd.kone.core.SpeedTest
 import cc.txwd.kone.core.UserRule
-import cc.txwd.kone.core.UserRules
 import cc.txwd.kone.node.Countries
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.node.NodeForm
@@ -32,8 +30,6 @@ import cc.txwd.kone.node.SubscriptionContent
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState
 import cc.txwd.kone.ui.UsageDetails
-import cc.txwd.kone.ui.DnsLookupState
-import cc.txwd.kone.ui.SiteCheckState
 import cc.txwd.kone.ui.KeyState
 import cc.txwd.kone.ui.Node
 import cc.txwd.kone.ui.NodeEditing
@@ -56,7 +52,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -986,119 +981,40 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     fun cancelSignIn() = signIns.cancel()
 
-    /**
-     * Looks [input] up every way KOne can, at once, showing each as it answers: as programs see it,
-     * through KOne's own DNS (while it runs), from the direct server (unless the adapter is on, when
-     * KOne answers for it) and from the remote one. False when [input] is not a domain name.
-     */
-    fun lookUp(input: String): Boolean {
-        val name = DnsLookup.clean(input) ?: return false
-        if (tools.lookup?.running == true) return true
-        val refused = DnsLookup.refused(name, account.binding?.source)
-        val ipv6 = preferences.ipv6
-        val api = clash ?: probeApi?.let(::ClashApi)
-        val adapterOn = service != null
-        val viaPort = proxied
-        val ways = buildList<Pair<String, () -> Check>> {
-            add("Apps" to { DnsLookup.system(name) })
-            if (api != null) add("KOne" to { DnsLookup.core(api, name, ipv6) })
-            if (!adapterOn) add("Direct" to { DnsLookup.direct(DnsLookup.directServer(preferences.directDns), name) })
-            add("Remote" to { DnsLookup.remote(DnsLookup.remoteUrl(preferences.remoteDns), name, viaPort) })
-        }
-        if (refused) {
-            tools = tools.copy(lookup = DnsLookupState(name, emptyList(), running = false, verdict = DnsLookup.verdict(emptyList(), refused = true, ipv6 = ipv6)))
-            return true
-        }
-        val done = arrayOfNulls<Check>(ways.size)
-        fun show() {
-            val checks = ways.mapIndexed { i, (title, _) -> done[i] ?: Check(title, Outcome.Running) }
-            val finished = done.all { it != null }
-            tools = tools.copy(lookup = DnsLookupState(name, checks, running = !finished, verdict = if (finished) DnsLookup.verdict(checks, refused = false, ipv6 = ipv6) else null))
-        }
-        show()
-        scope.launch {
-            coroutineScope {
-                ways.forEachIndexed { i, (_, ask) ->
-                    launch {
-                        done[i] = withContext(Dispatchers.IO) { ask() }
-                        show()
-                    }
-                }
-            }
-        }
-        return true
-    }
+    // DNS lookup and Site check (Tools): see SiteTools.
 
-    /**
-     * Site check: [input] tried straight out and through the node in use and the best few others,
-     * in a core of KOne's own (the running core keeps every test for Automatic, and a slow site
-     * must not move it). Sites the console refuses are never tried. False when it is not a name.
-     */
-    fun checkSite(input: String): Boolean {
-        val site = DnsLookup.clean(input) ?: return false
-        if (tools.site?.running == true) return true
-        fun settle(verdict: String) {
-            tools = tools.copy(site = SiteCheckState(site, emptyList(), running = false, verdict = verdict))
+    private val siteTools = SiteTools(scope, preferences, object : SiteTools.Host {
+        override val tools get() = this@AppModel.tools
+        override fun update(change: (ToolsState) -> ToolsState) {
+            this@AppModel.tools = change(this@AppModel.tools)
         }
-        if (DnsLookup.refused(site, account.binding?.source)) {
-            settle("Your provider blocks $site")
-            return true
-        }
-        val core = Places.core
-        val source = source()
-        if (core == null || source == null) {
-            settle(if (core == null) "Site checks need KOne installed" else "Waiting for the console's nodes")
-            return true
-        }
-        val current = inUse()?.takeIf { it != KoneConfig.AUTO_TAG && nodes.any { node -> node.tag == it } }
-        val others = nodes.map { it.tag }.filter { it != current }.sortedBy { delays[it] ?: Int.MAX_VALUE }
-        val picked = (listOfNotNull(current) + others).take(4)
-        val ways = listOf("direct" to "Straight out") + picked.map { it to nameOf(it) }
-        // While connected, the live core is asked first where it sends the site now, and why.
-        val live = clash?.takeIf { connection == Connection.Online }
-        val viaPort = proxied
-        val lists = Why.Lists(preferences.bypass, preferences.direct, preferences.proxied)
-        val first = listOfNotNull(live?.let { Check("Now", Outcome.Running) })
-        tools = tools.copy(site = SiteCheckState(site, first + ways.map { (_, title) -> Check(title, Outcome.Running) }, running = true))
-        scope.launch {
-            val now = live?.let { api -> async(Dispatchers.IO) { SiteCheck.now(RouteProbe.find(site, viaPort, api), lists, ::nameOf) } }
-            val tries = withContext(Dispatchers.IO) {
-                val api = CoreApi(freePort(), token())
-                val config = runCatching { KoneConfig.build(source, rules, api, tun = false, mode = "Global").config.toString() }.getOrNull()
-                val tester = Probe(core)
-                try {
-                    val up = config != null && tester.start(config) && ClashApi(api).let { clash -> (0 until 50).any { clash.answers().also { ok -> if (!ok) Thread.sleep(200) } } }
-                    coroutineScope {
-                        ways.map { (tag, title) ->
-                            async { SiteCheck.Try(tag, title, if (up) ClashApi(api).delay(tag, 8_000, SiteCheck.url(site)) else null) }
-                        }.awaitAll()
-                    }
-                } finally {
-                    tester.stop()
-                }
-            }
-            val way = SiteCheck.way(tries.first().millis, tries.drop(1).map { it.millis })
-            tools = tools.copy(site = SiteCheckState(site, listOfNotNull(now?.await()) + SiteCheck.rows(tries), running = false, verdict = SiteCheck.verdict(site, way), way = way))
-        }
-        return true
-    }
+        override val console get() = account.binding?.source
+        override val merged get() = source()
+        override val rules get() = this@AppModel.rules
+        override val anyCore get() = clash ?: probeApi?.let(::ClashApi)
+        override val live get() = clash?.takeIf { connection == Connection.Online }
+        override val adapterOn get() = service != null
+        override val proxied get() = this@AppModel.proxied
+        override val nodes get() = this@AppModel.nodes
+        override fun delay(tag: String) = delays[tag]
+        override fun inUse() = this@AppModel.inUse()
+        override fun nameOf(tag: String) = this@AppModel.nameOf(tag)
+        override fun addSite(site: String, direct: Boolean) = this@AppModel.addSite(site, direct)
+        override fun hint(text: String) = this@AppModel.hint(text)
+        override fun freePort() = this@AppModel.freePort()
+        override fun token() = this@AppModel.token()
+        override val core get() = Places.core
+    })
 
-    /** Keeps what a site check found: the site on Direct sites or Proxied sites (Rules), ahead of the person's own rules. */
-    fun keepSite(direct: Boolean) {
-        val site = tools.site?.site ?: return
-        if (addSite(site, direct)) {
-            hint(if (direct) "$site now goes straight out" else "$site now goes through the node")
-            tools = tools.copy(site = null)
-        }
-    }
+    fun lookUp(input: String): Boolean = siteTools.lookUp(input)
 
-    fun clearSite() {
-        if (tools.site?.running != true) tools = tools.copy(site = null)
-    }
+    fun checkSite(input: String): Boolean = siteTools.checkSite(input)
 
-    fun clearLookup() {
-        if (tools.lookup?.running != true) tools = tools.copy(lookup = null)
-    }
+    fun keepSite(direct: Boolean) = siteTools.keepSite(direct)
+
+    fun clearSite() = siteTools.clearSite()
+
+    fun clearLookup() = siteTools.clearLookup()
 
     // Backup (Settings)
 
