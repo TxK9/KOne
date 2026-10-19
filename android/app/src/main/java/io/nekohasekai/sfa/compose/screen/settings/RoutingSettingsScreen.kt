@@ -42,6 +42,7 @@ import io.nekohasekai.sfa.compose.theme.KnineSegmented
 import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
+import cc.txwd.kone.shared.Rule
 import io.nekohasekai.sfa.selfuse.OwnRules
 import io.nekohasekai.sfa.selfuse.PrivateDns
 import io.nekohasekai.sfa.selfuse.Routing
@@ -247,7 +248,7 @@ private fun kindHint(kind: String): String = stringResource(
 
 /** The person's rules in order, each movable up and removable, and a form to add one at the end. */
 @Composable
-private fun RulesEditor(rules: List<OwnRules.Rule>, onChange: (List<OwnRules.Rule>) -> Unit) {
+private fun RulesEditor(rules: List<Rule>, onChange: (List<Rule>) -> Unit) {
     var kind by remember { mutableStateOf(0) }
     var action by remember { mutableStateOf(0) }
     var value by remember { mutableStateOf("") }
@@ -282,7 +283,7 @@ private fun RulesEditor(rules: List<OwnRules.Rule>, onChange: (List<OwnRules.Rul
                 if (checked == null || rules.size >= OwnRules.MOST) {
                     wrong = true
                 } else {
-                    onChange(OwnRules.clean(rules + OwnRules.Rule(KINDS[kind], checked, OwnRules.ACTIONS[action])))
+                    onChange(OwnRules.clean(rules + Rule(KINDS[kind], checked, OwnRules.ACTIONS[action])))
                     value = ""
                 }
             }) { Text(stringResource(R.string.knine_routing_rule_add)) }

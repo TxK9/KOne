@@ -1,159 +1,46 @@
 package cc.txwd.kone.core
 
+import cc.txwd.kone.shared.Names
+import cc.txwd.kone.shared.Rule
+import cc.txwd.kone.shared.Rules
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.put
+
+/** One of the person's routing rules: the shared core's ([Rule]), on Windows as on Android. */
+typealias UserRule = Rule
 
 /**
- * One of the person's routing rules: what it matches ([kind] and [value]) and where that goes
- * ([action]). They are kept in order; the first that matches wins. They come after the Claude
- * block, so none of them can reach round it.
- */
-data class UserRule(val kind: String, val value: String, val action: String) {
-    fun toJson() = buildJsonObject { put("kind", kind); put("value", value); put("action", action) }
-
-    companion object {
-        fun fromJson(json: JsonObject): UserRule? {
-            fun text(key: String) = (json[key] as? JsonPrimitive)?.contentOrNull
-            return UserRule(text("kind") ?: return null, text("value") ?: return null, text("action") ?: return null)
-        }
-    }
-}
-
-/**
- * The person's rules as the template uses them, checked and written one way exactly as the
- * service does (desktop/service/rules.go), so the two build the same configuration.
+ * The person's rules as the Windows template uses them: checked by the shared core
+ * (shared/src/main/kotlin/cc/txwd/kone/shared/Rules.kt), held to the service's Go checks
+ * (desktop/service/rules.go) by the consistency test, and written here as sing-box rules.
  */
 object UserRules {
-    /** The kinds a rule can match on, and the sing-box field each fills. */
-    val FIELDS = linkedMapOf(
-        "domain" to "domain", "suffix" to "domain_suffix", "keyword" to "domain_keyword",
-        "cidr" to "ip_cidr", "program" to "process_name", "port" to "port", "set" to "rule_set",
-    )
-    val ACTIONS = listOf("proxy", "direct", "block")
-    const val MOST = 256
+    /** The kinds the Windows App offers, and the sing-box field each fills. */
+    val FIELDS = Rules.FIELDS.filterKeys { it in Rules.WINDOWS }
+    val ACTIONS = Rules.ACTIONS
+    const val MOST = Rules.MOST
 
     /** The category lists the rules may name, at most. */
-    const val MOST_SETS = 32
+    const val MOST_SETS = Rules.MOST_SETS
 
-    /** A category list as SagerNet publishes them (geosite-netflix, geoip-jp): a safe file name and part of a fixed URL. */
-    private val SET_NAME = Regex("""(geosite|geoip)-[a-z0-9][a-z0-9!@_-]{0,63}""")
-
-    /** The template's own lists; a rule naming one is dropped, as its tag is taken. */
-    private val BUILT_IN_SETS = setOf("geosite-cn", "geoip-cn", KoneConfig.ADS_RULE_SET)
-
-    fun isSetName(name: String) = SET_NAME.matches(name) && name !in BUILT_IN_SETS
+    fun isSetName(name: String) = Rules.isSetName(name)
 
     /** Each rule checked and written one way, anything else dropped, each rule once, [MOST] at most, naming [MOST_SETS] lists at most. */
-    fun clean(rules: List<UserRule>): List<UserRule> {
-        val seen = HashSet<UserRule>()
-        val sets = HashSet<String>()
-        return rules.asSequence().mapNotNull { rule ->
-            if (rule.kind !in FIELDS || rule.action !in ACTIONS) return@mapNotNull null
-            value(rule.kind, rule.value)?.let { UserRule(rule.kind, it, rule.action) }
-        }.filter(seen::add).filter { rule ->
-            rule.kind != "set" || rule.value in sets || (sets.size < MOST_SETS && sets.add(rule.value))
-        }.take(MOST).toList()
-    }
+    fun clean(rules: List<UserRule>): List<UserRule> = Rules.clean(rules, Rules.WINDOWS)
 
     /** The category lists [rules] name, each once, in the order they first appear. */
-    fun sets(rules: List<UserRule>): List<String> = rules.filter { it.kind == "set" }.map { it.value }.distinct()
+    fun sets(rules: List<UserRule>): List<String> = Rules.sets(rules)
 
     /** [text] as a rule of [kind] writes it, or null when it is not one. */
-    fun value(kind: String, text: String): String? {
-        val value = text.trim()
-        return when (kind) {
-            "domain", "suffix" -> value.lowercase().takeIf { it.length <= 253 && KoneConfig.isSite(it) }
-            "keyword" -> value.lowercase().takeIf { KEYWORD.matches(it) }
-            "program" -> value.takeIf { KoneConfig.isProgram(it) }
-            "cidr" -> network(value)
-            "port" -> port(value)
-            "set" -> value.lowercase().takeIf(::isSetName)
-            else -> null
-        }
-    }
+    fun value(kind: String, text: String): String? = if (kind in Rules.WINDOWS) Rules.value(kind, text) else null
 
-    private val KEYWORD = Regex("""[a-z0-9.-]{2,63}""")
-    private val IPV4 = Regex("""((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])""")
-    private val IPV6 = Regex("""[0-9a-f:]{2,39}""")
+    internal fun network(text: String): String? = Names.network(text)
 
-    /** An address range from its first address ("192.168.1.0/24"); an address alone is that one address. */
-    internal fun network(text: String): String? {
-        val lower = text.lowercase()
-        val address = lower.substringBefore('/')
-        val bits = if ('/' in lower) lower.substringAfter('/') else null
-        val bytes = when {
-            IPV4.matches(address) -> address.split('.').map { it.toInt().toByte() }.toByteArray()
-            ':' in address && IPV6.matches(address) -> ipv6(address) ?: return null
-            else -> return null
-        }
-        // An IPv4 address written as IPv6 (::ffff:a.b.c.d in hex) is refused, as the service does.
-        if (bytes.size == 16 && bytes.take(10).all { it == 0.toByte() } && bytes[10] == 0xff.toByte() && bytes[11] == 0xff.toByte()) return null
-        val width = bytes.size * 8
-        val prefix = if (bits == null) width else {
-            if (bits.isEmpty() || (bits.length > 1 && bits[0] == '0') || !bits.all { it in '0'..'9' } || bits.length > 3) return null
-            bits.toInt().takeIf { it in 1..width } ?: return null
-        }
-        for (bit in prefix until width) bytes[bit / 8] = (bytes[bit / 8].toInt() and (0x80 ushr (bit % 8)).inv()).toByte()
-        val shown = if (bytes.size == 4) bytes.joinToString(".") { (it.toInt() and 0xff).toString() } else compressed(bytes)
-        return "$shown/$prefix"
-    }
+    internal fun compressed(bytes: ByteArray): String = Names.compressed(bytes)
 
-    /** The 16 bytes of an IPv6 address in hex groups and colons, at most one "::"; null when it is not one. */
-    private fun ipv6(text: String): ByteArray? {
-        val halves = text.split("::")
-        if (halves.size > 2) return null
-        fun groups(part: String): List<Int>? = if (part.isEmpty()) emptyList() else part.split(':').map { group ->
-            if (group.isEmpty() || group.length > 4) return null
-            group.toIntOrNull(16) ?: return null
-        }
-        val head = groups(halves[0]) ?: return null
-        val tail = if (halves.size == 2) groups(halves[1]) ?: return null else emptyList()
-        val all = if (halves.size == 2) {
-            if (head.size + tail.size > 7) return null
-            head + List(8 - head.size - tail.size) { 0 } + tail
-        } else {
-            if (head.size != 8) return null
-            head
-        }
-        return ByteArray(16) { i -> (all[i / 2] shr (if (i % 2 == 0) 8 else 0) and 0xff).toByte() }
-    }
-
-    /** An IPv6 address in its short form (RFC 5952): the first longest run of two or more zero groups as "::". */
-    internal fun compressed(bytes: ByteArray): String {
-        val groups = (0 until 8).map { ((bytes[it * 2].toInt() and 0xff) shl 8) or (bytes[it * 2 + 1].toInt() and 0xff) }
-        var bestStart = -1
-        var bestLength = 1
-        var index = 0
-        while (index < 8) {
-            if (groups[index] != 0) { index++; continue }
-            val start = index
-            while (index < 8 && groups[index] == 0) index++
-            if (index - start > bestLength) { bestStart = start; bestLength = index - start }
-        }
-        val hex = groups.map { Integer.toHexString(it) }
-        if (bestStart < 0) return hex.joinToString(":")
-        return hex.take(bestStart).joinToString(":") + "::" + hex.drop(bestStart + bestLength).joinToString(":")
-    }
-
-    /** One port ("443") or a range ("1000-2000", or "1000:2000"). */
-    private fun port(text: String): String? {
-        val parts = text.replace(':', '-').split('-', limit = 2)
-        val from = portNumber(parts[0]) ?: return null
-        if (parts.size == 1) return from.toString()
-        val to = portNumber(parts[1])?.takeIf { it >= from } ?: return null
-        return "$from-$to"
-    }
-
-    internal fun portNumber(text: String): Int? {
-        val digits = text.trim()
-        if (digits.isEmpty() || digits.length > 5 || (digits.length > 1 && digits[0] == '0') || !digits.all { it in '0'..'9' }) return null
-        return digits.toInt().takeIf { it in 1..65535 }
-    }
+    internal fun portNumber(text: String): Int? = Names.portNumber(text)
 
     /** The sing-box condition for a checked rule. */
     private fun match(rule: UserRule): Map<String, kotlinx.serialization.json.JsonElement> =

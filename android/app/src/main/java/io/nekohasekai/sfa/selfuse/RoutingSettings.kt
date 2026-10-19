@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.Rule
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.database.Settings
 import org.json.JSONArray
@@ -25,16 +26,16 @@ object RoutingSettings {
 
     private fun lines(text: String) = text.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
 
-    private fun rules(text: String): List<OwnRules.Rule> = runCatching {
+    private fun rules(text: String): List<Rule> = runCatching {
         val array = JSONArray(text)
-        OwnRules.clean((0 until array.length()).mapNotNull { OwnRules.Rule.fromJson(array.optJSONObject(it)) })
+        OwnRules.clean((0 until array.length()).mapNotNull { OwnRules.fromJson(array.optJSONObject(it)) })
     }.getOrDefault(emptyList())
 
     /** Keeps [choices] (sites cleaned), rewrites the saved configurations and reloads the service. */
     suspend fun save(choices: Routing.Choices) = withContext(Dispatchers.IO) {
         Settings.knineRoutingDirect = Routing.sites(choices.direct).joinToString("\n")
         Settings.knineRoutingProxied = Routing.sites(choices.proxied).joinToString("\n")
-        Settings.knineRoutingRules = JSONArray(OwnRules.clean(choices.rules).map { it.toJson() }).toString()
+        Settings.knineRoutingRules = JSONArray(OwnRules.clean(choices.rules).map(OwnRules::toJson)).toString()
         Settings.knineRoutingBlockAds = choices.blockAds
         Settings.knineRoutingUnmatchedDirect = choices.unmatchedDirect
         Settings.knineRoutingRemoteDns = choices.remoteDns.takeIf { it in Routing.REMOTE }.orEmpty()

@@ -1,4 +1,4 @@
-package cc.txwd.kone.core
+package cc.txwd.kone.shared
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -11,30 +11,31 @@ import kotlinx.serialization.json.contentOrNull
 /**
  * Rules brought over from another client. A Clash (mihomo) profile's `rules:` lines, pasted with
  * or without the YAML around them ("- DOMAIN-SUFFIX,example.com,Proxy"); or v2rayN's routing
- * rules, or an Xray/V2Ray configuration's `routing.rules`, as JSON. Each kind KOne has is read
- * into a [UserRule] and checked as any rule is; the rest are counted and left out. DIRECT (or the
- * direct tag) goes straight out, REJECT (or block) is blocked, and any group or node goes through
- * the node.
+ * rules, or an Xray/V2Ray configuration's `routing.rules`, as JSON. Each kind the App offers is
+ * read into a [Rule] and checked as any rule is; the rest are counted and left out. DIRECT (or
+ * the direct tag) goes straight out, REJECT (or block) is blocked, and any group or node goes
+ * through the node. A program becomes a Windows program rule or, where the App offers apps, an
+ * Android app rule when it names a package.
  */
 object RuleImport {
     /**
      * What came of the text: the rules read, in order, how many were rules KOne could not take,
      * and whether one blocked the ad list, which is KOne's Block ads switch rather than a rule.
      */
-    data class Read(val rules: List<UserRule>, val left: Int, val blockAds: Boolean = false)
+    data class Read(val rules: List<Rule>, val left: Int, val blockAds: Boolean = false)
 
-    private val KINDS = mapOf(
+    private val CLASH = mapOf(
         "DOMAIN" to "domain", "DOMAIN-SUFFIX" to "suffix", "DOMAIN-KEYWORD" to "keyword",
         "IP-CIDR" to "cidr", "IP-CIDR6" to "cidr", "PROCESS-NAME" to "program", "DST-PORT" to "port",
     )
 
-    fun read(text: String): Read {
+    /** [text] read into rules of [kinds] (the App's: [Rules.WINDOWS] or [Rules.ANDROID]). */
+    fun read(text: String, kinds: Set<String>): Read {
+        val sink = Sink(kinds)
         val trimmed = text.trim().removePrefix("\uFEFF")
         if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
-            runCatching { Json.parseToJsonElement(trimmed) }.getOrNull()?.let { return v2ray(it) }
+            runCatching { Json.parseToJsonElement(trimmed) }.getOrNull()?.let { v2ray(it, sink); return sink.read() }
         }
-        val rules = ArrayList<UserRule>()
-        var left = 0
         for (raw in text.lines()) {
             var line = raw.substringBefore('#').trim()
             if (line.startsWith("- ")) line = line.removePrefix("- ").trim()
@@ -44,22 +45,39 @@ object RuleImport {
             val type = parts[0].uppercase()
             // MATCH (and FINAL) is what nothing matched: KOne's own setting, not a rule.
             if (type == "MATCH" || type == "FINAL") continue
-            if (parts.size < 3) { left++; continue }
+            if (parts.size < 3) { sink.left++; continue }
             val action = when (parts[2].uppercase()) {
                 "DIRECT" -> "direct"
                 "REJECT", "REJECT-DROP", "REJECT-TINYGIF" -> "block"
                 else -> "proxy"
             }
-            val rule = when (type) {
-                "GEOSITE" -> UserRule("set", "geosite-" + parts[1].lowercase(), action)
-                "GEOIP" -> UserRule("set", "geoip-" + parts[1].lowercase(), action)
-                else -> KINDS[type]?.let { UserRule(it, parts[1], action) }
+            when (type) {
+                "GEOSITE" -> sink.add("set", "geosite-" + parts[1].lowercase(), action)
+                "GEOIP" -> sink.add("set", "geoip-" + parts[1].lowercase(), action)
+                else -> CLASH[type]?.let { sink.add(it, parts[1], action) } ?: sink.left++
             }
-            val value = rule?.let { UserRules.value(it.kind, it.value) }
-            if (rule == null || value == null) { left++; continue }
-            rules += rule.copy(value = value)
         }
-        return Read(rules.distinct(), left)
+        return sink.read()
+    }
+
+    /** Where read rules go: checked for the App's kinds, the ad list turned into Block ads, the rest counted. */
+    private class Sink(val kinds: Set<String>) {
+        val rules = ArrayList<Rule>()
+        var left = 0
+        var ads = false
+
+        fun add(kind: String, text: String, action: String) {
+            if (kind == "set" && text == Rules.ADS && action == "block") {
+                ads = true
+                return
+            }
+            // A program on Android is its package, where the client named one.
+            val fitted = if (kind == "program" && kind !in kinds && "app" in kinds) "app" else kind
+            val value = if (fitted in kinds) Rules.value(fitted, text) else null
+            if (value == null) left++ else rules += Rule(fitted, value, action)
+        }
+
+        fun read() = Read(rules.distinct(), left, ads)
     }
 
     /**
@@ -67,23 +85,12 @@ object RuleImport {
      * Xray/V2Ray configuration (`routing.rules`). Each rule's domains, addresses, ports and
      * programs become rules of their own, in order; one turned off is passed over.
      */
-    private fun v2ray(json: JsonElement): Read {
+    private fun v2ray(json: JsonElement, sink: Sink) {
         val list = when (json) {
             is JsonArray -> json
             is JsonObject -> (json["rules"] as? JsonArray) ?: ((json["routing"] as? JsonObject)?.get("rules") as? JsonArray)
             else -> null
-        } ?: return Read(emptyList(), 0)
-        val rules = ArrayList<UserRule>()
-        var left = 0
-        var ads = false
-        fun add(kind: String, value: String, action: String) {
-            if (kind == "set" && value == KoneConfig.ADS_RULE_SET && action == "block") {
-                ads = true
-                return
-            }
-            val clean = UserRules.value(kind, value)
-            if (clean == null) left++ else rules += UserRule(kind, clean, action)
-        }
+        } ?: return
         for (item in list) {
             val rule = item as? JsonObject ?: continue
             if ((rule["enabled"] as? JsonPrimitive)?.booleanOrNull == false) continue
@@ -103,33 +110,32 @@ object RuleImport {
                 took = true
                 val (prefix, name) = if (':' in domain) domain.substringBefore(':').lowercase() to domain.substringAfter(':') else "" to domain
                 when (prefix) {
-                    "geosite" -> add("set", "geosite-" + name.lowercase(), action)
-                    "domain" -> add("suffix", name, action)
-                    "full" -> add("domain", name, action)
-                    "keyword", "" -> add("keyword", name, action)
-                    else -> left++ // regexp:, ext: and the like
+                    "geosite" -> sink.add("set", "geosite-" + name.lowercase(), action)
+                    "domain" -> sink.add("suffix", name, action)
+                    "full" -> sink.add("domain", name, action)
+                    "keyword", "" -> sink.add("keyword", name, action)
+                    else -> sink.left++ // regexp:, ext: and the like
                 }
             }
             for (address in texts("ip")) {
                 took = true
                 when {
                     // The local network goes straight out in KOne already, and has no list of its own.
-                    address.equals("geoip:private", ignoreCase = true) -> left++
-                    address.startsWith("geoip:", ignoreCase = true) -> add("set", "geoip-" + address.substringAfter(':').lowercase(), action)
-                    else -> add("cidr", address, action)
+                    address.equals("geoip:private", ignoreCase = true) -> sink.left++
+                    address.startsWith("geoip:", ignoreCase = true) -> sink.add("set", "geoip-" + address.substringAfter(':').lowercase(), action)
+                    else -> sink.add("cidr", address, action)
                 }
             }
             for (port in texts("port")) {
                 took = true
-                add("port", port, action)
+                sink.add("port", port, action)
             }
             for (program in texts("process")) {
                 took = true
-                add("program", program.substringAfterLast('\\').substringAfterLast('/'), action)
+                sink.add("program", program.substringAfterLast('\\').substringAfterLast('/'), action)
             }
             // A rule only by protocol, network, inbound or user is not one KOne has.
-            if (!took) left++
+            if (!took) sink.left++
         }
-        return Read(rules.distinct(), left, ads)
     }
 }

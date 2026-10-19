@@ -242,41 +242,23 @@ object KoneConfig {
      * would not take in a file name is dropped, each name once, 64 at most. The service takes the
      * same (desktop/service/plan.go).
      */
-    fun programs(names: List<String>): List<String> {
-        val seen = mutableSetOf<String>()
-        return names.map { it.trim() }
-            .filter { PROGRAM.matches(it) && seen.add(it.lowercase()) }
-            .take(64)
-    }
+    fun programs(names: List<String>): List<String> = cc.txwd.kone.shared.Names.programs(names)
 
     /**
      * The person's sites, as domains: anything but a plain domain name of two labels or more is
      * dropped, each name once, 256 at most. The service takes the same (desktop/service/plan.go).
      */
-    fun sites(names: List<String>): List<String> {
-        val seen = mutableSetOf<String>()
-        return names.map { it.trim().lowercase() }
-            .filter { it.length <= 253 && SITE.matches(it) && seen.add(it) }
-            .take(256)
-    }
+    fun sites(names: List<String>): List<String> = cc.txwd.kone.shared.Names.sites(names)
 
     /** The site in what the person typed or pasted: a domain, or the one in an address (https://www.example.com/a → www.example.com). */
-    fun site(text: String): String? {
-        val name = text.trim().lowercase().substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#')
-            .substringAfterLast('@').substringBefore(':').removePrefix("*.").removePrefix(".").removeSuffix(".")
-        return sites(listOf(name)).firstOrNull()
-    }
+    fun site(text: String): String? = cc.txwd.kone.shared.Names.site(text)
 
-    private val SITE = Regex("""([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?""")
+    fun isSite(text: String) = cc.txwd.kone.shared.Names.isSite(text)
 
-    fun isSite(text: String) = SITE.matches(text)
-
-    fun isProgram(text: String) = PROGRAM.matches(text)
+    fun isProgram(text: String) = cc.txwd.kone.shared.Names.isProgram(text)
 
     /** The ad-blocking rule set carried beside the China ones (v2fly's category-ads-all). */
-    const val ADS_RULE_SET = "geosite-category-ads-all"
-
-    private val PROGRAM = Regex("""[^\\/:*?"<>|\u0000-\u001f]{1,128}\.exe""", RegexOption.IGNORE_CASE)
+    const val ADS_RULE_SET = cc.txwd.kone.shared.Rules.ADS
 
     /**
      * The source's rules that refuse domain names and do nothing else, as the console writes them

@@ -9,6 +9,7 @@ on:
     branches: [claude/windows-desktop]
     paths:
       - "android/**"
+      - "shared/**"
       - "dependencies/**"
       - ".github/workflows/android.yml"
   workflow_dispatch:

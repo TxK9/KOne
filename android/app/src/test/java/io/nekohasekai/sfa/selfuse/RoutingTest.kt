@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.Rule
 import io.nekohasekai.sfa.managed.ManagedConfig
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -100,10 +101,10 @@ class RoutingTest {
     @Test
     fun ownRulesComeInOrderAfterTheSitesAndBeforeAds() {
         val rules = listOf(
-            OwnRules.Rule("suffix", "Example.ORG", "direct"), OwnRules.Rule("keyword", "tracker", "block"),
-            OwnRules.Rule("cidr", "203.0.113.7/24", "direct"), OwnRules.Rule("port", "1000:2000", "proxy"),
-            OwnRules.Rule("app", "com.example.app", "direct"), OwnRules.Rule("port", "0443", "block"),
-            OwnRules.Rule("app", "not a package", "direct"), OwnRules.Rule("suffix", "example.org", "direct"),
+            Rule("suffix", "Example.ORG", "direct"), Rule("keyword", "tracker", "block"),
+            Rule("cidr", "203.0.113.7/24", "direct"), Rule("port", "1000:2000", "proxy"),
+            Rule("app", "com.example.app", "direct"), Rule("port", "0443", "block"),
+            Rule("app", "not a package", "direct"), Rule("suffix", "example.org", "direct"),
         )
         val config = JSONObject(Routing.apply(managed(), choices.copy(rules = rules)))
         val route = rules(config, "route")

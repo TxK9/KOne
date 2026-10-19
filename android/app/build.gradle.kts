@@ -143,6 +143,8 @@ android {
     }
 
     sourceSets {
+        // The core KOne for Android shares with KOne for Windows (rules, names, imports); its tests run in the Windows build.
+        getByName("main").java.srcDir("../../shared/src/main/kotlin")
         if (knineVisualTests) getByName("testOther").java.srcDir("src/testVisual/java")
         getByName("play") {
             java.directories.add("src/minApi24/java")

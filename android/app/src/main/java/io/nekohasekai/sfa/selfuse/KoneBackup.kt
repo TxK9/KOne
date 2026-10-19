@@ -76,7 +76,7 @@ object KoneBackup {
                     .put("routing", RoutingSettings.current().let { routing ->
                         JSONObject()
                             .put("direct", JSONArray(routing.direct)).put("proxied", JSONArray(routing.proxied))
-                            .put("rules", JSONArray(routing.rules.map { it.toJson() }))
+                            .put("rules", JSONArray(routing.rules.map(OwnRules::toJson)))
                             .put("block_ads", routing.blockAds).put("unmatched_direct", routing.unmatchedDirect)
                             .put("remote_dns", routing.remoteDns).put("direct_dns", routing.directDns).put("ipv6", routing.ipv6)
                     }),
@@ -173,7 +173,7 @@ object KoneBackup {
                 RoutingSettings.save(
                     Routing.Choices(
                         direct = names("direct"), proxied = names("proxied"),
-                        rules = routing.optJSONArray("rules")?.let { array -> (0 until array.length()).mapNotNull { OwnRules.Rule.fromJson(array.optJSONObject(it)) } }.orEmpty(),
+                        rules = routing.optJSONArray("rules")?.let { array -> (0 until array.length()).mapNotNull { OwnRules.fromJson(array.optJSONObject(it)) } }.orEmpty(),
                         blockAds = routing.optBoolean("block_ads"), unmatchedDirect = routing.optBoolean("unmatched_direct"),
                         remoteDns = routing.optString("remote_dns"), directDns = routing.optString("direct_dns"), ipv6 = routing.optBoolean("ipv6"),
                     ),

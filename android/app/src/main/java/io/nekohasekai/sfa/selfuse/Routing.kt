@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.Names
+import cc.txwd.kone.shared.Rule
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -21,7 +23,7 @@ object Routing {
         /** Sites sent through the node in Rule mode too. */
         val proxied: List<String> = emptyList(),
         /** The person's own rules, in order, after the site lists ([OwnRules]). */
-        val rules: List<OwnRules.Rule> = emptyList(),
+        val rules: List<Rule> = emptyList(),
         /** Refuse the domains of the ad list. */
         val blockAds: Boolean = false,
         /** In Rule mode, what nothing matched goes straight out instead of through the node. */
@@ -40,26 +42,15 @@ object Routing {
     /** The plain DNS servers asked straight out, by preset. */
     val DIRECT = linkedMapOf("alidns" to "223.5.5.5", "dnspod" to "119.29.29.29")
 
-    const val ADS = "geosite-category-ads-all"
+    const val ADS = cc.txwd.kone.shared.Rules.ADS
     const val MOST_SITES = 256
 
     private const val PROXY = PairedProfile.PROXY_TAG
     private const val LOCAL_DNS = "local-dns"
     private const val PROXY_DNS = "proxy-dns"
-    private val SITE = Regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$")
 
-    /**
-     * The site in what the person typed (a name, or an address someone pasted): lower case, without
-     * a scheme, path or port; null when it is not a domain of two labels or more.
-     */
-    fun site(text: String): String? {
-        var name = text.trim().lowercase()
-        name = name.substringAfter("://")
-        name = name.substringBefore('/').substringBefore('?').substringBefore('#')
-        name = name.substringAfter('@').substringBefore(':').trimEnd('.')
-        if (name.startsWith("*.")) name = name.removePrefix("*.")
-        return name.takeIf { it.length <= 253 && SITE.matches(it) }
-    }
+    /** The site in what the person typed or pasted: the shared core's reading ([Names.site]). */
+    fun site(text: String): String? = Names.site(text)
 
     /** Sites as the template takes them: each one cleaned, once, [MOST_SITES] at most. */
     fun sites(names: List<String>): List<String> = names.mapNotNull(::site).distinct().take(MOST_SITES)

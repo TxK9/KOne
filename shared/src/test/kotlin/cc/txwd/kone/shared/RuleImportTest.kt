@@ -1,4 +1,4 @@
-package cc.txwd.kone.core
+package cc.txwd.kone.shared
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,12 +25,12 @@ class RuleImportTest {
               - GEOSITE,cn,DIRECT
               - MATCH,Proxy
             """.trimIndent()
-        val read = RuleImport.read(text)
+        val read = RuleImport.read(text, Rules.WINDOWS)
         assertEquals(
             listOf(
-                UserRule("suffix", "example.com", "proxy"), UserRule("domain", "www.example.org", "direct"), UserRule("keyword", "tracker", "block"),
-                UserRule("cidr", "203.0.113.0/24", "direct"), UserRule("cidr", "2001:db8::/32", "proxy"), UserRule("program", "Steam.exe", "direct"),
-                UserRule("port", "6881", "block"), UserRule("set", "geosite-netflix", "proxy"), UserRule("suffix", "example.net", "proxy"),
+                Rule("suffix", "example.com", "proxy"), Rule("domain", "www.example.org", "direct"), Rule("keyword", "tracker", "block"),
+                Rule("cidr", "203.0.113.0/24", "direct"), Rule("cidr", "2001:db8::/32", "proxy"), Rule("program", "Steam.exe", "direct"),
+                Rule("port", "6881", "block"), Rule("set", "geosite-netflix", "proxy"), Rule("suffix", "example.net", "proxy"),
             ),
             read.rules,
         )
@@ -50,13 +50,13 @@ class RuleImportTest {
               {"outboundTag": "proxy", "protocol": ["bittorrent"]}
             ]
         """.trimIndent()
-        val read = RuleImport.read(text)
+        val read = RuleImport.read(text, Rules.WINDOWS)
         assertEquals(
             listOf(
-                UserRule("keyword", "tracker", "block"),
-                UserRule("suffix", "example.cn", "direct"), UserRule("domain", "www.example.org", "direct"), UserRule("cidr", "203.0.113.0/24", "direct"),
-                UserRule("set", "geosite-netflix", "proxy"), UserRule("port", "443", "proxy"), UserRule("port", "8443", "proxy"),
-                UserRule("program", "Steam.exe", "direct"),
+                Rule("keyword", "tracker", "block"),
+                Rule("suffix", "example.cn", "direct"), Rule("domain", "www.example.org", "direct"), Rule("cidr", "203.0.113.0/24", "direct"),
+                Rule("set", "geosite-netflix", "proxy"), Rule("port", "443", "proxy"), Rule("port", "8443", "proxy"),
+                Rule("program", "Steam.exe", "direct"),
             ),
             read.rules,
         )
@@ -65,6 +65,6 @@ class RuleImportTest {
         assertTrue(read.blockAds)
         assertEquals(5, read.left)
         // An Xray configuration's routing.rules reads the same.
-        assertEquals(listOf(UserRule("suffix", "example.com", "proxy")), RuleImport.read("""{"routing":{"rules":[{"type":"field","outboundTag":"node","domain":["domain:example.com"]}]}}""").rules)
+        assertEquals(listOf(Rule("suffix", "example.com", "proxy")), RuleImport.read("""{"routing":{"rules":[{"type":"field","outboundTag":"node","domain":["domain:example.com"]}]}}""", Rules.WINDOWS).rules)
     }
 }

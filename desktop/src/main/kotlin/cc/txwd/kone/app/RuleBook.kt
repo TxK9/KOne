@@ -4,7 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import cc.txwd.kone.core.KoneConfig
-import cc.txwd.kone.core.RuleImport
+import cc.txwd.kone.shared.RuleImport
+import cc.txwd.kone.shared.Rules
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules
 import cc.txwd.kone.ui.RulesState
@@ -142,7 +143,7 @@ class RuleBook(
      * on Block ads. What happened, in a line.
      */
     fun import(text: String): String {
-        val read = RuleImport.read(text)
+        val read = RuleImport.read(text, Rules.WINDOWS)
         val ads = read.blockAds && !preferences.blockAds
         if (ads) preferences.blockAds = true
         if (read.rules.isEmpty()) {

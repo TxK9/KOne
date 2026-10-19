@@ -16,6 +16,12 @@ kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
     }
+    // The core KOne for Windows and KOne for Android share (rules, names, imports): built into
+    // each App from its source, and tested here.
+    sourceSets {
+        main { kotlin.srcDir("../shared/src/main/kotlin") }
+        test { kotlin.srcDir("../shared/src/test/kotlin") }
+    }
 }
 
 java {
