@@ -66,20 +66,25 @@ Other gaps, in order of what people meet first:
 - **Subscriptions**: a remote profile's link may be a provider's subscription (links, base64,
   a Clash profile or a sing-box node list). It becomes KOne's own template around those nodes
   and refreshes on the remote profile's interval; a whole sing-box configuration is kept as sent.
+- **Choosing a node**: Automatic (the fastest node that answers) leads every profile with
+  several nodes, and one per country with two nodes or more ("Automatic · Japan"). Nodes in a
+  group keep their provider's names.
+- **Fake IP** as an option (Settings → Routing → DNS), mappings kept across restarts.
+- **Why** each connection went its way, in the connection's details.
 - **Android CI**: the shared edition with the debug key, unit tests and an assembled build. No
   APK is uploaded; releases keep the authorized signing path in `tools/`.
 
 ## Next, without a decision
 
-1. Speed tests and smart selection by measured loss, from the Windows App.
-2. A provider's usage and expiry (its subscription-userinfo header) shown on the profile.
-3. Per-subscription words that leave nodes out, as on Windows.
+1. Per-subscription words that leave nodes out, as on Windows.
+2. A warning notification when a subscription is about to end, not only on its row.
+3. Site check (try a site straight out and through the node), as on Windows.
 
 ## Needing the owner
 
 | Proposal | Why | Cost or risk |
 | --- | --- | --- |
-| Allow `jitpack.io` and `api.xposed.info` in this development environment's network settings | Local Android builds; today only CI can build the App | None for the App; a development setting |
+| Allow `jitpack.io`, `api.xposed.info` and `central.sonatype.com` in this development environment's network settings | A full local Android build; today the App is compiled here with those four libraries left out (every other error would show), and only CI builds it whole | None for the App; a development setting |
 | A device test round | The one gap no code closes | Deferred by the owner until the App is ready |
 
 Decided by the owner: one shared core (done); no new Chinese text, as the market is outside

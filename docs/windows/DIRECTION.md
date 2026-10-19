@@ -32,8 +32,9 @@ Honestly, in most of what years of users bring:
   scripts, many rule-provider formats, LAN sharing, TUN stack and MTU choices, multiple cores.
   KOne leaves out raw configuration, scripts, LAN sharing and other cores on purpose
   (`ROADMAP.md`); custom groups are the one omission experts will miss most.
-- **DNS options.** Fake-IP, per-domain nameserver policy, hosts. KOne has validated presets
-  and custom servers, hosts, and a server of the person's own per domain; no fake-IP yet.
+- **DNS options.** Fake-IP, per-domain nameserver policy, hosts. KOne now has all three:
+  validated presets and custom servers, hosts, a server of the person's own per domain, and
+  Fake IP as an option.
 - **Footprint.** A JVM with Skia is heavier than Clash Verge Rev's Tauri shell or v2rayN's
   .NET; KOne's installer is larger than either. Idle it keeps about 230 MB private, several
   times a Tauri shell; minimised it costs next to nothing.
@@ -108,11 +109,23 @@ The App stopped at start for one round (a delegate in AppModel used before it wa
 CI's start check passed anyway, taking the launcher's error box for the window. Both are
 fixed: a test now makes the App as Main does, and CI accepts only the App's own frame.
 
+Done since, on both Apps (shared core, Go and Kotlin held identical by the consistency test):
+
+- **Fake IP**, an option: faster first connections, and proxied names are never looked up on
+  the local network; the Claude block, fixed answers, own servers and direct names keep real
+  answers. Decided by Claude under the owner's standing authority; off by default.
+- **One shared core** for both Apps: share links, subscriptions, Clash proxies, category lists,
+  hosts and DNS servers for domains, regions, diagnosis checks, the country table and "why a
+  connection went its way".
+
 Next:
 
-1. **AppModel in parts.** About 2,000 lines in one class is where bugs hide, as the start
-   failure showed; split into connection, nodes, rules and tools controllers, a part at a
-   time, each with tests.
+1. **AppModel in parts.** From about 2,000 lines to about 1,460: rules, network settings,
+   subscriptions, site tools, sign-in networks, the person's own nodes, diagnosis, backup and
+   connections now live in controllers of their own, each with a small Host. Moving backup
+   found a real bug (restoring twice doubled rules, hosts and DNS servers), now fixed and
+   tested. Left: the connection itself and node steering, the parts most worth a device test
+   before they move.
 2. **CPU while shown, measured again** now that the backdrop's clock sleeps between steps; a
    ceiling in CI once the figure is known.
 
@@ -121,7 +134,6 @@ Next:
 | Proposal | Why | Cost or risk |
 | --- | --- | --- |
 | City pictures on demand | Installer from about 143 MB to about 80 MB; most people keep the ink backdrop | Needs a place to host 63 MB of pictures (the website); offline first run shows ink until fetched |
-| Fake-IP DNS as an option | Faster first connections, no DNS leaks for proxied names | Some programs cache fake addresses; a template change in Go and Kotlin |
 | Custom groups (fallback, load-balance) | The expert feature most missed | More surface in the template; must stay typed and validated |
 | Opt-in crash and health reports | Turns field hours into evidence | Privacy; a service to receive them |
 | Real-device test round | The one gap no code closes | Hardware and time |
