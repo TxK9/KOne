@@ -1,11 +1,5 @@
 package cc.txwd.kone.ui
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -131,11 +125,9 @@ private fun Sky(weather: NodeWeather, moving: Boolean) {
     LaunchedEffect(ink.dark) { if (bridge == null) bridge = InkGallery.bridge(ink.dark).toComposeImageBitmap() }
     val fog = fogOf(weather)
     val fogColor = if (ink.dark) Color(0xFF96A2A8) else Color(0xFFF0F2F5)
-    val shift = if (moving) {
-        rememberInfiniteTransition().animateFloat(0f, 1f, infiniteRepeatable(tween(fog.millis, easing = LinearEasing), RepeatMode.Restart)).value
-    } else {
-        0f
-    }
+    // The fog drifts a few pixels a second: fifteen steps a second, not a frame at the screen's rate.
+    val clock = rememberClock(moving) { 15 }
+    val shift = if (moving) ((clock.value * 1000) % fog.millis / fog.millis).toFloat() else 0f
     Box(Modifier.fillMaxWidth().height(176.dp).clipToBounds().background(ink.paper)) {
         bridge?.let { image ->
             val rest = weather == NodeWeather.Rest
