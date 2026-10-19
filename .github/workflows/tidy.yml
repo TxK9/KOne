@@ -5,10 +5,10 @@ name: Tidy artifacts
 # artifacts from this branch once they are half a day old: nothing of another branch or another
 # workflow is touched, and the run in progress keeps its own. GitHub counts the space freed
 # within 6 to 12 hours.
-# Once a day is enough: a run on every push cost a runner each time for nothing.
+# Paused while development runs on local checks (the owner's decision): a push starts nothing,
+# so no minutes go before the testing phase. Start a run by hand (Actions -> Run workflow), or
+# bring back the push trigger from git history (commit 65908de) when testing begins.
 on:
-  schedule:
-    - cron: "17 3 * * *"
   workflow_dispatch:
 
 permissions:

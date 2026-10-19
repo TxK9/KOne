@@ -11,15 +11,10 @@
 # release needs.
 name: Windows
 
+# Paused while development runs on local checks (the owner's decision): a push starts nothing,
+# so no minutes go before the testing phase. Start a run by hand (Actions -> Run workflow), or
+# bring back the push trigger from git history (commit 65908de) when testing begins.
 on:
-  push:
-    branches:
-      - claude/windows-desktop
-    paths:
-      - "desktop/**"
-      - "shared/**"
-      - "core/**"
-      - ".github/workflows/windows.yml"
   workflow_dispatch:
 
 permissions:
