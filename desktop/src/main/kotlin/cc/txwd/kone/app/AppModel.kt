@@ -17,7 +17,6 @@ import cc.txwd.kone.core.Hosts
 import cc.txwd.kone.core.NameServer
 import cc.txwd.kone.core.NameServers
 import cc.txwd.kone.core.KoneConfig
-import cc.txwd.kone.core.RuleImport
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.Probe
 import cc.txwd.kone.core.RouteProbe
@@ -46,7 +45,6 @@ import cc.txwd.kone.ui.qrModules
 import cc.txwd.kone.ui.NodeSection
 import cc.txwd.kone.ui.NetworkState
 import cc.txwd.kone.ui.NodesState
-import cc.txwd.kone.ui.RulesState
 import cc.txwd.kone.ui.SourceKind
 import cc.txwd.kone.ui.ToolsState
 import kotlinx.coroutines.CoroutineScope
@@ -144,9 +142,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         override val proxied get() = this@AppModel.proxied
         override val online get() = connection == Connection.Online
         override fun restart() = this@AppModel.restart()
-        override fun changed() {
-            rulesPage = rulesNow()
-        }
+        override fun changed() = ruleBook.show()
     })
 
     var screen by mutableStateOf(if (account.binding != null) Screen.Dashboard else Screen.Key)
@@ -167,9 +163,14 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     var tools by mutableStateOf(ToolsState(preferences.mode, preferences.bypass, way = preferences.way, today = usage.today(), month = usage.month()))
         private set
 
-    /** Rules: the programs and sites lists, the person's own rules and ad blocking, as kept. */
-    var rulesPage by mutableStateOf(rulesNow())
-        private set
+    /** Rules: the programs and sites lists, the person's own rules and ad blocking, as kept (see RuleBook). */
+    private val ruleBook = RuleBook(scope, preferences, keeper, object : RuleBook.Host {
+        override fun restart() = this@AppModel.restart()
+        override fun bypassChanged() {
+            tools = tools.copy(bypass = preferences.bypass)
+        }
+    })
+    val rulesPage get() = ruleBook.page
     private var watching: Job? = null
 
     private var nodes: List<SourceNode> = emptyList()
@@ -914,43 +915,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     }
 
     /** Sends [program] straight out, or back through KOne; a running connection starts afresh to take it. */
-    fun setBypass(program: String, straight: Boolean) {
-        val now = preferences.bypass
-        val next = if (straight) now + program else now.filterNot { it.equals(program, ignoreCase = true) }
-        preferences.bypass = next
-        if (preferences.bypass == now) return
-        tools = tools.copy(bypass = preferences.bypass)
-        rulesPage = rulesNow()
-        restart()
-    }
+    fun setBypass(program: String, straight: Boolean) = ruleBook.setBypass(program, straight)
 
-    /**
-     * The site in what the person typed, straight out ([direct]) or through the node in Rule; taken
-     * from the other list if it was there, and a running connection starts afresh to take it.
-     * False when it is not a site.
-     */
-    fun addSite(text: String, direct: Boolean): Boolean {
-        val site = KoneConfig.site(text) ?: return false
-        val (to, from) = if (direct) preferences.direct to preferences.proxied else preferences.proxied to preferences.direct
-        if (site in to) return true
-        if (direct) {
-            preferences.direct = to + site
-            preferences.proxied = from - site
-        } else {
-            preferences.proxied = to + site
-            preferences.direct = from - site
-        }
-        rulesPage = rulesNow()
-        restart()
-        return true
-    }
+    /** The site in what the person typed, straight out ([direct]) or through the node in Rule; false when it is not a site. */
+    fun addSite(text: String, direct: Boolean): Boolean = ruleBook.addSite(text, direct)
 
-    fun removeSite(site: String) {
-        preferences.direct -= site
-        preferences.proxied -= site
-        rulesPage = rulesNow()
-        restart()
-    }
+    fun removeSite(site: String) = ruleBook.removeSite(site)
 
     // Diagnosis (Tools)
 
@@ -1232,7 +1202,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         if (backup.nameServers.isNotEmpty()) preferences.nameServers = preferences.nameServers + backup.nameServers
         backup.unmatchedDirect?.let { preferences.unmatchedDirect = it }
         tools = tools.copy(bypass = preferences.bypass)
-        rulesPage = rulesNow()
+        ruleBook.show()
         if (backup.rules.any { it.kind == "set" }) updateLists()
         network = NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts, preferences.nameServers)
         val added = backup.subscriptions.mapNotNull { (name, url, hours) ->
@@ -1343,112 +1313,23 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     // Rules
 
-    private fun rulesNow(): RulesState = RulesState(
-        preferences.bypass, preferences.direct, preferences.proxied, preferences.rules, preferences.blockAds,
-        lists = keeper.named().associateWith { keeper.lists.status(it) }, listsBusy = keeper.busy, unmatchedDirect = preferences.unmatchedDirect,
-        notice = rulesNotice,
-    )
+    fun setUnmatched(direct: Boolean) = ruleBook.setUnmatched(direct)
 
-    /** What nothing matched, in Rule mode: straight out ([direct]) or through the node. */
-    fun setUnmatched(direct: Boolean) {
-        if (preferences.unmatchedDirect == direct) return
-        preferences.unmatchedDirect = direct
-        rulesPage = rulesNow()
-        restart()
-    }
+    fun setBlockAds(on: Boolean) = ruleBook.setBlockAds(on)
 
-    fun setBlockAds(on: Boolean) {
-        preferences.blockAds = on
-        rulesPage = rulesNow()
-        restart()
-    }
+    fun addRule(rule: UserRule): Boolean = ruleBook.add(rule)
 
-    /** [rule] at the end, its value written as the template writes it; false when it does not fit its kind. */
-    fun addRule(rule: UserRule): Boolean {
-        val value = UserRules.value(rule.kind, rule.value) ?: return false
-        if (rule.action !in UserRules.ACTIONS) return false
-        val before = preferences.rules
-        if (before.size >= UserRules.MOST) return false
-        val added = UserRule(rule.kind, value, rule.action)
-        if (added.kind == "set" && value !in keeper.named() && keeper.named().size >= UserRules.MOST_SETS) return false
-        preferences.rules = before + added
-        if (preferences.rules != before) {
-            rulesPage = rulesNow()
-            // A list not kept yet is downloaded first; the connection starts afresh once it is ready.
-            if (added.kind == "set" && keeper.lists.digest(value) == null) updateLists() else restart()
-        }
-        return true
-    }
+    fun importRules(text: String): String = ruleBook.import(text)
 
-    /**
-     * Rules pasted from a Clash profile or v2rayN, added after the person's own in one go (one
-     * reconnection, not one a rule), each checked as any rule is; a rule blocking the ad list turns
-     * on Block ads. What happened, in a line.
-     */
-    fun importRules(text: String): String {
-        val read = RuleImport.read(text)
-        val ads = read.blockAds && !preferences.blockAds
-        if (ads) preferences.blockAds = true
-        if (read.rules.isEmpty()) {
-            if (ads) {
-                rulesPage = rulesNow()
-                restart()
-            }
-            return when {
-                ads -> "Block ads turned on" + if (read.left > 0) "; ${read.left} left out" else ""
-                read.left > 0 -> "None of these ${read.left} rules is one KOne takes"
-                else -> "No rules in the clipboard"
-            }
-        }
-        val before = preferences.rules
-        preferences.rules = UserRules.clean(before + read.rules)
-        val added = preferences.rules.size - UserRules.clean(before).size
-        rulesPage = rulesNow()
-        if (added > 0 && read.rules.any { it.kind == "set" }) updateLists()
-        // One reconnection for the rules and Block ads; a new category list restarts again once it is ready.
-        if (ads || (added > 0 && read.rules.none { it.kind == "set" })) restart()
-        val skipped = read.rules.size - added + read.left
-        return "$added rules added" + (if (ads) ", Block ads turned on" else "") + if (skipped > 0) "; $skipped left out" else ""
-    }
-
-    /** One line on the Rules page for a few seconds (what an import did). */
-    private var rulesNotice: String? = null
-
-    fun importRulesFrom(text: String) {
-        val said = importRules(text)
-        rulesNotice = said
-        rulesPage = rulesNow()
-        scope.launch {
-            delay(6_000)
-            if (rulesNotice == said) {
-                rulesNotice = null
-                rulesPage = rulesNow()
-            }
-        }
-    }
+    fun importRulesFrom(text: String) = ruleBook.importAndSay(text)
 
     // Category lists (Rules): see ListKeeper.
 
     fun updateLists(force: Boolean = false) = keeper.update(force)
 
-    fun removeRule(index: Int) {
-        val rules = preferences.rules
-        if (index !in rules.indices) return
-        preferences.rules = rules.filterIndexed { i, _ -> i != index }
-        rulesPage = rulesNow()
-        restart()
-    }
+    fun removeRule(index: Int) = ruleBook.remove(index)
 
-    /** The rule at [index] one place earlier ([up]) or later; order decides which matches first. */
-    fun moveRule(index: Int, up: Boolean) {
-        val rules = preferences.rules.toMutableList()
-        val other = if (up) index - 1 else index + 1
-        if (index !in rules.indices || other !in rules.indices) return
-        rules[index] = rules[other].also { rules[other] = rules[index] }
-        preferences.rules = rules
-        rulesPage = rulesNow()
-        restart()
-    }
+    fun moveRule(index: Int, up: Boolean) = ruleBook.move(index, up)
 
     /** While Tools is open and KOne connected, what the core carries, once a second. */
     fun watchConnections(on: Boolean) {
