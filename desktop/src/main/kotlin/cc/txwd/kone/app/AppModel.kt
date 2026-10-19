@@ -741,100 +741,41 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         return regionOf(chosen)?.let { regionPick(it)?.tag } ?: chosen
     }
 
-    /**
-     * Checks the way out step by step, through the same path as the person's traffic, showing
-     * each as it finishes: the key and nodes, the service, the node in use, DNS, a few sites and
-     * the exit. The first failure comes with one suggestion.
-     */
-    fun diagnose() {
-        if (tools.checking) return
-        scope.launch {
-            val checks = mutableListOf<Check>()
-            fun show(running: String?) {
-                tools = tools.copy(checks = checks.toList() + listOfNotNull(running?.let { Check(it, Outcome.Running) }), checking = running != null, advice = null)
-            }
-            show("Network")
-            val reached = signIns.reach()
-            checks += when (reached) {
-                null -> Check("Network", Outcome.Warn, "Could not check")
-                else -> Diagnosis.network(reached)
-            }
-            Diagnosis.clock(reached?.skew)?.let { checks += it }
-            show(Conflicts.TITLE)
-            checks += withContext(Dispatchers.IO) { Conflicts.check(Conflicts.adapters(), SystemProxy.read(), proxied) }
-            show("Key")
-            val binding = account.binding
-            checks += when {
-                binding == null -> Check("Key", Outcome.Fail, "No key yet")
-                binding.source == null -> Check("Key", Outcome.Fail, "The console has not sent nodes yet")
-                else -> Check("Key", Outcome.Pass, "${nodes.size} nodes")
-            }
-            if (preferences.way == WAY_ADAPTER && !noAdapter) {
-                show("Service")
-                checks += when {
-                    service != null -> Check("Service", Outcome.Pass, "Connected through it")
-                    !Places.windows -> Check("Service", Outcome.Warn, "Only on Windows")
-                    else -> {
-                        val version = withContext(Dispatchers.IO) { ServiceLink.open(Places.service)?.use { it.hello() } }
-                        if (version != null) Check("Service", Outcome.Pass, "Version $version") else Check("Service", Outcome.Fail, "Not answering")
-                    }
-                }
-            }
-            show("Node")
-            val api = clash ?: probeApi?.let(::ClashApi)
-            val tag = inUse()
-            checks += if (api == null || tag == null) {
-                Check("Node", Outcome.Warn, "Nothing to test through yet")
-            } else {
-                val measured = withContext(Dispatchers.IO) { api.delay(tag) }
-                health.record(tag, measured)
-                delays[tag] = measured
-                Diagnosis.node(nameOf(tag), measured)
-            }
-            show("DNS")
-            checks += Diagnosis.names(Diagnosis.namesFor(preferences.region))
-            show("Sites")
-            checks += Diagnosis.sites(proxied, Diagnosis.sitesFor(preferences.region))
-            show("Exit")
-            val online = connection == Connection.Online
-            val address = withContext(Dispatchers.IO) { ExitTrace.detect(proxied) }
-            checks += when {
-                address == null -> Check("Exit", Outcome.Warn, "Unknown")
-                online -> Check("Exit", Outcome.Pass, address)
-                else -> Check("Exit", Outcome.Warn, "$address, not connected")
-            }
-            tools = tools.copy(checks = checks.toList(), checking = false, advice = Diagnosis.advice(checks))
-            refresh()
+    // Tools → Diagnose: see DiagnosisRun.
+
+    private val diagnosis = DiagnosisRun(scope, object : DiagnosisRun.Host {
+        override val tools get() = this@AppModel.tools
+        override fun update(change: (ToolsState) -> ToolsState) {
+            this@AppModel.tools = change(this@AppModel.tools)
         }
-    }
+        override suspend fun reach() = signIns.reach()
+        override val proxied get() = this@AppModel.proxied
+        override val bound get() = account.binding != null
+        override val sourceReady get() = account.binding?.source != null
+        override val nodeCount get() = nodes.size
+        override val throughAdapter get() = preferences.way == WAY_ADAPTER && !noAdapter
+        override val serviceConnected get() = service != null
+        override val api get() = clash ?: probeApi?.let(::ClashApi)
+        override fun inUse() = this@AppModel.inUse()
+        override fun nameOf(tag: String) = this@AppModel.nameOf(tag)
+        override fun record(tag: String, delay: Int?) {
+            health.record(tag, delay)
+            delays[tag] = delay
+        }
+        override val region get() = preferences.region
+        override val mode get() = preferences.mode
+        override val online get() = connection == Connection.Online
+        override fun hint(text: String) = this@AppModel.hint(text)
+        override fun refresh() = this@AppModel.refresh()
+    })
 
-    /** The last diagnosis as plain text, with the version, mode and way, for whoever helps. */
-    fun diagnosisReport(): String = Diagnosis.report(
-        tools.checks, tools.advice,
-        listOf(
-            "Version" to (System.getProperty("jpackage.app-version") ?: "development"),
-            "Windows" to System.getProperty("os.version").orEmpty() + " " + System.getProperty("os.arch").orEmpty(),
-            "Mode" to preferences.mode,
-            "Way" to if (proxied != null) "System proxy" else "Virtual adapter",
-            "Connected" to (connection == Connection.Online).toString(),
-        ) + listOfNotNull(
-            // A stop in the last week, in a few words: what and where, never its message.
-            Crashes.last()?.takeIf { System.currentTimeMillis() - it.at < 7 * 86_400_000L }?.let { stop ->
-                "Last stop" to "${java.time.Instant.ofEpochMilli(stop.at).toString().substringBefore('.').replace('T', ' ')} UTC, ${stop.what}"
-            },
-        ),
-    )
+    fun diagnose() = diagnosis.diagnose()
 
-    /** Hands the report to [copy] and says so. */
-    fun copyReport(copy: (String) -> Unit) {
-        if (tools.checks.isEmpty()) return
-        copy(diagnosisReport())
-        hint("Diagnosis copied")
-    }
+    fun diagnosisReport(): String = diagnosis.report()
 
-    fun clearChecks() {
-        if (!tools.checking) tools = tools.copy(checks = emptyList(), advice = null)
-    }
+    fun copyReport(copy: (String) -> Unit) = diagnosis.copyReport(copy)
+
+    fun clearChecks() = diagnosis.clear()
 
     // Sign-in networks (hotels, airports, cafés): see SignInNetworks.
 
