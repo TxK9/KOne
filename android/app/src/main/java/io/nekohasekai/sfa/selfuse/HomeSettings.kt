@@ -34,9 +34,9 @@ object HomeSettings {
     /** The name a phone gets when none is set: "kone-" and its model. */
     fun defaultHostname(): String = HomeLink.cleanHostname("kone-" + Build.MODEL).ifBlank { "kone" }
 
-    /** The configuration the service runs: Home applied, and checked when it is on. */
+    /** The configuration the service runs: the routing choices and Home applied, and checked when Home is on. */
     fun prepare(content: String): String {
-        val prepared = HomeLink.apply(content, current())
+        val prepared = HomeLink.apply(Routing.apply(content, RoutingSettings.current()), current())
         if (HomeLink.hasHome(prepared)) PairedProfile.requirePaired(prepared)
         return prepared
     }
@@ -58,12 +58,13 @@ object HomeSettings {
      */
     suspend fun refreshSaved() = withContext(Dispatchers.IO) {
         val home = current()
+        val routing = RoutingSettings.current()
         ProfileManager.list().forEach { profile ->
             val file = File(profile.typed.path)
             if (!file.isFile) return@forEach
             runCatching {
                 val content = file.readText()
-                val updated = HomeLink.apply(content, home)
+                val updated = HomeLink.apply(Routing.apply(content, routing), home)
                 if (updated != content) {
                     // Whole or not at all: the service may be reading this file as it starts.
                     val next = File(file.parentFile, file.name + ".next")

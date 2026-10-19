@@ -1,0 +1,160 @@
+package io.nekohasekai.sfa.selfuse
+
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * The person's routing choices, applied to a configuration KOne built (a share-link profile or the
+ * console's managed one): sites sent straight out or through the node, ad blocking, what nothing
+ * matches, the two DNS servers and IPv6. The same choices as KOne for Windows.
+ *
+ * KOne owns one stretch of the template's rules: after sniffing, Home and the console's refusals
+ * (the Claude block), and before the modes. Applying replaces that stretch, so it can run again
+ * and again with the same result, and with the default choices it leaves the template exactly as
+ * it was built. Nothing here can come before the refusals, so no choice reaches round the Claude
+ * block. A configuration not built by KOne comes back unchanged.
+ */
+object Routing {
+    data class Choices(
+        /** Sites sent straight out in every mode, by domain (example.cn and what is under it). */
+        val direct: List<String> = emptyList(),
+        /** Sites sent through the node in Rule mode too. */
+        val proxied: List<String> = emptyList(),
+        /** Refuse the domains of the ad list. */
+        val blockAds: Boolean = false,
+        /** In Rule mode, what nothing matched goes straight out instead of through the node. */
+        val unmatchedDirect: Boolean = false,
+        /** The DNS server asked through the node: a preset's name, "" for Cloudflare. */
+        val remoteDns: String = "",
+        /** The DNS server asked straight out: a preset's name, "" for AliDNS. */
+        val directDns: String = "",
+        /** Answer names with IPv6 addresses too (IPv4 first). */
+        val ipv6: Boolean = false,
+    )
+
+    /** The DNS-over-HTTPS servers asked through the node, by preset. */
+    val REMOTE = linkedMapOf("cloudflare" to "1.1.1.1", "google" to "8.8.8.8", "quad9" to "9.9.9.9")
+
+    /** The plain DNS servers asked straight out, by preset. */
+    val DIRECT = linkedMapOf("alidns" to "223.5.5.5", "dnspod" to "119.29.29.29")
+
+    const val ADS = "geosite-category-ads-all"
+    const val MOST_SITES = 256
+
+    private const val PROXY = PairedProfile.PROXY_TAG
+    private const val LOCAL_DNS = "local-dns"
+    private const val PROXY_DNS = "proxy-dns"
+    private val SITE = Regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$")
+
+    /**
+     * The site in what the person typed (a name, or an address someone pasted): lower case, without
+     * a scheme, path or port; null when it is not a domain of two labels or more.
+     */
+    fun site(text: String): String? {
+        var name = text.trim().lowercase()
+        name = name.substringAfter("://")
+        name = name.substringBefore('/').substringBefore('?').substringBefore('#')
+        name = name.substringAfter('@').substringBefore(':').trimEnd('.')
+        if (name.startsWith("*.")) name = name.removePrefix("*.")
+        return name.takeIf { it.length <= 253 && SITE.matches(it) }
+    }
+
+    /** Sites as the template takes them: each one cleaned, once, [MOST_SITES] at most. */
+    fun sites(names: List<String>): List<String> = names.mapNotNull(::site).distinct().take(MOST_SITES)
+
+    /** Whether [config] is KOne's template: its node selector, its two DNS servers and the Direct mode rule. */
+    fun isTemplate(config: JSONObject): Boolean {
+        val outbounds = config.optJSONArray("outbounds") ?: return false
+        val selector = objects(outbounds).any { it.optString("tag") == PROXY && it.optString("type") == "selector" }
+        val servers = objects(config.optJSONObject("dns")?.optJSONArray("servers")).map { it.optString("tag") }.toSet()
+        return selector && LOCAL_DNS in servers && PROXY_DNS in servers && directMode(config.optJSONObject("route")?.optJSONArray("rules")) >= 0
+    }
+
+    /** [content] with [choices] applied when it is KOne's template; otherwise unchanged. */
+    fun apply(content: String, choices: Choices): String {
+        val config = try { JSONObject(content) } catch (_: Exception) { return content }
+        if (!isTemplate(config)) return content
+        apply(config, choices)
+        return config.toString(2)
+    }
+
+    internal fun apply(config: JSONObject, choices: Choices) {
+        val direct = sites(choices.direct)
+        val proxied = sites(choices.proxied).filter { it !in direct }
+
+        // Route: the stretch between the leading rules and the Direct mode rule is KOne's.
+        val route = config.getJSONObject("route")
+        val rules = objects(route.optJSONArray("rules"))
+        val end = directMode(route.optJSONArray("rules"))
+        val start = rules.take(end).indexOfFirst { !leading(it) }.let { if (it < 0) end else it }
+        val ours = buildList {
+            if (direct.isNotEmpty()) add(JSONObject().put("domain_suffix", JSONArray(direct)).put("outbound", "direct"))
+            if (proxied.isNotEmpty()) add(JSONObject().put("clash_mode", "Rule").put("domain_suffix", JSONArray(proxied)).put("outbound", PROXY))
+            if (choices.blockAds) add(JSONObject().put("rule_set", JSONArray().put(ADS)).put("action", "reject"))
+        }
+        val routed = rules.take(start) + ours + rules.drop(end)
+        // What nothing matched, in Rule mode: the last rule, through the node or straight out.
+        routed.lastOrNull { it.length() == 2 && it.optString("clash_mode") == "Rule" && it.has("outbound") }
+            ?.put("outbound", if (choices.unmatchedDirect) "direct" else PROXY)
+        route.put("rules", JSONArray(routed))
+        setAdList(route, choices.blockAds)
+
+        // DNS: the same stretch, each list's names answered where its traffic goes.
+        val dns = config.getJSONObject("dns")
+        val dnsRules = objects(dns.optJSONArray("rules"))
+        val dnsEnd = dnsRules.indexOfFirst { it.length() == 2 && it.optString("clash_mode") == "Direct" && it.optString("server") == LOCAL_DNS }
+            .let { if (it < 0) dnsRules.size else it }
+        val dnsStart = dnsRules.take(dnsEnd).indexOfFirst { !leadingDns(it) }.let { if (it < 0) dnsEnd else it }
+        val dnsOurs = buildList {
+            if (direct.isNotEmpty()) add(JSONObject().put("domain_suffix", JSONArray(direct)).put("server", LOCAL_DNS))
+            if (proxied.isNotEmpty()) add(JSONObject().put("clash_mode", "Rule").put("domain_suffix", JSONArray(proxied)).put("server", PROXY_DNS))
+            if (choices.blockAds) add(JSONObject().put("rule_set", JSONArray().put(ADS)).put("action", "reject"))
+        }
+        val unmatched = { rule: JSONObject -> rule.length() == 2 && rule.optString("clash_mode") == "Rule" && rule.optString("server") == LOCAL_DNS }
+        val answered = dnsRules.take(dnsStart) + dnsOurs + dnsRules.drop(dnsEnd).filterNot(unmatched) +
+            listOfNotNull(JSONObject().put("clash_mode", "Rule").put("server", LOCAL_DNS).takeIf { choices.unmatchedDirect })
+        dns.put("rules", JSONArray(answered))
+        dns.put("strategy", if (choices.ipv6) "prefer_ipv4" else "ipv4_only")
+        objects(dns.optJSONArray("servers")).forEach { server ->
+            when (server.optString("tag")) {
+                LOCAL_DNS -> server.put("server", DIRECT[choices.directDns] ?: DIRECT.getValue("alidns"))
+                PROXY_DNS -> server.put("server", REMOTE[choices.remoteDns] ?: REMOTE.getValue("cloudflare"))
+            }
+        }
+    }
+
+    /** The ad list among the rule sets when ads are blocked, beside the China lists and like them; gone otherwise. */
+    private fun setAdList(route: JSONObject, on: Boolean) {
+        val sets = objects(route.optJSONArray("rule_set")).filterNot { it.optString("tag") == ADS }.toMutableList()
+        if (on) {
+            val china = sets.firstOrNull { it.optString("tag") == "geosite-cn" }
+            val folder = china?.optString("initial_path")?.substringBeforeLast('/', "")?.takeIf { it.isNotEmpty() }
+            sets += JSONObject()
+                .put("type", "remote").put("tag", ADS).put("format", "binary")
+                .put("url", "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/$ADS.srs")
+                .apply { if (folder != null) put("initial_path", "$folder/$ADS.srs") }
+                .put("http_client", JSONObject().put("detour", PROXY).put("domain_resolver", LOCAL_DNS))
+        }
+        route.put("rule_set", JSONArray(sets))
+    }
+
+    /** The index of the Direct mode rule, which ends KOne's stretch; -1 when there is none. */
+    private fun directMode(rules: JSONArray?): Int =
+        objects(rules).indexOfFirst { it.length() == 2 && it.optString("clash_mode") == "Direct" && it.optString("outbound") == "direct" }
+
+    /** Rules that stay ahead of KOne's stretch: sniffing, DNS, Home, and the console's refusals. */
+    private fun leading(rule: JSONObject): Boolean {
+        val action = rule.optString("action", "route")
+        return action == "sniff" || action == "resolve" || (action == "hijack-dns" && rule.optString("protocol") == "dns") ||
+            rule.optString("outbound") == PairedProfile.HOME_TAG || refusal(rule)
+    }
+
+    private fun leadingDns(rule: JSONObject): Boolean = rule.optString("server") == HomeLink.DNS_TAG || refusal(rule)
+
+    /** A rule refusing domain names and nothing else, as the console writes the Claude block. */
+    private fun refusal(rule: JSONObject): Boolean =
+        rule.optString("action") == "reject" && rule.keys().asSequence().all { it in setOf("action", "domain", "domain_suffix") }
+
+    private fun objects(array: JSONArray?): List<JSONObject> =
+        if (array == null) emptyList() else (0 until array.length()).mapNotNull { array.optJSONObject(it) }
+}

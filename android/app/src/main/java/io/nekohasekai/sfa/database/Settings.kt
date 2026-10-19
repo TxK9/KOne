@@ -47,6 +47,15 @@ object Settings {
     var knineHomeEnabled by dataStore.boolean("knine_home_enabled") { BuildConfig.KNINE_OWNER }
     var knineHomeSubnets by dataStore.string("knine_home_subnets") { BuildConfig.KNINE_HOME_SUBNETS }
     var knineHomeHostname by dataStore.string("knine_home_hostname") { BuildConfig.KNINE_HOME_HOSTNAME }
+
+    // Routing choices (Settings → Routing), applied to every configuration KOne built: see Routing.
+    var knineRoutingDirect by dataStore.string("knine_routing_direct") { "" }
+    var knineRoutingProxied by dataStore.string("knine_routing_proxied") { "" }
+    var knineRoutingBlockAds by dataStore.boolean("knine_routing_block_ads") { false }
+    var knineRoutingUnmatchedDirect by dataStore.boolean("knine_routing_unmatched_direct") { false }
+    var knineRoutingRemoteDns by dataStore.string("knine_routing_remote_dns") { "" }
+    var knineRoutingDirectDns by dataStore.string("knine_routing_direct_dns") { "" }
+    var knineRoutingIpv6 by dataStore.boolean("knine_routing_ipv6") { false }
     var selectedProfile by dataStore.long(SettingsKey.SELECTED_PROFILE) { -1L }
     var serviceMode by dataStore.string(SettingsKey.SERVICE_MODE) { ServiceMode.NORMAL }
     var startedByUser by dataStore.boolean(SettingsKey.STARTED_BY_USER)

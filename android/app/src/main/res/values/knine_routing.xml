@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_routing">Routing</string>
+    <string name="knine_routing_sites">Sites</string>
+    <string name="knine_routing_direct">Straight out</string>
+    <string name="knine_routing_direct_hint">One site a line, e.g. example.cn. In every mode, with what is under it.</string>
+    <string name="knine_routing_proxied">Through the node</string>
+    <string name="knine_routing_proxied_hint">One site a line, e.g. example.com. In Rule mode, even where the China lists would send it straight out.</string>
+    <string name="knine_routing_save_sites">Save sites</string>
+    <string name="knine_routing_saved">Saved</string>
+    <string name="knine_routing_blocking">Blocking</string>
+    <string name="knine_routing_block_ads">Block ads</string>
+    <string name="knine_routing_block_ads_detail">The domains of a common ad list, in every mode</string>
+    <string name="knine_routing_unmatched">When nothing matches</string>
+    <string name="knine_routing_unmatched_proxy">Through the node</string>
+    <string name="knine_routing_unmatched_direct">Straight out</string>
+    <string name="knine_routing_unmatched_detail">What no site, list or rule sent anywhere, in Rule mode</string>
+    <string name="knine_routing_dns">DNS</string>
+    <string name="knine_routing_remote_dns">Through the node</string>
+    <string name="knine_routing_direct_dns">Straight out</string>
+    <string name="knine_routing_ipv6">IPv6</string>
+    <string name="knine_routing_ipv6_detail">Answer names with IPv6 addresses too, IPv4 first</string>
+    <string name="knine_routing_claude_note">The provider\'s blocks always come first: no choice here reaches round them.</string>
+</resources>

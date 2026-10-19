@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.AdminPanelSettings
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.AltRoute
 import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Settings
@@ -145,6 +146,30 @@ fun SettingsScreen(navController: NavController) {
                     },
                     trailingContent = { SettingsChevron() },
                     modifier = Modifier.clickable { navController.navigate("settings/service") },
+                    colors =
+                    ListItemDefaults.colors(
+                        containerColor = Color.Transparent,
+                    ),
+                )
+
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            stringResource(R.string.knine_routing),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Outlined.AltRoute,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    trailingContent = { SettingsChevron() },
+                    modifier =
+                    Modifier
+                        .clickable { navController.navigate("settings/routing") },
                     colors =
                     ListItemDefaults.colors(
                         containerColor = Color.Transparent,
