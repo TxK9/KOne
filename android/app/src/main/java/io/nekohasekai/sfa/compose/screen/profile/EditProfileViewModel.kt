@@ -276,7 +276,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 val fetched = io.nekohasekai.sfa.selfuse.SubscriptionProfile.fetch(profile.typed.remoteURL, io.nekohasekai.sfa.selfuse.SubscriptionProfile.leaveOut(profile.id))
                 val content = fetched.content
                 Libbox.checkConfig(content)
-                io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info)
+                io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info, profile.name)
 
                 // Check if content changed
                 val file = File(profile.typed.path)

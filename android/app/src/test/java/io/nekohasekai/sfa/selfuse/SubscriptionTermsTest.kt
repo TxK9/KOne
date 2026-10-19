@@ -39,4 +39,11 @@ class SubscriptionTermsTest {
         assertEquals("", SubscriptionTerms.words(SubscriptionTerms.withWords(all, 7, "  "), 7))
         assertEquals("", SubscriptionTerms.words("not json", 7))
     }
+
+    @Test
+    fun aWarningIsRememberedAsSaid() {
+        val all = SubscriptionTerms.withSaid("{}", 7, "Example Cloud ends in 2 days")
+        assertEquals("Example Cloud ends in 2 days", SubscriptionTerms.said(all, 7))
+        assertNull(SubscriptionTerms.said(all, 8))
+    }
 }

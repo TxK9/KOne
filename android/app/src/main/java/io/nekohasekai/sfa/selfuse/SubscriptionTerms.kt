@@ -19,6 +19,12 @@ object SubscriptionTerms {
         return json.toString()
     }
 
+    /** [all] (as kept) with [warning] the last one said for [profileId]. */
+    fun withSaid(all: String, profileId: Long, warning: String): String =
+        runCatching { JSONObject(all) }.getOrDefault(JSONObject()).put(profileId.toString(), warning).toString()
+
+    fun said(all: String, profileId: Long): String? = runCatching { JSONObject(all).optString(profileId.toString()) }.getOrNull()?.takeIf { it.isNotEmpty() }
+
     fun words(all: String, profileId: Long): String = runCatching { JSONObject(all).optString(profileId.toString()) }.getOrDefault("")
 
     /** [all] (as kept) with [profileId]'s terms set to [info], or removed when null. */

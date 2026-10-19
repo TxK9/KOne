@@ -320,7 +320,7 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
 
         // Create profile in database and select it
         ProfileManager.create(profile, andSelect = true)
-        io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info)
+        io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info, profile.name)
 
         // Reconfigure updater if auto-update is enabled
         if (state.autoUpdate) {

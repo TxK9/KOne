@@ -82,9 +82,14 @@ object SubscriptionProfile {
         }
     }
 
-    /** Keeps [info] as [profileId]'s provider terms; null forgets them (the provider stopped sending). */
-    fun keep(profileId: Long, info: UserInfo?) {
+    /**
+     * Keeps [info] as [profileId]'s provider terms; null forgets them (the provider stopped
+     * sending). A warning about them for [name] is said once as a notification.
+     */
+    fun keep(profileId: Long, info: UserInfo?, name: String? = null) {
         Settings.knineSubscriptionTerms = SubscriptionTerms.with(Settings.knineSubscriptionTerms, profileId, info)
+        val warning = name?.let { info?.warning(it, System.currentTimeMillis()) } ?: return
+        runCatching { SubscriptionNotifier.warn(Application.application, profileId, warning) }
     }
 
     /** [profileId]'s provider terms, if its link sent them. */

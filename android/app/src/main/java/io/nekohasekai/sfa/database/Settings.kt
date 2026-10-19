@@ -65,6 +65,8 @@ object Settings {
     var knineSubscriptionTerms by dataStore.string("knine_subscription_terms") { "{}" }
     /** Each remote profile's words that leave nodes out, by profile id. */
     var knineSubscriptionLeaveOut by dataStore.string("knine_subscription_leave_out") { "{}" }
+    /** The last warning said as a notification for each remote profile, by profile id. */
+    var knineSubscriptionWarned by dataStore.string("knine_subscription_warned") { "{}" }
     // Where the person is: the shared edition is made for people outside China; the owner's keeps China.
     var knineRoutingRegion by dataStore.string("knine_routing_region") { if (BuildConfig.KNINE_OWNER) "china" else "global" }
     var selectedProfile by dataStore.long(SettingsKey.SELECTED_PROFILE) { -1L }
