@@ -16,7 +16,6 @@ import io.nekohasekai.sfa.database.TypedProfile
 import io.nekohasekai.sfa.utils.AppLifecycleObserver
 import io.nekohasekai.sfa.utils.CommandClient
 import io.nekohasekai.sfa.utils.CommandTarget
-import io.nekohasekai.sfa.utils.HTTPClient
 import io.nekohasekai.sfa.utils.RemoteControlManager
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.first
@@ -364,9 +363,12 @@ class DashboardViewModel :
 
             try {
                 // Fetch remote config
-                // Links, base64 or a Clash profile become KOne's own template; a whole sing-box configuration is kept.
-                val content = io.nekohasekai.sfa.selfuse.SubscriptionProfile.prepare(HTTPClient().use { it.getString(profile.typed.remoteURL) })
+                // Links, base64 or a Clash profile become KOne's own template (a whole sing-box configuration
+                // is kept); the provider's terms come with it.
+                val fetched = io.nekohasekai.sfa.selfuse.SubscriptionProfile.fetch(profile.typed.remoteURL)
+                val content = fetched.content
                 Libbox.checkConfig(content)
+                io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info)
 
                 // Check if content changed
                 val file = File(profile.typed.path)

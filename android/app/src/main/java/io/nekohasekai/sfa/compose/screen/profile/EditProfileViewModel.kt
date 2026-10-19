@@ -13,7 +13,6 @@ import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.database.TypedProfile
-import io.nekohasekai.sfa.utils.HTTPClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -255,9 +254,12 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 var selectedProfileUpdated = false
 
                 // Fetch remote config
-                // Links, base64 or a Clash profile become KOne's own template; a whole sing-box configuration is kept.
-                val content = io.nekohasekai.sfa.selfuse.SubscriptionProfile.prepare(HTTPClient().use { it.getString(profile.typed.remoteURL) })
+                // Links, base64 or a Clash profile become KOne's own template (a whole sing-box configuration
+                // is kept); the provider's terms come with it.
+                val fetched = io.nekohasekai.sfa.selfuse.SubscriptionProfile.fetch(profile.typed.remoteURL)
+                val content = fetched.content
                 Libbox.checkConfig(content)
+                io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info)
 
                 // Check if content changed
                 val file = File(profile.typed.path)

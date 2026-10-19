@@ -13,7 +13,40 @@ import java.net.URLDecoder
 data class UserInfo(val upload: Long, val download: Long, val total: Long, val expire: Long?) {
     val used get() = upload + download
 
+    /**
+     * What is worth saying about the provider's terms for [name] at [now] (milliseconds), or null:
+     * ended, ending within three days, or nine tenths of its data used. Said by KOne before the
+     * nodes simply stop working.
+     */
+    fun warning(name: String, now: Long): String? {
+        expire?.let { expire ->
+            val left = expire * 1000 - now
+            if (left <= 0) return "$name has ended"
+            if (left < 3 * DAY) {
+                val days = (left / DAY).toInt()
+                return "$name ends ${if (days == 0) "within a day" else "in ${days + 1} days"}"
+            }
+        }
+        if (total > 0 && used * 10 >= total * 9) {
+            return if (used >= total) "$name has used all its data" else "$name has used ${used * 100 / total}% of its data"
+        }
+        return null
+    }
+
+    /** The provider's terms in one line, "12.40 GB of 100.00 GB", or null when it gave no total. */
+    fun usage(): String? = if (total > 0) "${size(used)} of ${size(total)}" else null
+
     companion object {
+        private const val DAY = 24 * 60 * 60 * 1000L
+
+        /** Bytes as people read them: 812 B, 3.4 KB, 12.6 MB, 1.20 GB. */
+        fun size(bytes: Long): String = when {
+            bytes < 1024 -> "$bytes B"
+            bytes < 1024L * 1024 -> "%.1f KB".format(java.util.Locale.ROOT, bytes / 1024.0)
+            bytes < 1024L * 1024 * 1024 -> "%.1f MB".format(java.util.Locale.ROOT, bytes / 1024.0 / 1024.0)
+            else -> "%.2f GB".format(java.util.Locale.ROOT, bytes / 1024.0 / 1024.0 / 1024.0)
+        }
+
         /** `upload=455727941; download=6174315083; total=1073741824000; expire=1671815872`; null when it says nothing usable. */
         fun parse(header: String?): UserInfo? {
             if (header.isNullOrBlank()) return null

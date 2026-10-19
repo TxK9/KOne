@@ -78,6 +78,7 @@ import cc.txwd.kone.shared.ShareLinkException
 import cc.txwd.kone.shared.ShareLinks
 import io.nekohasekai.sfa.selfuse.clashNodes
 import io.nekohasekai.sfa.selfuse.createPairedProfile
+import io.nekohasekai.sfa.selfuse.SubscriptionProfile
 import cc.txwd.kone.shared.ClashProxies
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import io.nekohasekai.sfa.compose.component.qr.QRCodeDialog
@@ -773,53 +774,66 @@ private fun ProfileInfoRow(profile: Profile?) {
     if (profile == null) return
 
     val context = LocalContext.current
+    // A subscription's terms, as its provider last sent them: what is used and until when, or the warning.
+    val terms = remember(profile.id, profile.typed.lastUpdated) {
+        if (profile.typed.type == TypedProfile.Type.Remote) SubscriptionProfile.terms(profile.id)?.let { SubscriptionProfile.summary(profile.name, it) } else null
+    }
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Icon(
-                imageVector = if (profile.typed.type == TypedProfile.Type.Remote) {
-                    Icons.Default.Cloud
-                } else {
-                    Icons.Outlined.Description
-                },
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = if (profile.typed.type == TypedProfile.Type.Remote) {
-                    stringResource(R.string.profile_type_remote)
-                } else {
-                    stringResource(R.string.profile_type_local)
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        if (profile.typed.type == TypedProfile.Type.Remote) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Default.AccessTime,
+                    imageVector = if (profile.typed.type == TypedProfile.Type.Remote) {
+                        Icons.Default.Cloud
+                    } else {
+                        Icons.Outlined.Description
+                    },
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = RelativeTimeFormatter.format(context, profile.typed.lastUpdated),
+                    text = if (profile.typed.type == TypedProfile.Type.Remote) {
+                        stringResource(R.string.profile_type_remote)
+                    } else {
+                        stringResource(R.string.profile_type_local)
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
+            if (profile.typed.type == TypedProfile.Type.Remote) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccessTime,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = RelativeTimeFormatter.format(context, profile.typed.lastUpdated),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        terms?.let { (text, warning) ->
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

@@ -508,10 +508,5 @@ private fun Wrapped(text: String, size: androidx.compose.ui.unit.TextUnit, color
     BasicText(text, style = TextStyle(color = color, fontSize = size, fontFamily = Fonts.ui))
 }
 
-/** Bytes as people read them: 812 B, 3.4 KB, 12.6 MB, 1.2 GB. */
-fun size(bytes: Long): String = when {
-    bytes < 1024 -> "$bytes B"
-    bytes < 1024L * 1024 -> "%.1f KB".format(java.util.Locale.ROOT, bytes / 1024.0)
-    bytes < 1024L * 1024 * 1024 -> "%.1f MB".format(java.util.Locale.ROOT, bytes / 1024.0 / 1024.0)
-    else -> "%.2f GB".format(java.util.Locale.ROOT, bytes / 1024.0 / 1024.0 / 1024.0)
-}
+/** Bytes as people read them: 812 B, 3.4 KB, 12.6 MB, 1.20 GB. */
+fun size(bytes: Long): String = cc.txwd.kone.shared.UserInfo.size(bytes)
