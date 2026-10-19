@@ -48,4 +48,10 @@
     <string name="knine_routing_ipv6_detail">Answer names with IPv6 addresses too, IPv4 first</string>
     <string name="knine_routing_private_dns">Android\'s Private DNS is set to %1$s, which answers apps past these servers. Set it to Automatic in Android\'s network settings for these choices to apply.</string>
     <string name="knine_routing_claude_note">The provider\'s blocks always come first: no choice here reaches round them.</string>
+    <string name="knine_diagnose">Diagnose</string>
+    <string name="knine_diagnose_detail">What stands between this phone and the internet: the network, the clock, Android\'s own settings, then names and sites the way apps reach them.</string>
+    <string name="knine_diagnose_run">Run</string>
+    <string name="knine_diagnose_again">Run again</string>
+    <string name="knine_diagnose_running">Checking…</string>
+    <string name="knine_diagnose_fine">Nothing to fix</string>
 </resources>

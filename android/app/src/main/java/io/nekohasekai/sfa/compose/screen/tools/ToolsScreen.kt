@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.HealthAndSafety
 import androidx.compose.material.icons.outlined.NetworkCheck
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.SwapHoriz
@@ -416,6 +417,25 @@ fun ToolsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
             ),
         ) {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        stringResource(R.string.knine_diagnose),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Outlined.HealthAndSafety,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                },
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { navController.navigate("tools/diagnose") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
             ListItem(
                 headlineContent = {
                     Text(

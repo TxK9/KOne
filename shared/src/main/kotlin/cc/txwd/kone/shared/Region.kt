@@ -29,4 +29,13 @@ object Region {
 
     /** The direct server when none is chosen. */
     fun directDefault(region: String) = if (china(region)) "223.5.5.5" else "1.1.1.1"
+
+    /** The sites a diagnosis tries in [region], by name and address: ones anyone there expects to reach. */
+    fun checkSites(region: String): List<Pair<String, String>> = listOf(
+        "Google" to "https://www.gstatic.com/generate_204", "GitHub" to "https://github.com", "YouTube" to "https://www.youtube.com",
+    ) + if (china(region)) listOf("Baidu" to "https://www.baidu.com") else listOf("Wikipedia" to "https://www.wikipedia.org")
+
+    /** The names a diagnosis resolves in [region]: one at home and one abroad, or two that resolve everywhere. */
+    fun checkNames(region: String): List<String> =
+        if (china(region)) listOf("www.qq.com", "www.google.com") else listOf("www.cloudflare.com", "www.google.com")
 }

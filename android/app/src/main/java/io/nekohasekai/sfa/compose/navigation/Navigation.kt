@@ -272,6 +272,16 @@ fun NavHost(
 
         // Tools subscreens with slide animations
         composable(
+            route = "tools/diagnose",
+            enterTransition = slideInFromRight,
+            exitTransition = slideOutToLeft,
+            popEnterTransition = slideInFromLeft,
+            popExitTransition = slideOutToRight,
+        ) {
+            io.nekohasekai.sfa.compose.screen.tools.DiagnosisScreen(navController = navController, serviceStatus = serviceStatus)
+        }
+
+        composable(
             route = "tools/network_quality",
             enterTransition = slideInFromRight,
             exitTransition = slideOutToLeft,

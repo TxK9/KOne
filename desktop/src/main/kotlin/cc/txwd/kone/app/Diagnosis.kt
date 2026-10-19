@@ -15,10 +15,11 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 /** How a check went. */
-enum class Outcome { Running, Pass, Warn, Fail }
+/** How one check went: the shared core's ([cc.txwd.kone.shared.Outcome]). */
+typealias Outcome = cc.txwd.kone.shared.Outcome
 
-/** One check of a diagnosis: what was checked, how it went, and a few words on it. */
-data class Check(val title: String, val outcome: Outcome, val detail: String = "")
+/** One check of a diagnosis: the shared core's ([cc.txwd.kone.shared.Check]). */
+typealias Check = cc.txwd.kone.shared.Check
 
 /**
  * The checks of the network a diagnosis makes, through the same path as the person's traffic:
@@ -32,13 +33,12 @@ object Diagnosis {
     /** A name at home and one abroad. */
     val NAMES = listOf("www.qq.com", "www.google.com")
 
-    /** Outside China: sites anyone anywhere expects to reach, and names that resolve everywhere. */
-    val GLOBAL_SITES = listOf("Google" to "https://www.gstatic.com/generate_204", "GitHub" to "https://github.com", "YouTube" to "https://www.youtube.com", "Wikipedia" to "https://www.wikipedia.org")
-    val GLOBAL_NAMES = listOf("www.cloudflare.com", "www.google.com")
+    /** Outside China: the shared core's sites and names. */
+    val GLOBAL_SITES = cc.txwd.kone.shared.Region.checkSites(cc.txwd.kone.shared.Region.GLOBAL)
 
-    /** The sites and names diagnosis tries in [region]. */
-    fun sitesFor(region: String) = if (cc.txwd.kone.shared.Region.china(region)) SITES else GLOBAL_SITES
-    fun namesFor(region: String) = if (cc.txwd.kone.shared.Region.china(region)) NAMES else GLOBAL_NAMES
+    /** The sites and names diagnosis tries in [region] ([cc.txwd.kone.shared.Region]). */
+    fun sitesFor(region: String) = cc.txwd.kone.shared.Region.checkSites(region)
+    fun namesFor(region: String) = cc.txwd.kone.shared.Region.checkNames(region)
 
     /** Whether each name in [names] resolves within five seconds. */
     suspend fun names(names: List<String> = NAMES): Check = coroutineScope {
@@ -132,23 +132,9 @@ object Diagnosis {
      * off, and certificates fail when the clock is far out, so a node "does not work" for a reason
      * no node can fix. Null when unknown.
      */
-    fun clock(skew: Long?): Check? {
-        skew ?: return null
-        val off = kotlin.math.abs(skew)
-        val words = when {
-            off < 90 -> "${off} s"
-            off < 3_600 -> "${off / 60} min"
-            off < 2 * 86_400 -> "${off / 3_600} h"
-            else -> "${off / 86_400} days"
-        } + if (skew > 0) " ahead" else " behind"
-        return when {
-            off < 30 -> Check(CLOCK, Outcome.Pass, "Right")
-            off < 90 -> Check(CLOCK, Outcome.Warn, words)
-            else -> Check(CLOCK, Outcome.Fail, words)
-        }
-    }
+    fun clock(skew: Long?): Check? = cc.txwd.kone.shared.Checks.clock(skew)
 
-    const val CLOCK = "Clock"
+    const val CLOCK = cc.txwd.kone.shared.Checks.CLOCK
 
     /** A delay in milliseconds as a check of [name]. */
     fun node(name: String, delay: Int?): Check = when {

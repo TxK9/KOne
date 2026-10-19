@@ -93,9 +93,8 @@ object NetworkReach {
         return verdict(heard)
     }
 
-    /** Seconds this computer's clock is ahead of a server's HTTP Date (behind when negative); null when it is not one. */
-    fun skew(date: String, now: Long = System.currentTimeMillis()): Long? =
-        runCatching { (now - ZonedDateTime.parse(date.trim(), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli()) / 1000 }.getOrNull()
+    /** Seconds this computer's clock is ahead of a server's HTTP Date (the shared core's [cc.txwd.kone.shared.Checks.skew]). */
+    fun skew(date: String, now: Long = System.currentTimeMillis()): Long? = cc.txwd.kone.shared.Checks.skew(date, now)
 
     /** What the answers add up to; a sign-in page is only one the network named with http or https. */
     fun verdict(heard: List<Heard>): ReachCheck {
