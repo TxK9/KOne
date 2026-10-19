@@ -97,6 +97,10 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import kotlin.math.roundToInt
 
+/** The rail's pages, in order: Ctrl+1 is the first. */
+private val RAIL = listOf(Page.Dashboard, Page.Nodes, Page.Rules, Page.Log, Page.Tools, Page.Settings)
+private val NUMBERS = listOf(Key.One, Key.Two, Key.Three, Key.Four, Key.Five, Key.Six)
+
 @OptIn(FlowPreview::class)
 fun main(args: Array<String>) {
     // An error KOne did not expect is kept on this computer (Crashes). One that ends the App, on
@@ -222,9 +226,16 @@ fun main(args: Array<String>) {
                 },
                 state = window, visible = shown, title = "KOne", icon = icon, undecorated = true,
                 onPreviewKeyEvent = { event ->
-                    // Ctrl+K opens the command palette from anywhere, a text field included.
-                    (event.type == KeyEventType.KeyDown && event.isCtrlPressed && event.key == Key.K && model.screen == Screen.Dashboard)
-                        .also { if (it) palette = !palette }
+                    // Ctrl+K opens the command palette from anywhere, a text field included; Ctrl+1 to
+                    // Ctrl+6 go to the rail's pages in order.
+                    val ours = event.type == KeyEventType.KeyDown && event.isCtrlPressed && model.screen == Screen.Dashboard
+                    val numbered = RAIL.getOrNull(NUMBERS.indexOf(event.key))
+                    when {
+                        !ours -> false
+                        event.key == Key.K -> { palette = !palette; true }
+                        numbered != null -> { page = numbered; palette = false; true }
+                        else -> false
+                    }
                 },
                 onKeyEvent = { event ->
                     // Esc folds the ⋮ menu away.
@@ -270,7 +281,7 @@ fun main(args: Array<String>) {
                                   moving = inSight,
                               )
                               Screen.Dashboard -> WithRail(
-                                  page, { page = it }, listOf(Page.Dashboard, Page.Nodes, Page.Rules, Page.Log, Page.Tools, Page.Settings),
+                                  page, { page = it }, RAIL,
                                   marked = if (settings.state.update is UpdateState.Available) setOf(Page.Settings) else emptySet(),
                               ) {
                                   when (page) {
@@ -593,7 +604,7 @@ private fun commands(model: AppModel, query: String, go: (Page) -> Unit): List<c
     add(cc.txwd.kone.ui.Command("Update category lists", "Rules") { go(Page.Rules); model.updateLists(force = true) })
     add(cc.txwd.kone.ui.Command("Import from clipboard", "Nodes: links, Clash or sing-box") { model.importText(clipboardText().orEmpty()) })
     add(cc.txwd.kone.ui.Command("Import rules from clipboard", "Rules: Clash or v2rayN") { go(Page.Rules); model.importRulesFrom(clipboardText().orEmpty()) })
-    for (target in listOf(Page.Dashboard, Page.Nodes, Page.Rules, Page.Log, Page.Tools, Page.Settings)) {
-        add(cc.txwd.kone.ui.Command("Go to ${target.title}", "Page") { go(target) })
+    RAIL.forEachIndexed { index, target ->
+        add(cc.txwd.kone.ui.Command("Go to ${target.title}", "Page · Ctrl+${index + 1}") { go(target) })
     }
 }
