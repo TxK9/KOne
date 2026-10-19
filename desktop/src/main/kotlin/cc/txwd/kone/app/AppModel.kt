@@ -99,11 +99,24 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** The person's subscriptions (Nodes), fetched in the background and joined after the imported nodes. */
     private val subscriptions = Subscriptions(File(Places.data, "subscriptions.bin"), Vault.forThisComputer())
 
+    /** Adding, fetching, editing and removing them: see SubscriptionUpdates. */
+    private val feeds: SubscriptionUpdates = SubscriptionUpdates(scope, subscriptions, object : SubscriptionUpdates.Host {
+        override val managed get() = account.binding?.source
+        override val proxied get() = this@AppModel.proxied
+        override val inUse get() = account.binding?.selected?.let { subscribed[it]?.id }
+        override fun accepted(managed: JsonObject, nodes: List<JsonObject>) = acceptedNodes(managed, nodes)
+        override fun refresh() = this@AppModel.refresh()
+        override fun nodesChanged() = this@AppModel.nodesChanged()
+        override fun reload() = loadNodes()
+        override fun restart() = this@AppModel.restart()
+        override fun tell(message: String, error: Boolean) = this@AppModel.tell(message, error)
+        override fun notice(text: String) = onNotice(text)
+    })
+
     /** The subscription each listed node came from, by tag. */
     private var subscribed: Map<String, Subscription> = emptyMap()
 
     /** Subscriptions being fetched now. */
-    private val updating = HashSet<String>()
 
     /** The node tags the running core was started with: choosing one outside them starts it afresh. */
     private var runningTags: Set<String> = emptySet()
@@ -204,7 +217,6 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     var onNotice: (String) -> Unit = {}
 
     /** Subscription warnings already said this session. */
-    private val warned = HashSet<String>()
 
     /** Opens a page in the person's browser (the network's sign-in page). */
     var onBrowse: (String) -> Unit = {}
@@ -606,66 +618,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     // Nodes
 
     /** A subscription link typed or pasted: kept and fetched at once. False when it is not one KOne fetches (https only). */
-    fun addSubscription(text: String): Boolean {
-        val url = text.trim()
-        if (!SubscriptionContent.acceptable(url)) return false
-        val added = subscriptions.add(url, SubscriptionContent.name(url, null))
-        if (added == null) {
-            tell(if (subscriptions.all.size >= Subscriptions.MOST) "No more subscriptions can be added" else "This subscription is already here", error = true)
-            return true
-        }
-        refresh()
-        updateSubscription(added.id, first = true)
-        return true
-    }
+    fun addSubscription(text: String): Boolean = feeds.add(text)
 
-    fun updateSubscription(id: String) = updateSubscription(id, first = false)
-
-    private fun updateSubscription(id: String, first: Boolean) {
-        val managed = account.binding?.source ?: return
-        if (!updating.add(id)) return
-        refresh()
-        scope.launch {
-            val outcome = withContext(Dispatchers.IO) { runCatching { fetchSubscription(id, managed, first) }.getOrNull() }
-            updating.remove(id)
-            nodesChanged()
-            outcome?.let { (message, error) -> tell(message, error) }
-        }
-    }
-
-    /**
-     * Fetches, reads and checks one subscription, and keeps what sing-box accepts. A failure keeps
-     * the last good nodes and is shown on the subscription; a partial success is told in one line.
-     */
-    private fun fetchSubscription(id: String, managed: JsonObject, first: Boolean): Pair<String, Boolean>? {
-        val subscription = subscriptions.all.firstOrNull { it.id == id } ?: return null
-        val now = System.currentTimeMillis()
-        val fetched = try {
-            SubscriptionFetch.fetch(subscription.url, proxied)
-        } catch (failure: Exception) {
-            subscriptions.change(id) { it.copy(tried = now, error = SubscriptionFetch.reason(failure)) }
-            return null
-        }
-        val read = SubscriptionContent.read(fetched.body)
-        val kept = acceptedNodes(managed, read.nodes)
-        if (kept.isEmpty()) {
-            subscriptions.change(id) { it.copy(tried = now, info = fetched.info ?: it.info, error = read.refusal ?: "No usable nodes") }
-            return null
-        }
-        // A name KOne made up gives way to the provider's own.
-        val madeUp = subscription.name == SubscriptionContent.name(subscription.url, null)
-        subscriptions.change(id) {
-            it.copy(
-                name = if (madeUp) fetched.name else it.name,
-                hours = if (first) fetched.hours ?: it.hours else it.hours,
-                nodes = kept, info = fetched.info ?: it.info, updated = now, tried = now, error = null,
-            )
-        }
-        // The provider's terms running out, said once a session, before the nodes simply stop.
-        subscriptions.all.firstOrNull { it.id == id }?.warning(now)?.let { warning -> if (warned.add(warning)) onNotice(warning) }
-        val left = read.nodes.size - kept.size + read.refused
-        return if (left > 0) "${kept.size} nodes kept, $left left out" to false else null
-    }
+    fun updateSubscription(id: String) = feeds.update(id)
 
     /**
      * The nodes sing-box accepts alongside the managed ones: all at once when they all pass, else
@@ -681,22 +636,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         return keep(nodes)
     }
 
-    /** A subscription's name, link, interval and the words that leave nodes out; false when the link is not one KOne fetches. A new link is fetched at once. */
-    fun editSubscription(id: String, name: String, url: String, hours: Int, leaveOut: String = ""): Boolean {
-        if (!SubscriptionContent.acceptable(url) || hours !in 0..720) return false
-        val before = subscriptions.all.firstOrNull { it.id == id } ?: return false
-        subscriptions.change(id) { it.copy(name = name.ifBlank { it.name }.take(32), url = url, hours = hours, leaveOut = NodeFilter.clean(leaveOut)) }
-        loadNodes()
-        if (url != before.url) updateSubscription(id, first = false)
-        return true
-    }
+    fun editSubscription(id: String, name: String, url: String, hours: Int, leaveOut: String = ""): Boolean = feeds.edit(id, name, url, hours, leaveOut)
 
-    fun removeSubscription(id: String) {
-        val used = account.binding?.selected?.let { subscribed[it]?.id } == id
-        if (!subscriptions.remove(id)) return
-        nodesChanged()
-        if (used) restart()
-    }
+    fun removeSubscription(id: String) = feeds.remove(id)
 
     /**
      * An imported or subscribed node as a share link, handed to [copy]. The console's nodes are
@@ -1205,7 +1147,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             if (!SubscriptionContent.acceptable(url)) return@mapNotNull null
             subscriptions.add(url, name.take(32))?.also { subscriptions.change(it.id) { kept -> kept.copy(hours = hours.coerceIn(0, 720)) } }
         }
-        added.forEach { updateSubscription(it.id, first = false) }
+        added.forEach { feeds.update(it.id) }
         val managed = account.binding?.source
         if (managed != null && backup.imported.isNotEmpty()) {
             scope.launch {
@@ -1767,7 +1709,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     add(
                         NodeSection(
                             subscription.id, SourceKind.Subscription, subscription.name, listed.filter { subscribed[it.id]?.id == subscription.id },
-                            subscription.info, subscription.updated, subscription.error, subscription.hours, subscription.url, subscription.id in updating,
+                            subscription.info, subscription.updated, subscription.error, subscription.hours, subscription.url, feeds.updating(subscription.id),
                             leaveOut = subscription.leaveOut, left = subscription.kept.left,
                         ),
                     )
@@ -1808,7 +1750,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             while (isActive) {
                 if (account.binding != null) {
                     val now = System.currentTimeMillis()
-                    subscriptions.all.filter { it.due(now) }.forEach { updateSubscription(it.id, first = false) }
+                    feeds.updateDue(now)
                 }
                 delay(TimeUnit.MINUTES.toMillis(15))
             }
