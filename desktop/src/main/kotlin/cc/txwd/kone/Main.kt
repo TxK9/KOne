@@ -40,6 +40,7 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import cc.txwd.kone.app.AppModel
+import cc.txwd.kone.app.Crashes
 import cc.txwd.kone.app.Places
 import cc.txwd.kone.app.Preferences
 import cc.txwd.kone.app.Screen
@@ -98,6 +99,24 @@ import kotlin.math.roundToInt
 
 @OptIn(FlowPreview::class)
 fun main(args: Array<String>) {
+    // An error KOne did not expect is kept on this computer (Crashes). One that ends the App, on
+    // the main thread, is also said in words, in place of the launcher's "Failed to launch JVM".
+    Thread.setDefaultUncaughtExceptionHandler { thread, failure ->
+        Crashes.record(failure)
+        if (thread.name == "main") {
+            if (!GraphicsEnvironment.isHeadless()) {
+                runCatching {
+                    javax.swing.JOptionPane.showMessageDialog(
+                        null,
+                        "KOne stopped on an error it did not expect (${Crashes.summary(failure)}).\n" +
+                            "Starting it again usually works. The details are in ${java.io.File(Places.data, "crashes.log")}.",
+                        "KOne", javax.swing.JOptionPane.ERROR_MESSAGE,
+                    )
+                }
+            }
+            kotlin.system.exitProcess(1)
+        }
+    }
     // A kone:// link clicked in a browser arrives as the first argument; --tray when Windows
     // starts KOne as the person signs in (Settings → Start with Windows).
     val link = args.firstOrNull { it.startsWith("kone://", ignoreCase = true) }

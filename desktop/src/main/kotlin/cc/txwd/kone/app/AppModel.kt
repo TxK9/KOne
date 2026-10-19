@@ -1035,6 +1035,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             "Mode" to preferences.mode,
             "Way" to if (proxied != null) "System proxy" else "Virtual adapter",
             "Connected" to (connection == Connection.Online).toString(),
+        ) + listOfNotNull(
+            // A stop in the last week, in a few words: what and where, never its message.
+            Crashes.last()?.takeIf { System.currentTimeMillis() - it.at < 7 * 86_400_000L }?.let { stop ->
+                "Last stop" to "${java.time.Instant.ofEpochMilli(stop.at).toString().substringBefore('.').replace('T', ' ')} UTC, ${stop.what}"
+            },
         ),
     )
 
