@@ -235,20 +235,6 @@ fun ProfilesCard(
         }
     }
 
-    // Node links, from the clipboard or a QR code, are imported at once and the first is
-    // selected. A node that is already here is selected instead of being added again.
-    fun importNodeLinks(links: List<String>) = importNodes(links.size) { link -> createPairedProfile(context, links[link]) }
-
-    // A Clash profile's proxies, pasted as text, are imported the same way as links.
-    fun importClash(text: String) {
-        val read = clashNodes(text)
-        if (read.nodes.isEmpty()) {
-            Toast.makeText(context, read.refusal ?: "No nodes found in the profile", Toast.LENGTH_LONG).show()
-            return
-        }
-        importNodes(read.nodes.size, read.refused) { node -> createPairedProfile(context, read.nodes[node]) }
-    }
-
     // Imports [count] nodes, selects the first and says what came of them in one line;
     // [refused] are those already left out before import.
     fun importNodes(count: Int, refused: Int = 0, create: suspend (Int) -> ImportedNode) {
@@ -280,6 +266,20 @@ fun ProfilesCard(
             }
             Toast.makeText(context, message, if (failed > 0) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // Node links, from the clipboard or a QR code, are imported at once and the first is
+    // selected. A node that is already here is selected instead of being added again.
+    fun importNodeLinks(links: List<String>) = importNodes(links.size) { link -> createPairedProfile(context, links[link]) }
+
+    // A Clash profile's proxies, pasted as text, are imported the same way as links.
+    fun importClash(text: String) {
+        val read = clashNodes(text)
+        if (read.nodes.isEmpty()) {
+            Toast.makeText(context, read.refusal ?: "No nodes found in the profile", Toast.LENGTH_LONG).show()
+            return
+        }
+        importNodes(read.nodes.size, read.refused) { node -> createPairedProfile(context, read.nodes[node]) }
     }
 
     // The link is always copied from somewhere, so read it straight from the clipboard:
