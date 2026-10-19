@@ -48,7 +48,9 @@ import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.ktx.clipboardText
 import cc.txwd.kone.shared.Categories
+import cc.txwd.kone.shared.Hosts
 import cc.txwd.kone.shared.ListStatus
+import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.shared.Rule
 import cc.txwd.kone.shared.Region
 import io.nekohasekai.sfa.selfuse.CategoryListKeeper
@@ -92,6 +94,9 @@ fun RoutingSettingsScreen(navController: NavController) {
     var direct by remember { mutableStateOf(choices.direct.joinToString("\n")) }
     var proxied by remember { mutableStateOf(choices.proxied.joinToString("\n")) }
     var saved by remember { mutableStateOf(false) }
+    var hosts by remember { mutableStateOf(RoutingSettings.hostLines(choices.hosts)) }
+    var nameServers by remember { mutableStateOf(RoutingSettings.nameServerLines(choices.nameServers)) }
+    var namesSaved by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val privateDns = remember { PrivateDns.hostname(context) }
 
@@ -212,6 +217,40 @@ fun RoutingSettingsScreen(navController: NavController) {
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        KnineSectionLabel(text = stringResource(R.string.knine_routing_names))
+        Section {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = hosts, onValueChange = { hosts = it; namesSaved = null },
+                    modifier = Modifier.fillMaxWidth(), minLines = 2,
+                    label = { Text(stringResource(R.string.knine_routing_hosts)) },
+                    supportingText = { Text(stringResource(R.string.knine_routing_hosts_hint)) },
+                )
+                OutlinedTextField(
+                    value = nameServers, onValueChange = { nameServers = it; namesSaved = null },
+                    modifier = Modifier.fillMaxWidth(), minLines = 2,
+                    label = { Text(stringResource(R.string.knine_routing_name_servers)) },
+                    supportingText = { Text(stringResource(R.string.knine_routing_name_servers_hint)) },
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    namesSaved?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f)) }
+                    TextButton(onClick = {
+                        // Kept as the template takes them; a line that is not a name and an address is left out and said.
+                        val hostLines = lines(hosts)
+                        val serverLines = lines(nameServers)
+                        val keptHosts = hostLines.mapNotNull(Hosts::parse)
+                        val keptServers = serverLines.mapNotNull(NameServers::parse)
+                        hosts = RoutingSettings.hostLines(keptHosts)
+                        nameServers = RoutingSettings.nameServerLines(keptServers)
+                        val left = hostLines.size - keptHosts.size + serverLines.size - keptServers.size
+                        keep(choices.copy(hosts = keptHosts, nameServers = keptServers))
+                        namesSaved = if (left > 0) context.getString(R.string.knine_routing_names_left, left) else context.getString(R.string.knine_routing_saved)
+                    }) { Text(stringResource(R.string.knine_routing_save_names)) }
+                }
             }
         }
 

@@ -1,4 +1,4 @@
-package cc.txwd.kone.core
+package cc.txwd.kone.shared
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -22,7 +22,7 @@ data class Host(val name: String, val address: String) {
 
 /**
  * The person's fixed answers as the template uses them, checked and written one way exactly as
- * the service does (desktop/service/hosts.go), so the two build the same configuration.
+ * the Windows service does (desktop/service/hosts.go), so the two build the same configuration.
  */
 object Hosts {
     const val NAMES = 64
@@ -37,10 +37,10 @@ object Hosts {
         val seen = HashSet<String>()
         for (entry in entries) {
             val name = entry.name.trim().lowercase()
-            if (name.length > 253 || !KoneConfig.isSite(name)) continue
+            if (name.length > 253 || !Names.isSite(name)) continue
             val raw = entry.address.trim()
             if ('/' in raw) continue
-            val address = UserRules.network(raw)?.substringBefore('/') ?: continue
+            val address = Names.network(raw)?.substringBefore('/') ?: continue
             if ("$name $address" in seen) continue
             val group = groups[name] ?: run {
                 if (groups.size == NAMES) return@run null
@@ -64,7 +64,7 @@ object Hosts {
         val parts = line.trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }
         if (parts.size != 2) return null
         val (first, second) = parts
-        val entry = if (UserRules.network(first) != null && '/' !in first) Host(second, first) else Host(first, second)
+        val entry = if (Names.network(first) != null && '/' !in first) Host(second, first) else Host(first, second)
         return clean(listOf(entry)).firstOrNull()?.let { flatten(listOf(it)).first() }
     }
 

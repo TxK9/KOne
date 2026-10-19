@@ -1,5 +1,9 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.Host
+import cc.txwd.kone.shared.Hosts
+import cc.txwd.kone.shared.NameServer
+import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.shared.Region
 import cc.txwd.kone.shared.Rule
 import io.nekohasekai.libbox.Libbox
@@ -24,7 +28,16 @@ object RoutingSettings {
         directDns = Settings.knineRoutingDirectDns.takeIf { it in Routing.DIRECT }.orEmpty(),
         ipv6 = Settings.knineRoutingIpv6,
         region = Region.clean(Settings.knineRoutingRegion),
+        hosts = lines(Settings.knineRoutingHosts).mapNotNull(Hosts::parse),
+        nameServers = lines(Settings.knineRoutingNameServers).mapNotNull(NameServers::parse),
     )
+
+    /** Fixed answers as kept and shown: "name address", one a line, cleaned and bounded. */
+    fun hostLines(hosts: List<Host>): String = Hosts.flatten(Hosts.clean(hosts)).joinToString("\n") { "${it.name} ${it.address}" }
+
+    /** The person's own servers as kept and shown: "domain server", one a line. */
+    fun nameServerLines(servers: List<NameServer>): String =
+        NameServers.flatten(NameServers.clean(servers)).joinToString("\n") { "${it.domain} ${it.server}" }
 
     private fun lines(text: String) = text.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
 
@@ -44,6 +57,8 @@ object RoutingSettings {
         Settings.knineRoutingDirectDns = choices.directDns.takeIf { it in Routing.DIRECT }.orEmpty()
         Settings.knineRoutingIpv6 = choices.ipv6
         Settings.knineRoutingRegion = Region.clean(choices.region)
+        Settings.knineRoutingHosts = hostLines(choices.hosts)
+        Settings.knineRoutingNameServers = nameServerLines(choices.nameServers)
         HomeSettings.refreshSaved()
         // A service that is not running has nothing to reload.
         runCatching { Libbox.newStandaloneCommandClient().serviceReload() }

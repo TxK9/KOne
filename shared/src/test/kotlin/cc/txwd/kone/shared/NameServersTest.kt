@@ -1,4 +1,4 @@
-package cc.txwd.kone.core
+package cc.txwd.kone.shared
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

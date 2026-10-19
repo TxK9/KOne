@@ -57,6 +57,8 @@ object Settings {
     var knineRoutingRemoteDns by dataStore.string("knine_routing_remote_dns") { "" }
     var knineRoutingDirectDns by dataStore.string("knine_routing_direct_dns") { "" }
     var knineRoutingIpv6 by dataStore.boolean("knine_routing_ipv6") { false }
+    var knineRoutingHosts by dataStore.string("knine_routing_hosts") { "" }
+    var knineRoutingNameServers by dataStore.string("knine_routing_name_servers") { "" }
     // Where the person is: the shared edition is made for people outside China; the owner's keeps China.
     var knineRoutingRegion by dataStore.string("knine_routing_region") { if (BuildConfig.KNINE_OWNER) "china" else "global" }
     var selectedProfile by dataStore.long(SettingsKey.SELECTED_PROFILE) { -1L }

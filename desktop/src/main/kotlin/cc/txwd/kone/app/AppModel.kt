@@ -12,8 +12,8 @@ import cc.txwd.kone.core.ClashApi
 import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.Ends
 import cc.txwd.kone.core.ExitTrace
-import cc.txwd.kone.core.Host
-import cc.txwd.kone.core.NameServer
+import cc.txwd.kone.shared.Host
+import cc.txwd.kone.shared.NameServer
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.Probe

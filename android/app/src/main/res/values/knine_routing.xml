@@ -8,6 +8,7 @@
     <string name="knine_routing_proxied_hint">One site a line, e.g. example.com. In Rule mode, even where the China lists would send it straight out.</string>
     <string name="knine_routing_save_sites">Save sites</string>
     <string name="knine_routing_saved">Saved</string>
+    <string name="knine_routing_save_names">Save names</string>
     <string name="knine_routing_rules">Rules</string>
     <string name="knine_routing_rules_detail">In order: the first that matches decides. After the sites, before Block ads.</string>
     <string name="knine_routing_rules_none">No rules of your own yet</string>
@@ -42,6 +43,12 @@
     <string name="knine_routing_unmatched_direct">Straight out</string>
     <string name="knine_routing_unmatched_detail">What no site, list or rule sent anywhere, in Rule mode</string>
     <string name="knine_routing_dns">DNS</string>
+    <string name="knine_routing_names">Names</string>
+    <string name="knine_routing_hosts">Fixed answers</string>
+    <string name="knine_routing_hosts_hint">One a line: a name and its address, e.g. nas.example.com 192.0.2.10</string>
+    <string name="knine_routing_name_servers">DNS for domains</string>
+    <string name="knine_routing_name_servers_hint">One a line: a domain and the server for the names under it, e.g. corp.example.com 192.0.2.53</string>
+    <string name="knine_routing_names_left">Saved; %1$d lines were not a name and an address</string>
     <string name="knine_routing_region">Where you are</string>
     <string name="knine_routing_region_global">Outside China</string>
     <string name="knine_routing_region_china">China</string>

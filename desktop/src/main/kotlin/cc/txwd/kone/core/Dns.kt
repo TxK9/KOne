@@ -90,9 +90,5 @@ object Dns {
     }
 
     /** One IPv4 or IPv6 address written as rules write them, without a range. */
-    internal fun address(text: String): String? {
-        val lower = text.trim().lowercase()
-        if ('/' in lower) return null
-        return UserRules.network(lower)?.substringBefore('/')
-    }
+    internal fun address(text: String): String? = cc.txwd.kone.shared.Names.address(text)
 }

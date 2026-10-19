@@ -1,7 +1,7 @@
 package cc.txwd.kone.app
 
-import cc.txwd.kone.core.Host
-import cc.txwd.kone.core.NameServer
+import cc.txwd.kone.shared.Host
+import cc.txwd.kone.shared.NameServer
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals

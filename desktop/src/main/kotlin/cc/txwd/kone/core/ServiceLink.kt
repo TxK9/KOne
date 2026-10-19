@@ -1,5 +1,7 @@
 package cc.txwd.kone.core
 
+import cc.txwd.kone.shared.Host
+import cc.txwd.kone.shared.NameServer
 import com.sun.jna.platform.win32.Kernel32
 import com.sun.jna.platform.win32.WinBase
 import com.sun.jna.platform.win32.WinDef

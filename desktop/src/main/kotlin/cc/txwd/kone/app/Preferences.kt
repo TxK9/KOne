@@ -1,10 +1,10 @@
 package cc.txwd.kone.app
 
 import cc.txwd.kone.core.Dns
-import cc.txwd.kone.core.Host
-import cc.txwd.kone.core.Hosts
-import cc.txwd.kone.core.NameServer
-import cc.txwd.kone.core.NameServers
+import cc.txwd.kone.shared.Host
+import cc.txwd.kone.shared.Hosts
+import cc.txwd.kone.shared.NameServer
+import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.core.UserRules

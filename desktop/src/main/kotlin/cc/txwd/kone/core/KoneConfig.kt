@@ -1,5 +1,9 @@
 package cc.txwd.kone.core
 
+import cc.txwd.kone.shared.Host
+import cc.txwd.kone.shared.Hosts
+import cc.txwd.kone.shared.NameServer
+import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.console.ConsoleException
 import cc.txwd.kone.console.ConsoleFailure
 import cc.txwd.kone.node.Countries

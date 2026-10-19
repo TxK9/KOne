@@ -433,8 +433,8 @@ class ScreensTest {
                         state, SettingsActions(),
                         NetworkState(
                             remoteDns = "https://dns.example.com:443/dns-query", directDns = "dnspod", ipv6 = true,
-                            hosts = listOf(cc.txwd.kone.core.Host("nas.example.org", "192.0.2.10"), cc.txwd.kone.core.Host("printer.example.org", "192.0.2.20")),
-                            nameServers = listOf(cc.txwd.kone.core.NameServer("corp.example.org", "192.0.2.53")),
+                            hosts = listOf(cc.txwd.kone.shared.Host("nas.example.org", "192.0.2.10"), cc.txwd.kone.shared.Host("printer.example.org", "192.0.2.20")),
+                            nameServers = listOf(cc.txwd.kone.shared.NameServer("corp.example.org", "192.0.2.53")),
                         ),
                     )
                 }

@@ -95,9 +95,9 @@ data class NetworkState(
     /** Whether a chosen node that stops answering is stood in for by the best working one. */
     val failover: Boolean = true,
     /** Fixed answers for chosen names. */
-    val hosts: List<cc.txwd.kone.core.Host> = emptyList(),
+    val hosts: List<cc.txwd.kone.shared.Host> = emptyList(),
     /** Servers of the person's own for chosen domains. */
-    val nameServers: List<cc.txwd.kone.core.NameServer> = emptyList(),
+    val nameServers: List<cc.txwd.kone.shared.NameServer> = emptyList(),
     /** Where the person is: outside China ("global") or China. */
     val region: String = cc.txwd.kone.shared.Region.GLOBAL,
 )
@@ -111,10 +111,10 @@ class NetworkActions(
     val onFailover: (Boolean) -> Unit = {},
     /** A fixed answer typed as "name address"; false when it is not one. */
     val onAddHost: (String) -> Boolean = { true },
-    val onRemoveHost: (cc.txwd.kone.core.Host) -> Unit = {},
+    val onRemoveHost: (cc.txwd.kone.shared.Host) -> Unit = {},
     /** A server for a domain typed as "domain server"; false when it is not one. */
     val onAddNameServer: (String) -> Boolean = { true },
-    val onRemoveNameServer: (cc.txwd.kone.core.NameServer) -> Unit = {},
+    val onRemoveNameServer: (cc.txwd.kone.shared.NameServer) -> Unit = {},
     val onRegion: (String) -> Unit = {},
     /** Saves the setup to a file the person picks, or reads one back. */
     val onExport: () -> Unit = {},

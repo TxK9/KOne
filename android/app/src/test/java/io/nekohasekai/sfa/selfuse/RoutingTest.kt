@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.Hosts
+import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.shared.Rule
 import io.nekohasekai.sfa.managed.ManagedConfig
 import org.json.JSONObject
@@ -169,6 +171,28 @@ class RoutingTest {
         assertTrue(rules(both, "route").any { it.optJSONArray("rule_set")?.optString(0) == "geoip-jp" && it.optString("outbound") == "direct" })
         assertFalse(rules(both, "dns").any { it.optJSONArray("rule_set")?.optString(0) == "geoip-jp" })
         assertEquals(JSONObject(managed()).toString(2), Routing.apply(both.toString(), Routing.Choices(), kept))
+    }
+
+    @Test
+    fun fixedAnswersAndOwnServersComeAfterTheClaudeBlock() {
+        val named = Routing.Choices(
+            hosts = listOfNotNull(Hosts.parse("nas.example.com 192.0.2.10"), Hosts.parse("2001:db8::10 nas.example.com")),
+            nameServers = listOfNotNull(NameServers.parse("corp.example.com 192.0.2.53")),
+        )
+        val config = JSONObject(Routing.apply(managed(), named))
+        val answers = rules(config, "dns")
+        val claude = answers.indexOfFirst { it.optString("action") == "reject" }
+        val fixed = answers.indexOfFirst { it.optString("action") == "predefined" }
+        val own = answers.indexOfFirst { it.optString("server") == "own-dns-1" }
+        assertTrue(claude in 0 until fixed && fixed < own)
+        assertEquals("[\"nas.example.com. IN A 192.0.2.10\"]", answers[fixed].getJSONArray("answer").toString())
+        assertEquals("[\"corp.example.com\"]", answers[own].getJSONArray("domain_suffix").toString())
+        val servers = config.getJSONObject("dns").getJSONArray("servers").let { array -> (0 until array.length()).map { array.getJSONObject(it) } }
+        assertEquals("192.0.2.53", servers.single { it.getString("tag") == "own-dns-1" }.getString("server"))
+
+        // Applied again, nothing doubles; with none set, the template is as built.
+        assertEquals(config.toString(2), Routing.apply(config.toString(), named))
+        assertEquals(JSONObject(managed()).toString(2), Routing.apply(config.toString(), Routing.Choices()))
     }
 
     @Test

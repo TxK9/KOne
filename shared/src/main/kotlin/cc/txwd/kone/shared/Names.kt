@@ -44,6 +44,13 @@ object Names {
     }
 
     /** An address range from its first address ("192.168.1.0/24"); an address alone is that one address. */
+    /** One IPv4 or IPv6 address written as rules write them, without a range; null otherwise. */
+    fun address(text: String): String? {
+        val lower = text.trim().lowercase()
+        if ('/' in lower) return null
+        return network(lower)?.substringBefore('/')
+    }
+
     fun network(text: String): String? {
         val lower = text.lowercase()
         val address = lower.substringBefore('/')

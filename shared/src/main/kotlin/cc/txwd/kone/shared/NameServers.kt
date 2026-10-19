@@ -1,4 +1,4 @@
-package cc.txwd.kone.core
+package cc.txwd.kone.shared
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -35,8 +35,8 @@ object NameServers {
         val seen = HashSet<String>()
         for (entry in entries) {
             val domain = entry.domain.trim().lowercase()
-            if (domain.length > 253 || !KoneConfig.isSite(domain) || domain in seen) continue
-            val server = Dns.address(entry.server) ?: continue
+            if (domain.length > 253 || !Names.isSite(domain) || domain in seen) continue
+            val server = Names.address(entry.server) ?: continue
             if (seen.size == MOST) continue
             seen += domain
             groups.getOrPut(server) { mutableListOf() } += domain
@@ -52,7 +52,7 @@ object NameServers {
         val parts = line.trim().split(Regex("""[\s,=]+""")).filter { it.isNotEmpty() }
         if (parts.size != 2) return null
         val (first, second) = parts
-        val entry = if (Dns.address(first) != null) NameServer(second, first) else NameServer(first, second)
+        val entry = if (Names.address(first) != null) NameServer(second, first) else NameServer(first, second)
         return flatten(clean(listOf(entry))).firstOrNull()
     }
 

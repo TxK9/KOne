@@ -1,5 +1,9 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.Host
+import cc.txwd.kone.shared.Hosts
+import cc.txwd.kone.shared.NameServer
+import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.shared.Names
 import cc.txwd.kone.shared.Region
 import cc.txwd.kone.shared.Rule
@@ -43,6 +47,10 @@ object Routing {
          * built for China, so this default leaves it as built.
          */
         val region: String = Region.CHINA,
+        /** Fixed answers: a name and an address for it, as a hosts file gives them ([Hosts]). */
+        val hosts: List<Host> = emptyList(),
+        /** DNS servers of the person's own for the names under chosen domains, as an intranet's ([NameServers]). */
+        val nameServers: List<NameServer> = emptyList(),
     )
 
     /** The DNS-over-HTTPS servers asked through the node, by preset. */
@@ -57,6 +65,7 @@ object Routing {
     private const val PROXY = PairedProfile.PROXY_TAG
     private const val LOCAL_DNS = "local-dns"
     private const val PROXY_DNS = "proxy-dns"
+    private const val OWN_DNS = "own-dns-"
 
     /** The site in what the person typed or pasted: the shared core's reading ([Names.site]). */
     fun site(text: String): String? = Names.site(text)
@@ -145,7 +154,11 @@ object Routing {
         val dnsEnd = dnsRules.indexOfFirst { it.length() == 2 && it.optString("clash_mode") == "Direct" && it.optString("server") == LOCAL_DNS }
             .let { if (it < 0) dnsRules.size else it }
         val dnsStart = dnsRules.take(dnsEnd).indexOfFirst { !leadingDns(it) }.let { if (it < 0) dnsEnd else it }
+        val ownServers = NameServers.clean(choices.nameServers)
         val dnsOurs = buildList {
+            // Fixed answers and the person's own servers first, still after the console's refusals.
+            Hosts.dnsRules(Hosts.clean(choices.hosts)).forEach { add(JSONObject(it.toString())) }
+            NameServers.dnsRules(ownServers).forEach { add(JSONObject(it.toString())) }
             if (direct.isNotEmpty()) add(JSONObject().put("domain_suffix", JSONArray(direct)).put("server", LOCAL_DNS))
             if (proxied.isNotEmpty()) add(JSONObject().put("clash_mode", "Rule").put("domain_suffix", JSONArray(proxied)).put("server", PROXY_DNS))
             own.forEach { rule -> OwnRules.dns(rule)?.let { add(it) } }
@@ -163,6 +176,10 @@ object Routing {
             listOfNotNull(JSONObject().put("clash_mode", "Rule").put("server", LOCAL_DNS).takeIf { choices.unmatchedDirect })
         dns.put("rules", JSONArray(answered))
         dns.put("strategy", if (choices.ipv6) "prefer_ipv4" else "ipv4_only")
+        // The person's own servers beside the template's, asked straight out; gone when none is set.
+        val servers = objects(dns.optJSONArray("servers")).filterNot { it.optString("tag").startsWith(OWN_DNS) } +
+            NameServers.servers(ownServers).map { JSONObject(it.toString()) }
+        dns.put("servers", JSONArray(servers))
         objects(dns.optJSONArray("servers")).forEach { server ->
             when (server.optString("tag")) {
                 LOCAL_DNS -> server.put("server", DIRECT[choices.directDns] ?: Region.directDefault(choices.region))
