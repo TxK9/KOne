@@ -6,7 +6,7 @@ import cc.txwd.kone.shared.NameServer
 import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.console.ConsoleException
 import cc.txwd.kone.console.ConsoleFailure
-import cc.txwd.kone.node.Countries
+import cc.txwd.kone.shared.Countries
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive

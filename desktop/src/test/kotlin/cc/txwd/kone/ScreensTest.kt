@@ -18,7 +18,7 @@ import cc.txwd.kone.core.Carried
 import cc.txwd.kone.core.CoreConnection
 import cc.txwd.kone.core.UserRule
 import cc.txwd.kone.ink.InkGallery
-import cc.txwd.kone.node.Countries
+import cc.txwd.kone.shared.Countries
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.shared.UserInfo
 import cc.txwd.kone.ui.Appearance

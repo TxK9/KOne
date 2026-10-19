@@ -1,4 +1,4 @@
-package io.nekohasekai.sfa.compose.screen.dashboard
+package cc.txwd.kone.shared
 
 /**
  * Country names, common city names and flag emoji used to recognise a node's

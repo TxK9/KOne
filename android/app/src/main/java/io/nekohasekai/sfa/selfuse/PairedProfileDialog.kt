@@ -36,7 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import io.nekohasekai.libbox.Libbox
 import org.json.JSONObject
-import io.nekohasekai.sfa.compose.screen.dashboard.Countries
+import cc.txwd.kone.shared.Countries
 import io.nekohasekai.sfa.compose.util.FlagIcons
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.ProfileManager

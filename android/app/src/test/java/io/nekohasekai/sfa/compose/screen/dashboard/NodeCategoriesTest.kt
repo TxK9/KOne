@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.compose.screen.dashboard
 
+import cc.txwd.kone.shared.Countries
+import cc.txwd.kone.shared.flagEmoji
 import io.nekohasekai.sfa.database.Profile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

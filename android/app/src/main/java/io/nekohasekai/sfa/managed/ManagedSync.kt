@@ -8,7 +8,7 @@ import android.os.Process
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.bg.BoxService
-import io.nekohasekai.sfa.compose.screen.dashboard.Countries
+import cc.txwd.kone.shared.Countries
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeCategoryStore
 import io.nekohasekai.sfa.compose.util.FlagIcons
 import io.nekohasekai.sfa.database.Profile

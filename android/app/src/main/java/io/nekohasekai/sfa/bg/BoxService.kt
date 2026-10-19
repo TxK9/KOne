@@ -286,7 +286,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
 
     /** The notification's title: the node's flag, as the dashboard shows it, and its name. */
     private fun titleOf(profile: io.nekohasekai.sfa.database.Profile): String {
-        val flag = io.nekohasekai.sfa.compose.util.FlagIcons.codeFor(profile.icon, profile.name)?.let { io.nekohasekai.sfa.compose.screen.dashboard.flagEmoji(it) }
+        val flag = io.nekohasekai.sfa.compose.util.FlagIcons.codeFor(profile.icon, profile.name)?.let { cc.txwd.kone.shared.flagEmoji(it) }
         return if (flag == null || profile.name.startsWith(flag)) profile.name else "$flag ${profile.name}"
     }
 

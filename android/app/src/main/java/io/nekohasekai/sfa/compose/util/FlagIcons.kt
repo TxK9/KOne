@@ -17,8 +17,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.nekohasekai.sfa.compose.screen.dashboard.Countries
-import io.nekohasekai.sfa.compose.screen.dashboard.flagEmoji
+import cc.txwd.kone.shared.Countries
+import cc.txwd.kone.shared.flagEmoji
 import io.nekohasekai.sfa.compose.theme.BackdropIcon
 
 /** Country flags stored as profile icons, e.g. "flag:JP". They render as emoji, not vectors. */

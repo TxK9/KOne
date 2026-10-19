@@ -21,7 +21,7 @@ import cc.txwd.kone.core.SourceNode
 import cc.txwd.kone.core.Speed
 import cc.txwd.kone.core.SpeedTest
 import cc.txwd.kone.core.UserRule
-import cc.txwd.kone.node.Countries
+import cc.txwd.kone.shared.Countries
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.ui.Connection
 import cc.txwd.kone.ui.DashboardState

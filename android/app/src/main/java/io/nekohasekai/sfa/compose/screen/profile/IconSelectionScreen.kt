@@ -68,8 +68,8 @@ import androidx.compose.ui.unit.dp
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
-import io.nekohasekai.sfa.compose.screen.dashboard.Countries
-import io.nekohasekai.sfa.compose.screen.dashboard.Country
+import cc.txwd.kone.shared.Countries
+import cc.txwd.kone.shared.Country
 import io.nekohasekai.sfa.compose.util.FlagGlyph
 import io.nekohasekai.sfa.compose.util.FlagIcons
 import io.nekohasekai.sfa.compose.util.ProfileIcon
