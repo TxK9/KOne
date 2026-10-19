@@ -110,6 +110,7 @@ Next:
 | Real-device test round | The one gap no code closes | Hardware and time |
 | Network profiles (behave per network: Direct at home, proxy at the office) | Fewer manual switches | Telling networks apart reliably: Windows 11 24H2 shows the Wi-Fi name only with location permission, and gateway addresses repeat across homes; asking for location is a privacy cost |
 | Other platforms | Reach | A second packaging and service model |
+| A localization hook in the desktop App (stable string keys, English default resources, a language setting) | The Android client has zh-CN and zh-TW packs and language selection; the desktop App has its English labels written in the code, so the separate language process has nothing to attach a pack to | Touches every page; packs themselves stay with the separate, independently reviewed language process |
 
 ## How progress is judged
 
