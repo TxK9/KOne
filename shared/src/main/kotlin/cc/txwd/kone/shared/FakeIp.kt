@@ -12,6 +12,11 @@ import kotlinx.serialization.json.JsonPrimitive
  * answer is as it was: the Claude block, fixed answers, the person's own servers, the direct
  * names and Direct mode keep real addresses.
  *
+ * The cost, as in every client with fake IP: a connection to a faked name carries the name, not
+ * an address, so rules on address ranges and country address lists (geoip-) do not see it; rules
+ * on names still do. In China, a Chinese site missing from the name list (geosite-cn) then goes
+ * through the node rather than straight out.
+ *
  * The Windows service builds the same (desktop/service/fakeip.go); the consistency test holds the
  * two together.
  */

@@ -168,7 +168,8 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
         PairsLine("DNS for domains", network.nameServers, { "${it.domain}  ${it.server}" }, networkActions.onRemoveNameServer, networkActions.onAddNameServer, "corp.example.org 192.0.2.53")
         Line("IPv6") { Switch(network.ipv6) { networkActions.onIpv6(!network.ipv6) } }
         // Faster first connections and no lookups of proxied names on this network; a program that
-        // keeps an address after KOne stops may need a moment to look it up again.
+        // keeps an address after KOne stops may need a moment to look it up again. Address-range
+        // and country-address rules see names, not addresses, for the names it answers.
         Line("Fake IP") { Switch(network.fakeIp) { networkActions.onFakeIp(!network.fakeIp) } }
         Line("Fail over") { Switch(network.failover) { networkActions.onFailover(!network.failover) } }
         Line("Backup") {
