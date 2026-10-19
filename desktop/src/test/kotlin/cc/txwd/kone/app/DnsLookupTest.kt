@@ -54,6 +54,9 @@ class DnsLookupTest {
         assertTrue(DnsLookup.verdict(emptyList(), refused = true, ipv6 = true).startsWith("Your provider blocks"))
         val apart = listOf(Check("Apps", Outcome.Pass, "203.0.113.1 · 5 ms"), Check("Remote", Outcome.Pass, "198.51.100.1 +1 · 40 ms"))
         assertTrue(DnsLookup.verdict(apart, refused = false, ipv6 = true).startsWith("Servers give different addresses"))
+        // With Fake IP on, KOne's own answer is a stand-in, not a disagreement.
+        val faked = listOf(Check("KOne", Outcome.Pass, "198.18.0.7 · 1 ms"), Check("Remote", Outcome.Pass, "203.0.113.1 · 40 ms"))
+        assertTrue(DnsLookup.verdict(faked, refused = false, ipv6 = true).startsWith("KOne answers with a stand-in address"))
         val ruled = listOf(Check("Apps", Outcome.Fail, DnsLookup.NO_NAME), Check("KOne", Outcome.Fail, DnsLookup.REFUSED))
         assertEquals("A rule in KOne refuses this name", DnsLookup.verdict(ruled, refused = false, ipv6 = true))
         val missing = listOf(Check("Apps", Outcome.Fail, DnsLookup.NO_NAME), Check("Remote", Outcome.Fail, DnsLookup.NO_NAME))

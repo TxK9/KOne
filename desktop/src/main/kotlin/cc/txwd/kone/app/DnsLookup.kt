@@ -88,6 +88,9 @@ object DnsLookup {
             details.any { it == NO_NAME } -> "Some servers say the name does not exist: one of them may be filtered"
             checks.any { it.outcome == Outcome.Fail } -> "Some servers do not answer: the others are enough while they work"
             !ipv6 && checks.any { check -> check.title == "Apps" && check.detail.substringBefore(" · ").split(", ").any { ':' in it } } -> "IPv6 is off in KOne, so only IPv4 addresses are used"
+            // Fake IP: KOne's own answer is a stand-in, and the node looks the real one up where it is.
+            checks.any { check -> check.title in setOf("Apps", "KOne") && addressesOf(check).any(cc.txwd.kone.shared.FakeIp::isFake) } ->
+                "KOne answers with a stand-in address (Fake IP is on); the node looks up the real one"
             disagree(checks) -> "Servers give different addresses; sites often answer by region, and KOne uses its own answer"
             else -> "The name resolves normally"
         }
@@ -95,6 +98,9 @@ object DnsLookup {
 
     const val REFUSED = "Refused"
     const val NO_NAME = "No such name"
+
+    private fun addressesOf(check: Check): List<String> =
+        if (check.outcome != Outcome.Pass) emptyList() else check.detail.substringBefore(" · ").split(", ").map { it.substringBefore(' ') }
 
     private fun disagree(checks: List<Check>): Boolean {
         val sets = checks.filter { it.outcome == Outcome.Pass }.map { check -> check.detail.substringBefore(" · ").split(", ").map { it.substringBefore(' ') }.filter { '.' in it }.toSet() }

@@ -21,6 +21,20 @@ object FakeIp {
     const val INET6 = "fc00::/18"
     private const val REMOTE = "proxy-dns"
 
+    /** Whether [address] is one of the fake ones ([INET4] or [INET6]), as a lookup through KOne returns them. */
+    fun isFake(address: String): Boolean {
+        val text = address.trim().lowercase()
+        if (':' !in text) {
+            val parts = text.split('.').mapNotNull { it.toIntOrNull() }
+            return parts.size == 4 && parts[0] == 198 && parts[1] in 18..19
+        }
+        // fc00::/18: the first group fc00, and the top two bits of the second clear.
+        val groups = text.split(':')
+        if (groups.firstOrNull() != "fc00") return false
+        val second = groups.getOrNull(1)?.takeIf { it.isNotEmpty() }?.toIntOrNull(16) ?: 0
+        return second < 0x4000
+    }
+
     /** The fake-IP server, with an IPv6 range only when names are answered with IPv6 too. */
     fun server(ipv6: Boolean): JsonObject = JsonObject(
         buildMap {
