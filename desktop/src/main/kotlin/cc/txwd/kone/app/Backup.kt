@@ -34,10 +34,13 @@ data class Backup(
     val hosts: List<cc.txwd.kone.core.Host> = emptyList(),
     val unmatchedDirect: Boolean? = null,
     val nameServers: List<cc.txwd.kone.core.NameServer> = emptyList(),
-    /** Each subscription's name, link and update interval in hours. */
-    val subscriptions: List<Triple<String, String, Int>> = emptyList(),
+    /** Each subscription's name, link, update interval and the words that leave its nodes out. */
+    val subscriptions: List<Entry> = emptyList(),
     val imported: List<JsonObject> = emptyList(),
 ) {
+    /** A subscription as a backup keeps it: never its nodes, which are fetched again. */
+    data class Entry(val name: String, val url: String, val hours: Int, val leaveOut: String = "")
+
     fun write(): String = buildJsonObject {
         put("kone", "backup")
         put("version", 1)
@@ -56,7 +59,12 @@ data class Backup(
         ipv6?.let { put("ipv6", it) }
         failover?.let { put("failover", it) }
         putJsonArray("subscriptions") {
-            subscriptions.forEach { (name, url, hours) -> add(buildJsonObject { put("name", name); put("url", url); put("hours", hours) }) }
+            subscriptions.forEach { entry ->
+                add(buildJsonObject {
+                    put("name", entry.name); put("url", entry.url); put("hours", entry.hours)
+                    if (entry.leaveOut.isNotEmpty()) put("leaveOut", entry.leaveOut)
+                })
+            }
         }
         put("imported", JsonArray(imported))
     }.toString()
@@ -86,7 +94,7 @@ data class Backup(
                 subscriptions = (json["subscriptions"] as? JsonArray)?.mapNotNull { item ->
                     val entry = item as? JsonObject ?: return@mapNotNull null
                     val url = entry.text("url") ?: return@mapNotNull null
-                    Triple(entry.text("name") ?: "Subscription", url, (entry["hours"] as? JsonPrimitive)?.intOrNull ?: Subscription.DEFAULT_HOURS)
+                    Entry(entry.text("name") ?: "Subscription", url, (entry["hours"] as? JsonPrimitive)?.intOrNull ?: Subscription.DEFAULT_HOURS, entry.text("leaveOut").orEmpty())
                 }.orEmpty(),
                 imported = (json["imported"] as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty(),
             )

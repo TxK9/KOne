@@ -1024,7 +1024,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         rules = preferences.rules, blockAds = preferences.blockAds, remoteDns = preferences.remoteDns, directDns = preferences.directDns,
         ipv6 = preferences.ipv6, failover = preferences.failover, hosts = preferences.hosts, unmatchedDirect = preferences.unmatchedDirect,
         nameServers = preferences.nameServers,
-        subscriptions = subscriptions.all.map { Triple(it.name, it.url, it.hours) },
+        subscriptions = subscriptions.all.map { Backup.Entry(it.name, it.url, it.hours, it.leaveOut) },
         imported = imports.all,
     ).write()
 
@@ -1059,9 +1059,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         ruleBook.show()
         if (backup.rules.any { it.kind == "set" }) updateLists()
         networkSettings.show()
-        val added = backup.subscriptions.mapNotNull { (name, url, hours) ->
-            if (!SubscriptionContent.acceptable(url)) return@mapNotNull null
-            subscriptions.add(url, name.take(32))?.also { subscriptions.change(it.id) { kept -> kept.copy(hours = hours.coerceIn(0, 720)) } }
+        val added = backup.subscriptions.mapNotNull { entry ->
+            if (!SubscriptionContent.acceptable(entry.url)) return@mapNotNull null
+            subscriptions.add(entry.url, entry.name.take(32))?.also {
+                subscriptions.change(it.id) { kept -> kept.copy(hours = entry.hours.coerceIn(0, 720), leaveOut = NodeFilter.clean(entry.leaveOut)) }
+            }
         }
         added.forEach { feeds.update(it.id) }
         val managed = account.binding?.source
