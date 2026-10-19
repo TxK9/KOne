@@ -38,6 +38,8 @@
     <string name="knine_routing_blocking">Blocking</string>
     <string name="knine_routing_block_ads">Block ads</string>
     <string name="knine_routing_block_ads_detail">The domains of a common ad list, in every mode</string>
+    <string name="knine_routing_fake_ip">Fake IP</string>
+    <string name="knine_routing_fake_ip_detail">Faster first connections, and names that go through the node are never looked up on this network</string>
     <string name="knine_routing_choosing">Choosing a node</string>
     <string name="knine_routing_automatic">Automatic</string>
     <string name="knine_routing_automatic_detail">With several nodes, use the fastest one that answers, checked every few minutes; a node you pick yourself stays picked</string>

@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.FakeIp
+import cc.txwd.kone.shared.Region
 import cc.txwd.kone.shared.Hosts
 import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.shared.Rule
@@ -218,6 +220,29 @@ class RoutingTest {
         // One node has nothing to choose between.
         val one = PairedProfile.fromLink("trojan://example-password@node1.invalid:443?sni=example.org#Tokyo", HomeLink.Home.OFF)
         assertEquals(JSONObject(one).toString(2), Routing.apply(one, Routing.Choices(automatic = true)))
+    }
+
+    @Test
+    fun fakeIpAnswersWhatGoesThroughTheNodeAndLeavesNoTraceWhenOff() {
+        val built = managed()
+        val china = Routing.Choices(fakeIp = true, region = Region.CHINA, direct = listOf("example.org"), proxied = listOf("example.com"))
+        val config = JSONObject(Routing.apply(built, china))
+        val answers = rules(config, "dns")
+        assertEquals("reject", answers.first().getString("action"))
+        answers.forEachIndexed { index, rule ->
+            if (rule.optString("server") == FakeIp.TAG && index + 1 < answers.size) {
+                // Just before the rule it fakes, which still answers other query types.
+                assertEquals("proxy-dns", answers[index + 1].getString("server"))
+                assertEquals("[\"A\"]", rule.getJSONArray("query_type").toString())
+            }
+            if (rule.optString("server") == "local-dns") assertFalse(rule.has("query_type"))
+        }
+        assertEquals(FakeIp.TAG, answers.last().getString("server"))
+        assertEquals(true, config.getJSONObject("experimental").getJSONObject("cache_file").getBoolean("store_fakeip"))
+        // Applied again, nothing moves or doubles; turned off, the template is as built.
+        assertEquals(config.toString(2), Routing.apply(config.toString(), china))
+        assertEquals(JSONObject(Routing.apply(built, china.copy(fakeIp = false))).toString(2), Routing.apply(config.toString(), china.copy(fakeIp = false)))
+        assertEquals(JSONObject(built).toString(2), Routing.apply(config.toString(), Routing.Choices()))
     }
 
     @Test

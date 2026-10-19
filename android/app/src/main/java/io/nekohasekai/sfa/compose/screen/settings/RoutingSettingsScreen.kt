@@ -217,6 +217,9 @@ fun RoutingSettingsScreen(navController: NavController) {
             SwitchRow(stringResource(R.string.knine_routing_ipv6), stringResource(R.string.knine_routing_ipv6_detail), choices.ipv6) {
                 keep(choices.copy(ipv6 = it))
             }
+            SwitchRow(stringResource(R.string.knine_routing_fake_ip), stringResource(R.string.knine_routing_fake_ip_detail), choices.fakeIp) {
+                keep(choices.copy(fakeIp = it))
+            }
             // Android's Private DNS set to a provider answers apps past these servers: said where they are chosen.
             if (privateDns != null) {
                 Text(

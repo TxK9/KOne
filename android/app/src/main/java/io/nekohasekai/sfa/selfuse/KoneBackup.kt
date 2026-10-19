@@ -79,7 +79,7 @@ object KoneBackup {
                             .put("direct", JSONArray(routing.direct)).put("proxied", JSONArray(routing.proxied))
                             .put("rules", JSONArray(routing.rules.map(OwnRules::toJson)))
                             .put("block_ads", routing.blockAds).put("unmatched_direct", routing.unmatchedDirect)
-                            .put("remote_dns", routing.remoteDns).put("direct_dns", routing.directDns).put("ipv6", routing.ipv6).put("region", routing.region).put("automatic", routing.automatic)
+                            .put("remote_dns", routing.remoteDns).put("direct_dns", routing.directDns).put("ipv6", routing.ipv6).put("region", routing.region).put("automatic", routing.automatic).put("fake_ip", routing.fakeIp)
                             .put("hosts", RoutingSettings.hostLines(routing.hosts)).put("name_servers", RoutingSettings.nameServerLines(routing.nameServers))
                     }),
             )
@@ -180,6 +180,7 @@ object KoneBackup {
                         remoteDns = routing.optString("remote_dns"), directDns = routing.optString("direct_dns"), ipv6 = routing.optBoolean("ipv6"),
                         region = routing.optString("region").ifEmpty { RoutingSettings.current().region },
                         automatic = routing.optBoolean("automatic", true),
+                        fakeIp = routing.optBoolean("fake_ip"),
                         hosts = routing.optString("hosts").lines().mapNotNull(cc.txwd.kone.shared.Hosts::parse),
                         nameServers = routing.optString("name_servers").lines().mapNotNull(cc.txwd.kone.shared.NameServers::parse),
                     ),

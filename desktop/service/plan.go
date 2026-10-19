@@ -28,7 +28,7 @@ var proxyTypes = map[string]bool{
 const adsRuleSet = "geosite-category-ads-all"
 
 // reserved are the tags the template uses itself; a source outbound with one of them is renamed.
-var reserved = map[string]bool{proxyTag: true, autoTag: true, "direct": true, "block": true, "dns": true, "local-dns": true, "proxy-dns": true, "tun-in": true, "mixed-in": true}
+var reserved = map[string]bool{proxyTag: true, autoTag: true, "direct": true, "block": true, "dns": true, "local-dns": true, "proxy-dns": true, fakeDNSTag: true, "tun-in": true, "mixed-in": true}
 
 var errInvalid = errors.New("config_invalid")
 
@@ -57,6 +57,9 @@ type Options struct {
 	// UnmatchedDirect sends what no rule, list or category matched straight out in Rule mode
 	// (and answers its names from the direct DNS), instead of through the node.
 	UnmatchedDirect bool
+	// FakeIP answers the names that would be answered through the node with addresses from a
+	// reserved range (fakeip.go), so the node resolves them where it is.
+	FakeIP bool
 }
 
 // modes are the clash modes the core can start in.
@@ -303,6 +306,11 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		dnsRules = append(dnsRules, map[string]any{"clash_mode": "Rule", "server": "local-dns"})
 		unmatched = "direct"
 	}
+	servers := append([]any{directDNS(options.Domestic, options.Region), remoteDNS(options.Remote)}, nameServerServers(ownServers)...)
+	if options.FakeIP {
+		dnsRules = fakeIPRules(dnsRules, options.IPv6)
+		servers = append(servers, fakeDNSServer(options.IPv6))
+	}
 	routeRules = append(routeRules,
 		map[string]any{"clash_mode": "Direct", "outbound": "direct"},
 		map[string]any{"clash_mode": "Global", "outbound": proxyTag},
@@ -349,7 +357,7 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 	config := map[string]any{
 		"log": map[string]any{"level": "warn", "timestamp": true},
 		"dns": map[string]any{
-			"servers":  append([]any{directDNS(options.Domestic, options.Region), remoteDNS(options.Remote)}, nameServerServers(ownServers)...),
+			"servers":  servers,
 			"rules":    dnsRules,
 			"final":    "proxy-dns",
 			"strategy": dnsStrategy(options.IPv6),

@@ -28,6 +28,7 @@ object RoutingSettings {
         directDns = Settings.knineRoutingDirectDns.takeIf { it in Routing.DIRECT }.orEmpty(),
         ipv6 = Settings.knineRoutingIpv6,
         automatic = Settings.knineRoutingAutomatic,
+        fakeIp = Settings.knineRoutingFakeIp,
         region = Region.clean(Settings.knineRoutingRegion),
         hosts = lines(Settings.knineRoutingHosts).mapNotNull(Hosts::parse),
         nameServers = lines(Settings.knineRoutingNameServers).mapNotNull(NameServers::parse),
@@ -58,6 +59,7 @@ object RoutingSettings {
         Settings.knineRoutingDirectDns = choices.directDns.takeIf { it in Routing.DIRECT }.orEmpty()
         Settings.knineRoutingIpv6 = choices.ipv6
         Settings.knineRoutingAutomatic = choices.automatic
+        Settings.knineRoutingFakeIp = choices.fakeIp
         Settings.knineRoutingRegion = Region.clean(choices.region)
         Settings.knineRoutingHosts = hostLines(choices.hosts)
         Settings.knineRoutingNameServers = nameServerLines(choices.nameServers)

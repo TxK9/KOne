@@ -45,7 +45,7 @@ class Backups(
     fun write(): String = Backup(
         mode = preferences.mode, way = preferences.way, bypass = preferences.bypass, direct = preferences.direct, proxied = preferences.proxied,
         rules = preferences.rules, blockAds = preferences.blockAds, remoteDns = preferences.remoteDns, directDns = preferences.directDns,
-        ipv6 = preferences.ipv6, failover = preferences.failover, hosts = preferences.hosts, unmatchedDirect = preferences.unmatchedDirect,
+        ipv6 = preferences.ipv6, fakeIp = preferences.fakeIp, failover = preferences.failover, hosts = preferences.hosts, unmatchedDirect = preferences.unmatchedDirect,
         nameServers = preferences.nameServers, region = preferences.region,
         subscriptions = subscriptions.all.map { Backup.Entry(it.name, it.url, it.hours, it.leaveOut) },
         imported = imports.all,
@@ -73,6 +73,7 @@ class Backups(
         backup.remoteDns?.let { preferences.remoteDns = it }
         backup.directDns?.let { preferences.directDns = it }
         backup.ipv6?.let { preferences.ipv6 = it }
+        backup.fakeIp?.let { preferences.fakeIp = it }
         backup.failover?.let { preferences.failover = it }
         if (backup.hosts.isNotEmpty()) preferences.hosts = (preferences.hosts + backup.hosts).distinct()
         if (backup.nameServers.isNotEmpty()) preferences.nameServers = (preferences.nameServers + backup.nameServers).distinct()

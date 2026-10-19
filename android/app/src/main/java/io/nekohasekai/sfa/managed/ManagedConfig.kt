@@ -28,7 +28,7 @@ object ManagedConfig {
     )
 
     /** Tags the template uses itself; a source outbound with one of these is renamed. */
-    private val RESERVED = setOf(PairedProfile.PROXY_TAG, ShareLinks.NODE_TAG, PairedProfile.HOME_TAG, HomeLink.DNS_TAG, Routing.AUTO, "direct", "block", "dns")
+    private val RESERVED = setOf(PairedProfile.PROXY_TAG, ShareLinks.NODE_TAG, PairedProfile.HOME_TAG, HomeLink.DNS_TAG, Routing.AUTO, cc.txwd.kone.shared.FakeIp.TAG, "direct", "block", "dns")
 
     /** The KOne configuration for [source]; throws [ManagedException] when it holds no usable node. */
     fun build(source: JSONObject, home: HomeLink.Home, rulesDirectory: String = "rules"): String {

@@ -177,9 +177,11 @@ class KoneConfigTest {
             val ownServers = if (mode == "Direct") emptyList() else servers
             // Regions: outside China, China, and a value neither side knows, which both read as China.
             val region = when (mode) { "Rule" -> if (tun) "global" else "china"; "Global" -> "global"; else -> "atlantis" }
+            // Fake IP with IPv4 alone (Rule) and with IPv6 (Global); off in Direct.
+            val fakeIp = mode != "Direct"
             val ours = KoneConfig.build(
                 source, rules, api, selected = selected, tun = tun, mode = mode, bypass = straight, mixed = mixed, direct = sites, proxied = through,
-                routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6, hosts = fixed, nameServers = ownServers, unmatchedDirect = !tun, region = region,
+                routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6, hosts = fixed, nameServers = ownServers, unmatchedDirect = !tun, region = region, fakeIp = fakeIp,
             ).config
             val request = buildJsonObject {
                 put("source", source); put("selected", selected); put("rules", rules)
@@ -192,6 +194,7 @@ class KoneConfigTest {
                 putJsonArray("nameServers") { ownServers.forEach { add(it.toJson()) } }
                 put("region", region)
                 put("unmatchedDirect", !tun)
+                put("fakeIp", fakeIp)
             }
             val process = ProcessBuilder(found!!.path, "build-config").start()
             process.outputStream.use { it.write(request.toString().toByteArray()) }
@@ -218,6 +221,7 @@ class KoneConfigTest {
             blockAds = true, remoteDns = "https://dns.example.com:8443/q", directDns = "2001:db8::1", ipv6 = true,
             hosts = listOf(Host("nas.example.org", "192.0.2.10"), Host("nas.example.org", "2001:db8::10"), Host("printer.example.org", "192.0.2.20")),
             nameServers = listOf(NameServer("corp.example.org", "192.0.2.53"), NameServer("lab.example.org", "2001:db8::53")),
+            fakeIp = true,
         )
         val file = File(folder, "config.json").apply { writeText(built.config.toString()) }
         val process = ProcessBuilder(core.path, "check", "-c", file.path).redirectErrorStream(true).start()

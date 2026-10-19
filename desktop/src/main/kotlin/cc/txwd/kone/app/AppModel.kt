@@ -396,7 +396,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     link.connect(
                         source, startTag(binding.selected), preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
                         preferences.rules, preferences.blockAds, preferences.remoteDns, preferences.directDns, preferences.ipv6,
-                        preferences.hosts, preferences.unmatchedDirect, preferences.nameServers, preferences.region,
+                        preferences.hosts, preferences.unmatchedDirect, preferences.nameServers, preferences.region, preferences.fakeIp,
                     )
                 }.getOrElse { "failed" }
             }
@@ -486,6 +486,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     direct = preferences.direct, proxied = preferences.proxied, routes = keeper.routesWith(listed), blockAds = preferences.blockAds,
                     remoteDns = preferences.remoteDns, directDns = preferences.directDns, ipv6 = preferences.ipv6, hosts = preferences.hosts,
                     nameServers = preferences.nameServers, unmatchedDirect = preferences.unmatchedDirect, region = preferences.region,
+                    fakeIp = preferences.fakeIp,
                 ).config.toString()
             }.getOrNull()
             if (config == null || !withContext(Dispatchers.IO) { core.start(config) }) {
@@ -887,6 +888,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun removeNameServer(entry: NameServer) = networkSettings.removeNameServer(entry)
 
     fun setIpv6(on: Boolean) = networkSettings.setIpv6(on)
+
+    fun setFakeIp(on: Boolean) = networkSettings.setFakeIp(on)
 
     fun setRegion(region: String) = networkSettings.setRegion(region)
 

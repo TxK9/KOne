@@ -41,8 +41,17 @@ object KoneConfig {
     /** The outbounds kept as nodes. naive is left out: it needs libcronet.dll, which the App does not carry. */
     val PROXY_TYPES = cc.txwd.kone.shared.SubscriptionContent.PROXY_TYPES
 
+    /** [config] with fake-IP answers for what goes through the node, as the service builds them (desktop/service/fakeip.go). */
+    private fun withFakeIp(config: JsonObject, ipv6: Boolean): JsonObject {
+        val dns = config["dns"] as JsonObject
+        val rules = (dns["rules"] as JsonArray).map { it as JsonObject }
+        val servers = (dns["servers"] as JsonArray) + cc.txwd.kone.shared.FakeIp.server(ipv6)
+        val faked = JsonObject(dns + mapOf("rules" to JsonArray(cc.txwd.kone.shared.FakeIp.rules(rules, ipv6)), "servers" to JsonArray(servers)))
+        return JsonObject(config + ("dns" to faked))
+    }
+
     /** Tags the template uses itself; a source outbound with one of these is renamed. */
-    val RESERVED = setOf(PROXY_TAG, AUTO_TAG, "direct", "block", "dns", "local-dns", "proxy-dns", "tun-in", "mixed-in")
+    val RESERVED = setOf(PROXY_TAG, AUTO_TAG, "direct", "block", "dns", "local-dns", "proxy-dns", cc.txwd.kone.shared.FakeIp.TAG, "tun-in", "mixed-in")
 
     class Built(val config: JsonObject, val nodes: List<SourceNode>)
 
@@ -70,6 +79,8 @@ object KoneConfig {
         unmatchedDirect: Boolean = false,
         /** Where the person is ([cc.txwd.kone.shared.Region]): outside China there is no China split. */
         region: String = cc.txwd.kone.shared.Region.CHINA,
+        /** The names that would be answered through the node get fake addresses ([cc.txwd.kone.shared.FakeIp]). */
+        fakeIp: Boolean = false,
     ): Built {
         // An outbound that names a file is never carried: the service, which runs the core as
         // SYSTEM, refuses it the same way (desktop/service/plan.go).
@@ -238,7 +249,7 @@ object KoneConfig {
                 }
             }
         }
-        return Built(config, nodes)
+        return Built(if (fakeIp) withFakeIp(config, ipv6) else config, nodes)
     }
 
     /**

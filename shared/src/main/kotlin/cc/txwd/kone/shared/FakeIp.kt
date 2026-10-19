@@ -1,0 +1,51 @@
+package cc.txwd.kone.shared
+
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+
+/**
+ * Fake-IP DNS, an option (off unless chosen): the names that would be answered through the node
+ * get an address from a reserved range at once instead, and sing-box gives the connection its
+ * name back, so the node resolves it where it is. The first connection to a site skips a lookup
+ * round trip, and those names are never asked of any resolver on this network. Every other
+ * answer is as it was: the Claude block, fixed answers, the person's own servers, the direct
+ * names and Direct mode keep real addresses.
+ *
+ * The Windows service builds the same (desktop/service/fakeip.go); the consistency test holds the
+ * two together.
+ */
+object FakeIp {
+    const val TAG = "fake-dns"
+    const val INET4 = "198.18.0.0/15"
+    const val INET6 = "fc00::/18"
+    private const val REMOTE = "proxy-dns"
+
+    /** The fake-IP server, with an IPv6 range only when names are answered with IPv6 too. */
+    fun server(ipv6: Boolean): JsonObject = JsonObject(
+        buildMap {
+            put("type", JsonPrimitive("fakeip"))
+            put("tag", JsonPrimitive(TAG))
+            put("inet4_range", JsonPrimitive(INET4))
+            if (ipv6) put("inet6_range", JsonPrimitive(INET6))
+        },
+    )
+
+    /**
+     * [rules] with each rule that asks the node's DNS ([REMOTE]) preceded by its twin asking
+     * [TAG] for address queries (A, and AAAA with [ipv6]), and one more at the end for what no
+     * rule answers (the final server is the node's). Other query types still go to the node's DNS.
+     */
+    fun rules(rules: List<JsonObject>, ipv6: Boolean): List<JsonObject> {
+        val types = JsonArray(listOfNotNull(JsonPrimitive("A"), JsonPrimitive("AAAA").takeIf { ipv6 }))
+        val out = ArrayList<JsonObject>()
+        for (rule in rules) {
+            if ((rule["server"] as? JsonPrimitive)?.content == REMOTE) {
+                out += JsonObject(rule + mapOf("query_type" to types, "server" to JsonPrimitive(TAG)))
+            }
+            out += rule
+        }
+        out += JsonObject(mapOf("query_type" to types, "server" to JsonPrimitive(TAG)))
+        return out
+    }
+}

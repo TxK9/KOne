@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.FakeIp
 import cc.txwd.kone.shared.Host
 import cc.txwd.kone.shared.Hosts
 import cc.txwd.kone.shared.NameServer
@@ -9,6 +10,8 @@ import cc.txwd.kone.shared.Region
 import cc.txwd.kone.shared.Rule
 import cc.txwd.kone.shared.RuleImport
 import cc.txwd.kone.shared.Rules
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -46,6 +49,8 @@ object Routing {
          * few minutes, and leaves one that stops answering. Off here so the template stays as built.
          */
         val automatic: Boolean = false,
+        /** The names that would be answered through the node get fake addresses ([FakeIp]), kept across restarts. */
+        val fakeIp: Boolean = false,
         /**
          * Where the person is ([Region]): in China, Chinese sites go straight out and AliDNS answers
          * by default; elsewhere there is no China split and Cloudflare answers. The template is
@@ -128,6 +133,8 @@ object Routing {
     }
 
     internal fun apply(config: JSONObject, choices: Choices, lists: Map<String, String> = emptyMap()) {
+        // Fake-IP answers stand beside the rules they fake; taken out first, the rest is read as built.
+        stripFakeIp(config)
         val direct = sites(choices.direct)
         val proxied = sites(choices.proxied).filter { it !in direct }
         val own = OwnRules.clean(choices.rules).filter { it.kind != "set" || it.value in lists }
@@ -195,6 +202,8 @@ object Routing {
                 PROXY_DNS -> server.put("server", REMOTE[choices.remoteDns] ?: REMOTE.getValue("cloudflare"))
             }
         }
+        // Last, over the DNS rules as they now stand.
+        setFakeIp(config, choices.fakeIp, choices.ipv6)
     }
 
     /** The ad list among the rule sets when ads are blocked, beside the China lists and like them; gone otherwise. */
@@ -210,6 +219,28 @@ object Routing {
                 .put("http_client", JSONObject().put("detour", PROXY).put("domain_resolver", LOCAL_DNS))
         }
         route.put("rule_set", JSONArray(sets))
+    }
+
+    /**
+     * Fake-IP answers ([FakeIp]) for what goes through the node when [on], as KOne for Windows
+     * builds them; the mappings are kept in sing-box's cache file across restarts, so an app
+     * holding a fake address still reaches its site. Off, every trace of it is gone.
+     */
+    private fun setFakeIp(config: JSONObject, on: Boolean, ipv6: Boolean) {
+        if (!on) return
+        val dns = config.getJSONObject("dns")
+        val faked = FakeIp.rules(objects(dns.optJSONArray("rules")).map { Json.parseToJsonElement(it.toString()).jsonObject }, ipv6)
+        dns.put("rules", JSONArray(faked.map { JSONObject(it.toString()) }))
+        dns.put("servers", JSONArray(objects(dns.optJSONArray("servers")) + JSONObject(FakeIp.server(ipv6).toString())))
+        config.optJSONObject("experimental")?.optJSONObject("cache_file")?.put("store_fakeip", true)
+    }
+
+    /** Every trace of [setFakeIp]: its rules, its server and the cache file's mappings. */
+    private fun stripFakeIp(config: JSONObject) {
+        val dns = config.optJSONObject("dns") ?: return
+        dns.put("rules", JSONArray(objects(dns.optJSONArray("rules")).filterNot { it.optString("server") == FakeIp.TAG }))
+        dns.put("servers", JSONArray(objects(dns.optJSONArray("servers")).filterNot { it.optString("tag") == FakeIp.TAG }))
+        config.optJSONObject("experimental")?.optJSONObject("cache_file")?.remove("store_fakeip")
     }
 
     /**

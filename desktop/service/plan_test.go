@@ -372,3 +372,47 @@ func TestOutsideChinaThereIsNoChinaSplit(t *testing.T) {
 		t.Fatalf("chosen direct DNS: %v", server)
 	}
 }
+
+func TestFakeIPAnswersOnlyWhatGoesThroughTheNode(t *testing.T) {
+	options := options
+	options.FakeIP = true
+	options.Direct = []string{"example.org"}
+	options.Proxied = []string{"example.com"}
+	config, _, err := Build(source(t, true), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dns := config["dns"].(map[string]any)
+	rules := dns["rules"].([]any)
+	// The Claude block still answers first, with nothing fake before it.
+	if rules[0].(map[string]any)["action"] != "reject" {
+		t.Fatalf("refusals first: %v", rules)
+	}
+	for i, item := range rules {
+		rule := item.(map[string]any)
+		if rule["server"] == "local-dns" && rule["query_type"] != nil {
+			t.Fatalf("a direct name made fake: %v", rule)
+		}
+		// Each fake answer stands just before the rule it fakes, which still answers other types.
+		if rule["server"] == fakeDNSTag && i+1 < len(rules) {
+			next := rules[i+1].(map[string]any)
+			if next["server"] != "proxy-dns" {
+				t.Fatalf("fake answer without its twin: %v then %v", rule, next)
+			}
+		}
+	}
+	if last := rules[len(rules)-1].(map[string]any); last["server"] != fakeDNSTag {
+		t.Fatalf("what nothing matched is not faked: %v", last)
+	}
+	servers := dns["servers"].([]any)
+	if fake := servers[len(servers)-1].(map[string]any); fake["type"] != "fakeip" || fake["inet6_range"] != nil {
+		t.Fatalf("fake-IP server without IPv6: %v", fake)
+	}
+	// Off, there is no trace of it.
+	options.FakeIP = false
+	config, _, _ = Build(source(t, true), options)
+	text, _ := json.Marshal(config)
+	if strings.Contains(string(text), fakeDNSTag) {
+		t.Fatalf("fake-IP while off: %s", text)
+	}
+}

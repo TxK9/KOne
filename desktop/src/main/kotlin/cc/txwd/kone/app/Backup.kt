@@ -30,6 +30,7 @@ data class Backup(
     val remoteDns: String? = null,
     val directDns: String? = null,
     val ipv6: Boolean? = null,
+    val fakeIp: Boolean? = null,
     val failover: Boolean? = null,
     val hosts: List<cc.txwd.kone.shared.Host> = emptyList(),
     val unmatchedDirect: Boolean? = null,
@@ -59,6 +60,7 @@ data class Backup(
         remoteDns?.let { put("remoteDns", it) }
         directDns?.let { put("directDns", it) }
         ipv6?.let { put("ipv6", it) }
+        fakeIp?.let { put("fakeIp", it) }
         failover?.let { put("failover", it) }
         putJsonArray("subscriptions") {
             subscriptions.forEach { entry ->
@@ -89,6 +91,7 @@ data class Backup(
                 remoteDns = json.text("remoteDns"),
                 directDns = json.text("directDns"),
                 ipv6 = flag("ipv6"),
+                fakeIp = flag("fakeIp"),
                 failover = flag("failover"),
                 unmatchedDirect = flag("unmatchedDirect"),
                 hosts = (json["hosts"] as? JsonArray)?.mapNotNull { (it as? JsonObject)?.let(cc.txwd.kone.shared.Host::fromJson) }.orEmpty(),

@@ -26,7 +26,7 @@ class NetworkSettings(private val preferences: Preferences, private val restart:
     }
 
     private fun now() = NetworkState(
-        preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts, preferences.nameServers, preferences.region,
+        preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts, preferences.nameServers, preferences.region, preferences.fakeIp,
     )
 
     private fun changed() {
@@ -107,6 +107,11 @@ class NetworkSettings(private val preferences: Preferences, private val restart:
 
     fun setIpv6(on: Boolean) {
         preferences.ipv6 = on
+        changed()
+    }
+
+    fun setFakeIp(on: Boolean) {
+        preferences.fakeIp = on
         changed()
     }
 }

@@ -165,6 +165,14 @@ class Preferences(folder: File) {
             save()
         }
 
+    /** Whether the names that go through the node get fake addresses (cc.txwd.kone.shared.FakeIp); off until the person turns it on. */
+    var fakeIp: Boolean
+        get() = values.getProperty("fakeIp") == "true"
+        set(value) {
+            values.setProperty("fakeIp", value.toString())
+            save()
+        }
+
     /** Whether names are answered with IPv6 addresses too (IPv4 first); off until the person turns it on. */
     var ipv6: Boolean
         get() = values.getProperty("ipv6") == "true"

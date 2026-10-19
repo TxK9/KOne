@@ -362,7 +362,7 @@ fun main(args: Array<String>) {
                                           ),
                                           model.network,
                                           NetworkActions(
-                                              onRemoteDns = model::setRemoteDns, onDirectDns = model::setDirectDns, onIpv6 = model::setIpv6, onFailover = model::setFailover,
+                                              onRemoteDns = model::setRemoteDns, onDirectDns = model::setDirectDns, onIpv6 = model::setIpv6, onFakeIp = model::setFakeIp, onFailover = model::setFailover,
                                               onAddHost = model::addHost, onRemoveHost = model::removeHost,
                                               onAddNameServer = model::addNameServer, onRemoveNameServer = model::removeNameServer,
                                               onRegion = model::setRegion,

@@ -100,6 +100,8 @@ data class NetworkState(
     val nameServers: List<cc.txwd.kone.shared.NameServer> = emptyList(),
     /** Where the person is: outside China ("global") or China. */
     val region: String = cc.txwd.kone.shared.Region.GLOBAL,
+    /** Whether the names that go through the node get fake addresses, for faster first connections. */
+    val fakeIp: Boolean = false,
 )
 
 class NetworkActions(
@@ -108,6 +110,7 @@ class NetworkActions(
     /** A direct DNS choice: a preset's name or an address; false when it is not one. */
     val onDirectDns: (String) -> Boolean = { true },
     val onIpv6: (Boolean) -> Unit = {},
+    val onFakeIp: (Boolean) -> Unit = {},
     val onFailover: (Boolean) -> Unit = {},
     /** A fixed answer typed as "name address"; false when it is not one. */
     val onAddHost: (String) -> Boolean = { true },
@@ -164,6 +167,9 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
         PairsLine("Hosts", network.hosts, { "${it.name}  ${it.address}" }, networkActions.onRemoveHost, networkActions.onAddHost, "nas.example.org 192.0.2.10")
         PairsLine("DNS for domains", network.nameServers, { "${it.domain}  ${it.server}" }, networkActions.onRemoveNameServer, networkActions.onAddNameServer, "corp.example.org 192.0.2.53")
         Line("IPv6") { Switch(network.ipv6) { networkActions.onIpv6(!network.ipv6) } }
+        // Faster first connections and no lookups of proxied names on this network; a program that
+        // keeps an address after KOne stops may need a moment to look it up again.
+        Line("Fake IP") { Switch(network.fakeIp) { networkActions.onFakeIp(!network.fakeIp) } }
         Line("Fail over") { Switch(network.failover) { networkActions.onFailover(!network.failover) } }
         Line("Backup") {
             Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
