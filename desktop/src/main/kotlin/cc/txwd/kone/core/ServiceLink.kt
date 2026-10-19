@@ -99,6 +99,7 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
         hosts: List<Host> = emptyList(),
         unmatchedDirect: Boolean = false,
         nameServers: List<NameServer> = emptyList(),
+        region: String = cc.txwd.kone.shared.Region.CHINA,
     ): String? {
         val reply = request(buildJsonObject {
             put("op", "connect")
@@ -115,6 +116,7 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
             put("ipv6", ipv6)
             putJsonArray("hosts") { hosts.forEach { add(it.toJson()) } }
             putJsonArray("nameServers") { nameServers.forEach { add(it.toJson()) } }
+            put("region", region)
             put("unmatchedDirect", unmatchedDirect)
         })
         return if (reply.ok) null else reply["error"]?.text() ?: "failed"

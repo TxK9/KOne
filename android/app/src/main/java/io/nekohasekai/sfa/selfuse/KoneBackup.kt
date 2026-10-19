@@ -78,7 +78,7 @@ object KoneBackup {
                             .put("direct", JSONArray(routing.direct)).put("proxied", JSONArray(routing.proxied))
                             .put("rules", JSONArray(routing.rules.map(OwnRules::toJson)))
                             .put("block_ads", routing.blockAds).put("unmatched_direct", routing.unmatchedDirect)
-                            .put("remote_dns", routing.remoteDns).put("direct_dns", routing.directDns).put("ipv6", routing.ipv6)
+                            .put("remote_dns", routing.remoteDns).put("direct_dns", routing.directDns).put("ipv6", routing.ipv6).put("region", routing.region)
                     }),
             )
         val stream = context.contentResolver.openOutputStream(uri, "wt") ?: throw BackupException("Cannot write to this location")
@@ -176,6 +176,7 @@ object KoneBackup {
                         rules = routing.optJSONArray("rules")?.let { array -> (0 until array.length()).mapNotNull { OwnRules.fromJson(array.optJSONObject(it)) } }.orEmpty(),
                         blockAds = routing.optBoolean("block_ads"), unmatchedDirect = routing.optBoolean("unmatched_direct"),
                         remoteDns = routing.optString("remote_dns"), directDns = routing.optString("direct_dns"), ipv6 = routing.optBoolean("ipv6"),
+                        region = routing.optString("region").ifEmpty { RoutingSettings.current().region },
                     ),
                 )
             }

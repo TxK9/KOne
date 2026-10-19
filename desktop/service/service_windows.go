@@ -159,6 +159,7 @@ func (s *server) session(pipe windows.Handle) {
 			IPv6      bool           `json:"ipv6"`
 			Hosts     []Host         `json:"hosts"`
 			Servers   []NameServer   `json:"nameServers"`
+			Region    string         `json:"region"`
 			Unmatched bool           `json:"unmatchedDirect"`
 			Since     int64          `json:"since"`
 			Name      string         `json:"name"`
@@ -178,7 +179,7 @@ func (s *server) session(pipe windows.Handle) {
 		case "connect":
 			reply = s.connect(id, request.Source, Options{Selected: request.Selected, Mode: request.Mode, Bypass: request.Bypass,
 				Direct: request.Direct, Proxied: request.Proxied, Routes: s.sets.Usable(request.Routes), BlockAds: request.BlockAds,
-				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Hosts: request.Hosts, NameServers: request.Servers, UnmatchedDirect: request.Unmatched})
+				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Hosts: request.Hosts, NameServers: request.Servers, UnmatchedDirect: request.Unmatched, Region: request.Region})
 		case "status":
 			reply = s.core.status(id, request.Since)
 		case "ruleSets":

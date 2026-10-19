@@ -98,6 +98,8 @@ data class NetworkState(
     val hosts: List<cc.txwd.kone.core.Host> = emptyList(),
     /** Servers of the person's own for chosen domains. */
     val nameServers: List<cc.txwd.kone.core.NameServer> = emptyList(),
+    /** Where the person is: outside China ("global") or China. */
+    val region: String = cc.txwd.kone.shared.Region.GLOBAL,
 )
 
 class NetworkActions(
@@ -113,13 +115,17 @@ class NetworkActions(
     /** A server for a domain typed as "domain server"; false when it is not one. */
     val onAddNameServer: (String) -> Boolean = { true },
     val onRemoveNameServer: (cc.txwd.kone.core.NameServer) -> Unit = {},
+    val onRegion: (String) -> Unit = {},
     /** Saves the setup to a file the person picks, or reads one back. */
     val onExport: () -> Unit = {},
     val onImport: () -> Unit = {},
 )
 
 private val REMOTE_DNS = listOf("" to "Cloudflare", "google" to "Google", "quad9" to "Quad9")
-private val DIRECT_DNS = listOf("" to "AliDNS", "dnspod" to "DNSPod")
+/** The direct presets in each region, the region's default ("") first. */
+private fun directDns(region: String) =
+    if (cc.txwd.kone.shared.Region.china(region)) listOf("" to "AliDNS", "dnspod" to "DNSPod", "cloudflare" to "Cloudflare")
+    else listOf("" to "Cloudflare", "google" to "Google", "quad9" to "Quad9")
 
 /**
  * Settings: Appearance, Background (with Ambient sound for the cities), Start with Windows,
@@ -145,8 +151,16 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
                 }
             }
         }
+        // Where the person is decides the China split and which servers are offered straight out.
+        Line("Where you are") {
+            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                val china = cc.txwd.kone.shared.Region.china(network.region)
+                Choice("Outside China", !china) { networkActions.onRegion(cc.txwd.kone.shared.Region.GLOBAL) }
+                Choice("China", china) { networkActions.onRegion(cc.txwd.kone.shared.Region.CHINA) }
+            }
+        }
         DnsLine("Remote DNS", REMOTE_DNS, network.remoteDns, "https://dns.example.com/dns-query", networkActions.onRemoteDns)
-        DnsLine("Direct DNS", DIRECT_DNS, network.directDns, "203.0.113.53", networkActions.onDirectDns)
+        DnsLine("Direct DNS", directDns(network.region), network.directDns, "203.0.113.53", networkActions.onDirectDns)
         PairsLine("Hosts", network.hosts, { "${it.name}  ${it.address}" }, networkActions.onRemoveHost, networkActions.onAddHost, "nas.example.org 192.0.2.10")
         PairsLine("DNS for domains", network.nameServers, { "${it.domain}  ${it.server}" }, networkActions.onRemoveNameServer, networkActions.onAddNameServer, "corp.example.org 192.0.2.53")
         Line("IPv6") { Switch(network.ipv6) { networkActions.onIpv6(!network.ipv6) } }

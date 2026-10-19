@@ -25,7 +25,9 @@ class NetworkSettings(private val preferences: Preferences, private val restart:
         page = now()
     }
 
-    private fun now() = NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts, preferences.nameServers)
+    private fun now() = NetworkState(
+        preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts, preferences.nameServers, preferences.region,
+    )
 
     private fun changed() {
         show()
@@ -91,6 +93,15 @@ class NetworkSettings(private val preferences: Preferences, private val restart:
         val before = preferences.nameServers
         if (entry !in before) return
         preferences.nameServers = before - entry
+        changed()
+    }
+
+    /** Where the person is: decides the China split and the default direct DNS. */
+    fun setRegion(region: String) {
+        if (cc.txwd.kone.shared.Region.clean(region) == preferences.region) return
+        preferences.region = region
+        // A preset straight-out server follows the region to its default; an address of the person's own stays.
+        if (preferences.directDns in cc.txwd.kone.shared.Region.DIRECT) preferences.directDns = ""
         changed()
     }
 

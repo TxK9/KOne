@@ -43,6 +43,7 @@ import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import cc.txwd.kone.shared.Rule
+import cc.txwd.kone.shared.Region
 import io.nekohasekai.sfa.selfuse.OwnRules
 import io.nekohasekai.sfa.selfuse.PrivateDns
 import io.nekohasekai.sfa.selfuse.Routing
@@ -54,7 +55,8 @@ import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTex
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 
 private val REMOTE_NAMES = listOf("Cloudflare", "Google", "Quad9")
-private val DIRECT_NAMES = listOf("AliDNS", "DNSPod")
+/** What each direct preset is called on screen. */
+private val DIRECT_NAMES = mapOf("alidns" to "AliDNS", "dnspod" to "DNSPod", "cloudflare" to "Cloudflare", "google" to "Google", "quad9" to "Quad9")
 private val KINDS = listOf("domain", "suffix", "keyword", "cidr", "app", "port")
 
 /**
@@ -155,16 +157,28 @@ fun RoutingSettingsScreen(navController: NavController) {
         Spacer(Modifier.height(16.dp))
         KnineSectionLabel(text = stringResource(R.string.knine_routing_dns))
         Section {
+            val china = Region.china(choices.region)
+            ChoiceRow(
+                detail = stringResource(R.string.knine_routing_region_detail),
+                options = listOf(stringResource(R.string.knine_routing_region_global), stringResource(R.string.knine_routing_region_china)),
+                selected = if (china) 1 else 0,
+            ) { picked ->
+                // A preset straight-out server follows the region to its default.
+                val region = if (picked == 1) Region.CHINA else Region.GLOBAL
+                keep(choices.copy(region = region, directDns = choices.directDns.takeUnless { it in Region.DIRECT }.orEmpty()))
+            }
             ChoiceRow(
                 detail = stringResource(R.string.knine_routing_remote_dns),
                 options = REMOTE_NAMES,
                 selected = Routing.REMOTE.keys.indexOf(choices.remoteDns).coerceAtLeast(0),
             ) { keep(choices.copy(remoteDns = if (it == 0) "" else Routing.REMOTE.keys.elementAt(it))) }
+            // The region's presets, its default first (kept as "" so it follows the region).
+            val presets = Region.directPresets(choices.region).take(3)
             ChoiceRow(
                 detail = stringResource(R.string.knine_routing_direct_dns),
-                options = DIRECT_NAMES,
-                selected = Routing.DIRECT.keys.indexOf(choices.directDns).coerceAtLeast(0),
-            ) { keep(choices.copy(directDns = if (it == 0) "" else Routing.DIRECT.keys.elementAt(it))) }
+                options = presets.map { DIRECT_NAMES.getValue(it) },
+                selected = presets.indexOf(choices.directDns).coerceAtLeast(0),
+            ) { keep(choices.copy(directDns = if (it == 0) "" else presets[it])) }
             SwitchRow(stringResource(R.string.knine_routing_ipv6), stringResource(R.string.knine_routing_ipv6_detail), choices.ipv6) {
                 keep(choices.copy(ipv6 = it))
             }

@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.Region
 import cc.txwd.kone.shared.Rule
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.database.Settings
@@ -22,6 +23,7 @@ object RoutingSettings {
         remoteDns = Settings.knineRoutingRemoteDns.takeIf { it in Routing.REMOTE }.orEmpty(),
         directDns = Settings.knineRoutingDirectDns.takeIf { it in Routing.DIRECT }.orEmpty(),
         ipv6 = Settings.knineRoutingIpv6,
+        region = Region.clean(Settings.knineRoutingRegion),
     )
 
     private fun lines(text: String) = text.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
@@ -41,6 +43,7 @@ object RoutingSettings {
         Settings.knineRoutingRemoteDns = choices.remoteDns.takeIf { it in Routing.REMOTE }.orEmpty()
         Settings.knineRoutingDirectDns = choices.directDns.takeIf { it in Routing.DIRECT }.orEmpty()
         Settings.knineRoutingIpv6 = choices.ipv6
+        Settings.knineRoutingRegion = Region.clean(choices.region)
         HomeSettings.refreshSaved()
         // A service that is not running has nothing to reload.
         runCatching { Libbox.newStandaloneCommandClient().serviceReload() }

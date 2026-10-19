@@ -50,6 +50,7 @@ type Options struct {
 	IPv6     bool     // answer names with IPv6 addresses too (IPv4 first)
 	Mixed    int      // a local proxy port on 127.0.0.1 for the system proxy, when not 0 (the App's own, never the service's)
 	Hosts    []Host   // fixed answers for chosen names, after the Claude block
+	Region   string   // "global" outside China: no China split, Cloudflare as the direct DNS; anything else China
 	// NameServers answer the names under chosen domains from servers of the person's own, after
 	// the Claude block and the fixed answers.
 	NameServers []NameServer
@@ -293,8 +294,10 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 	dnsRules = append(dnsRules,
 		map[string]any{"clash_mode": "Direct", "server": "local-dns"},
 		map[string]any{"clash_mode": "Global", "server": "proxy-dns"},
-		map[string]any{"rule_set": []any{"geosite-cn"}, "server": "local-dns"},
 	)
+	if china(options.Region) {
+		dnsRules = append(dnsRules, map[string]any{"rule_set": []any{"geosite-cn"}, "server": "local-dns"})
+	}
 	unmatched := proxyTag
 	if options.UnmatchedDirect {
 		dnsRules = append(dnsRules, map[string]any{"clash_mode": "Rule", "server": "local-dns"})
@@ -304,11 +307,16 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		map[string]any{"clash_mode": "Direct", "outbound": "direct"},
 		map[string]any{"clash_mode": "Global", "outbound": proxyTag},
 		map[string]any{"ip_is_private": true, "outbound": "direct"},
-		map[string]any{"clash_mode": "Rule", "rule_set": []any{"geosite-cn", "geoip-cn"}, "outbound": "direct"},
-		map[string]any{"clash_mode": "Rule", "outbound": unmatched},
 	)
+	if china(options.Region) {
+		routeRules = append(routeRules, map[string]any{"clash_mode": "Rule", "rule_set": []any{"geosite-cn", "geoip-cn"}, "outbound": "direct"})
+	}
+	routeRules = append(routeRules, map[string]any{"clash_mode": "Rule", "outbound": unmatched})
 	ruleSets := []any{}
-	sets := [][2]string{{"geosite-cn", "sing-geosite"}, {"geoip-cn", "sing-geoip"}}
+	var sets [][2]string
+	if china(options.Region) {
+		sets = append(sets, [2]string{"geosite-cn", "sing-geosite"}, [2]string{"geoip-cn", "sing-geoip"})
+	}
 	if options.BlockAds {
 		sets = append(sets, [2]string{adsRuleSet, "sing-geosite"})
 	}
@@ -341,7 +349,7 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 	config := map[string]any{
 		"log": map[string]any{"level": "warn", "timestamp": true},
 		"dns": map[string]any{
-			"servers":  append([]any{directDNS(options.Domestic), remoteDNS(options.Remote)}, nameServerServers(ownServers)...),
+			"servers":  append([]any{directDNS(options.Domestic, options.Region), remoteDNS(options.Remote)}, nameServerServers(ownServers)...),
 			"rules":    dnsRules,
 			"final":    "proxy-dns",
 			"strategy": dnsStrategy(options.IPv6),

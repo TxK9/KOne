@@ -1,6 +1,7 @@
 package io.nekohasekai.sfa.selfuse
 
 import cc.txwd.kone.shared.Names
+import cc.txwd.kone.shared.Region
 import cc.txwd.kone.shared.Rule
 import org.json.JSONArray
 import org.json.JSONObject
@@ -34,13 +35,19 @@ object Routing {
         val directDns: String = "",
         /** Answer names with IPv6 addresses too (IPv4 first). */
         val ipv6: Boolean = false,
+        /**
+         * Where the person is ([Region]): in China, Chinese sites go straight out and AliDNS answers
+         * by default; elsewhere there is no China split and Cloudflare answers. The template is
+         * built for China, so this default leaves it as built.
+         */
+        val region: String = Region.CHINA,
     )
 
     /** The DNS-over-HTTPS servers asked through the node, by preset. */
     val REMOTE = linkedMapOf("cloudflare" to "1.1.1.1", "google" to "8.8.8.8", "quad9" to "9.9.9.9")
 
     /** The plain DNS servers asked straight out, by preset. */
-    val DIRECT = linkedMapOf("alidns" to "223.5.5.5", "dnspod" to "119.29.29.29")
+    val DIRECT = Region.DIRECT
 
     const val ADS = cc.txwd.kone.shared.Rules.ADS
     const val MOST_SITES = 256
@@ -88,7 +95,11 @@ object Routing {
             // Ads after the person's own rules, so a site they let through stays reachable.
             if (choices.blockAds) add(JSONObject().put("rule_set", JSONArray().put(ADS)).put("action", "reject"))
         }
-        val routed = rules.take(start) + ours + rules.drop(end)
+        val chinaRoute = JSONObject().put("clash_mode", "Rule").put("rule_set", JSONArray().put("geosite-cn").put("geoip-cn")).put("outbound", "direct")
+        val rest = rules.drop(end).filterNot { same(it, chinaRoute) }.toMutableList()
+        // The China split sits just before the last rule (what nothing matched); outside China it is gone.
+        if (Region.china(choices.region)) rest.add((rest.size - 1).coerceAtLeast(0), chinaRoute)
+        val routed = rules.take(start) + ours + rest
         // What nothing matched, in Rule mode: the last rule, through the node or straight out.
         routed.lastOrNull { it.length() == 2 && it.optString("clash_mode") == "Rule" && it.has("outbound") }
             ?.put("outbound", if (choices.unmatchedDirect) "direct" else PROXY)
@@ -108,13 +119,20 @@ object Routing {
             if (choices.blockAds) add(JSONObject().put("rule_set", JSONArray().put(ADS)).put("action", "reject"))
         }
         val unmatched = { rule: JSONObject -> rule.length() == 2 && rule.optString("clash_mode") == "Rule" && rule.optString("server") == LOCAL_DNS }
-        val answered = dnsRules.take(dnsStart) + dnsOurs + dnsRules.drop(dnsEnd).filterNot(unmatched) +
+        val chinaNames = JSONObject().put("rule_set", JSONArray().put("geosite-cn")).put("server", LOCAL_DNS)
+        val dnsRest = dnsRules.drop(dnsEnd).filterNot(unmatched).filterNot { same(it, chinaNames) }.toMutableList()
+        // Chinese names are answered straight out in China, right after the modes; elsewhere not.
+        if (Region.china(choices.region)) {
+            val global = dnsRest.indexOfFirst { it.optString("clash_mode") == "Global" }
+            dnsRest.add(if (global < 0) dnsRest.size else global + 1, chinaNames)
+        }
+        val answered = dnsRules.take(dnsStart) + dnsOurs + dnsRest +
             listOfNotNull(JSONObject().put("clash_mode", "Rule").put("server", LOCAL_DNS).takeIf { choices.unmatchedDirect })
         dns.put("rules", JSONArray(answered))
         dns.put("strategy", if (choices.ipv6) "prefer_ipv4" else "ipv4_only")
         objects(dns.optJSONArray("servers")).forEach { server ->
             when (server.optString("tag")) {
-                LOCAL_DNS -> server.put("server", DIRECT[choices.directDns] ?: DIRECT.getValue("alidns"))
+                LOCAL_DNS -> server.put("server", DIRECT[choices.directDns] ?: Region.directDefault(choices.region))
                 PROXY_DNS -> server.put("server", REMOTE[choices.remoteDns] ?: REMOTE.getValue("cloudflare"))
             }
         }
@@ -151,6 +169,10 @@ object Routing {
     /** A rule refusing domain names and nothing else, as the console writes the Claude block. */
     private fun refusal(rule: JSONObject): Boolean =
         rule.optString("action") == "reject" && rule.keys().asSequence().all { it in setOf("action", "domain", "domain_suffix") }
+
+    /** Whether two rules say the same, whatever order their keys were written in. */
+    private fun same(a: JSONObject, b: JSONObject): Boolean =
+        a.length() == b.length() && a.keys().asSequence().all { key -> b.has(key) && a.get(key).toString() == b.get(key).toString() }
 
     private fun objects(array: JSONArray?): List<JSONObject> =
         if (array == null) emptyList() else (0 until array.length()).mapNotNull { array.optJSONObject(it) }

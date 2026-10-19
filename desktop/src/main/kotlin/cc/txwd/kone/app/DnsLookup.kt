@@ -72,7 +72,8 @@ object DnsLookup {
     }
 
     /** The plain address of a direct choice ("" for the default, a preset's name, or an address). */
-    fun directServer(choice: String): String = cc.txwd.kone.core.Dns.DIRECT[choice] ?: choice.ifEmpty { "223.5.5.5" }
+    fun directServer(choice: String, region: String = cc.txwd.kone.shared.Region.CHINA): String =
+        cc.txwd.kone.core.Dns.DIRECT[choice] ?: choice.ifEmpty { cc.txwd.kone.shared.Region.directDefault(region) }
 
     /**
      * What the checks add up to, in a sentence: refused, no such name, nothing answers, IPv6 held

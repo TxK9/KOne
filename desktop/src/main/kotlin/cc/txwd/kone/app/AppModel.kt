@@ -380,7 +380,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     link.connect(
                         source, startTag(binding.selected), preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
                         preferences.rules, preferences.blockAds, preferences.remoteDns, preferences.directDns, preferences.ipv6,
-                        preferences.hosts, preferences.unmatchedDirect, preferences.nameServers,
+                        preferences.hosts, preferences.unmatchedDirect, preferences.nameServers, preferences.region,
                     )
                 }.getOrElse { "failed" }
             }
@@ -469,7 +469,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 KoneConfig.build(source, rules, api, startTag(account.binding?.selected), tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
                     direct = preferences.direct, proxied = preferences.proxied, routes = keeper.routesWith(listed), blockAds = preferences.blockAds,
                     remoteDns = preferences.remoteDns, directDns = preferences.directDns, ipv6 = preferences.ipv6, hosts = preferences.hosts,
-                    nameServers = preferences.nameServers, unmatchedDirect = preferences.unmatchedDirect,
+                    nameServers = preferences.nameServers, unmatchedDirect = preferences.unmatchedDirect, region = preferences.region,
                 ).config.toString()
             }.getOrNull()
             if (config == null || !withContext(Dispatchers.IO) { core.start(config) }) {
@@ -671,7 +671,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 val api = CoreApi(freePort(), token())
                 val port = freePort()
                 // Global, on this node alone: every byte of the test goes through it.
-                val config = runCatching { KoneConfig.build(source, rules, api, selected = tag, tun = false, mode = "Global", mixed = port).config.toString() }.getOrNull()
+                val config = runCatching { KoneConfig.build(source, rules, api, selected = tag, tun = false, mode = "Global", mixed = port, region = preferences.region).config.toString() }.getOrNull()
                     ?: return@withContext null
                 val tester = Probe(core)
                 try {
@@ -916,9 +916,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 Diagnosis.node(nameOf(tag), measured)
             }
             show("DNS")
-            checks += Diagnosis.names()
+            checks += Diagnosis.names(Diagnosis.namesFor(preferences.region))
             show("Sites")
-            checks += Diagnosis.sites(proxied)
+            checks += Diagnosis.sites(proxied, Diagnosis.sitesFor(preferences.region))
             show("Exit")
             val online = connection == Connection.Online
             val address = withContext(Dispatchers.IO) { ExitTrace.detect(proxied) }
@@ -1023,7 +1023,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         mode = preferences.mode, way = preferences.way, bypass = preferences.bypass, direct = preferences.direct, proxied = preferences.proxied,
         rules = preferences.rules, blockAds = preferences.blockAds, remoteDns = preferences.remoteDns, directDns = preferences.directDns,
         ipv6 = preferences.ipv6, failover = preferences.failover, hosts = preferences.hosts, unmatchedDirect = preferences.unmatchedDirect,
-        nameServers = preferences.nameServers,
+        nameServers = preferences.nameServers, region = preferences.region,
         subscriptions = subscriptions.all.map { Backup.Entry(it.name, it.url, it.hours, it.leaveOut) },
         imported = imports.all,
     ).write()
@@ -1054,6 +1054,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         backup.failover?.let { preferences.failover = it }
         if (backup.hosts.isNotEmpty()) preferences.hosts = preferences.hosts + backup.hosts
         if (backup.nameServers.isNotEmpty()) preferences.nameServers = preferences.nameServers + backup.nameServers
+        backup.region?.let { preferences.region = it }
         backup.unmatchedDirect?.let { preferences.unmatchedDirect = it }
         tools = tools.copy(bypass = preferences.bypass)
         ruleBook.show()
@@ -1111,6 +1112,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun removeNameServer(entry: NameServer) = networkSettings.removeNameServer(entry)
 
     fun setIpv6(on: Boolean) = networkSettings.setIpv6(on)
+
+    fun setRegion(region: String) = networkSettings.setRegion(region)
 
     // Rules
 
@@ -1437,7 +1440,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         val probe = probe ?: return
         val source = source() ?: return
         val api = CoreApi(freePort(), token())
-        val config = runCatching { KoneConfig.build(source, rules, api, tun = false).config.toString() }.getOrNull() ?: return
+        val config = runCatching { KoneConfig.build(source, rules, api, tun = false, region = preferences.region).config.toString() }.getOrNull() ?: return
         scope.launch {
             val started = withContext(Dispatchers.IO) { probe.start(config) }
             if (!started) return@launch

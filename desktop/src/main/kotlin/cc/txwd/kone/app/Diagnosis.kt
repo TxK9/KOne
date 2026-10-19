@@ -32,6 +32,14 @@ object Diagnosis {
     /** A name at home and one abroad. */
     val NAMES = listOf("www.qq.com", "www.google.com")
 
+    /** Outside China: sites anyone anywhere expects to reach, and names that resolve everywhere. */
+    val GLOBAL_SITES = listOf("Google" to "https://www.gstatic.com/generate_204", "GitHub" to "https://github.com", "YouTube" to "https://www.youtube.com", "Wikipedia" to "https://www.wikipedia.org")
+    val GLOBAL_NAMES = listOf("www.cloudflare.com", "www.google.com")
+
+    /** The sites and names diagnosis tries in [region]. */
+    fun sitesFor(region: String) = if (cc.txwd.kone.shared.Region.china(region)) SITES else GLOBAL_SITES
+    fun namesFor(region: String) = if (cc.txwd.kone.shared.Region.china(region)) NAMES else GLOBAL_NAMES
+
     /** Whether each name in [names] resolves within five seconds. */
     suspend fun names(names: List<String> = NAMES): Check = coroutineScope {
         val answered = names.map { name ->
@@ -73,7 +81,7 @@ object Diagnosis {
         val others = checks.firstOrNull { it.title == Conflicts.TITLE && it.outcome == Outcome.Warn }
         if (basic == null && others != null) return "Turn off ${others.detail} while KOne is on: they can take traffic before it"
         val failed = basic ?: checks.firstOrNull { it.outcome == Outcome.Fail } ?: return null
-        val sites = checks.filter { it.title in SITES.map { site -> site.first } }
+        val sites = checks.filter { it.title in (SITES + GLOBAL_SITES).map { site -> site.first } }
         return when {
             failed.title == "Network" && failed.detail == SIGN_IN -> "Sign in to this network: Sign in on the dashboard opens its page"
             failed.title == "Network" -> "This computer is offline: check Wi-Fi or the cable"
@@ -83,7 +91,7 @@ object Diagnosis {
             failed.title == "Node" -> "Try another node, or Test all on Nodes"
             failed.title == "DNS" -> "Try another DNS server in Settings"
             sites.isNotEmpty() && sites.all { it.outcome == Outcome.Fail } -> "Nothing answers: check the node and the mode in Tools"
-            failed.title in SITES.map { it.first } -> "Some sites do not answer: check your Rules"
+            failed.title in (SITES + GLOBAL_SITES).map { it.first } -> "Some sites do not answer: check your Rules"
             else -> null
         }
     }

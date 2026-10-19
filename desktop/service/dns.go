@@ -11,7 +11,15 @@ import (
 // one, asked straight out for names that stay out of the tunnel. Anything else is refused, so
 // the default ("") keeps the template's own servers.
 var remotePresets = map[string]string{"cloudflare": "1.1.1.1", "google": "8.8.8.8", "quad9": "9.9.9.9"}
-var directPresets = map[string]string{"alidns": "223.5.5.5", "dnspod": "119.29.29.29"}
+var directPresets = map[string]string{"alidns": "223.5.5.5", "dnspod": "119.29.29.29", "cloudflare": "1.1.1.1", "google": "8.8.8.8", "quad9": "9.9.9.9"}
+
+// Regions: where the person is. In China the template sends Chinese sites straight out and asks
+// AliDNS by default; anywhere else ("global") there is no China split and the direct server is
+// Cloudflare's, so nobody abroad has their lookups sent to a Chinese resolver.
+const regionGlobal = "global"
+
+// china says whether [region] is China: anything but "global" is, as before regions existed.
+func china(region string) bool { return region != regionGlobal }
 
 // dohPath is the path of a DNS-over-HTTPS address: letters, digits and a few marks.
 var dohPath = regexp.MustCompile(`^/[A-Za-z0-9/_.~-]{0,99}$`)
@@ -43,8 +51,12 @@ func remoteDNS(choice string) map[string]any {
 }
 
 // directDNS is the server asked straight out: a preset, or an address (plain DNS over UDP).
-func directDNS(choice string) map[string]any {
-	server := map[string]any{"type": "udp", "tag": "local-dns", "server": "223.5.5.5"}
+func directDNS(choice, region string) map[string]any {
+	fallback := "223.5.5.5"
+	if !china(region) {
+		fallback = "1.1.1.1"
+	}
+	server := map[string]any{"type": "udp", "tag": "local-dns", "server": fallback}
 	if address, ok := directPresets[choice]; ok {
 		server["server"] = address
 	} else if address, ok := plainAddress(choice); ok {

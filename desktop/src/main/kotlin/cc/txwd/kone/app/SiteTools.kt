@@ -75,7 +75,7 @@ class SiteTools(private val scope: CoroutineScope, private val preferences: Pref
         val ways = buildList<Pair<String, () -> Check>> {
             add("Apps" to { DnsLookup.system(name) })
             if (api != null) add("KOne" to { DnsLookup.core(api, name, ipv6) })
-            if (!adapterOn) add("Direct" to { DnsLookup.direct(DnsLookup.directServer(preferences.directDns), name) })
+            if (!adapterOn) add("Direct" to { DnsLookup.direct(DnsLookup.directServer(preferences.directDns, preferences.region), name) })
             add("Remote" to { DnsLookup.remote(DnsLookup.remoteUrl(preferences.remoteDns), name, viaPort) })
         }
         if (refused) {
@@ -139,7 +139,7 @@ class SiteTools(private val scope: CoroutineScope, private val preferences: Pref
             val now = live?.let { api -> async(Dispatchers.IO) { SiteCheck.now(RouteProbe.find(site, viaPort, api), lists, host::nameOf) } }
             val tries = withContext(Dispatchers.IO) {
                 val api = CoreApi(host.freePort(), host.token())
-                val config = runCatching { KoneConfig.build(source, rules, api, tun = false, mode = "Global").config.toString() }.getOrNull()
+                val config = runCatching { KoneConfig.build(source, rules, api, tun = false, mode = "Global", region = preferences.region).config.toString() }.getOrNull()
                 val tester = Probe(core)
                 try {
                     val up = config != null && tester.start(config) && ClashApi(api).let { clash -> (0 until 50).any { clash.answers().also { ok -> if (!ok) Thread.sleep(200) } } }

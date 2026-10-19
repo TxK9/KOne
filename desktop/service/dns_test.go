@@ -33,7 +33,8 @@ func TestDNSChoicesAreChecked(t *testing.T) {
 		"2001:DB8::1":   "2001:db8::1",
 		"10.0.0.0/8":    "",
 		"dns.example":   "",
-		"cloudflare":    "",
+		"cloudflare":    "cloudflare",
+		"nextdns":       "",
 	}
 	for in, want := range direct {
 		if got := DirectDNSChoice(in); got != want {

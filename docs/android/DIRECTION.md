@@ -44,6 +44,9 @@ Other gaps, in order of what people meet first:
   word, address range, app by package, port). A notice when Android's Private DNS answers apps
   past KOne's DNS. All kept in backups. Built and unit-tested in CI (`android.yml`, run 2);
   not run on a device, which the owner has deferred until the App is ready for it.
+- **Where you are**: outside China by default in the shared edition (no China split, Cloudflare
+  as the direct DNS), China kept for the owner's edition and as a choice; switching back
+  restores the template exactly.
 - **One shared core** (`shared/`), approved by the owner: names, rule kinds and checks, and the
   Clash and v2rayN rule import, built into both Apps from source and tested in the Windows
   build beside the Go consistency test.

@@ -171,9 +171,11 @@ class KoneConfigTest {
             // Fixed answers in Rule and Direct: written one way, wrong ones dropped, bounded.
             val fixed = if (mode == "Global") emptyList() else hosts
             val ownServers = if (mode == "Direct") emptyList() else servers
+            // Regions: outside China, China, and a value neither side knows, which both read as China.
+            val region = when (mode) { "Rule" -> if (tun) "global" else "china"; "Global" -> "global"; else -> "atlantis" }
             val ours = KoneConfig.build(
                 source, rules, api, selected = selected, tun = tun, mode = mode, bypass = straight, mixed = mixed, direct = sites, proxied = through,
-                routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6, hosts = fixed, nameServers = ownServers, unmatchedDirect = !tun,
+                routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6, hosts = fixed, nameServers = ownServers, unmatchedDirect = !tun, region = region,
             ).config
             val request = buildJsonObject {
                 put("source", source); put("selected", selected); put("rules", rules)
@@ -184,6 +186,7 @@ class KoneConfigTest {
                 put("remoteDns", remote); put("directDns", direct); put("ipv6", ipv6)
                 putJsonArray("hosts") { fixed.forEach { add(it.toJson()) } }
                 putJsonArray("nameServers") { ownServers.forEach { add(it.toJson()) } }
+                put("region", region)
                 put("unmatchedDirect", !tun)
             }
             val process = ProcessBuilder(found!!.path, "build-config").start()
@@ -283,7 +286,7 @@ class KoneConfigTest {
         )
         remote.forEach { (given, wanted) -> assertEquals(wanted, Dns.remoteChoice(given), "remote $given") }
         val direct = mapOf(
-            "" to "", "dnspod" to "dnspod", " 203.0.113.1 " to "203.0.113.1", "2001:DB8::1" to "2001:db8::1", "10.0.0.0/8" to "", "dns.example" to "", "cloudflare" to "",
+            "" to "", "dnspod" to "dnspod", " 203.0.113.1 " to "203.0.113.1", "2001:DB8::1" to "2001:db8::1", "10.0.0.0/8" to "", "dns.example" to "", "cloudflare" to "cloudflare", "nextdns" to "",
         )
         direct.forEach { (given, wanted) -> assertEquals(wanted, Dns.directChoice(given), "direct $given") }
         val dns = KoneConfig.build(FakeConsole.source(blockClaude = true), rules, api, remoteDns = "https://dns.example.com:8443/q", directDns = "2001:db8::1", ipv6 = true)

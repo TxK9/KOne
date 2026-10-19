@@ -97,6 +97,7 @@ real Windows PC yet.
 | Bandwidth test through a chosen node | Done |
 | Hosts: fixed answers for chosen names (after the Claude block; resolved before routing) | Done |
 | DNS for domains: the names under a domain answered by a server of the person's own (an intranet's), after the Claude block and the hosts; DNS only, routing unchanged | Done |
+| Where you are (Settings): outside China by default, with no China split and Cloudflare as the direct DNS; China keeps the split and AliDNS. In the Go service, the Windows App and the Android App, held identical by the consistency test | Done |
 | Per-node and per-app traffic over the day | Done |
 | Automatic over large subscriptions: the template's url-test sweep now runs every ten minutes, as KOne steers and tests often itself | Done |
 | GEOSITE and GEOIP category rules (e.g. a streaming category to Proxy) | Done (Option B, below) |

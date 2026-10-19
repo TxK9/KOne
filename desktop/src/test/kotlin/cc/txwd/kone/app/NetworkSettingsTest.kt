@@ -34,4 +34,16 @@ class NetworkSettingsTest {
         assertFalse(settings.page.failover)
         assertEquals(7, restarts)
     }
+
+    @Test
+    fun kOneStartsOutsideChinaAndTheRegionCanBeChanged() {
+        // Made for people outside China: no China split and Cloudflare straight out until they say otherwise.
+        assertEquals(cc.txwd.kone.shared.Region.GLOBAL, settings.page.region)
+        assertEquals("1.1.1.1", DnsLookup.directServer(preferences.directDns, preferences.region))
+        settings.setRegion("china")
+        assertEquals(cc.txwd.kone.shared.Region.CHINA, preferences.region)
+        assertEquals("223.5.5.5", DnsLookup.directServer(preferences.directDns, preferences.region))
+        settings.setRegion("china") // the same: no restart
+        assertEquals(1, restarts)
+    }
 }

@@ -37,6 +37,10 @@
     <string name="knine_routing_unmatched_direct">Straight out</string>
     <string name="knine_routing_unmatched_detail">What no site, list or rule sent anywhere, in Rule mode</string>
     <string name="knine_routing_dns">DNS</string>
+    <string name="knine_routing_region">Where you are</string>
+    <string name="knine_routing_region_global">Outside China</string>
+    <string name="knine_routing_region_china">China</string>
+    <string name="knine_routing_region_detail">In China, Chinese sites go straight out and Chinese DNS answers by default; elsewhere neither.</string>
     <string name="knine_routing_remote_dns">Through the node</string>
     <string name="knine_routing_direct_dns">Straight out</string>
     <string name="knine_routing_ipv6">IPv6</string>

@@ -130,4 +130,21 @@ class RoutingTest {
         assertTrue(dns.any { it.optJSONArray("package_name")?.optString(0) == "com.example.app" && it.optString("server") == "local-dns" })
         assertFalse(dns.any { it.has("ip_cidr") || it.has("port_range") })
     }
+
+    @Test
+    fun outsideChinaThereIsNoChinaSplitAndBackInChinaItReturns() {
+        val built = managed()
+        val abroad = Routing.apply(built, Routing.Choices(region = "global"))
+        val config = JSONObject(abroad)
+        assertFalse(rules(config, "route").any { it.optJSONArray("rule_set")?.toString()?.contains("geosite-cn") == true })
+        assertFalse(rules(config, "dns").any { it.optJSONArray("rule_set")?.toString()?.contains("geosite-cn") == true })
+        val servers = config.getJSONObject("dns").getJSONArray("servers")
+        val local = (0 until servers.length()).map { servers.getJSONObject(it) }.single { it.getString("tag") == "local-dns" }
+        assertEquals("1.1.1.1", local.getString("server"))
+        // The Claude block still comes first, and what nothing matched still goes through the node.
+        assertEquals("reject", rules(config, "route")[2].getString("action"))
+        assertEquals(PairedProfile.PROXY_TAG, rules(config, "route").last().getString("outbound"))
+        // Back in China, the template is as it was built.
+        assertEquals(JSONObject(built).toString(2), Routing.apply(abroad, Routing.Choices(region = "china")))
+    }
 }

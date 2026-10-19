@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -336,5 +337,38 @@ func TestWhatNothingMatchesGoesStraightOutWhenAsked(t *testing.T) {
 	}
 	if route[2].(map[string]any)["action"] != "reject" {
 		t.Fatal("the Claude block still comes first")
+	}
+}
+
+func TestOutsideChinaThereIsNoChinaSplit(t *testing.T) {
+	options := options
+	options.Region = "global"
+	config, _, err := Build(source(t, true), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text, _ := json.Marshal(config)
+	for _, china := range []string{"geosite-cn", "geoip-cn", "223.5.5.5"} {
+		if strings.Contains(string(text), china) {
+			t.Fatalf("%s outside China: %s", china, text)
+		}
+	}
+	dns := config["dns"].(map[string]any)
+	if server := dns["servers"].([]any)[0].(map[string]any); server["server"] != "1.1.1.1" {
+		t.Fatalf("direct DNS outside China: %v", server)
+	}
+	// The Claude block still answers first, and what nothing matched still goes through the node.
+	if dns["rules"].([]any)[0].(map[string]any)["action"] != "reject" {
+		t.Fatalf("refusals first: %v", dns["rules"])
+	}
+	rules := config["route"].(map[string]any)["rules"].([]any)
+	if last := rules[len(rules)-1].(map[string]any); last["clash_mode"] != "Rule" || last["outbound"] != proxyTag {
+		t.Fatalf("final rule: %v", last)
+	}
+	// A preset chosen outside China is kept as chosen.
+	options.Domestic = "quad9"
+	config, _, _ = Build(source(t, true), options)
+	if server := config["dns"].(map[string]any)["servers"].([]any)[0].(map[string]any); server["server"] != "9.9.9.9" {
+		t.Fatalf("chosen direct DNS: %v", server)
 	}
 }

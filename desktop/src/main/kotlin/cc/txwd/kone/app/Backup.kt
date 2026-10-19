@@ -34,6 +34,7 @@ data class Backup(
     val hosts: List<cc.txwd.kone.core.Host> = emptyList(),
     val unmatchedDirect: Boolean? = null,
     val nameServers: List<cc.txwd.kone.core.NameServer> = emptyList(),
+    val region: String? = null,
     /** Each subscription's name, link, update interval and the words that leave its nodes out. */
     val subscriptions: List<Entry> = emptyList(),
     val imported: List<JsonObject> = emptyList(),
@@ -52,6 +53,7 @@ data class Backup(
         putJsonArray("rules") { rules.forEach { add(it.toJson()) } }
         putJsonArray("hosts") { hosts.forEach { add(it.toJson()) } }
         putJsonArray("nameServers") { nameServers.forEach { add(it.toJson()) } }
+        region?.let { put("region", it) }
         unmatchedDirect?.let { put("unmatchedDirect", it) }
         blockAds?.let { put("blockAds", it) }
         remoteDns?.let { put("remoteDns", it) }
@@ -90,6 +92,7 @@ data class Backup(
                 failover = flag("failover"),
                 unmatchedDirect = flag("unmatchedDirect"),
                 hosts = (json["hosts"] as? JsonArray)?.mapNotNull { (it as? JsonObject)?.let(cc.txwd.kone.core.Host::fromJson) }.orEmpty(),
+                region = json.text("region")?.let(cc.txwd.kone.shared.Region::clean),
                 nameServers = (json["nameServers"] as? JsonArray)?.mapNotNull { (it as? JsonObject)?.let(cc.txwd.kone.core.NameServer::fromJson) }.orEmpty(),
                 subscriptions = (json["subscriptions"] as? JsonArray)?.mapNotNull { item ->
                     val entry = item as? JsonObject ?: return@mapNotNull null

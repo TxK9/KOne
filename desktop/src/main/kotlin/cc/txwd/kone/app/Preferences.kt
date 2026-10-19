@@ -147,6 +147,17 @@ class Preferences(folder: File) {
         }
 
     /** The DNS server asked straight out: "" for the default (AliDNS), a preset's name, or an address. */
+    /**
+     * Where the person is ([cc.txwd.kone.shared.Region]): outside China unless they say China,
+     * as KOne is made for people outside it. Decides the China split and the default direct DNS.
+     */
+    var region: String
+        get() = cc.txwd.kone.shared.Region.clean(values.getProperty("region") ?: cc.txwd.kone.shared.Region.GLOBAL)
+        set(value) {
+            values.setProperty("region", cc.txwd.kone.shared.Region.clean(value))
+            save()
+        }
+
     var directDns: String
         get() = Dns.directChoice(values.getProperty("directDns").orEmpty())
         set(value) {

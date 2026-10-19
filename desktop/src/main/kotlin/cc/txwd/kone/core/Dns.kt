@@ -11,7 +11,7 @@ import kotlinx.serialization.json.JsonPrimitive
 object Dns {
     /** The presets by name, with the address each asks. */
     val REMOTE = linkedMapOf("cloudflare" to "1.1.1.1", "google" to "8.8.8.8", "quad9" to "9.9.9.9")
-    val DIRECT = linkedMapOf("alidns" to "223.5.5.5", "dnspod" to "119.29.29.29")
+    val DIRECT = cc.txwd.kone.shared.Region.DIRECT
 
     private val PATH = Regex("""/[A-Za-z0-9/_.~-]{0,99}""")
 
@@ -47,9 +47,9 @@ object Dns {
         return JsonObject(server)
     }
 
-    /** The server asked straight out: a preset, or an address over plain DNS. */
-    fun direct(choice: String): JsonObject {
-        val server = DIRECT[choice] ?: address(choice) ?: "223.5.5.5"
+    /** The server asked straight out: a preset, or an address over plain DNS; else the [region]'s default. */
+    fun direct(choice: String, region: String = cc.txwd.kone.shared.Region.CHINA): JsonObject {
+        val server = DIRECT[choice] ?: address(choice) ?: cc.txwd.kone.shared.Region.directDefault(region)
         return JsonObject(mapOf("type" to JsonPrimitive("udp"), "tag" to JsonPrimitive("local-dns"), "server" to JsonPrimitive(server)))
     }
 

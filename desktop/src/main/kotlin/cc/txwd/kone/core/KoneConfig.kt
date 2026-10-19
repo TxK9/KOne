@@ -67,6 +67,8 @@ object KoneConfig {
         nameServers: List<NameServer> = emptyList(),
         /** What no rule, list or category matched goes straight out in Rule mode, not through the node. */
         unmatchedDirect: Boolean = false,
+        /** Where the person is ([cc.txwd.kone.shared.Region]): outside China there is no China split. */
+        region: String = cc.txwd.kone.shared.Region.CHINA,
     ): Built {
         // An outbound that names a file is never carried: the service, which runs the core as
         // SYSTEM, refuses it the same way (desktop/service/plan.go).
@@ -122,12 +124,13 @@ object KoneConfig {
         val own = UserRules.clean(routes)
         val fixed = Hosts.clean(hosts)
         val ownServers = NameServers.clean(nameServers)
+        val china = cc.txwd.kone.shared.Region.china(region)
 
         val config = buildJsonObject {
             putJsonObject("log") { put("level", "warn"); put("timestamp", true) }
             putJsonObject("dns") {
                 putJsonArray("servers") {
-                    add(Dns.direct(directDns))
+                    add(Dns.direct(directDns, region))
                     add(Dns.remote(remoteDns))
                     NameServers.servers(ownServers).forEach { add(it) }
                 }
@@ -146,7 +149,7 @@ object KoneConfig {
                     if (blockAds) add(buildJsonObject { putJsonArray("rule_set") { add(ADS_RULE_SET) }; put("action", "reject") })
                     add(buildJsonObject { put("clash_mode", "Direct"); put("server", "local-dns") })
                     add(buildJsonObject { put("clash_mode", "Global"); put("server", "proxy-dns") })
-                    add(buildJsonObject { putJsonArray("rule_set") { add("geosite-cn") }; put("server", "local-dns") })
+                    if (china) add(buildJsonObject { putJsonArray("rule_set") { add("geosite-cn") }; put("server", "local-dns") })
                     if (unmatchedDirect) add(buildJsonObject { put("clash_mode", "Rule"); put("server", "local-dns") })
                 }
                 put("final", "proxy-dns")
@@ -201,11 +204,11 @@ object KoneConfig {
                     add(buildJsonObject { put("clash_mode", "Direct"); put("outbound", "direct") })
                     add(buildJsonObject { put("clash_mode", "Global"); put("outbound", PROXY_TAG) })
                     add(buildJsonObject { put("ip_is_private", true); put("outbound", "direct") })
-                    add(buildJsonObject { put("clash_mode", "Rule"); putJsonArray("rule_set") { add("geosite-cn"); add("geoip-cn") }; put("outbound", "direct") })
+                    if (china) add(buildJsonObject { put("clash_mode", "Rule"); putJsonArray("rule_set") { add("geosite-cn"); add("geoip-cn") }; put("outbound", "direct") })
                     add(buildJsonObject { put("clash_mode", "Rule"); put("outbound", if (unmatchedDirect) "direct" else PROXY_TAG) })
                 }
                 putJsonArray("rule_set") {
-                    val sets = listOf("geosite-cn" to "sing-geosite", "geoip-cn" to "sing-geoip") + if (blockAds) listOf(ADS_RULE_SET to "sing-geosite") else emptyList()
+                    val sets = (if (china) listOf("geosite-cn" to "sing-geosite", "geoip-cn" to "sing-geoip") else emptyList()) + if (blockAds) listOf(ADS_RULE_SET to "sing-geosite") else emptyList()
                     for ((tag, repo) in sets) {
                         add(buildJsonObject {
                             put("type", "remote"); put("tag", tag); put("format", "binary")
