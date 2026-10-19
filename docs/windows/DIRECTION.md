@@ -92,12 +92,29 @@ Done this round (unit tested; CI as noted in the roadmap):
 - **Hosts**: fixed answers for chosen names, after the Claude block, resolved before routing
   so a node is never asked for a name only this computer knows; Go and Kotlin held identical.
 
+Done since (unit tested, and on a real sing-box where noted in the roadmap):
+
+- **Passive health and learning from traffic.** Stalling connections wake the watchdog early;
+  a site that keeps failing straight out is offered a rule.
+- **Where a site goes now, from the core itself.** Site check opens a real connection and reads
+  the running core's own match before trying the ways, rather than imitating its rules.
+- **Migration.** Clash and v2rayN rules, and Clash or sing-box nodes, come over by paste; a
+  provider's notices ("剩余流量") are left out of subscriptions.
+- **Causes no node can fix, named.** Windows' clock against the network's own servers.
+- **DNS for domains**: an intranet's names answered by its own server.
+- **A stop recorded.** An unexpected error is kept on this computer and named in words.
+
+The App stopped at start for one round (a delegate in AppModel used before it was made) and
+CI's start check passed anyway, taking the launcher's error box for the window. Both are
+fixed: a test now makes the App as Main does, and CI accepts only the App's own frame.
+
 Next:
 
-1. **Passive health.** Read stalls in real connections to notice a failing node sooner and
-   probe less.
-2. **AppModel in parts.** About 2,000 lines in one class is where bugs will hide; split into
-   connection, nodes, rules and tools controllers, a part at a time, each with tests.
+1. **AppModel in parts.** About 2,000 lines in one class is where bugs hide, as the start
+   failure showed; split into connection, nodes, rules and tools controllers, a part at a
+   time, each with tests.
+2. **CPU while shown, measured again** now that the backdrop's clock sleeps between steps; a
+   ceiling in CI once the figure is known.
 
 ### Needing the owner
 
