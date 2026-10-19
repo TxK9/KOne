@@ -72,6 +72,8 @@ tasks.test {
     }
     // The screen tests leave their PNGs here, for comparing with docs/windows/preview.html.
     systemProperty("kone.screens", layout.buildDirectory.dir("screens").get().asFile.path)
+    // The App's data folder for tests that build the App itself, never the runner's own KOne folder.
+    systemProperty("kone.data", layout.buildDirectory.dir("test-data").get().asFile.path)
     // The core and the service, where the workflow puts them (build/core), or -Pkone.singbox=…
     // and -Pkone.service=…: the tests then have sing-box check what the App builds and the
     // service build the same configuration.

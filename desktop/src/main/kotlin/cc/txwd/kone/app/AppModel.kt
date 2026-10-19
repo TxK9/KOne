@@ -218,51 +218,6 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** The adapter could not be made this time KOne runs: connections go through the system proxy until it is chosen again. */
     private var noAdapter = false
 
-    init {
-        // A KOne that crashed while Windows' proxy pointed at it puts the person's own back now;
-        // one that is ended with Windows puts it back on its way out.
-        SystemProxy.restore()
-        Runtime.getRuntime().addShutdownHook(Thread { SystemProxy.restore(); usage.save(); traffic.save() })
-        loadNodes()
-        if (account.binding != null) {
-            // Connected when Windows shut down or restarted (not ended by Close or Quit): connect again.
-            if (preferences.connected && account.binding?.source != null) {
-                wanted = true
-                held = true
-                connect()
-            } else {
-                startProbe()
-            }
-            scope.launch { syncNow() }
-        }
-        scope.launch {
-            // Subscriptions due for their update are fetched quietly; a failure keeps their last good nodes.
-            delay(20_000)
-            while (isActive) {
-                if (account.binding != null) {
-                    val now = System.currentTimeMillis()
-                    subscriptions.all.filter { it.due(now) }.forEach { updateSubscription(it.id, first = false) }
-                }
-                delay(TimeUnit.MINUTES.toMillis(15))
-            }
-        }
-        scope.launch {
-            // The category lists are looked at every hour; each is downloaded again only once a day, and only if it changed.
-            delay(30_000)
-            while (isActive) {
-                updateLists()
-                delay(TimeUnit.HOURS.toMillis(1))
-            }
-        }
-        scope.launch {
-            // Every four hours, as the phone does, the nodes are brought in step with the console.
-            while (isActive) {
-                delay(TimeUnit.HOURS.toMillis(4))
-                if (account.binding != null) syncNow()
-            }
-        }
-    }
-
     // Enter access key
 
     fun typeKey(text: String) {
@@ -1953,6 +1908,53 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             notice = nodesNotice?.first,
             noticeIsError = nodesNotice?.second == true,
         )
+    }
+
+    // Last of all, so every property above, the delegates among them, is set before it runs:
+    // started earlier, refresh() met a sign-in delegate not yet made, and KOne did not start.
+    init {
+        // A KOne that crashed while Windows' proxy pointed at it puts the person's own back now;
+        // one that is ended with Windows puts it back on its way out.
+        SystemProxy.restore()
+        Runtime.getRuntime().addShutdownHook(Thread { SystemProxy.restore(); usage.save(); traffic.save() })
+        loadNodes()
+        if (account.binding != null) {
+            // Connected when Windows shut down or restarted (not ended by Close or Quit): connect again.
+            if (preferences.connected && account.binding?.source != null) {
+                wanted = true
+                held = true
+                connect()
+            } else {
+                startProbe()
+            }
+            scope.launch { syncNow() }
+        }
+        scope.launch {
+            // Subscriptions due for their update are fetched quietly; a failure keeps their last good nodes.
+            delay(20_000)
+            while (isActive) {
+                if (account.binding != null) {
+                    val now = System.currentTimeMillis()
+                    subscriptions.all.filter { it.due(now) }.forEach { updateSubscription(it.id, first = false) }
+                }
+                delay(TimeUnit.MINUTES.toMillis(15))
+            }
+        }
+        scope.launch {
+            // The category lists are looked at every hour; each is downloaded again only once a day, and only if it changed.
+            delay(30_000)
+            while (isActive) {
+                updateLists()
+                delay(TimeUnit.HOURS.toMillis(1))
+            }
+        }
+        scope.launch {
+            // Every four hours, as the phone does, the nodes are brought in step with the console.
+            while (isActive) {
+                delay(TimeUnit.HOURS.toMillis(4))
+                if (account.binding != null) syncNow()
+            }
+        }
     }
 
     companion object {

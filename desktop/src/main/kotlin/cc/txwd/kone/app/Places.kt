@@ -7,8 +7,11 @@ import java.io.File
 object Places {
     val windows: Boolean = System.getProperty("os.name").startsWith("Windows")
 
-    /** %LOCALAPPDATA%\KOne on Windows: the binding, the rule sets. Not roaming: DPAPI seals it to this computer. */
-    val data: File = (System.getenv("LOCALAPPDATA")?.takeIf { windows }?.let { File(it, "KOne") } ?: File(System.getProperty("user.home"), ".kone"))
+    /**
+     * %LOCALAPPDATA%\KOne on Windows: the binding, the rule sets. Not roaming: DPAPI seals it to this
+     * computer. The tests set kone.data to a folder of their own, away from any real KOne's.
+     */
+    val data: File = (System.getProperty("kone.data")?.let(::File) ?: System.getenv("LOCALAPPDATA")?.takeIf { windows }?.let { File(it, "KOne") } ?: File(System.getProperty("user.home"), ".kone"))
         .apply { mkdirs() }
 
     /** The launcher, KOne.exe, as jpackage starts it; its folder is where the installer put KOne. */
