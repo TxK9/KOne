@@ -8,14 +8,11 @@ import cc.txwd.kone.console.ClaimLink
 import cc.txwd.kone.console.ConsoleException
 import cc.txwd.kone.core.Carried
 import cc.txwd.kone.core.ClashApi
-import cc.txwd.kone.core.Dns
 import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.Ends
 import cc.txwd.kone.core.ExitTrace
 import cc.txwd.kone.core.Host
-import cc.txwd.kone.core.Hosts
 import cc.txwd.kone.core.NameServer
-import cc.txwd.kone.core.NameServers
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.Probe
@@ -43,7 +40,6 @@ import cc.txwd.kone.ui.NodeEditing
 import cc.txwd.kone.ui.NodeQr
 import cc.txwd.kone.ui.qrModules
 import cc.txwd.kone.ui.NodeSection
-import cc.txwd.kone.ui.NetworkState
 import cc.txwd.kone.ui.NodesState
 import cc.txwd.kone.ui.SourceKind
 import cc.txwd.kone.ui.ToolsState
@@ -1204,7 +1200,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         tools = tools.copy(bypass = preferences.bypass)
         ruleBook.show()
         if (backup.rules.any { it.kind == "set" }) updateLists()
-        network = NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts, preferences.nameServers)
+        networkSettings.show()
         val added = backup.subscriptions.mapNotNull { (name, url, hours) ->
             if (!SubscriptionContent.acceptable(url)) return@mapNotNull null
             subscriptions.add(url, name.take(32))?.also { subscriptions.change(it.id) { kept -> kept.copy(hours = hours.coerceIn(0, 720)) } }
@@ -1226,14 +1222,13 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     // Network (Settings)
 
-    /** The DNS servers and IPv6, as kept. */
-    var network by mutableStateOf(NetworkState(preferences.remoteDns, preferences.directDns, preferences.ipv6, preferences.failover, preferences.hosts, preferences.nameServers))
-        private set
+    /** The DNS servers, hosts, DNS for domains, IPv6 and failover, as kept (see NetworkSettings). */
+    private val networkSettings = NetworkSettings(preferences) { restart() }
+    val network get() = networkSettings.page
 
     /** Whether a chosen node that stops answering is stood in for; a stand-in in place goes back to the chosen node. */
     fun setFailover(on: Boolean) {
-        preferences.failover = on
-        network = network.copy(failover = on)
+        networkSettings.setFailover(on)
         val api = clash
         val chosen = account.binding?.selected
         if (!on && standIn != null && api != null && chosen != null) {
@@ -1243,73 +1238,19 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
     }
 
-    /** A remote DNS choice; false when it is neither a preset nor a DNS-over-HTTPS address KOne takes. */
-    fun setRemoteDns(choice: String): Boolean {
-        val clean = Dns.remoteChoice(choice)
-        if (clean.isEmpty() && choice.isNotBlank()) return false
-        if (clean == preferences.remoteDns) return true
-        preferences.remoteDns = clean
-        network = network.copy(remoteDns = clean)
-        restart()
-        return true
-    }
+    fun setRemoteDns(choice: String): Boolean = networkSettings.setRemoteDns(choice)
 
-    /** A direct DNS choice; false when it is neither a preset nor an address. */
-    fun setDirectDns(choice: String): Boolean {
-        val clean = Dns.directChoice(choice)
-        if (clean.isEmpty() && choice.isNotBlank()) return false
-        if (clean == preferences.directDns) return true
-        preferences.directDns = clean
-        network = network.copy(directDns = clean)
-        restart()
-        return true
-    }
+    fun setDirectDns(choice: String): Boolean = networkSettings.setDirectDns(choice)
 
-    /** A fixed answer typed as "name address" (or a hosts file's "address name"); false when it is not one. */
-    fun addHost(line: String): Boolean {
-        val host = Hosts.parse(line) ?: return false
-        val before = preferences.hosts
-        if (host in before) return true
-        if (Hosts.clean(before + host).sumOf { it.v4.size + it.v6.size } == before.size) return false
-        preferences.hosts = before + host
-        network = network.copy(hosts = preferences.hosts)
-        restart()
-        return true
-    }
+    fun addHost(line: String): Boolean = networkSettings.addHost(line)
 
-    fun removeHost(host: Host) {
-        val before = preferences.hosts
-        if (host !in before) return
-        preferences.hosts = before - host
-        network = network.copy(hosts = preferences.hosts)
-        restart()
-    }
+    fun removeHost(host: Host) = networkSettings.removeHost(host)
 
-    /** A server of the person's own for a domain, typed as "domain server"; false when it is not one or there are 16 already. */
-    fun addNameServer(line: String): Boolean {
-        val entry = NameServers.parse(line) ?: return false
-        val before = preferences.nameServers
-        if (entry in before) return true
-        if (NameServers.flatten(NameServers.clean(before + entry)).size == before.size) return false
-        preferences.nameServers = before + entry
-        network = network.copy(nameServers = preferences.nameServers)
-        restart()
-        return true
-    }
+    fun addNameServer(line: String): Boolean = networkSettings.addNameServer(line)
 
-    fun removeNameServer(entry: NameServer) {
-        val before = preferences.nameServers
-        if (entry !in before) return
-        preferences.nameServers = before - entry
-        network = network.copy(nameServers = preferences.nameServers)
-        restart()
-    }
+    fun removeNameServer(entry: NameServer) = networkSettings.removeNameServer(entry)
 
-    fun setIpv6(on: Boolean) {
-        preferences.ipv6 = on
-        network = network.copy(ipv6 = on)
-        restart()
-    }
+    fun setIpv6(on: Boolean) = networkSettings.setIpv6(on)
 
     // Rules
 
