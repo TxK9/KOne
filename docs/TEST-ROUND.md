@@ -73,7 +73,7 @@ routing re-applies without change and turning a choice off restores the template
 
 | # | Check | Expected |
 | --- | --- | --- |
-| 6.1 | Back up, reset (Windows: new user profile / Android: clear only by reinstalling a test build), restore | Sites, rules, DNS choices, Fake IP, Automatic, subscriptions and imported nodes come back |
+| 6.1 | Back up, then restore on a fresh test install (Windows: another user account; Android: a second test phone or work profile) | Sites, rules, DNS choices, Fake IP, Automatic, subscriptions and imported nodes come back |
 | 6.2 | Restore the same backup twice | Nothing appears twice |
 | 6.3 | Restart the device | KOne starts as it was left (autostart only when turned on) |
 
