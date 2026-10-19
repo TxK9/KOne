@@ -42,6 +42,11 @@ object Routing {
         /** Answer names with IPv6 addresses too (IPv4 first). */
         val ipv6: Boolean = false,
         /**
+         * With several nodes, an Automatic choice that uses the fastest one answering, tried every
+         * few minutes, and leaves one that stops answering. Off here so the template stays as built.
+         */
+        val automatic: Boolean = false,
+        /**
          * Where the person is ([Region]): in China, Chinese sites go straight out and AliDNS answers
          * by default; elsewhere there is no China split and Cloudflare answers. The template is
          * built for China, so this default leaves it as built.
@@ -66,6 +71,9 @@ object Routing {
     private const val LOCAL_DNS = "local-dns"
     private const val PROXY_DNS = "proxy-dns"
     private const val OWN_DNS = "own-dns-"
+
+    /** The Automatic choice's tag, as the node list shows it. */
+    const val AUTO = "Automatic"
 
     /** The site in what the person typed or pasted: the shared core's reading ([Names.site]). */
     fun site(text: String): String? = Names.site(text)
@@ -147,6 +155,7 @@ object Routing {
         route.put("rules", JSONArray(routed))
         setAdList(route, choices.blockAds)
         setCategoryLists(route, Rules.sets(own).associateWith { lists.getValue(it) })
+        setAutomatic(config, choices.automatic)
 
         // DNS: the same stretch, each list's names answered where its traffic goes.
         val dns = config.getJSONObject("dns")
@@ -201,6 +210,28 @@ object Routing {
                 .put("http_client", JSONObject().put("detour", PROXY).put("domain_resolver", LOCAL_DNS))
         }
         route.put("rule_set", JSONArray(sets))
+    }
+
+    /**
+     * The Automatic choice ([AUTO]) among the node choices, first and the default, when [on] and
+     * there are two nodes or more; gone otherwise, with the first node the default again. Which
+     * node the person picked is kept by sing-box itself (its cache file), so a pick survives.
+     */
+    private fun setAutomatic(config: JSONObject, on: Boolean) {
+        val outbounds = objects(config.optJSONArray("outbounds"))
+        val selector = outbounds.firstOrNull { it.optString("tag") == PROXY && it.optString("type") == "selector" } ?: return
+        val members = (0 until (selector.optJSONArray("outbounds")?.length() ?: 0)).map { selector.getJSONArray("outbounds").optString(it) }.filter { it != AUTO }
+        val kept = outbounds.filterNot { it.optString("tag") == AUTO && it.optString("type") == "urltest" }.toMutableList()
+        if (on && members.size >= 2) {
+            val index = kept.indexOf(selector) + 1
+            kept.add(index, JSONObject().put("type", "urltest").put("tag", AUTO).put("outbounds", JSONArray(members))
+                .put("url", "https://www.gstatic.com/generate_204").put("interval", "5m").put("tolerance", 50))
+            selector.put("outbounds", JSONArray(listOf(AUTO) + members)).put("default", AUTO)
+        } else {
+            selector.put("outbounds", JSONArray(members))
+            if (selector.optString("default") == AUTO || selector.optString("default") !in members) selector.put("default", members.firstOrNull())
+        }
+        config.put("outbounds", JSONArray(kept))
     }
 
     /**

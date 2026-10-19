@@ -172,6 +172,14 @@ fun RoutingSettingsScreen(navController: NavController) {
         }
 
         Spacer(Modifier.height(16.dp))
+        KnineSectionLabel(text = stringResource(R.string.knine_routing_choosing))
+        Section {
+            SwitchRow(stringResource(R.string.knine_routing_automatic), stringResource(R.string.knine_routing_automatic_detail), choices.automatic) {
+                keep(choices.copy(automatic = it))
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
         KnineSectionLabel(text = stringResource(R.string.knine_routing_unmatched))
         Section {
             ChoiceRow(

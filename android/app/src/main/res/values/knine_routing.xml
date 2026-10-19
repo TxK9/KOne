@@ -38,6 +38,9 @@
     <string name="knine_routing_blocking">Blocking</string>
     <string name="knine_routing_block_ads">Block ads</string>
     <string name="knine_routing_block_ads_detail">The domains of a common ad list, in every mode</string>
+    <string name="knine_routing_choosing">Choosing a node</string>
+    <string name="knine_routing_automatic">Automatic</string>
+    <string name="knine_routing_automatic_detail">With several nodes, use the fastest one that answers, checked every few minutes; a node you pick yourself stays picked</string>
     <string name="knine_routing_unmatched">When nothing matches</string>
     <string name="knine_routing_unmatched_proxy">Through the node</string>
     <string name="knine_routing_unmatched_direct">Straight out</string>

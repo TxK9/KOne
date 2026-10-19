@@ -57,6 +57,7 @@ object Settings {
     var knineRoutingRemoteDns by dataStore.string("knine_routing_remote_dns") { "" }
     var knineRoutingDirectDns by dataStore.string("knine_routing_direct_dns") { "" }
     var knineRoutingIpv6 by dataStore.boolean("knine_routing_ipv6") { false }
+    var knineRoutingAutomatic by dataStore.boolean("knine_routing_automatic") { true }
     var knineRoutingHosts by dataStore.string("knine_routing_hosts") { "" }
     var knineRoutingNameServers by dataStore.string("knine_routing_name_servers") { "" }
     /** Each remote profile's provider terms (data used and allowed, end), by profile id: see SubscriptionProfile. */

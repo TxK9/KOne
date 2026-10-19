@@ -27,6 +27,7 @@ object RoutingSettings {
         remoteDns = Settings.knineRoutingRemoteDns.takeIf { it in Routing.REMOTE }.orEmpty(),
         directDns = Settings.knineRoutingDirectDns.takeIf { it in Routing.DIRECT }.orEmpty(),
         ipv6 = Settings.knineRoutingIpv6,
+        automatic = Settings.knineRoutingAutomatic,
         region = Region.clean(Settings.knineRoutingRegion),
         hosts = lines(Settings.knineRoutingHosts).mapNotNull(Hosts::parse),
         nameServers = lines(Settings.knineRoutingNameServers).mapNotNull(NameServers::parse),
@@ -56,6 +57,7 @@ object RoutingSettings {
         Settings.knineRoutingRemoteDns = choices.remoteDns.takeIf { it in Routing.REMOTE }.orEmpty()
         Settings.knineRoutingDirectDns = choices.directDns.takeIf { it in Routing.DIRECT }.orEmpty()
         Settings.knineRoutingIpv6 = choices.ipv6
+        Settings.knineRoutingAutomatic = choices.automatic
         Settings.knineRoutingRegion = Region.clean(choices.region)
         Settings.knineRoutingHosts = hostLines(choices.hosts)
         Settings.knineRoutingNameServers = nameServerLines(choices.nameServers)

@@ -196,6 +196,31 @@ class RoutingTest {
     }
 
     @Test
+    fun automaticPicksAmongSeveralNodesAndGoesAwayCleanly() {
+        val two = SubscriptionProfile.build(
+            listOf(
+                "trojan://example-password@node1.invalid:443?sni=example.org#Tokyo",
+                "trojan://example-password@node2.invalid:443?sni=example.org#Frankfurt",
+            ).joinToString("\n"),
+            HomeLink.Home.OFF,
+        )
+        val config = JSONObject(Routing.apply(two, Routing.Choices(automatic = true)))
+        val outbounds = config.getJSONArray("outbounds").let { array -> (0 until array.length()).map { array.getJSONObject(it) } }
+        val selector = outbounds.single { it.optString("tag") == PairedProfile.PROXY_TAG }
+        assertEquals(Routing.AUTO, selector.getString("default"))
+        assertEquals(Routing.AUTO, selector.getJSONArray("outbounds").getString(0))
+        val auto = outbounds.single { it.optString("tag") == Routing.AUTO }
+        assertEquals("urltest", auto.getString("type"))
+        assertEquals(2, auto.getJSONArray("outbounds").length())
+        // Applied again, nothing doubles; turned off, the template is as built.
+        assertEquals(config.toString(2), Routing.apply(config.toString(), Routing.Choices(automatic = true)))
+        assertEquals(JSONObject(two).toString(2), Routing.apply(config.toString(), Routing.Choices()))
+        // One node has nothing to choose between.
+        val one = PairedProfile.fromLink("trojan://example-password@node1.invalid:443?sni=example.org#Tokyo", HomeLink.Home.OFF)
+        assertEquals(JSONObject(one).toString(2), Routing.apply(one, Routing.Choices(automatic = true)))
+    }
+
+    @Test
     fun anotherClientsRulesComeOverWithTheAppsKinds() {
         val clash = """
             rules:

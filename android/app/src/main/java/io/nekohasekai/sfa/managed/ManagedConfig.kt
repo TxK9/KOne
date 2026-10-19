@@ -2,6 +2,7 @@ package io.nekohasekai.sfa.managed
 
 import io.nekohasekai.sfa.selfuse.HomeLink
 import io.nekohasekai.sfa.selfuse.PairedProfile
+import io.nekohasekai.sfa.selfuse.Routing
 import cc.txwd.kone.shared.ShareLinks
 import org.json.JSONArray
 import org.json.JSONObject
@@ -27,7 +28,7 @@ object ManagedConfig {
     )
 
     /** Tags the template uses itself; a source outbound with one of these is renamed. */
-    private val RESERVED = setOf(PairedProfile.PROXY_TAG, ShareLinks.NODE_TAG, PairedProfile.HOME_TAG, HomeLink.DNS_TAG, "direct", "block", "dns")
+    private val RESERVED = setOf(PairedProfile.PROXY_TAG, ShareLinks.NODE_TAG, PairedProfile.HOME_TAG, HomeLink.DNS_TAG, Routing.AUTO, "direct", "block", "dns")
 
     /** The KOne configuration for [source]; throws [ManagedException] when it holds no usable node. */
     fun build(source: JSONObject, home: HomeLink.Home, rulesDirectory: String = "rules"): String {
