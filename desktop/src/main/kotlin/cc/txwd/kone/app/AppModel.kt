@@ -20,6 +20,7 @@ import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.RuleImport
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.Probe
+import cc.txwd.kone.core.RouteProbe
 import cc.txwd.kone.core.RuleSets
 import cc.txwd.kone.core.ServiceLink
 import cc.txwd.kone.core.SourceNode
@@ -1143,8 +1144,14 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         val others = nodes.map { it.tag }.filter { it != current }.sortedBy { delays[it] ?: Int.MAX_VALUE }
         val picked = (listOfNotNull(current) + others).take(4)
         val ways = listOf("direct" to "Straight out") + picked.map { it to nameOf(it) }
-        tools = tools.copy(site = SiteCheckState(site, ways.map { (_, title) -> Check(title, Outcome.Running) }, running = true))
+        // While connected, the live core is asked first where it sends the site now, and why.
+        val live = clash?.takeIf { connection == Connection.Online }
+        val viaPort = proxied
+        val lists = Why.Lists(preferences.bypass, preferences.direct, preferences.proxied)
+        val first = listOfNotNull(live?.let { Check("Now", Outcome.Running) })
+        tools = tools.copy(site = SiteCheckState(site, first + ways.map { (_, title) -> Check(title, Outcome.Running) }, running = true))
         scope.launch {
+            val now = live?.let { api -> async(Dispatchers.IO) { SiteCheck.now(RouteProbe.find(site, viaPort, api), lists, ::nameOf) } }
             val tries = withContext(Dispatchers.IO) {
                 val api = CoreApi(freePort(), token())
                 val config = runCatching { KoneConfig.build(source, rules, api, tun = false, mode = "Global").config.toString() }.getOrNull()
@@ -1161,7 +1168,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 }
             }
             val way = SiteCheck.way(tries.first().millis, tries.drop(1).map { it.millis })
-            tools = tools.copy(site = SiteCheckState(site, SiteCheck.rows(tries), running = false, verdict = SiteCheck.verdict(site, way), way = way))
+            tools = tools.copy(site = SiteCheckState(site, listOfNotNull(now?.await()) + SiteCheck.rows(tries), running = false, verdict = SiteCheck.verdict(site, way), way = way))
         }
         return true
     }

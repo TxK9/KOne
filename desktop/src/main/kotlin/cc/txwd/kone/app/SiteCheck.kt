@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.core.RouteProbe
+
 /**
  * "Make this site work": a site tried straight out and through a few nodes, each with how long it
  * took to answer, and which way serves it best. The answer is a list entry the person can keep
@@ -40,6 +42,20 @@ object SiteCheck {
             null -> Check(one.title, Outcome.Fail, "No answer")
             else -> Check(one.title, if (millis >= 3_000) Outcome.Warn else Outcome.Pass, "$millis ms")
         }
+    }
+
+    /**
+     * Where the running core sends the site now, as a row: straight out or through which node, and
+     * why in the person's terms ([Why]). [nameOf] names a node by its tag.
+     */
+    fun now(found: RouteProbe.Found, lists: Why.Lists, nameOf: (String) -> String): Check = when (found) {
+        is RouteProbe.Found.Carried -> {
+            val via = found.connection.via
+            val way = if (via == "direct" || via.isEmpty()) "Straight out" else "Through ${nameOf(via)}"
+            Check("Now", Outcome.Pass, listOfNotNull(way, Why.explain(found.connection.rule, lists)).joinToString(" · "))
+        }
+        RouteProbe.Found.NoName -> Check("Now", Outcome.Warn, "The name does not resolve here")
+        RouteProbe.Found.Unseen -> Check("Now", Outcome.Warn, "Refused, or not carried by KOne")
     }
 
     /** What the tries add up to, in a sentence. */

@@ -352,7 +352,7 @@ class ScreensTest {
             "Rule", emptyList(),
             site = SiteCheckState(
                 "example.org",
-                listOf(Check("Straight out", Outcome.Pass, "42 ms"), Check("Japan", Outcome.Pass, "318 ms"), Check("United States", Outcome.Pass, "402 ms"), Check("Singapore", Outcome.Fail, "No answer")),
+                listOf(Check("Now", Outcome.Pass, "Through Japan · Everything else"), Check("Straight out", Outcome.Pass, "42 ms"), Check("Japan", Outcome.Pass, "318 ms"), Check("United States", Outcome.Pass, "402 ms"), Check("Singapore", Outcome.Fail, "No answer")),
                 running = false, verdict = "example.org works best straight out", way = SiteCheck.Way.Direct,
             ),
         )

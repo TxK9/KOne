@@ -90,6 +90,7 @@ real Windows PC yet.
 | Sign-in networks (hotels, airports) detected, with one press to sign in and reconnect | Done |
 | Other VPNs and Windows' proxy elsewhere named in diagnosis and on fall-back | Done |
 | Site check: a site tried straight out and through nodes, the better way kept | Done |
+| Site check asks the running core first where the site goes now and by which rule (a real connection found in the core's own list, not an imitation of its rules); checked on sing-box through the proxy port, the adapter path only on Windows | Done |
 | Each connection's reason shown in the person's terms | Done |
 | Memory and CPU measured in CI on x64 and ARM64 | Done |
 | Bandwidth test through a chosen node | Done |
