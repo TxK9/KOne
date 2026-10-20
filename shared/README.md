@@ -7,7 +7,11 @@ no platform code, JVM 17.
 
 - `ShareLinks.kt`: share links (VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, AnyTLS) read
   into sing-box outbounds, one way for both Apps.
-- `Hosts.kt`, `NameServers.kt`: fixed answers and DNS servers for domains.
+- `Subscription.kt`: a subscription's body (links, base64, a Clash profile or a sing-box node
+  list) read into tagged nodes, and the provider's usage header with its warning.
+- `Hosts.kt`, `NameServers.kt`: fixed answers (a pasted hosts file included) and DNS servers for
+  domains.
+- `FakeIp.kt`: the fake-IP option's server and rules, and its address ranges.
 - `Names.kt`: sites, programs, apps, address ranges and ports, read and written one way.
 - `Rules.kt`: the person's routing rules, their kinds and how each is checked.
 - `RuleImport.kt`: rules brought over from Clash and v2rayN.
@@ -16,7 +20,9 @@ no platform code, JVM 17.
 - `ClashProxies.kt`, `NodeFilter.kt`: a Clash profile's proxies as sing-box outbounds, and the
   provider notices left out among them.
 - `Region.kt`: where the person is, and the DNS presets and test sites that follow from it.
-- `Checks.kt`: diagnosis checks and the clock verdict.
+- `Checks.kt`: diagnosis checks, the clock verdict and the plain-text report.
+- `Countries.kt`: countries, cities and flags, for reading a node's country from its name.
+- `Why.kt`: why a connection went its way, in the person's terms.
 
 The tests in `src/test/kotlin` run in the Windows build (`desktop/gradlew test`), where the
 Windows service's Go checks are also held to these by the configuration consistency test.
