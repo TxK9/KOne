@@ -85,5 +85,8 @@ class SubscriptionTest {
         val unlimited = UserInfo(upload = 1L shl 40, download = 1L shl 40, total = Long.MAX_VALUE, expire = null)
         kotlin.test.assertNull(unlimited.warning("Example Cloud", 0))
         kotlin.test.assertEquals("Example Cloud has used 95% of its data", UserInfo(0, 95, 100, null).warning("Example Cloud", 0))
+        kotlin.test.assertEquals(Long.MAX_VALUE, UserInfo(Long.MAX_VALUE, Long.MAX_VALUE, 0, null).used)
+        // An end sent in milliseconds is read as the same moment.
+        kotlin.test.assertEquals(1_800_000_000L, UserInfo.parse("upload=0; download=0; total=1; expire=1800000000000")?.expire)
     }
 }

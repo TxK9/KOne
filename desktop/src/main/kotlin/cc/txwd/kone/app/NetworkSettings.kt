@@ -67,11 +67,12 @@ class NetworkSettings(private val preferences: Preferences, private val restart:
         val before = preferences.hosts
         val added = found.filter { it !in before }
         if (added.isEmpty()) return true
-        // Past the limits, nothing new would be kept.
-        if (Hosts.clean(before + added).sumOf { it.v4.size + it.v6.size } == before.size) return false
-        preferences.hosts = before + added
+        // Past the limits, what fits is kept, and false says not all of it was.
+        val kept = Hosts.flatten(Hosts.clean(before + added))
+        if (kept.size == before.size) return false
+        preferences.hosts = before + added.filter { it in kept }
         changed()
-        return true
+        return added.all { it in kept }
     }
 
     fun removeHost(host: Host) {

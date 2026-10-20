@@ -9,6 +9,14 @@ package main
 
 const fakeDNSTag = "fake-dns"
 
+// realNames keep real answers even through the node: Windows checks the Internet by looking one up
+// (dns.msftncsi.com must be 131.107.255.255) and says "No Internet" otherwise.
+var realNames = []any{"msftncsi.com", "msftconnecttest.com"}
+
+// named are the rule keys that already say which names a rule matches; such a rule is not one
+// the real names meet.
+var named = map[string]bool{"domain": true, "domain_suffix": true, "domain_keyword": true, "domain_regex": true, "rule_set": true}
+
 // fakeDNSServer is the fake-IP server, with an IPv6 range only when names are answered with IPv6.
 func fakeDNSServer(ipv6 bool) map[string]any {
 	server := map[string]any{"type": "fakeip", "tag": fakeDNSTag, "inet4_range": "198.18.0.0/15"}
@@ -29,6 +37,21 @@ func fakeIPRules(rules []any, ipv6 bool) []any {
 	out := make([]any, 0, len(rules)*2+1)
 	for _, item := range rules {
 		if rule, ok := item.(map[string]any); ok && rule["server"] == "proxy-dns" {
+			// The real names, under the same conditions, keep the real answer first.
+			plain := true
+			for key := range rule {
+				if named[key] {
+					plain = false
+				}
+			}
+			if plain {
+				real := make(map[string]any, len(rule)+1)
+				for key, value := range rule {
+					real[key] = value
+				}
+				real["domain_suffix"] = realNames
+				out = append(out, real)
+			}
 			twin := make(map[string]any, len(rule)+1)
 			for key, value := range rule {
 				twin[key] = value
@@ -39,5 +62,6 @@ func fakeIPRules(rules []any, ipv6 bool) []any {
 		}
 		out = append(out, item)
 	}
+	out = append(out, map[string]any{"domain_suffix": realNames, "server": "proxy-dns"})
 	return append(out, map[string]any{"query_type": types, "server": fakeDNSTag})
 }

@@ -29,8 +29,7 @@ class OwnNodesTest {
         override val managed: JsonObject? = null
         override val selected: String? = null
         override val imported = listOf("My node")
-        override fun theirs(tag: String) = tag == "My node"
-        override val outbounds = listOf(console, mine)
+        override fun own() = OwnNodes.Own(listOf(console, mine), setOf("My node"))
         override fun nameOf(tag: String) = tag
         override fun inUse(): String? = null
         override fun accepts(source: JsonObject) = true

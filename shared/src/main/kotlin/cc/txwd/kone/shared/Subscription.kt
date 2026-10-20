@@ -11,7 +11,8 @@ import java.net.URLDecoder
 
 /** What a provider says about a subscription in its `subscription-userinfo` header: bytes used and allowed, and when it ends. */
 data class UserInfo(val upload: Long, val download: Long, val total: Long, val expire: Long?) {
-    val used get() = upload + download
+    /** Bytes used, kept at Long.MAX_VALUE rather than wrapping when a panel sends enormous figures. */
+    val used get() = (upload + download).let { if (it < 0) Long.MAX_VALUE else it }
 
     /**
      * What is worth saying about the provider's terms for [name] at [now] (milliseconds), or null:
@@ -41,6 +42,9 @@ data class UserInfo(val upload: Long, val download: Long, val total: Long, val e
     companion object {
         private const val DAY = 24 * 60 * 60 * 1000L
 
+        /** Seconds past this (the year 5138) are milliseconds a panel sent instead. */
+        private const val MILLIS = 100_000_000_000L
+
         /** Bytes as people read them: 812 B, 3.4 KB, 12.6 MB, 1.20 GB. */
         fun size(bytes: Long): String = when {
             bytes < 1024 -> "$bytes B"
@@ -58,7 +62,7 @@ data class UserInfo(val upload: Long, val download: Long, val total: Long, val e
                 if (key.isEmpty() || number == null) null else key to number
             }.toMap()
             if (values.keys.none { it in setOf("upload", "download", "total", "expire") }) return null
-            return UserInfo(values["upload"] ?: 0, values["download"] ?: 0, values["total"] ?: 0, values["expire"]?.takeIf { it > 0 })
+            return UserInfo(values["upload"] ?: 0, values["download"] ?: 0, values["total"] ?: 0, values["expire"]?.takeIf { it > 0 }?.let { if (it > MILLIS) it / 1000 else it })
         }
     }
 }

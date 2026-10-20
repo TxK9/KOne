@@ -239,7 +239,15 @@ object Routing {
     /** Every trace of [setFakeIp]: its rules, its server and the cache file's mappings. */
     private fun stripFakeIp(config: JSONObject) {
         val dns = config.optJSONObject("dns") ?: return
-        dns.put("rules", JSONArray(objects(dns.optJSONArray("rules")).filterNot { it.optString("server") == FakeIp.TAG }))
+        dns.put(
+            "rules",
+            JSONArray(
+                objects(dns.optJSONArray("rules")).filterNot { rule ->
+                    val names = rule.optJSONArray("domain_suffix")?.let { array -> (0 until array.length()).map { array.optString(it) } }
+                    rule.optString("server") == FakeIp.TAG || FakeIp.isRealNames(names, rule.optString("server"))
+                },
+            ),
+        )
         dns.put("servers", JSONArray(objects(dns.optJSONArray("servers")).filterNot { it.optString("tag") == FakeIp.TAG }))
         config.optJSONObject("experimental")?.optJSONObject("cache_file")?.remove("store_fakeip")
     }

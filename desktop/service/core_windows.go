@@ -21,6 +21,8 @@ var (
 	attachConsole         = kernel32.NewProc("AttachConsole")
 	freeConsole           = kernel32.NewProc("FreeConsole")
 	setConsoleCtrlHandler = kernel32.NewProc("SetConsoleCtrlHandler")
+	// DnsFlushResolverCache is what ipconfig /flushdns calls.
+	dnsFlushResolverCache = windows.NewLazySystemDLL("dnsapi.dll").NewProc("DnsFlushResolverCache")
 	consoleMutex          sync.Mutex
 )
 
@@ -96,6 +98,7 @@ func (c *core) start(owner uint64, config []byte, port int, secret string) error
 			c.state, c.owner, c.command = "stopped", 0, nil
 		}
 		c.mutex.Unlock()
+		flushResolver()
 		close(exited)
 	}()
 	go c.watch(command, port, secret)
@@ -123,6 +126,7 @@ func (c *core) watch(command *exec.Cmd, port int, secret string) {
 					c.state = "running"
 				}
 				c.mutex.Unlock()
+				flushResolver()
 				return
 			}
 		}
@@ -217,4 +221,14 @@ func exitCode(err error) string {
 		return "1"
 	}
 	return "0"
+}
+
+// flushResolver empties Windows' own DNS cache when a core starts answering and when it stops.
+// With Fake IP, each run hands out stand-in addresses afresh from the start of its range, so an
+// answer Windows kept from the last run (for up to ten minutes) could lead a program to another
+// site; without Fake IP it costs one fresh lookup per name. Failure only leaves the cache as it was.
+func flushResolver() {
+	if dnsFlushResolverCache.Find() == nil {
+		_, _, _ = dnsFlushResolverCache.Call()
+	}
 }

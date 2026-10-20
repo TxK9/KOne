@@ -25,10 +25,13 @@ class FakeIpTest {
             kotlinx.serialization.json.Json.parseToJsonElement("""{"clash_mode":"Global","server":"proxy-dns"}""") as kotlinx.serialization.json.JsonObject,
         )
         val faked = FakeIp.rules(rules, ipv6 = false)
-        assertEquals(4, faked.size)
+        assertEquals(6, faked.size)
         assertEquals(rules[0], faked[0])
-        assertEquals("""{"clash_mode":"Global","server":"fake-dns","query_type":["A"]}""", faked[1].toString())
-        assertEquals(rules[1], faked[2])
-        assertEquals("""{"query_type":["A"],"server":"fake-dns"}""", faked[3].toString())
+        // Windows' Internet check keeps its real answer, in the same mode, before the stand-in.
+        assertEquals("""{"clash_mode":"Global","server":"proxy-dns","domain_suffix":["msftncsi.com","msftconnecttest.com"]}""", faked[1].toString())
+        assertEquals("""{"clash_mode":"Global","server":"fake-dns","query_type":["A"]}""", faked[2].toString())
+        assertEquals(rules[1], faked[3])
+        assertEquals("""{"domain_suffix":["msftncsi.com","msftconnecttest.com"],"server":"proxy-dns"}""", faked[4].toString())
+        assertEquals("""{"query_type":["A"],"server":"fake-dns"}""", faked[5].toString())
     }
 }

@@ -26,6 +26,15 @@ object FakeIp {
     const val INET6 = "fc00::/18"
     private const val REMOTE = "proxy-dns"
 
+    /**
+     * Names that must keep real answers even through the node: Windows checks the Internet by
+     * looking one up (dns.msftncsi.com must be 131.107.255.255), and says "No Internet" otherwise.
+     */
+    val REAL = listOf("msftncsi.com", "msftconnecttest.com")
+
+    /** Rule keys that already name what a rule matches by name; such a rule is not one these names meet. */
+    private val NAMED = setOf("domain", "domain_suffix", "domain_keyword", "domain_regex", "rule_set")
+
     /** Whether [address] is one of the fake ones ([INET4] or [INET6]), as a lookup through KOne returns them. */
     fun isFake(address: String): Boolean {
         val text = address.trim().lowercase()
@@ -39,6 +48,9 @@ object FakeIp {
         val second = groups.getOrNull(1)?.takeIf { it.isNotEmpty() }?.toIntOrNull(16) ?: 0
         return second < 0x4000
     }
+
+    /** Whether a rule with these [domainSuffix] names and this [server] is one [rules] added for the [REAL] names. */
+    fun isRealNames(domainSuffix: List<String>?, server: String?): Boolean = server == REMOTE && domainSuffix == REAL
 
     /** The fake-IP server, with an IPv6 range only when names are answered with IPv6 too. */
     fun server(ipv6: Boolean): JsonObject = JsonObject(
@@ -57,13 +69,17 @@ object FakeIp {
      */
     fun rules(rules: List<JsonObject>, ipv6: Boolean): List<JsonObject> {
         val types = JsonArray(listOfNotNull(JsonPrimitive("A"), JsonPrimitive("AAAA").takeIf { ipv6 }))
+        val real = JsonArray(REAL.map(::JsonPrimitive))
         val out = ArrayList<JsonObject>()
         for (rule in rules) {
             if ((rule["server"] as? JsonPrimitive)?.content == REMOTE) {
+                // The [REAL] names, under the same conditions, keep the real answer first.
+                if (rule.keys.none { it in NAMED }) out += JsonObject(rule + ("domain_suffix" to real))
                 out += JsonObject(rule + mapOf("query_type" to types, "server" to JsonPrimitive(TAG)))
             }
             out += rule
         }
+        out += JsonObject(mapOf("domain_suffix" to real, "server" to JsonPrimitive(REMOTE)))
         out += JsonObject(mapOf("query_type" to types, "server" to JsonPrimitive(TAG)))
         return out
     }

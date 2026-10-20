@@ -79,8 +79,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         override val managed get() = account.binding?.source
         override val selected get() = account.binding?.selected
         override val imported get() = importedOrder
-        override fun theirs(tag: String) = tag in importedTags || tag in subscribed
-        override val outbounds get() = (merged()?.source?.get("outbounds") as? kotlinx.serialization.json.JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
+        override fun own(): OwnNodes.Own {
+            val merged = merged() ?: return OwnNodes.Own(emptyList(), emptySet())
+            val outbounds = (merged.source["outbounds"] as? kotlinx.serialization.json.JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
+            return OwnNodes.Own(outbounds, merged.groups.flatten().toSet())
+        }
         override fun nameOf(tag: String) = this@AppModel.nameOf(tag)
         override fun inUse() = this@AppModel.inUse()
         override fun accepts(source: JsonObject) = this@AppModel.accepts(source)

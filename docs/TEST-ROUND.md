@@ -44,6 +44,7 @@ console nodes never exported (OwnNodesTest).
 | 3.6 | DNS for domains: an intranet domain and its server | Names under it resolve through that server |
 | 3.7 | Where you are: outside China, then China | Outside: no China split, Cloudflare direct DNS. China: Chinese sites go straight out |
 | 3.8 | Fake IP on: open several sites, then turn it off | First loads feel quicker; everything still works after turning it off (Windows: a program may need a moment to look a name up again) |
+| 3.8b | Windows, Fake IP on: look at the taskbar's network icon; then change a setting (KOne reconnects) and reload a few sites | Windows says it is online; every site is still the right one after the reconnect |
 | 3.8a | Fake IP on, with an address-range rule (e.g. a company range direct) | Apps that connect to the address follow the rule; names KOne answered follow name rules (the documented trade-off) |
 | 3.9 | IPv6 on, on an IPv6 network | IPv6 sites load; with Fake IP also on, they still load |
 

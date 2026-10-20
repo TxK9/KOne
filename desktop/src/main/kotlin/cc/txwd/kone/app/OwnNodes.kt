@@ -29,10 +29,12 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
         val selected: String?
         /** The imported nodes' tags in the order [imports] keeps them. */
         val imported: List<String>
-        /** Whether [tag] is the person's to write out: imported or subscribed. */
-        fun theirs(tag: String): Boolean
-        /** Every node the App runs with, the console's and the person's, as outbounds. */
-        val outbounds: List<JsonObject>
+        /**
+         * Every node the App runs with, the console's and the person's, and which are the person's
+         * (imported or subscribed), read together from one merge: ownership is never judged on
+         * an older list than the nodes it is judged for.
+         */
+        fun own(): Own
         fun nameOf(tag: String): String
         /** The node the running connection uses, if any. */
         fun inUse(): String?
@@ -49,6 +51,9 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
         /** How an import went, on the dashboard: softly when [good], else until dismissed. */
         fun imported(message: String, good: Boolean)
     }
+
+    /** The nodes as merged now, and the tags of those that are the person's to write out. */
+    class Own(val outbounds: List<JsonObject>, val theirs: Set<String>)
 
     /** A node being written by hand on the Nodes page. */
     var editing: NodeEditing? = null
@@ -104,8 +109,9 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
 
     /** An imported or subscribed node as a share link, handed to [copy]. */
     fun copyLink(tag: String, copy: (String) -> Unit) {
-        if (!host.theirs(tag)) return
-        val link = link(tag)
+        val own = host.own()
+        if (tag !in own.theirs) return
+        val link = link(own, tag)
         if (link == null) {
             host.tell("This node cannot be written as a link", error = true)
             return
@@ -121,8 +127,9 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
             host.refresh()
             return
         }
-        if (!host.theirs(tag)) return
-        val link = link(tag)
+        val own = host.own()
+        if (tag !in own.theirs) return
+        val link = link(own, tag)
         if (link == null || qrModules(link) == null) {
             host.tell("This node cannot be shown as a QR code", error = true)
             return
@@ -193,15 +200,17 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
     }
 
     /** Every imported and subscribed node as share links, one a line; never the console's. */
-    fun exportLinks(): String = host.outbounds.mapNotNull { outbound ->
-        val tag = tagOf(outbound)?.takeIf(host::theirs) ?: return@mapNotNull null
-        ShareLinkWriter.write(JsonObject(outbound - "tag"), host.nameOf(tag))
-    }.joinToString("\n")
+    fun exportLinks(): String = host.own().let { own ->
+        own.outbounds.mapNotNull { outbound ->
+            val tag = tagOf(outbound)?.takeIf { it in own.theirs } ?: return@mapNotNull null
+            ShareLinkWriter.write(JsonObject(outbound - "tag"), host.nameOf(tag))
+        }.joinToString("\n")
+    }
 
     /** [tag] as a share link when it is the person's to write out and a link can carry it. */
-    private fun link(tag: String): String? {
-        if (!host.theirs(tag)) return null
-        val outbound = host.outbounds.firstOrNull { tagOf(it) == tag } ?: return null
+    private fun link(own: Own, tag: String): String? {
+        if (tag !in own.theirs) return null
+        val outbound = own.outbounds.firstOrNull { tagOf(it) == tag } ?: return null
         return ShareLinkWriter.write(JsonObject(outbound - "tag"), host.nameOf(tag))
     }
 
