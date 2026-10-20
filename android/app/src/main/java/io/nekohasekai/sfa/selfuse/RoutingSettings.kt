@@ -30,7 +30,7 @@ object RoutingSettings {
         automatic = Settings.knineRoutingAutomatic,
         fakeIp = Settings.knineRoutingFakeIp,
         region = Region.clean(Settings.knineRoutingRegion),
-        hosts = lines(Settings.knineRoutingHosts).mapNotNull(Hosts::parse),
+        hosts = Hosts.read(Settings.knineRoutingHosts).hosts,
         nameServers = lines(Settings.knineRoutingNameServers).mapNotNull(NameServers::parse),
     )
 

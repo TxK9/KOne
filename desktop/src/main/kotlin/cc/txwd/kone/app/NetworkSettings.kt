@@ -61,12 +61,15 @@ class NetworkSettings(private val preferences: Preferences, private val restart:
     }
 
     /** A fixed answer typed as "name address" (or a hosts file's "address name"); false when it is not one. */
+    /** A fixed answer typed as "name address", or a hosts file's line ("192.0.2.10 nas.example.org printer.example.org"). */
     fun addHost(line: String): Boolean {
-        val host = Hosts.parse(line) ?: return false
+        val found = Hosts.read(line).hosts.takeIf { it.isNotEmpty() } ?: return false
         val before = preferences.hosts
-        if (host in before) return true
-        if (Hosts.clean(before + host).sumOf { it.v4.size + it.v6.size } == before.size) return false
-        preferences.hosts = before + host
+        val added = found.filter { it !in before }
+        if (added.isEmpty()) return true
+        // Past the limits, nothing new would be kept.
+        if (Hosts.clean(before + added).sumOf { it.v4.size + it.v6.size } == before.size) return false
+        preferences.hosts = before + added
         changed()
         return true
     }

@@ -24,4 +24,22 @@ class HostsTest {
         // Kept as entries again, in the same order by name.
         assertEquals(listOf(Host("nas.example.org", "192.0.2.10"), Host("nas.example.org", "2001:db8::10"), Host("printer.example.org", "192.0.2.20")), Hosts.flatten(groups))
     }
+
+    @Test
+    fun aPastedHostsFileIsReadAsItIsWritten() {
+        val read = Hosts.read(
+            """
+            # This machine
+            127.0.0.1   localhost
+            ::1         ip6-localhost ip6-loopback
+            192.0.2.10  nas nas.example.org   # the box in the hall
+            printer.example.org 192.0.2.20
+            not a line at all
+            """.trimIndent(),
+        )
+        assertEquals(listOf(Host("nas.example.org", "192.0.2.10"), Host("printer.example.org", "192.0.2.20")), read.hosts)
+        // "nas" alone is not a name KOne can answer for, so its line still gave nas.example.org; the
+        // last line is neither an entry nor a comment.
+        assertEquals(1, read.left)
+    }
 }

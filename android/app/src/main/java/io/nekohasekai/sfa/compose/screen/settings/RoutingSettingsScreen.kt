@@ -251,13 +251,14 @@ fun RoutingSettingsScreen(navController: NavController) {
                     namesSaved?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f)) }
                     TextButton(onClick = {
                         // Kept as the template takes them; a line that is not a name and an address is left out and said.
-                        val hostLines = lines(hosts)
+                        // A pasted hosts file is read as it is written: comments, several names a line, localhost passed over.
+                        val readHosts = Hosts.read(hosts)
                         val serverLines = lines(nameServers)
-                        val keptHosts = hostLines.mapNotNull(Hosts::parse)
+                        val keptHosts = readHosts.hosts
                         val keptServers = serverLines.mapNotNull(NameServers::parse)
                         hosts = RoutingSettings.hostLines(keptHosts)
                         nameServers = RoutingSettings.nameServerLines(keptServers)
-                        val left = hostLines.size - keptHosts.size + serverLines.size - keptServers.size
+                        val left = readHosts.left + serverLines.size - keptServers.size
                         keep(choices.copy(hosts = keptHosts, nameServers = keptServers))
                         namesSaved = if (left > 0) context.getString(R.string.knine_routing_names_left, left) else context.getString(R.string.knine_routing_saved)
                     }) { Text(stringResource(R.string.knine_routing_save_names)) }

@@ -68,6 +68,40 @@ object Hosts {
         return clean(listOf(entry)).firstOrNull()?.let { flatten(listOf(it)).first() }
     }
 
+    /** What [read] found: the entries, and how many lines were neither an entry nor a comment. */
+    class Read(val hosts: List<Host>, val left: Int)
+
+    /** A hosts file's own names for this machine, which mean nothing to a node and are passed over quietly. */
+    private val LOCAL = setOf("localhost", "localhost.localdomain", "local", "broadcasthost", "ip6-localhost", "ip6-loopback", "ip6-localnet", "ip6-mcastprefix", "ip6-allnodes", "ip6-allrouters", "ip6-allhosts")
+
+    /**
+     * Text as people paste it: lines typed "name address" (either way round), or a hosts file,
+     * with its comments, several names to one address ("192.0.2.10 nas nas.example.org") and its
+     * localhost lines, which are passed over. Each entry is checked as [parse] checks one.
+     */
+    fun read(text: String): Read {
+        val found = ArrayList<Host>()
+        var left = 0
+        for (raw in text.lines()) {
+            val parts = raw.substringBefore('#').trim().split(Regex("""\s+""")).filter { it.isNotEmpty() }
+            if (parts.isEmpty()) continue
+            val address = parts.first().takeIf { Names.network(it) != null && '/' !in it }
+            val entries = when {
+                address != null && parts.size >= 2 -> parts.drop(1).filter { it.lowercase() !in LOCAL }.map { "$it $address" }
+                parts.size == 2 -> listOf(parts.joinToString(" "))
+                else -> null
+            }
+            if (entries == null) {
+                left++
+                continue
+            }
+            if (entries.isEmpty()) continue // only names for this machine
+            val parsed = entries.mapNotNull(::parse)
+            if (parsed.isEmpty()) left++ else found += parsed
+        }
+        return Read(found.distinct(), left)
+    }
+
     /** Each name answered from its addresses, IPv4 and IPv6 apart; none of a kind answers that kind with nothing. */
     fun dnsRules(groups: List<Group>): List<JsonObject> = groups.flatMap { group ->
         listOf(Triple("A", "A", group.v4), Triple("AAAA", "AAAA", group.v6)).map { (query, record, addresses) ->

@@ -50,7 +50,7 @@
     <string name="knine_routing_dns">DNS</string>
     <string name="knine_routing_names">Names</string>
     <string name="knine_routing_hosts">Fixed answers</string>
-    <string name="knine_routing_hosts_hint">One a line: a name and its address, e.g. nas.example.com 192.0.2.10</string>
+    <string name="knine_routing_hosts_hint">One a line: a name and its address, e.g. nas.example.com 192.0.2.10; a pasted hosts file works too</string>
     <string name="knine_routing_name_servers">DNS for domains</string>
     <string name="knine_routing_name_servers_hint">One a line: a domain and the server for the names under it, e.g. corp.example.com 192.0.2.53</string>
     <string name="knine_routing_names_left">Saved; %1$d lines were not a name and an address</string>

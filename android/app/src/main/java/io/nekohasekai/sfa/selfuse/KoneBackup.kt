@@ -183,7 +183,7 @@ object KoneBackup {
                         region = routing.optString("region").ifEmpty { RoutingSettings.current().region },
                         automatic = routing.optBoolean("automatic", true),
                         fakeIp = routing.optBoolean("fake_ip"),
-                        hosts = routing.optString("hosts").lines().mapNotNull(cc.txwd.kone.shared.Hosts::parse),
+                        hosts = cc.txwd.kone.shared.Hosts.read(routing.optString("hosts")).hosts,
                         nameServers = routing.optString("name_servers").lines().mapNotNull(cc.txwd.kone.shared.NameServers::parse),
                     ),
                 )
