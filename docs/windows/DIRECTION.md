@@ -117,6 +117,12 @@ Done since, on both Apps (shared core, Go and Kotlin held identical by the consi
 - **One shared core** for both Apps: share links, subscriptions, Clash proxies, category lists,
   hosts and DNS servers for domains, regions, diagnosis checks, the country table and "why a
   connection went its way".
+- **Rules through a chosen country**, the most common use of the custom groups experts miss:
+  "OpenAI through Japan, Netflix through the United States", by the fastest node whose name
+  says that country, with names asked there too. Clash profiles' country groups come over this
+  way. A rule's way is changed where it stands, and rules copy out as Clash lines.
+- **QR codes on Windows**: read from the screens, a copied picture or a file; subscriptions
+  from other clients' import links.
 
 Next:
 
@@ -134,7 +140,7 @@ Next:
 | Proposal | Why | Cost or risk |
 | --- | --- | --- |
 | City pictures on demand | Installer from about 143 MB to about 80 MB; most people keep the ink backdrop | Needs a place to host 63 MB of pictures (the website); offline first run shows ink until fetched |
-| Custom groups (fallback, load-balance) | The expert feature most missed | More surface in the template; must stay typed and validated |
+| Custom groups beyond countries (groups by name words, picked from the node list) | What experts still miss once rules can go through a country | More surface in the template; must stay typed and validated |
 | Opt-in crash and health reports | Turns field hours into evidence | Privacy; a service to receive them |
 | Real-device test round | The one gap no code closes | Hardware and time |
 | Network profiles (behave per network: Direct at home, proxy at the office) | Fewer manual switches | Telling networks apart reliably: Windows 11 24H2 shows the Wi-Fi name only with location permission, and gateway addresses repeat across homes; asking for location is a privacy cost |
