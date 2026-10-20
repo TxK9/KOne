@@ -268,6 +268,48 @@ class RoutingTest {
     }
 
     @Test
+    fun aRuleThroughACountryGoesThroughItsNodesAndAsksItsDns() {
+        val three = SubscriptionProfile.build(
+            listOf(
+                "trojan://example-password@node1.invalid:443?sni=example.org#Tokyo 1",
+                "trojan://example-password@node2.invalid:443?sni=example.org#Osaka",
+                "trojan://example-password@node3.invalid:443?sni=example.org#Frankfurt",
+            ).joinToString("\n"),
+            HomeLink.Home.OFF,
+        )
+        assertEquals(listOf("JP", "DE"), Routing.countries(three))
+        val through = Routing.Choices(
+            rules = listOf(Rule("suffix", "example.com", "via:JP"), Rule("suffix", "example.org", "via:US"), Rule("app", "com.example.video", "via:DE")),
+            automatic = true, fakeIp = true,
+        )
+        val config = JSONObject(Routing.apply(three, through))
+        val outbounds = config.getJSONArray("outbounds").let { array -> (0 until array.length()).map { array.getJSONObject(it) } }
+        val japan = outbounds.single { it.optString("tag") == "Through Japan" }
+        assertEquals("urltest", japan.getString("type"))
+        assertEquals("[\"Tokyo 1\",\"Osaka\"]", japan.getJSONArray("outbounds").toString())
+        assertEquals("[\"Frankfurt\"]", outbounds.single { it.optString("tag") == "Through Germany" }.getJSONArray("outbounds").toString())
+        // No node in the United States: no group, and its rule goes through the node in use.
+        assertNull(outbounds.firstOrNull { it.optString("tag") == "Through United States" })
+        // The node choices are the nodes and Automatic; the countries' groups are the rules'.
+        val selector = outbounds.single { it.optString("tag") == PairedProfile.PROXY_TAG }
+        assertFalse(selector.getJSONArray("outbounds").toString().contains("Through"))
+        val route = rules(config, "route")
+        assertEquals("Through Japan", route.single { it.optJSONArray("domain_suffix")?.optString(0) == "example.com" }.getString("outbound"))
+        assertEquals(PairedProfile.PROXY_TAG, route.single { it.optJSONArray("domain_suffix")?.optString(0) == "example.org" }.getString("outbound"))
+        assertEquals("Through Germany", route.single { it.has("package_name") }.getString("outbound"))
+        // Names through Japan are faked first, then asked through Japan's nodes.
+        val asked = rules(config, "dns").filter { it.optJSONArray("domain_suffix")?.optString(0) == "example.com" }
+        assertEquals(listOf(FakeIp.TAG, "proxy-dns-JP"), asked.map { it.getString("server") })
+        val servers = config.getJSONObject("dns").getJSONArray("servers").let { array -> (0 until array.length()).map { array.getJSONObject(it) } }
+        val japanDns = servers.single { it.getString("tag") == "proxy-dns-JP" }
+        assertEquals("Through Japan", japanDns.getString("detour"))
+        assertEquals("1.1.1.1", japanDns.getString("server"))
+        // Applied again, nothing moves or doubles; without the rules, the template is as built.
+        assertEquals(config.toString(2), Routing.apply(config.toString(), through))
+        assertEquals(JSONObject(three).toString(2), Routing.apply(config.toString(), Routing.Choices()))
+    }
+
+    @Test
     fun aBlockRuleOfOnesOwnIsNotTakenForTheClaudeBlock() {
         val built = managed()
         val blocking = Routing.Choices(rules = listOf(Rule("suffix", "example.com", "block")))

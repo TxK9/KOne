@@ -64,7 +64,8 @@ object ManagedConfig {
             val base = wanted.ifBlank { "node" }.let { if (it.startsWith("${Routing.AUTO} · ")) it.replaceFirst(" · ", " - ") else it }
             var tag = base
             var index = 2
-            while (tag in used || tag in RESERVED) tag = "$base-${index++}"
+            // Nor is a provider's "Through Japan" the group KOne's rules through Japan use (Routing.through).
+            while (tag in used || tag in RESERVED || Routing.throughOf(tag) != null) tag = "$base-${index++}"
             used += tag
             return tag
         }

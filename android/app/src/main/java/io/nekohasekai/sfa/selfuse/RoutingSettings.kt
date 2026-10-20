@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.selfuse
 
+import cc.txwd.kone.shared.Countries
 import cc.txwd.kone.shared.Host
 import cc.txwd.kone.shared.Hosts
 import cc.txwd.kone.shared.NameServer
@@ -7,6 +8,7 @@ import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.shared.Region
 import cc.txwd.kone.shared.Rule
 import io.nekohasekai.libbox.Libbox
+import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.Settings
 import org.json.JSONArray
 import kotlinx.coroutines.CoroutineScope
@@ -15,6 +17,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * Where the routing choices live (Settings → Routing) and how they reach the configurations: the
@@ -37,6 +40,14 @@ object RoutingSettings {
         hosts = Hosts.read(Settings.knineRoutingHosts).hosts,
         nameServers = lines(Settings.knineRoutingNameServers).mapNotNull(NameServers::parse),
     )
+
+    /** The countries the saved KOne profiles' node names say, by code, in the country list's order: the ones rules can go through. */
+    suspend fun countries(): List<String> = withContext(Dispatchers.IO) {
+        val said = ProfileManager.list().flatMapTo(HashSet()) { profile ->
+            runCatching { Routing.countries(File(profile.typed.path).readText()) }.getOrDefault(emptyList())
+        }
+        Countries.all.map { it.code }.filter { it in said }
+    }
 
     /** Fixed answers as kept and shown: "name address", one a line, cleaned and bounded. */
     fun hostLines(hosts: List<Host>): String = Hosts.flatten(Hosts.clean(hosts)).joinToString("\n") { "${it.name} ${it.address}" }

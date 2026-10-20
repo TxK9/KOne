@@ -26,6 +26,10 @@
     <string name="knine_routing_action_proxy">Node</string>
     <string name="knine_routing_action_direct">Direct</string>
     <string name="knine_routing_action_block">Block</string>
+    <string name="knine_routing_action_country">Country</string>
+    <string name="knine_routing_through_detail">The fastest of that country\'s nodes carries it, in Rule mode; its names are looked up there too.</string>
+    <string name="knine_routing_through_none">No node there now; through the node in use</string>
+    <string name="knine_routing_through_no_countries">No node\'s name says a country yet.</string>
     <string name="knine_routing_rule_hint_domain">www.example.com, exactly</string>
     <string name="knine_routing_rule_hint_suffix">example.com, and what is under it</string>
     <string name="knine_routing_rule_hint_keyword">a word in the name, e.g. tracker</string>

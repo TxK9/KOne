@@ -138,5 +138,12 @@ class ManagedConfigTest {
         val tags = outbounds(JSONObject(ManagedConfig.build(source, HomeLink.Home.OFF))).map { it.getString("tag") }
         assertTrue("Automatic - Japan" in tags)
         assertFalse("Automatic · Japan" in tags)
+        // Nor is one named like the group the rules through a country use.
+        val through = JSONObject("""{"outbounds":[
+            {"type":"trojan","tag":"Through Japan","server":"a.invalid","server_port":443,"password":"p"},
+            {"type":"trojan","tag":"Tokyo","server":"b.invalid","server_port":443,"password":"p"}]}""")
+        val renamed = outbounds(JSONObject(ManagedConfig.build(through, HomeLink.Home.OFF))).map { it.getString("tag") }
+        assertTrue("Through Japan-2" in renamed)
+        assertFalse("Through Japan" in renamed)
     }
 }

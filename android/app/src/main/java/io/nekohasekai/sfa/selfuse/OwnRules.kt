@@ -31,26 +31,27 @@ object OwnRules {
     }
 
     /**
-     * Refused or straight out in every mode; through the node in Rule mode only. A refusal says its
-     * method ("default", what sing-box does anyway), so it is never taken for the console's Claude
-     * block, which names only domains (see [Routing]): otherwise each re-apply would add it again.
+     * Refused or straight out in every mode; through the node, or the group of a country among
+     * [groups] (by code, [Routing.through]), in Rule mode only. A refusal says its method
+     * ("default", what sing-box does anyway), so it is never taken for the console's Claude block,
+     * which names only domains (see [Routing]): otherwise each re-apply would add it again.
      */
-    fun route(rule: Rule): JSONObject = match(rule).apply {
+    fun route(rule: Rule, groups: Set<String> = emptySet()): JSONObject = match(rule).apply {
         when (rule.action) {
             "block" -> put("action", "reject").put("method", "default")
             "direct" -> put("outbound", "direct")
-            else -> put("clash_mode", "Rule").put("outbound", PairedProfile.PROXY_TAG)
+            else -> put("clash_mode", "Rule").put("outbound", Rules.via(rule.action)?.takeIf { it in groups }?.let(Routing::through) ?: PairedProfile.PROXY_TAG)
         }
     }
 
-    /** How names matching [rule] are answered; rules on addresses, ports and address lists (geoip-) have none. */
-    fun dns(rule: Rule): JSONObject? {
+    /** How names matching [rule] are answered, asked where it goes; rules on addresses, ports and address lists (geoip-) have none. */
+    fun dns(rule: Rule, groups: Set<String> = emptySet()): JSONObject? {
         if (rule.kind == "cidr" || rule.kind == "port" || (rule.kind == "set" && rule.value.startsWith("geoip-"))) return null
         return match(rule).apply {
             when (rule.action) {
                 "block" -> put("action", "reject").put("method", "default")
                 "direct" -> put("server", "local-dns")
-                else -> put("clash_mode", "Rule").put("server", "proxy-dns")
+                else -> put("clash_mode", "Rule").put("server", Rules.via(rule.action)?.takeIf { it in groups }?.let(Rules::dnsThrough) ?: "proxy-dns")
             }
         }
     }

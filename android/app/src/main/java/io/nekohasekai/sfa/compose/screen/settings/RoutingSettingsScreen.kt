@@ -48,10 +48,12 @@ import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.ktx.clipboardText
 import cc.txwd.kone.shared.Categories
+import cc.txwd.kone.shared.Countries
 import cc.txwd.kone.shared.Hosts
 import cc.txwd.kone.shared.ListStatus
 import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.shared.Rule
+import cc.txwd.kone.shared.Rules
 import cc.txwd.kone.shared.Region
 import io.nekohasekai.sfa.selfuse.CategoryListKeeper
 import io.nekohasekai.sfa.selfuse.OwnRules
@@ -103,6 +105,9 @@ fun RoutingSettingsScreen(navController: NavController) {
     // How each category list the rules name stands: read off the main thread, again after each save.
     var lists by remember { mutableStateOf<Map<String, ListStatus>>(emptyMap()) }
     LaunchedEffect(Unit) { lists = withContext(Dispatchers.IO) { CategoryListKeeper.status() } }
+    // The countries the profiles' nodes say, which a rule can go through.
+    var countries by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(Unit) { countries = RoutingSettings.countries() }
 
     fun keep(next: Routing.Choices) {
         choices = next
@@ -155,7 +160,7 @@ fun RoutingSettingsScreen(navController: NavController) {
         Spacer(Modifier.height(16.dp))
         KnineSectionLabel(text = stringResource(R.string.knine_routing_rules))
         Section {
-            RulesEditor(choices.rules, lists, onImport = {
+            RulesEditor(choices.rules, lists, countries, onImport = {
                 // Another client's rules, from the clipboard: Clash's rules: lines or v2rayN's JSON.
                 val imported = Routing.importRules(choices, clipboardText.orEmpty())
                 if (imported.choices != choices) keep(imported.choices)
@@ -327,14 +332,17 @@ private fun kindName(kind: String): String = stringResource(
     },
 )
 
+/** Where a rule goes as its row says it: the node, straight out, blocked, or a country with its flag. */
 @Composable
-private fun actionName(action: String): String = stringResource(
+private fun actionName(action: String): String = Rules.via(action)?.let(::countryName) ?: stringResource(
     when (action) {
         "direct" -> R.string.knine_routing_action_direct
         "block" -> R.string.knine_routing_action_block
         else -> R.string.knine_routing_action_proxy
     },
 )
+
+private fun countryName(code: String): String = Countries.byCode(code)?.let { "${it.flag} ${it.label}" } ?: code
 
 @Composable
 private fun kindHint(kind: String): String = stringResource(
@@ -351,15 +359,19 @@ private fun kindHint(kind: String): String = stringResource(
 
 /**
  * The person's rules in order, each movable up and removable, and a form to add one at the end.
- * A rule on a category list says when its list is not on the phone yet ([lists]), and why.
+ * A rule on a category list says when its list is not on the phone yet ([lists]), and why; one
+ * through a country, when no node there is among the profiles' ([countries]).
  */
 @Composable
-private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, onImport: () -> String, onChange: (List<Rule>) -> Unit) {
+private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, countries: List<String>, onImport: () -> String, onChange: (List<Rule>) -> Unit) {
     var said by remember { mutableStateOf<String?>(null) }
     var kind by remember { mutableStateOf(0) }
     var action by remember { mutableStateOf(0) }
+    var country by remember(countries) { mutableStateOf(countries.firstOrNull()) }
     var value by remember { mutableStateOf("") }
     var wrong by remember { mutableStateOf(false) }
+    // The actions, then going through a country, last.
+    val through = OwnRules.ACTIONS.size
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(R.string.knine_routing_rules_detail), style = MaterialTheme.typography.bodyMedium)
         if (rules.isEmpty()) Text(stringResource(R.string.knine_routing_rules_none), style = MaterialTheme.typography.bodyMedium)
@@ -372,6 +384,9 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, onImp
                     if (rule.kind == "set" && status?.kept != true) {
                         val waiting = status?.error?.let { stringResource(R.string.knine_routing_list_failed, it) } ?: stringResource(R.string.knine_routing_list_waiting)
                         Text(waiting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (Rules.via(rule.action)?.let { it !in countries } == true) {
+                        Text(stringResource(R.string.knine_routing_through_none), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 IconButton(onClick = {
@@ -392,20 +407,41 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, onImp
             supportingText = { Text(if (wrong) stringResource(R.string.knine_routing_rule_wrong) else kindHint(KINDS[kind])) },
         )
         if (KINDS[kind] == "set") CategoryPicker(picked = value.trim().lowercase()) { value = it; wrong = false }
-        KnineSegmented(options = OwnRules.ACTIONS.map { actionName(it) }, selected = action, onSelect = { action = it }, modifier = Modifier.fillMaxWidth())
+        KnineSegmented(
+            options = OwnRules.ACTIONS.map { actionName(it) } + stringResource(R.string.knine_routing_action_country),
+            selected = action, onSelect = { action = it; wrong = false }, modifier = Modifier.fillMaxWidth(),
+        )
+        if (action == through) CountryPicker(countries, country) { country = it; wrong = false }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             said?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f)) }
             TextButton(onClick = { said = onImport() }) { Text(stringResource(R.string.knine_routing_rule_import)) }
             TextButton(onClick = {
                 val checked = OwnRules.value(KINDS[kind], value)
-                if (checked == null || rules.size >= OwnRules.MOST) {
+                val goes = if (action == through) country?.let(Rules::through) else OwnRules.ACTIONS[action]
+                if (checked == null || goes == null || rules.size >= OwnRules.MOST) {
                     wrong = true
                 } else {
-                    onChange(OwnRules.clean(rules + Rule(KINDS[kind], checked, OwnRules.ACTIONS[action])))
+                    onChange(OwnRules.clean(rules + Rule(KINDS[kind], checked, goes)))
                     value = ""
                 }
             }) { Text(stringResource(R.string.knine_routing_rule_add)) }
         }
+    }
+}
+
+/** The countries the profiles' node names say, with their flags; the one picked is where the rule goes. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CountryPicker(countries: List<String>, picked: String?, onPick: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (countries.isEmpty()) {
+            Text(stringResource(R.string.knine_routing_through_no_countries), style = MaterialTheme.typography.bodyMedium)
+            return@Column
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            countries.forEach { code -> FilterChip(selected = code == picked, onClick = { onPick(code) }, label = { Text(countryName(code)) }) }
+        }
+        Text(stringResource(R.string.knine_routing_through_detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

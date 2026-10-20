@@ -81,6 +81,19 @@ object Routing {
     /** The Automatic choice's tag, as the node list shows it. */
     const val AUTO = "Automatic"
 
+    /** The group of one country's nodes that the rules through it use, named as groups are shown: "Through Japan". */
+    fun through(code: String): String = "Through ${Countries.byCode(code)?.en ?: code}"
+
+    /** The country a group's [tag] is for ("JP" for "Through Japan"), or null when it is not one. */
+    fun throughOf(tag: String): String? = if (tag.startsWith("Through ")) Countries.all.firstOrNull { through(it.code) == tag }?.code else null
+
+    /** The countries the node choices of [content] say, by code, when it is KOne's template; rules can go through these. */
+    fun countries(content: String): List<String> {
+        val config = try { JSONObject(content) } catch (_: Exception) { return emptyList() }
+        if (!isTemplate(config)) return emptyList()
+        return nodeChoices(config).mapNotNull { Countries.of(it)?.code }.distinct()
+    }
+
     /** The site in what the person typed or pasted: the shared core's reading ([Names.site]). */
     fun site(text: String): String? = Names.site(text)
 
@@ -139,6 +152,9 @@ object Routing {
         val direct = sites(choices.direct)
         val proxied = sites(choices.proxied).filter { it !in direct }
         val own = OwnRules.clean(choices.rules).filter { it.kind != "set" || it.value in lists }
+        // The countries the rules go through that the nodes here say, each with its nodes.
+        val through = throughGroups(config, own)
+        val groups = through.keys
 
         // Route: the stretch between the leading rules and the Direct mode rule is KOne's.
         val route = config.getJSONObject("route")
@@ -148,7 +164,7 @@ object Routing {
         val ours = buildList {
             if (direct.isNotEmpty()) add(JSONObject().put("domain_suffix", JSONArray(direct)).put("outbound", "direct"))
             if (proxied.isNotEmpty()) add(JSONObject().put("clash_mode", "Rule").put("domain_suffix", JSONArray(proxied)).put("outbound", PROXY))
-            own.forEach { add(OwnRules.route(it)) }
+            own.forEach { add(OwnRules.route(it, groups)) }
             // Ads after the person's own rules, so a site they let through stays reachable.
             if (choices.blockAds) add(JSONObject().put("rule_set", JSONArray().put(ADS)).put("action", "reject"))
         }
@@ -164,6 +180,7 @@ object Routing {
         setAdList(route, choices.blockAds)
         setCategoryLists(route, Rules.sets(own).associateWith { lists.getValue(it) })
         setAutomatic(config, choices.automatic)
+        setThrough(config, through)
 
         // DNS: the same stretch, each list's names answered where its traffic goes.
         val dns = config.getJSONObject("dns")
@@ -178,7 +195,7 @@ object Routing {
             NameServers.dnsRules(ownServers).forEach { add(JSONObject(it.toString())) }
             if (direct.isNotEmpty()) add(JSONObject().put("domain_suffix", JSONArray(direct)).put("server", LOCAL_DNS))
             if (proxied.isNotEmpty()) add(JSONObject().put("clash_mode", "Rule").put("domain_suffix", JSONArray(proxied)).put("server", PROXY_DNS))
-            own.forEach { rule -> OwnRules.dns(rule)?.let { add(it) } }
+            own.forEach { rule -> OwnRules.dns(rule, groups)?.let { add(it) } }
             if (choices.blockAds) add(JSONObject().put("rule_set", JSONArray().put(ADS)).put("action", "reject"))
         }
         val unmatched = { rule: JSONObject -> rule.length() == 2 && rule.optString("clash_mode") == "Rule" && rule.optString("server") == LOCAL_DNS }
@@ -194,15 +211,20 @@ object Routing {
         dns.put("rules", JSONArray(answered))
         dns.put("strategy", if (choices.ipv6) "prefer_ipv4" else "ipv4_only")
         // The person's own servers beside the template's, asked straight out; gone when none is set.
-        val servers = objects(dns.optJSONArray("servers")).filterNot { it.optString("tag").startsWith(OWN_DNS) } +
+        val servers = objects(dns.optJSONArray("servers")).filterNot { it.optString("tag").let { tag -> tag.startsWith(OWN_DNS) || tag.startsWith(Rules.DNS_THROUGH) } } +
             NameServers.servers(ownServers).map { JSONObject(it.toString()) }
-        dns.put("servers", JSONArray(servers))
-        objects(dns.optJSONArray("servers")).forEach { server ->
+        servers.forEach { server ->
             when (server.optString("tag")) {
                 LOCAL_DNS -> server.put("server", DIRECT[choices.directDns] ?: Region.directDefault(choices.region))
                 PROXY_DNS -> server.put("server", REMOTE[choices.remoteDns] ?: REMOTE.getValue("cloudflare"))
             }
         }
+        // Each country's own after the node's, asked through its group as the node's is through the node in use.
+        val remote = servers.indexOfFirst { it.optString("tag") == PROXY_DNS }
+        val countryServers = if (remote < 0) emptyList() else through.keys.map { code ->
+            JSONObject(servers[remote].toString()).put("tag", Rules.dnsThrough(code)).put("detour", through(code))
+        }
+        dns.put("servers", JSONArray(servers.take(remote + 1) + countryServers + servers.drop(remote + 1)))
         // Last, over the DNS rules as they now stand.
         setFakeIp(config, choices.fakeIp, choices.ipv6)
     }
@@ -253,6 +275,43 @@ object Routing {
     }
 
     /**
+     * The countries [rules] go through that the node choices say, each to its nodes in order. A
+     * country whose group's tag a node already has is left out, so its rules go through the node.
+     */
+    private fun throughGroups(config: JSONObject, rules: List<Rule>): Map<String, List<String>> {
+        val codes = Rules.countries(rules)
+        if (codes.isEmpty()) return emptyMap()
+        val members = nodeChoices(config)
+        val taken = objects(config.optJSONArray("outbounds")).filterNot { it.optString("type") == "urltest" }.map { it.optString("tag") }.toSet()
+        return codes.mapNotNull { code ->
+            members.filter { Countries.of(it)?.code == code }.takeIf { it.isNotEmpty() && through(code) !in taken }?.let { code to it }
+        }.toMap()
+    }
+
+    /** The groups for the rules through a country ([through], code to nodes), after the node choices; gone when no rule needs one. */
+    private fun setThrough(config: JSONObject, through: Map<String, List<String>>) {
+        val kept = objects(config.optJSONArray("outbounds")).filterNot { it.optString("type") == "urltest" && throughOf(it.optString("tag")) != null }.toMutableList()
+        var index = kept.indexOfFirst { it.optString("tag") == PROXY && it.optString("type") == "selector" } + 1
+        while (index < kept.size && kept[index].optString("type") == "urltest" && automatic(kept[index].optString("tag"))) index++
+        kept.addAll(index, through.map { (code, tags) -> urlTest(through(code), tags) })
+        config.put("outbounds", JSONArray(kept))
+    }
+
+    /** The node choices of the template's selector, without the Automatic ones. */
+    private fun nodeChoices(config: JSONObject): List<String> {
+        val selector = objects(config.optJSONArray("outbounds")).firstOrNull { it.optString("tag") == PROXY && it.optString("type") == "selector" } ?: return emptyList()
+        val choices = selector.optJSONArray("outbounds") ?: return emptyList()
+        return (0 until choices.length()).map { choices.optString(it) }.filterNot(::automatic)
+    }
+
+    /** Whether [tag] is the Automatic choice or one of its countries'. */
+    private fun automatic(tag: String) = tag == AUTO || tag.startsWith("$AUTO · ")
+
+    /** A group that uses the fastest of [of], tested every few minutes, as Automatic does. */
+    private fun urlTest(tag: String, of: List<String>) = JSONObject().put("type", "urltest").put("tag", tag).put("outbounds", JSONArray(of))
+        .put("url", "https://www.gstatic.com/generate_204").put("interval", "5m").put("tolerance", 50)
+
+    /**
      * The Automatic choice ([AUTO]) among the node choices, first and the default, when [on] and
      * there are two nodes or more; and after it one per country with two nodes or more
      * ("Automatic · Japan"), when not every node is in that country. Gone otherwise, with the
@@ -262,21 +321,18 @@ object Routing {
     private fun setAutomatic(config: JSONObject, on: Boolean) {
         val outbounds = objects(config.optJSONArray("outbounds"))
         val selector = outbounds.firstOrNull { it.optString("tag") == PROXY && it.optString("type") == "selector" } ?: return
-        fun ours(tag: String) = tag == AUTO || tag.startsWith("$AUTO · ")
-        val members = (0 until (selector.optJSONArray("outbounds")?.length() ?: 0)).map { selector.getJSONArray("outbounds").optString(it) }.filterNot(::ours)
-        val kept = outbounds.filterNot { it.optString("type") == "urltest" && ours(it.optString("tag")) }.toMutableList()
+        val members = nodeChoices(config)
+        val kept = outbounds.filterNot { it.optString("type") == "urltest" && automatic(it.optString("tag")) }.toMutableList()
         if (on && members.size >= 2) {
-            fun test(tag: String, of: List<String>) = JSONObject().put("type", "urltest").put("tag", tag).put("outbounds", JSONArray(of))
-                .put("url", "https://www.gstatic.com/generate_204").put("interval", "5m").put("tolerance", 50)
-            val countries = members.groupBy { tag -> Countries.all.filter { it.matches(tag) }.singleOrNull() }
+            val countries = members.groupBy { tag -> Countries.of(tag) }
                 .filter { (country, tags) -> country != null && tags.size >= 2 && tags.size < members.size }
-                .map { (country, tags) -> test("$AUTO · ${country!!.en}", tags) }
+                .map { (country, tags) -> urlTest("$AUTO · ${country!!.en}", tags) }
             val index = kept.indexOf(selector) + 1
-            kept.addAll(index, listOf(test(AUTO, members)) + countries)
+            kept.addAll(index, listOf(urlTest(AUTO, members)) + countries)
             selector.put("outbounds", JSONArray(listOf(AUTO) + countries.map { it.getString("tag") } + members)).put("default", AUTO)
         } else {
             selector.put("outbounds", JSONArray(members))
-            if (ours(selector.optString("default")) || selector.optString("default") !in members) selector.put("default", members.firstOrNull())
+            if (automatic(selector.optString("default")) || selector.optString("default") !in members) selector.put("default", members.firstOrNull())
         }
         config.put("outbounds", JSONArray(kept))
     }
