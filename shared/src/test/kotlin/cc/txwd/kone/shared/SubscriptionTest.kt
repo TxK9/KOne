@@ -89,4 +89,18 @@ class SubscriptionTest {
         // An end sent in milliseconds is read as the same moment.
         kotlin.test.assertEquals(1_800_000_000L, UserInfo.parse("upload=0; download=0; total=1; expire=1800000000000")?.expire)
     }
+
+    @Test
+    fun aSubscriptionComesInAnotherClientsImportLinkToo() {
+        assertEquals("https://example.com/sub?token=abc", SubscriptionContent.linkOf(" https://example.com/sub?token=abc "))
+        assertEquals("https://example.com/sub?token=abc&flag=clash", SubscriptionContent.linkOf("clash://install-config?url=https%3A%2F%2Fexample.com%2Fsub%3Ftoken%3Dabc%26flag%3Dclash&name=Example"))
+        assertEquals("https://example.com/s", SubscriptionContent.linkOf("sing-box://import-remote-profile?url=https%3A%2F%2Fexample.com%2Fs#Example"))
+        assertEquals("https://example.com/s?a=1", SubscriptionContent.linkOf("hiddify://import/https://example.com/s?a=1#Example"))
+        // Only what KOne fetches: https, with no password in it.
+        assertNull(SubscriptionContent.linkOf("http://example.com/sub"))
+        assertNull(SubscriptionContent.linkOf("clash://install-config?url=http%3A%2F%2Fexample.com%2Fsub"))
+        assertNull(SubscriptionContent.linkOf("https://user:pass@example.com/sub"))
+        assertNull(SubscriptionContent.linkOf("vless://00000000-0000-0001-0000-000000000001@203.0.113.1:443#node"))
+        assertNull(SubscriptionContent.linkOf("other://install-config?url=https%3A%2F%2Fexample.com%2Fs"))
+    }
 }

@@ -295,7 +295,8 @@ fun main(args: Array<String>) {
                                               onEdit = model::editSubscription,
                                               onRemoveSubscription = model::removeSubscription,
                                               onRemoveNode = model::removeImported,
-                                              onImport = { model.importText(clipboardText().orEmpty()) },
+                                              onImport = { importClipboard(model) },
+                                              onScan = { importScreen(model, this@Window.window) },
                                               onCopyLink = { tag -> model.copyLink(tag, ::copyText) },
                                               onQr = model::showQr,
                                               onAddNode = model::addNode,
@@ -380,8 +381,9 @@ fun main(args: Array<String>) {
                                               onSignIn = model::signIn, onCancelSignIn = model::cancelSignIn, onPause = { model.pause() },
                                               onMenu = { item ->
                                                   when (item) {
-                                                      cc.txwd.kone.ui.MenuItem.Clipboard -> model.importText(clipboardText().orEmpty())
-                                                      cc.txwd.kone.ui.MenuItem.File -> pickText(this@Window.window)?.let(model::importText)
+                                                      cc.txwd.kone.ui.MenuItem.Clipboard -> importClipboard(model)
+                                                      cc.txwd.kone.ui.MenuItem.File -> importFile(model, this@Window.window)
+                                                      cc.txwd.kone.ui.MenuItem.Screen -> importScreen(model, this@Window.window)
                                                   }
                                               },
                                           ),
@@ -393,7 +395,7 @@ fun main(args: Array<String>) {
                               }
                           }
                       }
-                        if (palette) Palette({ query -> commands(model, query) { page = it } }, onClose = { palette = false })
+                        if (palette) Palette({ query -> commands(model, query, scan = { importScreen(model, this@Window.window) }) { page = it } }, onClose = { palette = false })
                         // The edges a window frame would have: drag the right, the bottom or the corner.
                         ResizeHandles(window)
                     }
@@ -558,9 +560,8 @@ private fun saveText(owner: java.awt.Frame, name: String, text: String): Boolean
 
 /** The text of a file the person picks (share links, a Clash profile, a sing-box configuration), 2 MB at most. */
 private fun pickText(owner: java.awt.Frame): String? {
-    val dialog = java.awt.FileDialog(owner, "KOne", java.awt.FileDialog.LOAD).apply { isVisible = true }
-    val file = java.io.File(dialog.directory ?: return null, dialog.file ?: return null)
-    if (!file.isFile || file.length() > 2L * 1024 * 1024) return null
+    val file = pickFile(owner) ?: return null
+    if (file.length() > 2L * 1024 * 1024) return null
     return runCatching { file.readText() }.getOrNull()
 }
 
@@ -575,7 +576,7 @@ private fun copyText(text: String) {
     runCatching { Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection(text), null) }
 }
 
-private fun clipboardText(): String? = runCatching {
+internal fun clipboardText(): String? = runCatching {
     Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as? String
 }.getOrNull()?.trim()
 
@@ -583,7 +584,7 @@ private fun clipboardText(): String? = runCatching {
  * What the command palette offers for [query]: a typed site first (check it, look it up), then
  * connecting, the nodes by name, the modes and ways, the pages, and the tools. [go] shows a page.
  */
-private fun commands(model: AppModel, query: String, go: (Page) -> Unit): List<cc.txwd.kone.ui.Command> = buildList {
+private fun commands(model: AppModel, query: String, scan: (() -> Unit)? = null, go: (Page) -> Unit): List<cc.txwd.kone.ui.Command> = buildList {
     val state = model.dashboard
     cc.txwd.kone.app.DnsLookup.clean(query)?.takeIf { '.' in query }?.let { site ->
         add(cc.txwd.kone.ui.Command("Check $site", "Straight out and through nodes") { go(Page.Tools); model.checkSite(site) })
@@ -603,7 +604,8 @@ private fun commands(model: AppModel, query: String, go: (Page) -> Unit): List<c
     add(cc.txwd.kone.ui.Command("Run diagnosis", "Tools") { go(Page.Tools); model.diagnose() })
     add(cc.txwd.kone.ui.Command("Test all nodes", "Nodes") { go(Page.Nodes); model.testAll() })
     add(cc.txwd.kone.ui.Command("Update category lists", "Rules") { go(Page.Rules); model.updateLists(force = true) })
-    add(cc.txwd.kone.ui.Command("Import from clipboard", "Nodes: links, Clash or sing-box") { model.importText(clipboardText().orEmpty()) })
+    add(cc.txwd.kone.ui.Command("Import from clipboard", "Nodes: links, Clash, sing-box or a QR picture") { importClipboard(model) })
+    scan?.let { add(cc.txwd.kone.ui.Command("Scan a QR code on screen", "Nodes or a subscription, from a page or a phone's screen") { it() }) }
     add(cc.txwd.kone.ui.Command("Import rules from clipboard", "Rules: Clash or v2rayN") { go(Page.Rules); model.importRulesFrom(clipboardText().orEmpty()) })
     RAIL.forEachIndexed { index, target ->
         add(cc.txwd.kone.ui.Command("Go to ${target.title}", "Page · Ctrl+${index + 1}") { go(target) })

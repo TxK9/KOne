@@ -174,6 +174,29 @@ object SubscriptionContent {
         return uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank() && uri.rawUserInfo == null
     }
 
+    /** The other clients' links that carry a subscription's own in their `url`: clash://install-config?url=… and the like. */
+    private val IMPORT_LINKS = setOf("clash", "clashx", "clash-verge", "mihomo", "stash", "sing-box")
+
+    /**
+     * The subscription link [text] gives: an https link itself, or the one inside another
+     * client's import link (clash://install-config?url=…, sing-box://import-remote-profile?url=…,
+     * hiddify://import/…), as providers' pages and QR codes give them; null when it gives none
+     * KOne fetches ([acceptable]).
+     */
+    fun linkOf(text: String): String? {
+        val trimmed = text.trim()
+        if (acceptable(trimmed)) return trimmed
+        val scheme = trimmed.substringBefore("://", "").lowercase()
+        val inner = when {
+            scheme == "hiddify" -> trimmed.substringAfter("://").takeIf { it.startsWith("import/", ignoreCase = true) }?.substring(7)?.substringBefore('#')
+            scheme in IMPORT_LINKS -> trimmed.substringAfter('?', "").substringBefore('#').split('&')
+                .firstOrNull { it.startsWith("url=", ignoreCase = true) }?.substring(4)
+                ?.let { runCatching { URLDecoder.decode(it, Charsets.UTF_8) }.getOrNull() }
+            else -> null
+        }
+        return inner?.trim()?.takeIf(::acceptable)
+    }
+
     private fun namesAFile(element: JsonElement): Boolean = when (element) {
         is JsonObject -> element.any { (key, value) -> key.lowercase().endsWith("_path") || namesAFile(value) }
         is JsonArray -> element.any(::namesAFile)

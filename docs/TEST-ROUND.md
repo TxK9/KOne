@@ -65,6 +65,8 @@ re-applies without change and turning a choice off restores the template exactly
 | 4.3 | Leave it a day (or set a short interval) | It refreshes on its own |
 | 4.4 | Android: copy a Clash profile, Import from clipboard | Each usable proxy becomes a node; the first is selected |
 | 4.5 | A whole sing-box configuration as an Android remote profile | Kept as sent (sing-box for Android's behaviour) |
+| 4.6 | Windows: show a node's QR code on a phone or a web page, then Nodes → Scan QR (one screen, then two screens with mixed scaling) | KOne steps aside for a moment and the node is imported; with no code on screen, it says so |
+| 4.7 | Windows: copy a QR picture (Snipping Tool), then Import; and Import from file with a saved PNG | The node is imported both ways; a subscription link's code adds the subscription |
 
 ## 5. Diagnosis and the phone's own causes
 

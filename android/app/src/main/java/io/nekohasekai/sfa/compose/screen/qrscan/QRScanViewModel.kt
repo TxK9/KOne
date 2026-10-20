@@ -21,6 +21,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.Libbox
 import cc.txwd.kone.shared.ShareLinks
+import cc.txwd.kone.shared.SubscriptionContent
 import io.nekohasekai.sfa.qrs.QRSDecoder
 import io.nekohasekai.sfa.qrs.readIntLE
 import io.nekohasekai.sfa.vendor.Vendor
@@ -45,6 +46,10 @@ sealed class QRScanResult {
     /** A node share link (see [ShareLinks]); never printed, it carries credentials. */
     data class NodeLink(val link: String) : QRScanResult() {
         override fun toString(): String = "NodeLink(redacted)"
+    }
+    /** A subscription's https link, from itself or another client's import link (see SubscriptionContent.linkOf); never printed, it carries a token. */
+    data class SubscriptionLink(val link: String) : QRScanResult() {
+        override fun toString(): String = "SubscriptionLink(redacted)"
     }
     data class QRSData(val data: ByteArray) : QRScanResult() {
         override fun equals(other: Any?): Boolean {
@@ -559,13 +564,18 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
                 return true
             }
             val uri = Uri.parse(normalized)
-            if (uri.scheme != "sing-box" || uri.host != "import-remote-profile") {
-                showScanError("This QR code contains no recognized node link or sing-box remote configuration.")
-                return false
+            if (uri.scheme == "sing-box" && uri.host == "import-remote-profile") {
+                Libbox.parseRemoteProfileImportLink(uri.toString())
+                _uiState.update { it.copy(result = QRScanResult.RemoteProfile(uri)) }
+                return true
             }
-            Libbox.parseRemoteProfileImportLink(uri.toString())
-            _uiState.update { it.copy(result = QRScanResult.RemoteProfile(uri)) }
-            return true
+            // A subscription's link, or another client's import link holding one (clash://install-config?url=…).
+            SubscriptionContent.linkOf(normalized)?.let { link ->
+                _uiState.update { it.copy(result = QRScanResult.SubscriptionLink(link)) }
+                return true
+            }
+            showScanError("This QR code contains no recognized node link, subscription or sing-box remote configuration.")
+            return false
         } catch (e: Exception) {
             showScanError(QRImportErrors.controlledMessage(e))
         }

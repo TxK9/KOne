@@ -41,18 +41,24 @@ class SubscriptionUpdates(private val scope: CoroutineScope, private val subscri
 
     fun updating(id: String) = id in updating
 
-    /** A subscription link typed or pasted: kept and fetched at once. False when it is not one KOne fetches (https only). */
+    /**
+     * A subscription link typed or pasted, or another client's import link holding one
+     * (clash://install-config?url=…): kept and fetched at once, or why not told. False when it is
+     * not one KOne fetches (https only).
+     */
     fun add(text: String): Boolean {
-        val url = text.trim()
-        if (!SubscriptionContent.acceptable(url)) return false
+        val url = SubscriptionContent.linkOf(text) ?: return false
+        keep(url)?.let { host.tell(it, error = true) }
+        return true
+    }
+
+    /** [url], a link KOne fetches, kept and fetched at once; null when it was, else why not. */
+    fun keep(url: String): String? {
         val added = subscriptions.add(url, SubscriptionContent.name(url, null))
-        if (added == null) {
-            host.tell(if (subscriptions.all.size >= Subscriptions.MOST) "No more subscriptions can be added" else "This subscription is already here", error = true)
-            return true
-        }
+            ?: return if (subscriptions.all.size >= Subscriptions.MOST) "No more subscriptions can be added" else "This subscription is already here"
         host.refresh()
         update(added.id, first = true)
-        return true
+        return null
     }
 
     /** Fetches [id] now; [first] takes the provider's update interval too. */

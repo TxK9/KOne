@@ -116,6 +116,8 @@ class NodesActions(
     /** Tests a node's bandwidth (about 35 MB). */
     val onSpeed: (String) -> Unit = {},
     val onImport: () -> Unit = {},
+    /** Reads the QR codes on the screens: a node shown on a provider's page or a phone. */
+    val onScan: () -> Unit = {},
 )
 
 /** How nodes are listed within each source. */
@@ -159,6 +161,7 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
             Action(if (state.testing) "Testing" else "Test all", enabled = !state.testing, onClick = actions.onTest)
             Action("Add node", onClick = actions.onAddNode)
             Action("Import", onClick = actions.onImport)
+            Action("Scan QR", onClick = actions.onScan)
             Action("Export", onClick = actions.onExport)
             Action("Add subscription") { adding = !adding }
         }

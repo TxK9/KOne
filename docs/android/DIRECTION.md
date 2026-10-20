@@ -80,6 +80,9 @@ Other gaps, in order of what people meet first:
 - **From a connection**: its site sent straight out or through the node with one press.
 - **Diagnose** copies a plain-text report (no key, no node addresses), as Windows does.
 - **Hosts** take a pasted hosts file.
+- **Subscription links** scanned or copied open as a new remote profile, KOne's subscription:
+  an https link, or another client's import link holding one (clash://install-config,
+  hiddify://import), as sing-box's own import links already did.
 - **Android CI**: the shared edition with the debug key, unit tests and an assembled build. No
   APK is uploaded; releases keep the authorized signing path in `tools/`.
 

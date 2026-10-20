@@ -104,6 +104,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 say(message)
             }
         }
+        override fun addSubscription(link: String) = feeds.keep(link)
     })
 
     /** The last bandwidth test of each node, and the node being tested now (one at a time). */
@@ -584,6 +585,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     // The person's own nodes: see OwnNodes.
 
     fun importText(text: String) = ownNodes.importText(text)
+
+    /** The QR codes in [pictures] imported: nodes, subscriptions (see OwnNodes.importQr); [where] says where none was found. */
+    fun importQr(where: String, pictures: suspend () -> List<java.awt.image.BufferedImage>) = ownNodes.importQr(where, pictures)
 
     fun removeImported(tag: String) = ownNodes.remove(tag)
 

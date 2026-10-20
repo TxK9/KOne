@@ -108,7 +108,7 @@ class DashboardActions(
     val onCancelSignIn: () -> Unit = {},
 )
 
-enum class MenuItem(val title: String) { Clipboard("Import from clipboard"), File("Import from file") }
+enum class MenuItem(val title: String) { Clipboard("Import from clipboard"), File("Import from file"), Screen("Scan a QR code on screen") }
 
 /**
  * Dashboard: the handscroll fills the page (the ink one, or with [cities] those of the node's country,

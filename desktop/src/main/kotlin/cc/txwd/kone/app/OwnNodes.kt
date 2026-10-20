@@ -2,6 +2,7 @@ package cc.txwd.kone.app
 
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.node.NodeForm
+import cc.txwd.kone.node.QrReader
 import cc.txwd.kone.node.ShareLinkWriter
 import cc.txwd.kone.shared.SubscriptionContent
 import cc.txwd.kone.ui.NodeEditing
@@ -14,6 +15,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import java.awt.image.BufferedImage
 
 /**
  * The person's own nodes as the Nodes page handles them: imported from text, written by hand in
@@ -50,6 +52,8 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
         fun tell(message: String, error: Boolean)
         /** How an import went, on the dashboard: softly when [good], else until dismissed. */
         fun imported(message: String, good: Boolean)
+        /** A subscription's link KOne fetches, kept and fetched at once; null when it was, else why not ("already here"). */
+        fun addSubscription(link: String): String?
     }
 
     /** The nodes as merged now, and the tags of those that are the person's to write out. */
@@ -86,7 +90,7 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
                 val refusal = read.refusal ?: if (fitting.size < single.size) "sing-box does not accept some nodes" else null
                 val added = imports.addOutbounds(fitting.map { it to tagOf(it) })
                 when {
-                    added > 0 -> "Imported $added nodes" to true
+                    added > 0 -> (if (added == 1) "Imported 1 node" else "Imported $added nodes") to true
                     fitting.isNotEmpty() -> "These nodes are already here" to true
                     else -> (refusal ?: "No usable nodes") to false
                 }
@@ -94,6 +98,34 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
             host.nodesChanged()
             host.tell(message, error = !good)
             host.imported(message, good)
+        }
+    }
+
+    /**
+     * The QR codes in [pictures] (the screens, a copied picture or a picture file), read as a
+     * phone's scanner reads them: node links imported as [importText] imports text, a
+     * subscription's link added as a subscription, a KOne key left for the key page. [where] says
+     * where none was found ("on the screen"). Says how it went on the dashboard.
+     */
+    fun importQr(where: String, pictures: suspend () -> List<BufferedImage>) {
+        scope.launch {
+            val texts = withContext(Dispatchers.Default) { runCatching { pictures() }.getOrDefault(emptyList()).flatMap(QrReader::read).distinct() }
+            val keys = texts.filter { it.startsWith("kone:", ignoreCase = true) }
+            val links = texts.filterNot { it in keys }.mapNotNull { text -> SubscriptionContent.linkOf(text)?.let { text to it } }.toMap()
+            val nodes = texts.filterNot { it in keys || it in links }
+            val refused = links.values.distinct().mapNotNull(host::addSubscription)
+            val added = links.values.distinct().size - refused.size
+            fun say(message: String, good: Boolean) {
+                host.tell(message, error = !good)
+                host.imported(message, good)
+            }
+            when {
+                texts.isEmpty() -> say("No QR code found $where", good = false)
+                nodes.isNotEmpty() -> importText(nodes.joinToString("\n"))
+                added > 0 -> say(if (added == 1) "Subscription added from the QR code" else "$added subscriptions added from the QR codes", good = true)
+                refused.isNotEmpty() -> say(refused.first(), good = false)
+                else -> say("This QR code is a KOne key, not a node: enter it where KOne asks for a key", good = false)
+            }
         }
     }
 

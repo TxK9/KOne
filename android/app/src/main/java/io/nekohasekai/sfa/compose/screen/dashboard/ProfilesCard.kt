@@ -76,6 +76,7 @@ import io.nekohasekai.sfa.selfuse.PairedProfileDialog
 import io.nekohasekai.sfa.selfuse.ImportedNode
 import cc.txwd.kone.shared.ShareLinkException
 import cc.txwd.kone.shared.ShareLinks
+import cc.txwd.kone.shared.SubscriptionContent
 import io.nekohasekai.sfa.selfuse.clashNodes
 import io.nekohasekai.sfa.selfuse.createPairedProfile
 import io.nekohasekai.sfa.selfuse.SubscriptionProfile
@@ -284,12 +285,14 @@ fun ProfilesCard(
     }
 
     // The link is always copied from somewhere, so read it straight from the clipboard:
-    // a node link imports at once, a sing-box remote profile link opens as a new profile.
+    // a node link imports at once, a sing-box remote profile link opens as a new profile, and so
+    // does a subscription's link (or another client's import link holding one).
     fun importFromClipboard() {
         val clip = (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip
         val text = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
         val links = ShareLinks.findAll(text)
         val remote = text.lineSequence().map { it.trim() }.firstOrNull { it.startsWith("sing-box://import-remote-profile", ignoreCase = true) }
+        val subscription = text.lineSequence().firstNotNullOfOrNull { SubscriptionContent.linkOf(it) }
         when {
             links.isNotEmpty() -> importNodeLinks(links)
             ClashProxies.looksLikeClash(text) -> importClash(text)
@@ -300,6 +303,7 @@ fun ProfilesCard(
                     else -> Toast.makeText(context, "The clipboard contains an unrecognized remote configuration link.", Toast.LENGTH_SHORT).show()
                 }
             }
+            subscription != null -> onOpenNewProfile(NewProfileArgs(importName = SubscriptionContent.name(subscription, null), importUrl = subscription))
             else -> Toast.makeText(context, "No recognized links in the clipboard", Toast.LENGTH_SHORT).show()
         }
     }
@@ -709,6 +713,8 @@ fun ProfilesCard(
                             }
                         }
                     }
+                    is QRScanResult.SubscriptionLink ->
+                        onOpenNewProfile(NewProfileArgs(importName = SubscriptionContent.name(result.link, null), importUrl = result.link))
                     is QRScanResult.RemoteProfile -> {
                         coroutineScope.launch {
                             when (val parseResult = importHandler.parseQRCode(result.uri.toString())) {
