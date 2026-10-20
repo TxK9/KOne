@@ -70,6 +70,10 @@ Other gaps, in order of what people meet first:
   several nodes, and one per country with two nodes or more ("Automatic · Japan"). Nodes in a
   group keep their provider's names.
 - **Fake IP** as an option (Settings → Routing → DNS), mappings kept across restarts.
+- **Rules through a country** (Settings → Routing → Rules → Country): the fastest of that
+  country's nodes carries the rule's traffic in Rule mode ("Through Japan", tested as
+  Automatic is), and its names are looked up there too. A country no node says goes through the
+  node in use, and the rule says so. The same rule as on Windows.
 - **Why** each connection went its way, in the connection's details.
 - **Subscriptions, finished**: words that leave nodes out per subscription, and a notification
   once when one has ended, ends within three days or has used 90% of its data.

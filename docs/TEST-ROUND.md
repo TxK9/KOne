@@ -47,10 +47,14 @@ console nodes never exported (OwnNodesTest).
 | 3.8b | Windows, Fake IP on: look at the taskbar's network icon; then change a setting (KOne reconnects) and reload a few sites | Windows says it is online; every site is still the right one after the reconnect |
 | 3.8a | Fake IP on, with an address-range rule (e.g. a company range direct) | Apps that connect to the address follow the rule; names KOne answered follow name rules (the documented trade-off) |
 | 3.9 | IPv6 on, on an IPv6 network | IPv6 sites load; with Fake IP also on, they still load |
+| 3.10 | With nodes in two countries, add a rule sending a test site through the other country than the node in use; open a "what is my IP" site under that rule | The exit address is that country's node; other sites keep the node in use; Global and Direct mode ignore the rule |
+| 3.11 | Repeat 3.10 with Fake IP on, then with a country no node says | Still through that country; with no node there, through the node in use, and the rule's row says so |
+| 3.12 | Paste a whole Clash profile whose rules aim at a country group and a DIRECT-first group | Those rules go through that country and straight out; the profile's proxies are not counted as rules left out |
 
 Proven at source level: the Windows App and service build identical configurations for every
-combination above (consistency test); the real sing-box accepts them, Fake IP included; Android's
-routing re-applies without change and turning a choice off restores the template exactly.
+combination above (consistency test), rules through a country included; the real sing-box accepts
+them, Fake IP included, and an Android configuration with country groups; Android's routing
+re-applies without change and turning a choice off restores the template exactly.
 
 ## 4. Subscriptions and imports
 

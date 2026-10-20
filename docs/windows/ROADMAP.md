@@ -114,6 +114,7 @@ real Windows PC yet.
 | A subscription that has ended, ends within days, or has used 90 % of its data is said once | Done |
 | A provider's notices among its nodes ("剩余流量", "官网", "Expire:") left out of every list and Automatic; words of the person's own leave out more, per subscription, with chains through them | Done |
 | Fake IP as an option, in the service and the App alike (consistency test), accepted by the real sing-box; name lookups say when an answer is its stand-in; its trade-off for address rules said where it is chosen | Done |
+| Rules through a chosen country (`via:JP`): any rule kind, Rule mode only; a group of that country's nodes (by their names), tested as Automatic is, with its names asked through it too (and faked there with Fake IP); a country no node says goes through the node in use, and its row says so. Clash rules aimed at a country group come over this way, and a whole profile's groups are followed to their first choice. Service, App and Android alike (consistency test; accepted by the real sing-box) | Done |
 | Restoring a backup twice adds nothing twice (rules, hosts, DNS for domains) | Done |
 | The App's model in controllers: rules, network, subscriptions, site tools, sign-in networks, own nodes, diagnosis, backup, connections | Done; the connection and steering wait for the device round |
 
