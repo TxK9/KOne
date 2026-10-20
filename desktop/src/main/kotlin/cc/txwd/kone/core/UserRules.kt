@@ -42,6 +42,14 @@ object UserRules {
 
     internal fun portNumber(text: String): Int? = Names.portNumber(text)
 
+    /** The group of one country's nodes the rules through it use (desktop/service/rules.go). */
+    fun viaTag(code: String) = "via-$code"
+
+    private val VIA_TAG = Regex("""via-[A-Z]{2}""")
+
+    /** The country a group's [tag] is for ("JP" for via-JP), or null when it is not one; a source outbound tagged so is renamed. */
+    fun viaOf(tag: String): String? = if (VIA_TAG.matches(tag)) tag.substring(4) else null
+
     /** The sing-box condition for a checked rule. */
     private fun match(rule: UserRule): Map<String, kotlinx.serialization.json.JsonElement> =
         if (rule.kind == "port") {
@@ -52,23 +60,32 @@ object UserRules {
             mapOf(FIELDS.getValue(rule.kind) to JsonArray(listOf(JsonPrimitive(rule.value))))
         }
 
-    /** Refused or straight out in every mode; through the node in Rule mode only. */
-    fun route(rule: UserRule): JsonObject = JsonObject(
+    /**
+     * Refused or straight out in every mode; through the node, or the group of a country among
+     * [groups] (by code), in Rule mode only. A country with no group goes through the node.
+     */
+    fun route(rule: UserRule, groups: Set<String> = emptySet()): JsonObject = JsonObject(
         match(rule) + when (rule.action) {
             "block" -> mapOf("action" to JsonPrimitive("reject"))
             "direct" -> mapOf("outbound" to JsonPrimitive("direct"))
-            else -> mapOf("clash_mode" to JsonPrimitive("Rule"), "outbound" to JsonPrimitive(KoneConfig.PROXY_TAG))
+            else -> mapOf(
+                "clash_mode" to JsonPrimitive("Rule"),
+                "outbound" to JsonPrimitive(Rules.via(rule.action)?.takeIf { it in groups }?.let(::viaTag) ?: KoneConfig.PROXY_TAG),
+            )
         },
     )
 
-    /** How names matching [rule] are answered; rules on addresses and ports have none. */
-    fun dns(rule: UserRule): JsonObject? {
+    /** How names matching [rule] are answered, asked where it goes; rules on addresses and ports have none. */
+    fun dns(rule: UserRule, groups: Set<String> = emptySet()): JsonObject? {
         if (rule.kind == "cidr" || rule.kind == "port" || (rule.kind == "set" && rule.value.startsWith("geoip-"))) return null
         return JsonObject(
             match(rule) + when (rule.action) {
                 "block" -> mapOf("action" to JsonPrimitive("reject"))
                 "direct" -> mapOf("server" to JsonPrimitive("local-dns"))
-                else -> mapOf("clash_mode" to JsonPrimitive("Rule"), "server" to JsonPrimitive("proxy-dns"))
+                else -> mapOf(
+                    "clash_mode" to JsonPrimitive("Rule"),
+                    "server" to JsonPrimitive(Rules.via(rule.action)?.takeIf { it in groups }?.let(Rules::dnsThrough) ?: "proxy-dns"),
+                )
             },
         )
     }

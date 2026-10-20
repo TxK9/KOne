@@ -8,8 +8,9 @@ import (
 )
 
 // Rule is one of the person's routing rules: what it matches (Kind and Value) and where that
-// goes (Action). The App sends them in order; the first that matches wins. They come after
-// the Claude block, so none of them can reach round it.
+// goes (Action: proxy, direct, block, or through a chosen country's nodes, "via:JP"). The App
+// sends them in order; the first that matches wins. They come after the Claude block, so none of
+// them can reach round it.
 type Rule struct {
 	Kind   string `json:"kind"`
 	Value  string `json:"value"`
@@ -23,6 +24,43 @@ var ruleFields = map[string]string{
 }
 
 var ruleActions = map[string]bool{"proxy": true, "direct": true, "block": true}
+
+// viaAction goes through one country's nodes, by its code: "via:JP" goes through the fastest of
+// the nodes the App says are Japan's (Options.Countries), in Rule mode, as "proxy" goes through
+// the node in use; while there is none, through the node in use (shared Rules.kt).
+var viaAction = regexp.MustCompile(`^via:[A-Z]{2}$`)
+
+// isAction says whether [action] is one a rule takes.
+func isAction(action string) bool { return ruleActions[action] || viaAction.MatchString(action) }
+
+// via is the country [action] goes through ("JP" for "via:JP"), or "" when it goes another way.
+func via(action string) string {
+	if viaAction.MatchString(action) {
+		return action[len("via:"):]
+	}
+	return ""
+}
+
+// viaTag is the group of one country's nodes the rules through it use; viaDNSTag is the DNS
+// server asked through that group, so a site answers as it would in that country.
+func viaTag(code string) string    { return "via-" + code }
+func viaDNSTag(code string) string { return "proxy-dns-" + code }
+
+// viaGroup is a tag the groups take; a source outbound with one is renamed.
+var viaGroup = regexp.MustCompile(`^via-[A-Z]{2}$`)
+
+// RuleCountries are the countries [rules] go through, each once, in the order they first appear.
+func RuleCountries(rules []Rule) []string {
+	seen := map[string]bool{}
+	var codes []string
+	for _, rule := range rules {
+		if code := via(rule.Action); code != "" && !seen[code] {
+			seen[code] = true
+			codes = append(codes, code)
+		}
+	}
+	return codes
+}
 
 // keyword is part of a domain name: letters, digits, dots and hyphens, two or more.
 var keyword = regexp.MustCompile(`^[a-z0-9.-]{2,63}$`)
@@ -49,7 +87,7 @@ func UserRules(rules []Rule) []Rule {
 	sets := map[string]bool{}
 	var kept []Rule
 	for _, rule := range rules {
-		if _, ok := ruleFields[rule.Kind]; !ok || !ruleActions[rule.Action] {
+		if _, ok := ruleFields[rule.Kind]; !ok || !isAction(rule.Action) {
 			continue
 		}
 		value, ok := ruleValue(rule.Kind, rule.Value)
@@ -186,9 +224,9 @@ func ruleMatch(rule Rule) map[string]any {
 }
 
 // routeRule is where a connection matching [rule] goes: refused, or straight out, in every
-// mode; through the node in Rule mode only, as Global already sends everything there and
-// Direct nothing.
-func routeRule(rule Rule) map[string]any {
+// mode; through the node, or a country's group among [groups], in Rule mode only, as Global
+// already sends everything through the node and Direct nothing.
+func routeRule(rule Rule, groups map[string]bool) map[string]any {
 	out := ruleMatch(rule)
 	switch rule.Action {
 	case "block":
@@ -198,13 +236,16 @@ func routeRule(rule Rule) map[string]any {
 	default:
 		out["clash_mode"] = "Rule"
 		out["outbound"] = proxyTag
+		if code := via(rule.Action); groups[code] {
+			out["outbound"] = viaTag(code)
+		}
 	}
 	return out
 }
 
 // dnsRule answers names the way [rule] routes them; only rules on names, programs and lists of
 // names (geosite) have one.
-func dnsRule(rule Rule) map[string]any {
+func dnsRule(rule Rule, groups map[string]bool) map[string]any {
 	if rule.Kind == "cidr" || rule.Kind == "port" || (rule.Kind == "set" && strings.HasPrefix(rule.Value, "geoip-")) {
 		return nil
 	}
@@ -217,6 +258,9 @@ func dnsRule(rule Rule) map[string]any {
 	default:
 		out["clash_mode"] = "Rule"
 		out["server"] = "proxy-dns"
+		if code := via(rule.Action); groups[code] {
+			out["server"] = viaDNSTag(code)
+		}
 	}
 	return out
 }

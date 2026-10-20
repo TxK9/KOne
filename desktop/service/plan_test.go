@@ -416,3 +416,108 @@ func TestFakeIPAnswersOnlyWhatGoesThroughTheNode(t *testing.T) {
 		t.Fatalf("fake-IP while off: %s", text)
 	}
 }
+
+func TestRulesThroughACountryUseItsNodesAndAskItsDNS(t *testing.T) {
+	options := options
+	options.Routes = []Rule{{"suffix", "example.com", "via:JP"}, {"set", "geosite-netflix", "via:US"}, {"suffix", "example.org", "via:SG"}, {"cidr", "203.0.113.0/24", "via:JP"}}
+	// Japan's list names a node this source does not have; Singapore has none here at all.
+	options.Countries = map[string][]string{"JP": {"Japan", "Osaka"}, "US": {"United States"}, "SG": {"Singapore"}}
+	config, _, err := Build(source(t, true), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups := map[string]map[string]any{}
+	for _, item := range config["outbounds"].([]any) {
+		outbound := item.(map[string]any)
+		if tag := text(outbound, "tag"); strings.HasPrefix(tag, "via-") {
+			groups[tag] = outbound
+		}
+	}
+	if len(groups) != 2 || !reflect.DeepEqual(groups["via-JP"]["outbounds"], []any{"Japan"}) || !reflect.DeepEqual(groups["via-US"]["outbounds"], []any{"United States"}) || groups["via-JP"]["type"] != "urltest" {
+		t.Fatalf("groups: %v", groups)
+	}
+	routes := rules(config, "route")
+	if routes[2].(map[string]any)["action"] != "reject" {
+		t.Fatalf("the Claude block is not first: %v", routes)
+	}
+	want := map[string]string{"example.com": "via-JP", "geosite-netflix": "via-US", "example.org": proxyTag, "203.0.113.0/24": "via-JP"}
+	for _, item := range routes {
+		rule := item.(map[string]any)
+		for _, field := range []string{"domain_suffix", "rule_set", "ip_cidr"} {
+			values, _ := rule[field].([]any)
+			if len(values) != 1 {
+				continue
+			}
+			if to, ok := want[values[0].(string)]; ok {
+				if rule["outbound"] != to || rule["clash_mode"] != "Rule" {
+					t.Fatalf("%v goes to %v", values[0], rule)
+				}
+				delete(want, values[0].(string))
+			}
+		}
+	}
+	if len(want) != 0 {
+		t.Fatalf("rules missing: %v", want)
+	}
+	// Names are asked through the same country; an address range has no DNS rule.
+	asked := map[string]any{}
+	for _, item := range rules(config, "dns") {
+		rule := item.(map[string]any)
+		for _, field := range []string{"domain_suffix", "rule_set", "ip_cidr"} {
+			if values, _ := rule[field].([]any); len(values) == 1 {
+				asked[values[0].(string)] = rule["server"]
+			}
+		}
+	}
+	if asked["example.com"] != "proxy-dns-JP" || asked["geosite-netflix"] != "proxy-dns-US" || asked["example.org"] != "proxy-dns" || asked["203.0.113.0/24"] != nil {
+		t.Fatalf("dns: %v", asked)
+	}
+	var japan map[string]any
+	for _, item := range config["dns"].(map[string]any)["servers"].([]any) {
+		if server := item.(map[string]any); server["tag"] == "proxy-dns-JP" {
+			japan = server
+		}
+	}
+	if japan == nil || japan["detour"] != "via-JP" || japan["type"] != "https" || japan["server"] != "1.1.1.1" {
+		t.Fatalf("Japan's DNS: %v", japan)
+	}
+	// With Fake IP, the names through Japan are faked too, so Japan's node looks them up.
+	options.FakeIP = true
+	config, _, _ = Build(source(t, true), options)
+	dnsRules := rules(config, "dns")
+	for i, item := range dnsRules {
+		if rule := item.(map[string]any); rule["server"] == "proxy-dns-JP" {
+			if twin := dnsRules[i-1].(map[string]any); twin["server"] != fakeDNSTag || !reflect.DeepEqual(twin["domain_suffix"], rule["domain_suffix"]) {
+				t.Fatalf("no fake twin before %v: %v", rule, twin)
+			}
+		}
+	}
+}
+
+func TestANodeTaggedLikeACountrysGroupMovesAside(t *testing.T) {
+	options := options
+	options.Routes = []Rule{{"suffix", "example.com", "via:JP"}}
+	options.Countries = map[string][]string{"JP": {"via-JP-2"}}
+	config, nodes, err := Build(parse(t, `{"outbounds": [
+	  {"type": "trojan", "tag": "via-JP", "server": "203.0.113.11", "server_port": 443, "password": "example"},
+	  {"type": "trojan", "tag": "Tokyo", "server": "203.0.113.12", "server_port": 443, "password": "example"}
+	]}`), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(nodes, []string{"via-JP-2", "Tokyo"}) {
+		t.Fatalf("nodes: %v", nodes)
+	}
+	tags := 0
+	for _, item := range config["outbounds"].([]any) {
+		if outbound := item.(map[string]any); outbound["tag"] == "via-JP" {
+			tags++
+			if !reflect.DeepEqual(outbound["outbounds"], []any{"via-JP-2"}) {
+				t.Fatalf("group: %v", outbound)
+			}
+		}
+	}
+	if tags != 1 {
+		t.Fatalf("via-JP is tagged %d times", tags)
+	}
+}

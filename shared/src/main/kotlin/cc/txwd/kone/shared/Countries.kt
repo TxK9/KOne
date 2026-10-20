@@ -80,6 +80,9 @@ internal object Countries {
 
     fun byCode(code: String?): Country? = code?.uppercase()?.let { codeIndex[it] }
 
+    /** The one country [name] says ("Tokyo 01" is Japan), or null when it says none or several. */
+    fun of(name: String): Country? = all.filter { it.matches(name) }.singleOrNull()
+
     /** A category literally named after a country recognises that country's aliases too. */
     fun byName(name: String): Country? {
         val trimmed = name.trim()

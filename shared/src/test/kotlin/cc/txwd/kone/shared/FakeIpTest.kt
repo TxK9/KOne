@@ -34,4 +34,17 @@ class FakeIpTest {
         assertEquals("""{"domain_suffix":["msftncsi.com","msftconnecttest.com"],"server":"proxy-dns"}""", faked[4].toString())
         assertEquals("""{"query_type":["A"],"server":"fake-dns"}""", faked[5].toString())
     }
+
+    @Test
+    fun namesThroughACountryAreFakedTooAndLookedUpThere() {
+        val through = kotlinx.serialization.json.Json.parseToJsonElement("""{"domain_suffix":["example.com"],"clash_mode":"Rule","server":"proxy-dns-JP"}""") as kotlinx.serialization.json.JsonObject
+        val faked = FakeIp.rules(listOf(through), ipv6 = true)
+        // The twin first, then the rule itself for other query types; a rule on names has no real-name twin.
+        assertEquals("""{"domain_suffix":["example.com"],"clash_mode":"Rule","server":"fake-dns","query_type":["A","AAAA"]}""", faked[0].toString())
+        assertEquals(through, faked[1])
+        assertTrue(FakeIp.throughNode("proxy-dns-JP"))
+        assertFalse(FakeIp.throughNode("local-dns"))
+        assertFalse(FakeIp.throughNode("own-dns-1"))
+        assertTrue(FakeIp.isRealNames(FakeIp.REAL, "proxy-dns-US"))
+    }
 }

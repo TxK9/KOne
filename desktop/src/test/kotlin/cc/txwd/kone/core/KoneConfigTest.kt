@@ -14,6 +14,7 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -148,6 +149,10 @@ class KoneConfigTest {
             UserRule("set", " GeoSite-Netflix ", "proxy"), UserRule("set", "geoip-jp", "direct"), UserRule("set", "geosite-netflix", "block"),
             UserRule("set", "geosite-cn", "proxy"), UserRule("set", "geosite-a.b", "proxy"), UserRule("set", "geosite-category-ai-!cn", "proxy"),
             UserRule("set", "geosite-\u212Aodi", "direct"), UserRule("set", "netflix", "proxy"),
+            // Through a country: one with nodes, one with none (through the node in use), and ones not written right.
+            UserRule("suffix", "example.net", "via:JP"), UserRule("set", "geosite-openai", "via:US"), UserRule("suffix", "example.edu", "via:SG"),
+            UserRule("cidr", "198.51.100.0/24", "via:JP"), UserRule("program", "Game.exe", "via:US"), UserRule("suffix", "example.info", "via:jp"),
+            UserRule("suffix", "example.info", "via:Japan"),
         ) + (1..36).map { UserRule("set", "geosite-list$it", if (it % 2 == 0) "direct" else "proxy") }
         val hosts = listOf(
             Host(" NAS.Example.org ", "192.0.2.10"), Host("nas.example.org", "2001:DB8::10"), Host("nas.example.org", "192.0.2.10"),
@@ -179,10 +184,11 @@ class KoneConfigTest {
             val region = when (mode) { "Rule" -> if (tun) "global" else "china"; "Global" -> "global"; else -> "atlantis" }
             // Fake IP with IPv4 alone (Rule) and with IPv6 (Global); off in Direct.
             val fakeIp = mode != "Direct"
-            val ours = KoneConfig.build(
+            val built = KoneConfig.build(
                 source, rules, api, selected = selected, tun = tun, mode = mode, bypass = straight, mixed = mixed, direct = sites, proxied = through,
                 routes = own, blockAds = ads, remoteDns = remote, directDns = direct, ipv6 = ipv6, hosts = fixed, nameServers = ownServers, unmatchedDirect = !tun, region = region, fakeIp = fakeIp,
-            ).config
+            )
+            val ours = built.config
             val request = buildJsonObject {
                 put("source", source); put("selected", selected); put("rules", rules)
                 put("port", api.port); put("secret", api.secret); put("tun", tun)
@@ -195,6 +201,11 @@ class KoneConfigTest {
                 put("region", region)
                 put("unmatchedDirect", !tun)
                 put("fakeIp", fakeIp)
+                // As the App sends them, and a country the service must not take a node for that is not one.
+                putJsonObject("countries") {
+                    KoneConfig.countries(built.nodes).forEach { (code, tags) -> putJsonArray(code) { tags.forEach { add(it) } } }
+                    putJsonArray("SG") { add("direct"); add("not-a-node") }
+                }
             }
             val process = ProcessBuilder(found!!.path, "build-config").start()
             process.outputStream.use { it.write(request.toString().toByteArray()) }
@@ -217,6 +228,7 @@ class KoneConfigTest {
             routes = listOf(
                 UserRule("keyword", "tracker", "block"), UserRule("cidr", "2001:db8::/32", "direct"), UserRule("port", "1000-2000", "proxy"),
                 UserRule("port", "8443", "block"), UserRule("program", "Steam.exe", "proxy"), UserRule("domain", "www.example.org", "direct"),
+                UserRule("suffix", "example.net", "via:JP"), UserRule("program", "Game.exe", "via:US"),
             ),
             blockAds = true, remoteDns = "https://dns.example.com:8443/q", directDns = "2001:db8::1", ipv6 = true,
             hosts = listOf(Host("nas.example.org", "192.0.2.10"), Host("nas.example.org", "2001:db8::10"), Host("printer.example.org", "192.0.2.20")),
@@ -228,6 +240,32 @@ class KoneConfigTest {
         val output = process.inputStream.readBytes().decodeToString()
         assertTrue(process.waitFor(60, TimeUnit.SECONDS), "sing-box check did not finish")
         assertEquals(0, process.exitValue(), output)
+    }
+
+    @Test
+    fun rulesThroughACountryGoThroughItsNodesAndAskItsDns() {
+        val routes = listOf(UserRule("suffix", "example.net", "via:JP"), UserRule("suffix", "example.edu", "via:SG"), UserRule("set", "geosite-openai", "via:US"))
+        val built = KoneConfig.build(FakeConsole.source(blockClaude = true), rules, api, routes = routes)
+        assertEquals(mapOf("US" to listOf("United States"), "JP" to listOf("Japan")), KoneConfig.countries(built.nodes))
+        val outbounds = built.config["outbounds"]!!.jsonArray.map { it.jsonObject }
+        val japan = outbounds.first { it["tag"]!!.jsonPrimitive.content == "via-JP" }
+        assertEquals("urltest", japan["type"]!!.jsonPrimitive.content)
+        assertEquals(listOf("Japan"), japan["outbounds"]!!.jsonArray.map { it.jsonPrimitive.content })
+        // Singapore has no node here: no group, and its rule goes through the node in use.
+        assertTrue(outbounds.none { it["tag"]!!.jsonPrimitive.content == "via-SG" })
+        // The selector offers nodes only; the groups are the rules'.
+        assertEquals(listOf("auto", "United States", "Japan"), outbounds.first()["outbounds"]!!.jsonArray.map { it.jsonPrimitive.content })
+        val routed = built.config.rules("route").associate { (it["domain_suffix"] ?: it["rule_set"])?.jsonArray?.singleOrNull()?.jsonPrimitive?.content to it["outbound"]?.jsonPrimitive?.content }
+        assertEquals("via-JP", routed["example.net"])
+        assertEquals("proxy", routed["example.edu"])
+        assertEquals("via-US", routed["geosite-openai"])
+        val asked = built.config.rules("dns").associate { (it["domain_suffix"] ?: it["rule_set"])?.jsonArray?.singleOrNull()?.jsonPrimitive?.content to it["server"]?.jsonPrimitive?.content }
+        assertEquals("proxy-dns-JP", asked["example.net"])
+        assertEquals("proxy-dns", asked["example.edu"])
+        val servers = built.config["dns"]!!.jsonObject["servers"]!!.jsonArray.map { it.jsonObject }
+        val japanDns = servers.first { it["tag"]!!.jsonPrimitive.content == "proxy-dns-JP" }
+        assertEquals("via-JP", japanDns["detour"]!!.jsonPrimitive.content)
+        assertEquals("1.1.1.1", japanDns["server"]!!.jsonPrimitive.content)
     }
 
     @Test

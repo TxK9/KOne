@@ -29,6 +29,9 @@ func TestRulesAreCheckedAndWrittenOneWay(t *testing.T) {
 		{"port", "70000", "direct"},
 		{"suffix", "example.org", "reject"},
 		{"geoip", "cn", "direct"},
+		{"suffix", "example.net", "via:JP"},
+		{"suffix", "example.net", "via:jp"},
+		{"suffix", "example.edu", "via:JPN"},
 	})
 	want := []Rule{
 		{"suffix", "example.com", "direct"},
@@ -39,6 +42,7 @@ func TestRulesAreCheckedAndWrittenOneWay(t *testing.T) {
 		{"program", "Steam.exe", "proxy"},
 		{"port", "443", "block"},
 		{"port", "1000-2000", "direct"},
+		{"suffix", "example.net", "via:JP"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v\nwant %v", got, want)

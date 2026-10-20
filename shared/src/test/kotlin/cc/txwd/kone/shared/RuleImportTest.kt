@@ -39,6 +39,66 @@ class RuleImportTest {
     }
 
     @Test
+    fun aGroupNamedForACountryGoesThroughThatCountry() {
+        val text = """
+            rules:
+              - DOMAIN-SUFFIX,example.com,🇯🇵 Japan
+              - DOMAIN-SUFFIX,example.org,🇺🇸 United States
+              - GEOSITE,netflix,US Streaming
+              - DOMAIN-SUFFIX,example.net,🚀 Proxy
+              - DOMAIN-SUFFIX,example.edu,Japan and Singapore
+              - DOMAIN-SUFFIX,example.cn,🎯 Global Direct
+              - DOMAIN-KEYWORD,tracker,🛑 AdBlock
+            """.trimIndent()
+        assertEquals(
+            listOf(
+                Rule("suffix", "example.com", "via:JP"), Rule("suffix", "example.org", "via:US"), Rule("set", "geosite-netflix", "via:US"),
+                // A group naming no country, or two, goes through the node in use; names saying direct or blocked do so.
+                Rule("suffix", "example.net", "proxy"), Rule("suffix", "example.edu", "proxy"),
+                Rule("suffix", "example.cn", "direct"), Rule("keyword", "tracker", "block"),
+            ),
+            RuleImport.read(text, Rules.WINDOWS).rules,
+        )
+    }
+
+    @Test
+    fun aWholeProfilesGroupsAreFollowedToTheirFirstChoice() {
+        val text = """
+            proxies:
+              - {name: Tokyo 01, type: ss, server: 192.0.2.1, port: 8388, cipher: aes-128-gcm, password: example}
+              - {name: Seattle 01, type: ss, server: 192.0.2.2, port: 8388, cipher: aes-128-gcm, password: example}
+            proxy-groups:
+              - {name: Select, type: select, proxies: [Japan, Seattle 01, DIRECT]}
+              - {name: Japan, type: url-test, proxies: [Tokyo 01]}
+              - {name: Home sites, type: select, proxies: [Stay, Select]}
+              - {name: Stay, type: select, proxies: [DIRECT]}
+              - {name: Ads, type: select, proxies: [REJECT, DIRECT]}
+              - {name: Direct first in name, type: select, proxies: [Select, DIRECT]}
+            rules:
+              - DOMAIN-SUFFIX,example.com,Japan
+              - DOMAIN-SUFFIX,example.org,Select
+              - DOMAIN-SUFFIX,example.cn,Home sites
+              - DOMAIN-KEYWORD,tracker,Ads
+              - DOMAIN-SUFFIX,example.net,Direct first in name
+              - DOMAIN,www.example.com,Seattle 01   # a node, named for its city
+              - MATCH,Select
+            """.trimIndent()
+        val read = RuleImport.read(text, Rules.WINDOWS)
+        assertEquals(
+            listOf(
+                Rule("suffix", "example.com", "via:JP"), Rule("suffix", "example.org", "proxy"), Rule("suffix", "example.cn", "direct"),
+                Rule("keyword", "tracker", "block"),
+                // The profile's own group is read by its first choice, not its name.
+                Rule("suffix", "example.net", "proxy"),
+                Rule("domain", "www.example.com", "via:US"),
+            ),
+            read.rules,
+        )
+        // The proxies and groups are not rules left out.
+        assertEquals(0, read.left)
+    }
+
+    @Test
     fun v2rayNsRoutingRulesComeOverToo() {
         val text = """
             [
@@ -66,5 +126,7 @@ class RuleImportTest {
         assertEquals(5, read.left)
         // An Xray configuration's routing.rules reads the same.
         assertEquals(listOf(Rule("suffix", "example.com", "proxy")), RuleImport.read("""{"routing":{"rules":[{"type":"field","outboundTag":"node","domain":["domain:example.com"]}]}}""", Rules.WINDOWS).rules)
+        // An outbound named for a country goes through it.
+        assertEquals(listOf(Rule("suffix", "example.com", "via:JP")), RuleImport.read("""[{"outboundTag":"jp-out","domain":["domain:example.com"]}]""", Rules.WINDOWS).rules)
     }
 }

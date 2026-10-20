@@ -50,7 +50,10 @@ object FakeIp {
     }
 
     /** Whether a rule with these [domainSuffix] names and this [server] is one [rules] added for the [REAL] names. */
-    fun isRealNames(domainSuffix: List<String>?, server: String?): Boolean = server == REMOTE && domainSuffix == REAL
+    fun isRealNames(domainSuffix: List<String>?, server: String?): Boolean = throughNode(server) && domainSuffix == REAL
+
+    /** Whether [server] is asked through a node: the node's DNS ([REMOTE]), or a country's, for the rules through it ([Rules.dnsThrough]). */
+    fun throughNode(server: String?): Boolean = server == REMOTE || server?.startsWith(Rules.DNS_THROUGH) == true
 
     /** The fake-IP server, with an IPv6 range only when names are answered with IPv6 too. */
     fun server(ipv6: Boolean): JsonObject = JsonObject(
@@ -63,16 +66,17 @@ object FakeIp {
     )
 
     /**
-     * [rules] with each rule that asks the node's DNS ([REMOTE]) preceded by its twin asking
+     * [rules] with each rule that asks through a node ([throughNode]) preceded by its twin asking
      * [TAG] for address queries (A, and AAAA with [ipv6]), and one more at the end for what no
      * rule answers (the final server is the node's). Other query types still go to the node's DNS.
+     * A name faked for a rule through a country is then looked up by that country's node.
      */
     fun rules(rules: List<JsonObject>, ipv6: Boolean): List<JsonObject> {
         val types = JsonArray(listOfNotNull(JsonPrimitive("A"), JsonPrimitive("AAAA").takeIf { ipv6 }))
         val real = JsonArray(REAL.map(::JsonPrimitive))
         val out = ArrayList<JsonObject>()
         for (rule in rules) {
-            if ((rule["server"] as? JsonPrimitive)?.content == REMOTE) {
+            if (throughNode((rule["server"] as? JsonPrimitive)?.content)) {
                 // The [REAL] names, under the same conditions, keep the real answer first.
                 if (rule.keys.none { it in NAMED }) out += JsonObject(rule + ("domain_suffix" to real))
                 out += JsonObject(rule + mapOf("query_type" to types, "server" to JsonPrimitive(TAG)))

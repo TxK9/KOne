@@ -20,6 +20,7 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -103,6 +104,8 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
         nameServers: List<NameServer> = emptyList(),
         region: String = cc.txwd.kone.shared.Region.CHINA,
         fakeIp: Boolean = false,
+        /** The nodes whose names say each country ([KoneConfig.countries]), for the rules through a country. */
+        countries: Map<String, List<String>> = emptyMap(),
     ): String? {
         val reply = request(buildJsonObject {
             put("op", "connect")
@@ -122,6 +125,7 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
             put("region", region)
             put("unmatchedDirect", unmatchedDirect)
             put("fakeIp", fakeIp)
+            putJsonObject("countries") { countries.forEach { (code, tags) -> putJsonArray(code) { tags.forEach { add(it) } } } }
         })
         return if (reply.ok) null else reply["error"]?.text() ?: "failed"
     }

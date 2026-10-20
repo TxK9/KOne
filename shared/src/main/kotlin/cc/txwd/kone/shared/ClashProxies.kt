@@ -27,13 +27,7 @@ object ClashProxies {
 
     /** The proxies of the Clash profile in [text], each as a sing-box outbound without a tag. */
     fun read(text: String): Read {
-        val options = LoaderOptions().apply {
-            maxAliasesForCollections = 50
-            codePointLimit = 8 * 1024 * 1024
-            isAllowDuplicateKeys = true
-        }
-        val root = runCatching { Yaml(SafeConstructor(options)).load<Any?>(text) as? Map<*, *> }.getOrNull()
-            ?: return Read(emptyList(), 0, "The Clash profile cannot be read")
+        val root = load(text) ?: return Read(emptyList(), 0, "The Clash profile cannot be read")
         val proxies = (root["proxies"] as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }
         var refused = 0
         var refusal: String? = null
@@ -42,6 +36,19 @@ object ClashProxies {
         }
         if (named.isEmpty() && refusal == null) refusal = "No nodes found in the profile"
         return Read(named, refused, refusal)
+    }
+
+    /**
+     * [text] as a YAML document's top level, read safely (plain maps, lists and scalars only, few
+     * aliases, 8 MB at most); null when it is not a YAML map.
+     */
+    internal fun load(text: String): Map<*, *>? {
+        val options = LoaderOptions().apply {
+            maxAliasesForCollections = 50
+            codePointLimit = 8 * 1024 * 1024
+            isAllowDuplicateKeys = true
+        }
+        return runCatching { Yaml(SafeConstructor(options)).load<Any?>(text) as? Map<*, *> }.getOrNull()
     }
 
     /** One Clash proxy as a sing-box outbound (its tag is set by the caller). */

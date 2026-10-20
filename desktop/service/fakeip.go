@@ -1,5 +1,7 @@
 package main
 
+import "strings"
+
 // Fake-IP DNS, an option (off unless chosen): the names that would be answered through the node
 // get an address from a reserved range at once instead, and sing-box gives the connection its
 // name back, so the node resolves it where it is. Every other answer is as it was: the Claude
@@ -17,6 +19,13 @@ var realNames = []any{"msftncsi.com", "msftconnecttest.com"}
 // the real names meet.
 var named = map[string]bool{"domain": true, "domain_suffix": true, "domain_keyword": true, "domain_regex": true, "rule_set": true}
 
+// throughNode says whether a DNS server is asked through a node: the node's own (proxy-dns), or
+// a country's for the rules through it (viaDNSTag), whose names its nodes then look up.
+func throughNode(server any) bool {
+	name, _ := server.(string)
+	return name == "proxy-dns" || strings.HasPrefix(name, "proxy-dns-")
+}
+
 // fakeDNSServer is the fake-IP server, with an IPv6 range only when names are answered with IPv6.
 func fakeDNSServer(ipv6 bool) map[string]any {
 	server := map[string]any{"type": "fakeip", "tag": fakeDNSTag, "inet4_range": "198.18.0.0/15"}
@@ -26,7 +35,7 @@ func fakeDNSServer(ipv6 bool) map[string]any {
 	return server
 }
 
-// fakeIPRules precedes each rule that asks the node's DNS with its twin asking the fake-IP server
+// fakeIPRules precedes each rule that asks through a node with its twin asking the fake-IP server
 // for address queries (A, and AAAA with IPv6), and adds one more at the end for what no rule
 // answers. Other query types still go to the node's DNS.
 func fakeIPRules(rules []any, ipv6 bool) []any {
@@ -36,7 +45,7 @@ func fakeIPRules(rules []any, ipv6 bool) []any {
 	}
 	out := make([]any, 0, len(rules)*2+1)
 	for _, item := range rules {
-		if rule, ok := item.(map[string]any); ok && rule["server"] == "proxy-dns" {
+		if rule, ok := item.(map[string]any); ok && throughNode(rule["server"]) {
 			// The real names, under the same conditions, keep the real answer first.
 			plain := true
 			for key := range rule {

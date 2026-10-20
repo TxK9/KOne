@@ -60,6 +60,10 @@ type Options struct {
 	// FakeIP answers the names that would be answered through the node with addresses from a
 	// reserved range (fakeip.go), so the node resolves them where it is.
 	FakeIP bool
+	// Countries are the nodes whose names say each country, by its code (JP: the tags of Japan's
+	// nodes), as the App reads them; the rules through a country go through those of them that
+	// this configuration has.
+	Countries map[string][]string
 }
 
 // modes are the clash modes the core can start in.
@@ -186,7 +190,7 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 			base = "node"
 		}
 		tag := base
-		for index := 2; used[tag] || reserved[tag]; index++ {
+		for index := 2; used[tag] || reserved[tag] || viaGroup.MatchString(tag); index++ {
 			tag = base + "-" + strconv.Itoa(index)
 		}
 		used[tag] = true
@@ -242,6 +246,32 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 			"url": "https://www.gstatic.com/generate_204", "interval": "10m", "tolerance": 50,
 		})
 	}
+	// A group for each country the rules go through, of that country's nodes here, tested as Auto
+	// is; a country with none has no group, and its rules go through the node in use.
+	own := UserRules(options.Routes)
+	groups := map[string]bool{}
+	var through []string
+	for _, code := range RuleCountries(own) {
+		listed := map[string]bool{}
+		for _, tag := range options.Countries[code] {
+			listed[tag] = true
+		}
+		var members []any
+		for _, tag := range nodes {
+			if listed[tag] {
+				members = append(members, tag)
+			}
+		}
+		if len(members) == 0 {
+			continue
+		}
+		groups[code] = true
+		through = append(through, code)
+		outbounds = append(outbounds, map[string]any{
+			"type": "urltest", "tag": viaTag(code), "outbounds": members,
+			"url": "https://www.gstatic.com/generate_204", "interval": "10m", "tolerance": 50,
+		})
+	}
 	for i, member := range members {
 		outbounds = append(outbounds, retag(member, nodes[i]))
 	}
@@ -282,12 +312,11 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		dnsRules = append(dnsRules, map[string]any{"clash_mode": "Rule", "domain_suffix": proxied, "server": "proxy-dns"})
 		routeRules = append(routeRules, map[string]any{"clash_mode": "Rule", "domain_suffix": proxied, "outbound": proxyTag})
 	}
-	own := UserRules(options.Routes)
 	for _, rule := range own {
-		if dns := dnsRule(rule); dns != nil {
+		if dns := dnsRule(rule, groups); dns != nil {
 			dnsRules = append(dnsRules, dns)
 		}
-		routeRules = append(routeRules, routeRule(rule))
+		routeRules = append(routeRules, routeRule(rule, groups))
 	}
 	// Ads are refused in every mode, after the person's own rules so a site they let through stays reachable.
 	if options.BlockAds {
@@ -306,7 +335,19 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 		dnsRules = append(dnsRules, map[string]any{"clash_mode": "Rule", "server": "local-dns"})
 		unmatched = "direct"
 	}
-	servers := append([]any{directDNS(options.Domestic, options.Region), remoteDNS(options.Remote)}, nameServerServers(ownServers)...)
+	remote := remoteDNS(options.Remote)
+	servers := []any{directDNS(options.Domestic, options.Region), remote}
+	// Each country's own, asked through its group as the node's is through the node in use.
+	for _, code := range through {
+		server := make(map[string]any, len(remote))
+		for key, value := range remote {
+			server[key] = value
+		}
+		server["tag"] = viaDNSTag(code)
+		server["detour"] = viaTag(code)
+		servers = append(servers, server)
+	}
+	servers = append(servers, nameServerServers(ownServers)...)
 	if options.FakeIP {
 		dnsRules = fakeIPRules(dnsRules, options.IPv6)
 		servers = append(servers, fakeDNSServer(options.IPv6))

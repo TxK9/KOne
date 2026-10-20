@@ -22,6 +22,7 @@ import cc.txwd.kone.core.SourceNode
 import cc.txwd.kone.core.Speed
 import cc.txwd.kone.core.SpeedTest
 import cc.txwd.kone.core.UserRule
+import cc.txwd.kone.core.UserRules
 import cc.txwd.kone.shared.Countries
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.ui.Connection
@@ -375,7 +376,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun connect() {
         val binding = account.binding ?: return
         val source = source() ?: return
-        runningTags = tagsOf(source)
+        val running = nodesOf(source)
+        runningTags = running.mapTo(HashSet()) { it.tag }
         connection = Connection.Connecting
         notice = null
         refresh()
@@ -398,6 +400,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                         source, startTag(binding.selected), preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
                         preferences.rules, preferences.blockAds, preferences.remoteDns, preferences.directDns, preferences.ipv6,
                         preferences.hosts, preferences.unmatchedDirect, preferences.nameServers, preferences.region, preferences.fakeIp,
+                        KoneConfig.countries(running),
                     )
                 }.getOrElse { "failed" }
             }
@@ -1148,7 +1151,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         api.connections()?.connections?.filter { it.via == tag }?.forEach { api.close(it.id) }
     }
 
-    private fun nameOf(tag: String) = nodes.firstOrNull { it.tag == tag }?.name ?: tag
+    /** A node's name; a country's group, which the rules through it use, as "Through Japan". */
+    private fun nameOf(tag: String) =
+        nodes.firstOrNull { it.tag == tag }?.name ?: UserRules.viaOf(tag)?.let { "Through " + (Countries.byCode(it)?.en ?: it) } ?: tag
 
     /** A change of node KOne made itself: said on the dashboard, and by Windows when the window is away. */
     private fun tellConnection(message: String) {
@@ -1252,9 +1257,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     private fun source(): JsonObject? = merged()?.source
 
+    /** The nodes [source] carries. */
+    private fun nodesOf(source: JsonObject): List<SourceNode> =
+        runCatching { KoneConfig.build(source, rules, CoreApi(9090, "list")).nodes }.getOrDefault(emptyList())
+
     /** The nodes [source] carries, by tag. */
-    private fun tagsOf(source: JsonObject): Set<String> =
-        runCatching { KoneConfig.build(source, rules, CoreApi(9090, "list")).nodes.map { it.tag }.toSet() }.getOrDefault(emptySet())
+    private fun tagsOf(source: JsonObject): Set<String> = nodesOf(source).mapTo(HashSet()) { it.tag }
 
     private fun loadNodes() {
         val binding = account.binding

@@ -111,7 +111,7 @@ object KoneConfig {
             val base = wanted.ifBlank { "node" }
             var tag = base
             var index = 2
-            while (tag in used || tag in RESERVED) tag = "$base-${index++}"
+            while (tag in used || tag in RESERVED || UserRules.viaOf(tag) != null) tag = "$base-${index++}"
             used += tag
             return tag
         }
@@ -119,7 +119,7 @@ object KoneConfig {
             val name = outbound.text("tag").orEmpty()
             val tag = claim(name)
             if (name.isNotBlank()) renamed[name] = tag
-            SourceNode(tag, name.ifBlank { tag }, Countries.all.filter { it.matches(name) }.singleOrNull()?.code, outbound.text("type"))
+            SourceNode(tag, name.ifBlank { tag }, Countries.of(name)?.code, outbound.text("type"))
         }
         val supportTags = support.keys.associateWith { claim(it).also { tag -> renamed[it] = tag } }
         fun retag(outbound: JsonObject, tag: String) = JsonObject(
@@ -134,6 +134,11 @@ object KoneConfig {
         val straightSites = sites(direct)
         val proxiedSites = sites(proxied)
         val own = UserRules.clean(routes)
+        // A group for each country the rules go through, of that country's nodes here, tested as
+        // Auto is; a country with none has no group, and its rules go through the node in use.
+        val through = cc.txwd.kone.shared.Rules.countries(own)
+            .mapNotNull { code -> nodes.filter { it.country == code }.map { it.tag }.takeIf { it.isNotEmpty() }?.let { code to it } }
+        val groups = through.mapTo(HashSet()) { it.first }
         val fixed = Hosts.clean(hosts)
         val ownServers = NameServers.clean(nameServers)
         val china = cc.txwd.kone.shared.Region.china(region)
@@ -142,8 +147,13 @@ object KoneConfig {
             putJsonObject("log") { put("level", "warn"); put("timestamp", true) }
             putJsonObject("dns") {
                 putJsonArray("servers") {
+                    val remote = Dns.remote(remoteDns)
                     add(Dns.direct(directDns, region))
-                    add(Dns.remote(remoteDns))
+                    add(remote)
+                    // Each country's own, asked through its group as the node's is through the node in use.
+                    through.forEach { (code, _) ->
+                        add(JsonObject(remote + mapOf("tag" to JsonPrimitive(cc.txwd.kone.shared.Rules.dnsThrough(code)), "detour" to JsonPrimitive(UserRules.viaTag(code)))))
+                    }
                     NameServers.servers(ownServers).forEach { add(it) }
                 }
                 putJsonArray("rules") {
@@ -157,7 +167,7 @@ object KoneConfig {
                     if (proxiedSites.isNotEmpty()) add(buildJsonObject {
                         put("clash_mode", "Rule"); putJsonArray("domain_suffix") { proxiedSites.forEach { add(it) } }; put("server", "proxy-dns")
                     })
-                    own.forEach { rule -> UserRules.dns(rule)?.let { add(it) } }
+                    own.forEach { rule -> UserRules.dns(rule, groups)?.let { add(it) } }
                     if (blockAds) add(buildJsonObject { putJsonArray("rule_set") { add(ADS_RULE_SET) }; put("action", "reject") })
                     add(buildJsonObject { put("clash_mode", "Direct"); put("server", "local-dns") })
                     add(buildJsonObject { put("clash_mode", "Global"); put("server", "proxy-dns") })
@@ -190,6 +200,13 @@ object KoneConfig {
                     putJsonArray("outbounds") { nodes.forEach { add(it.tag) } }
                     put("url", "https://www.gstatic.com/generate_204"); put("interval", "10m"); put("tolerance", 50)
                 })
+                through.forEach { (code, tags) ->
+                    add(buildJsonObject {
+                        put("type", "urltest"); put("tag", UserRules.viaTag(code))
+                        putJsonArray("outbounds") { tags.forEach { add(it) } }
+                        put("url", "https://www.gstatic.com/generate_204"); put("interval", "10m"); put("tolerance", 50)
+                    })
+                }
                 memberOutbounds.forEach { add(it) }
                 supportOutbounds.forEach { add(it) }
                 add(buildJsonObject { put("type", "direct"); put("tag", "direct") })
@@ -211,7 +228,7 @@ object KoneConfig {
                         put("clash_mode", "Rule"); putJsonArray("domain_suffix") { proxiedSites.forEach { add(it) } }; put("outbound", PROXY_TAG)
                     })
                     // The person's own rules, in order; then ads, refused in every mode, so a site they let through stays reachable.
-                    own.forEach { add(UserRules.route(it)) }
+                    own.forEach { add(UserRules.route(it, groups)) }
                     if (blockAds) add(buildJsonObject { putJsonArray("rule_set") { add(ADS_RULE_SET) }; put("action", "reject") })
                     add(buildJsonObject { put("clash_mode", "Direct"); put("outbound", "direct") })
                     add(buildJsonObject { put("clash_mode", "Global"); put("outbound", PROXY_TAG) })
@@ -251,6 +268,13 @@ object KoneConfig {
         }
         return Built(if (fakeIp) withFakeIp(config, ipv6) else config, nodes)
     }
+
+    /**
+     * The nodes whose names say each country, by code (JP to the tags of Japan's nodes), as the
+     * service takes them to build the groups for the rules through a country (Options.Countries).
+     */
+    fun countries(nodes: List<SourceNode>): Map<String, List<String>> =
+        nodes.filter { it.country != null }.groupBy({ it.country!! }, { it.tag })
 
     /**
      * The programs to send straight out, as file names: a name with a path or anything Windows
