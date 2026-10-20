@@ -36,6 +36,22 @@ class RuleBookTest {
     })
 
     @Test
+    fun aRuleCanGoThroughACountryTheNodesSay() {
+        book.countriesChanged(listOf("US", "JP"))
+        assertEquals(listOf("US", "JP"), book.page.countries)
+        assertTrue(book.add(UserRule("suffix", "example.com", "via:JP")))
+        // A country no node says yet is kept too: it goes through the node in use until one does.
+        assertTrue(book.add(UserRule("suffix", "example.org", "via:SG")))
+        assertFalse(book.add(UserRule("suffix", "example.net", "via:Japan")))
+        assertEquals(listOf(UserRule("suffix", "example.com", "via:JP"), UserRule("suffix", "example.org", "via:SG")), preferences.rules)
+        assertEquals(2, restarts)
+        // The same countries again change nothing.
+        val shown = book.page
+        book.countriesChanged(listOf("US", "JP"))
+        assertTrue(shown === book.page)
+    }
+
+    @Test
     fun eachChangeIsKeptShownAndTakenByTheConnection() {
         assertTrue(book.addSite("https://www.example.com/path", direct = true))
         assertEquals(listOf("www.example.com"), book.page.direct)

@@ -34,6 +34,9 @@ class RuleBook(
         fun bypassChanged()
     }
 
+    /** The countries the nodes' names say, by code, for rules through one; before [page], which reads them. */
+    private var countries: List<String> = emptyList()
+
     /** The Rules page, as kept. */
     var page by mutableStateOf(now())
         private set
@@ -46,10 +49,17 @@ class RuleBook(
         page = now()
     }
 
+    /** The nodes changed: [codes] are the countries their names now say, which rules can go through. */
+    fun countriesChanged(codes: List<String>) {
+        if (codes == countries) return
+        countries = codes
+        show()
+    }
+
     private fun now(): RulesState = RulesState(
         preferences.bypass, preferences.direct, preferences.proxied, preferences.rules, preferences.blockAds,
         lists = keeper.named().associateWith { keeper.lists.status(it) }, listsBusy = keeper.busy, unmatchedDirect = preferences.unmatchedDirect,
-        notice = notice,
+        notice = notice, countries = countries,
     )
 
     private fun changed() {
@@ -106,7 +116,7 @@ class RuleBook(
     /** [rule] at the end, its value written as the template writes it; false when it does not fit its kind. */
     fun add(rule: UserRule): Boolean {
         val value = UserRules.value(rule.kind, rule.value) ?: return false
-        if (rule.action !in UserRules.ACTIONS) return false
+        if (!Rules.isAction(rule.action)) return false
         val before = preferences.rules
         if (before.size >= UserRules.MOST) return false
         val added = UserRule(rule.kind, value, rule.action)

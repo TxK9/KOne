@@ -1272,6 +1272,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         subscribed = merged?.let { all -> subscriptions.all.zip(all.groups.drop(1)).flatMap { (subscription, tags) -> tags.map { it to subscription } }.toMap() }.orEmpty()
         nodes = merged?.source?.let { runCatching { KoneConfig.build(it, rules, CoreApi(9090, "list")).nodes }.getOrNull() }.orEmpty()
         health.forget(nodes.mapTo(HashSet()) { it.tag })
+        // The countries rules can go through, in the order the country list keeps them.
+        val present = nodes.mapNotNullTo(HashSet()) { it.country }
+        ruleBook.countriesChanged(Countries.all.map { it.code }.filter { it in present })
         if (tab !in categories()) {
             tab = when {
                 binding?.selected == KoneConfig.AUTO_TAG && auto -> AUTO_NAME

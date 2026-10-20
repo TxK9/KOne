@@ -403,8 +403,8 @@ class ScreensTest {
             rules = listOf(
                 UserRule("keyword", "tracker", "block"), UserRule("suffix", "example.net", "proxy"), UserRule("cidr", "203.0.113.0/24", "direct"),
                 UserRule("program", "Game.exe", "direct"), UserRule("port", "6881-6889", "direct"),
-                UserRule("set", "geosite-netflix", "proxy"), UserRule("set", "geoip-jp", "direct"), UserRule("set", "geosite-category-games", "proxy"),
-                UserRule("set", "geosite-example", "block"),
+                UserRule("set", "geosite-netflix", "via:US"), UserRule("set", "geoip-jp", "direct"), UserRule("set", "geosite-category-games", "proxy"),
+                UserRule("set", "geosite-example", "block"), UserRule("suffix", "example.jp", "via:JP"), UserRule("suffix", "example.sg", "via:SG"),
             ),
             blockAds = true,
             lists = mapOf(
@@ -414,10 +414,13 @@ class ScreensTest {
                 "geosite-example" to ListStatus(kept = false, checked = null, error = "No such list"),
             ),
             now = 1_000L + 3 * 3_600_000L,
+            countries = listOf("US", "JP", "HK", "GB"),
         )
         for (dark in listOf(false, true)) {
             shoot("rules", dark) { WithRail(Page.Rules, {}) { RulesView(state, RulesActions()) } }
         }
+        // Through a country: the countries the nodes' names say, with their flags.
+        shoot("rules-country", dark = false) { WithRail(Page.Rules, {}) { RulesView(state.copy(rules = state.rules.takeLast(3)), RulesActions(), openWith = "suffix", openThrough = true) } }
         // Adding a category: the common lists by group, under the field.
         shoot("rules-category", dark = false) { WithRail(Page.Rules, {}) { RulesView(state.copy(rules = state.rules.take(2)), RulesActions(), openWith = "set") } }
     }

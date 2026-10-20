@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cc.txwd.kone.shared.ListStatus
 import cc.txwd.kone.shared.Categories
+import cc.txwd.kone.shared.Countries
+import cc.txwd.kone.shared.Rules
 import cc.txwd.kone.core.UserRule
 
 /** Rules as the App fills it: the programs and sites lists, the person's own rules in order, and ad blocking. */
@@ -68,6 +70,8 @@ data class RulesState(
     val notice: String? = null,
     /** The time now, for "updated 3 h ago". */
     val now: Long = System.currentTimeMillis(),
+    /** The countries the nodes' names say, by code (JP), which a rule can go through. */
+    val countries: List<String> = emptyList(),
 )
 
 class RulesActions(
@@ -96,7 +100,14 @@ class RulesActions(
 private val KINDS = listOf(
     "set" to "Category", "suffix" to "Suffix", "domain" to "Domain", "keyword" to "Keyword", "cidr" to "IP range", "program" to "App", "port" to "Port",
 )
-private val ACTIONS = listOf("proxy" to "Proxy", "direct" to "Direct", "block" to "Block")
+private val ACTIONS = listOf("proxy" to "Proxy", "direct" to "Direct", "block" to "Block", VIA to "Country")
+
+/** The new rule's choice of going through a country, which [Rules.through] writes with the country picked. */
+private const val VIA = "via"
+
+/** How a rule's [action] reads in its row: "Proxy", or the country it goes through. */
+private fun actionTitle(action: String): String =
+    Rules.via(action)?.let { code -> Countries.byCode(code)?.en ?: code } ?: ACTIONS.firstOrNull { it.first == action }?.second ?: action
 private val HINTS = mapOf(
     "set" to "Pick one below, or geosite-… / geoip-…", "suffix" to "example.com", "domain" to "www.example.com", "keyword" to "example", "cidr" to "203.0.113.0/24", "program" to "Example.exe", "port" to "443 or 8000-9000",
 )
@@ -106,9 +117,9 @@ private val HINTS = mapOf(
  * tried in order after them; the first that matches wins. The Claude block comes before all of it.
  */
 @Composable
-fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null) {
+fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null, openThrough: Boolean = false) {
     val ink = LocalInk.current
-    // [openWith] opens the new rule's form on that kind (the screenshots use it).
+    // [openWith] opens the new rule's form on that kind, [openThrough] on going through a country (the screenshots use them).
     var adding by remember { mutableStateOf(openWith != null) }
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
@@ -166,7 +177,7 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
             }
         }
         state.notice?.let { Label(it, 13.sp, ink.soft, modifier = Modifier.padding(bottom = 6.dp)) }
-        if (adding) NewRule(openWith ?: "suffix", onAdd = { rule -> actions.onAddRule(rule).also { if (it) adding = false } }, onCancel = { adding = false })
+        if (adding) NewRule(openWith ?: "suffix", state.countries, openThrough, onAdd = { rule -> actions.onAddRule(rule).also { if (it) adding = false } }, onCancel = { adding = false })
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
             itemsIndexed(state.rules) { index, rule ->
                 Row(
@@ -188,11 +199,18 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                             }
                         }
                     } else {
-                        Box(Modifier.weight(1f)) { Label(rule.value, 13.sp) }
+                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Label(rule.value, 13.sp)
+                            // Through a country no node says now: the node in use carries it until one does.
+                            if (Rules.via(rule.action)?.let { it !in state.countries } == true) {
+                                Label("No node there now; through the node in use", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                            }
+                        }
                     }
-                    Box(Modifier.width(70.dp)) {
+                    Row(Modifier.width(150.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         val color = if (rule.action == "block") NodeWeather.Cut.ink(ink.dark) else ink.ink
-                        Label(ACTIONS.firstOrNull { it.first == rule.action }?.second ?: rule.action, 13.sp, color, FontWeight.SemiBold)
+                        Rules.via(rule.action)?.let { Flag(it, 18.dp, 12.dp) }
+                        Label(actionTitle(rule.action), 13.sp, color, FontWeight.SemiBold)
                     }
                     // Fixed width, so every row's controls stand in line.
                     Row(Modifier.width(110.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
@@ -206,17 +224,22 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
     }
 }
 
-/** A rule being written: its kind, its value, and where it goes. Enter or Add keeps it; Esc closes. */
+/**
+ * A rule being written: its kind, its value, and where it goes, through a country among
+ * [countries] too. Enter or Add keeps it; Esc closes.
+ */
 @Composable
-private fun NewRule(startKind: String, onAdd: (UserRule) -> Boolean, onCancel: () -> Unit) {
+private fun NewRule(startKind: String, countries: List<String>, through: Boolean, onAdd: (UserRule) -> Boolean, onCancel: () -> Unit) {
     val ink = LocalInk.current
     var kind by remember { mutableStateOf(startKind) }
-    var action by remember { mutableStateOf("direct") }
+    var action by remember { mutableStateOf(if (through) VIA else "direct") }
+    var country by remember { mutableStateOf(countries.firstOrNull()) }
     var text by remember { mutableStateOf("") }
     var wrong by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
     fun add() {
-        if (text.isBlank()) onCancel() else if (!onAdd(UserRule(kind, text, action))) wrong = true
+        val chosen = if (action == VIA) country?.let(Rules::through) else action
+        if (text.isBlank()) onCancel() else if (chosen == null || !onAdd(UserRule(kind, text, chosen))) wrong = true
     }
     Column(Modifier.fillMaxWidth().hairline(ink.hair, bottom = true).padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -246,9 +269,41 @@ private fun NewRule(startKind: String, onAdd: (UserRule) -> Boolean, onCancel: (
                 Label("Add", 14.sp, weight = FontWeight.SemiBold)
             }
         }
+        if (action == VIA) CountryPicker(countries, country) { country = it; wrong = false }
         if (kind == "set") Catalog(text.trim().lowercase()) { text = it; wrong = false }
     }
     LaunchedEffect(Unit) { focus.requestFocus() }
+}
+
+/** The countries the nodes' names say, in pills with their flags; the one picked is where the rule goes. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CountryPicker(countries: List<String>, picked: String?, onPick: (String) -> Unit) {
+    val ink = LocalInk.current
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        Box(Modifier.width(90.dp).padding(top = 6.dp)) { Label("Through", 13.sp, ink.soft) }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (countries.isEmpty()) {
+                Label("No node's name says a country yet.", 12.sp, ink.soft, modifier = Modifier.padding(top = 6.dp))
+                return@Column
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                countries.forEach { code ->
+                    val on = code == picked
+                    Row(
+                        Modifier.height(28.dp).clip(RoundedCornerShape(14.dp)).background(if (on) ink.ink else ink.press)
+                            .press { onPick(code) }.padding(horizontal = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        Flag(code, 16.dp, 11.dp)
+                        Label(Countries.byCode(code)?.en ?: code, 12.sp, if (on) ink.paper else ink.ink)
+                    }
+                }
+            }
+            Label("The fastest of that country's nodes carries it, in Rule mode; its names are looked up there too.", 12.sp, ink.soft)
+        }
+    }
 }
 
 /** The common category lists by group, in pills; the one picked is filled in above. */
