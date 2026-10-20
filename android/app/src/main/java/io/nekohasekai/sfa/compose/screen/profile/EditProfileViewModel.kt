@@ -210,6 +210,18 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
             _uiState.update { it.copy(isSaving = true) }
 
             try {
+                // New words are tried on the provider's list first: words that fail (offline, or
+                // leaving every node out) are said and not kept, so the profile never runs on nodes
+                // the person meant to leave out while showing the words as saved.
+                val wordsChanged = state.leaveOut.trim() != state.originalLeaveOut
+                val remote = profile.typed.type == TypedProfile.Type.Remote
+                val trial = if (wordsChanged && remote) {
+                    val fetched = io.nekohasekai.sfa.selfuse.SubscriptionProfile.fetch(state.remoteUrl, cc.txwd.kone.shared.NodeFilter.clean(state.leaveOut))
+                    io.nekohasekai.sfa.selfuse.HomeSettings.saved(fetched.content).also { Libbox.checkConfig(it) } to fetched.info
+                } else {
+                    null
+                }
+
                 // Update profile object
                 profile.name = state.name
                 profile.icon = state.icon
@@ -220,12 +232,22 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 profile.typed.autoUpdate = state.autoUpdate
                 profile.typed.autoUpdateInterval = state.autoUpdateInterval
 
-                // Save to database
-                ProfileManager.update(profile)
-                // New words rebuild the node list from the provider's own, now.
-                val wordsChanged = state.leaveOut.trim() != state.originalLeaveOut
+                // The node list rebuilt with the new words, as tried above.
                 if (wordsChanged) io.nekohasekai.sfa.selfuse.SubscriptionProfile.setLeaveOut(profile.id, state.leaveOut)
                 val words = io.nekohasekai.sfa.selfuse.SubscriptionProfile.leaveOut(profile.id)
+                var reload = false
+                trial?.let { (content, info) ->
+                    io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, info, profile.name)
+                    val file = File(profile.typed.path)
+                    if (!file.exists() || file.readText() != content) {
+                        file.writeText(content)
+                        reload = profile.id == Settings.selectedProfile
+                    }
+                    profile.typed.lastUpdated = Date()
+                }
+
+                // Save to database
+                ProfileManager.update(profile)
 
                 // Reconfigure updater if auto-update was enabled
                 if (autoUpdateChanged && state.autoUpdate) {
@@ -246,7 +268,8 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                         isSaving = false,
                     )
                 }
-                if (wordsChanged && profile.typed.type == TypedProfile.Type.Remote) updateRemoteProfile()
+                if (trial != null) _uiState.update { it.copy(lastUpdated = profile.typed.lastUpdated) }
+                if (reload) runCatching { Libbox.newStandaloneCommandClient().serviceReload() }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -274,7 +297,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 // Links, base64 or a Clash profile become KOne's own template (a whole sing-box configuration
                 // is kept); the provider's terms come with it.
                 val fetched = io.nekohasekai.sfa.selfuse.SubscriptionProfile.fetch(profile.typed.remoteURL, io.nekohasekai.sfa.selfuse.SubscriptionProfile.leaveOut(profile.id))
-                val content = fetched.content
+                val content = io.nekohasekai.sfa.selfuse.HomeSettings.saved(fetched.content)
                 Libbox.checkConfig(content)
                 io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info, profile.name)
 

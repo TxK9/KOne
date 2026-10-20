@@ -58,6 +58,7 @@ object SubscriptionProfile {
      * same), reading the provider's `subscription-userinfo` header too, and prepares the body.
      */
     fun fetch(url: String, leaveOut: String = ""): Fetched {
+        require(url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true)) { "Only http and https links can be fetched" }
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = 15_000

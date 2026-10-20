@@ -27,8 +27,10 @@ data class UserInfo(val upload: Long, val download: Long, val total: Long, val e
                 return "$name ends ${if (days == 0) "within a day" else "in ${days + 1} days"}"
             }
         }
-        if (total > 0 && used * 10 >= total * 9) {
-            return if (used >= total) "$name has used all its data" else "$name has used ${used * 100 / total}% of its data"
+        // In fractions, not products: some panels send a total near Long.MAX_VALUE for "unlimited".
+        val share = if (total > 0) used.toDouble() / total.toDouble() else 0.0
+        if (share >= 0.9) {
+            return if (used >= total) "$name has used all its data" else "$name has used ${(share * 100).toInt()}% of its data"
         }
         return null
     }

@@ -31,6 +31,8 @@ object CategoryListKeeper {
     private val lists by lazy { CategoryLists(folder, ::download, ::parses) }
     private val updating = Mutex()
 
+    @Volatile private var again = false
+
     /** The lists the person's rules name, each once. */
     fun named(): List<String> = Rules.sets(OwnRules.clean(RoutingSettings.current().rules))
 
@@ -47,17 +49,26 @@ object CategoryListKeeper {
      * itself as the file changes.
      */
     suspend fun update(force: Boolean = false) = withContext(Dispatchers.IO) {
-        if (!updating.tryLock()) return@withContext
+        // One running at a time; a request while it runs (a new rule saved) makes it go round once more.
+        if (!updating.tryLock()) {
+            again = true
+            return@withContext
+        }
         try {
-            val names = named()
-            lists.keepOnly(names.toSet())
-            val before = ready().keys
-            val now = System.currentTimeMillis()
-            names.filter { force || lists.due(it, now) }.forEach { lists.update(it, now) }
-            if (!before.containsAll(ready().keys)) {
-                HomeSettings.refreshSaved()
-                runCatching { Libbox.newStandaloneCommandClient().serviceReload() }
-            }
+            var forced = force
+            do {
+                again = false
+                val names = named()
+                lists.keepOnly(names.toSet())
+                val before = ready().keys
+                val now = System.currentTimeMillis()
+                names.filter { forced || lists.due(it, now) }.forEach { lists.update(it, now) }
+                forced = false
+                if (!before.containsAll(ready().keys)) {
+                    HomeSettings.refreshSaved()
+                    runCatching { Libbox.newStandaloneCommandClient().serviceReload() }
+                }
+            } while (again)
         } finally {
             updating.unlock()
         }

@@ -129,4 +129,14 @@ class ManagedConfigTest {
         assertEquals("Direct", rules(config, "dns")[0].optString("clash_mode"))
         assertEquals(2, ManagedConfig.TEMPLATE)
     }
+
+    @Test
+    fun aNodeNamedLikeKOnesOwnGroupIsRenamed() {
+        val source = JSONObject("""{"outbounds":[
+            {"type":"trojan","tag":"Automatic · Japan","server":"a.invalid","server_port":443,"password":"p"},
+            {"type":"trojan","tag":"Tokyo","server":"b.invalid","server_port":443,"password":"p"}]}""")
+        val tags = outbounds(JSONObject(ManagedConfig.build(source, HomeLink.Home.OFF))).map { it.getString("tag") }
+        assertTrue("Automatic - Japan" in tags)
+        assertFalse("Automatic · Japan" in tags)
+    }
 }

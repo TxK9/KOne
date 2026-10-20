@@ -78,4 +78,12 @@ class SubscriptionTest {
         val body = (1..600).joinToString("\n") { "trojan://pw@203.0.113.1:$it#n$it" }
         assertEquals(SubscriptionContent.MOST, SubscriptionContent.read(body).nodes.size)
     }
+
+    @Test
+    fun anUnlimitedTotalIsNotAWarning() {
+        // Some panels send a total near Long.MAX_VALUE for "unlimited"; products would overflow.
+        val unlimited = UserInfo(upload = 1L shl 40, download = 1L shl 40, total = Long.MAX_VALUE, expire = null)
+        kotlin.test.assertNull(unlimited.warning("Example Cloud", 0))
+        kotlin.test.assertEquals("Example Cloud has used 95% of its data", UserInfo(0, 95, 100, null).warning("Example Cloud", 0))
+    }
 }

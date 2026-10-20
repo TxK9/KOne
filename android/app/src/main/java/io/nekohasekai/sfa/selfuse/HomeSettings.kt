@@ -56,6 +56,13 @@ object HomeSettings {
      * Saved configurations built here, rewritten so what Profile content shows is what runs; also run at
      * start, so configurations saved by an older version catch up.
      */
+    /**
+     * [content] as a saved configuration holds it: Routing and Home applied, as [refreshSaved]
+     * writes it. A fresh copy of a remote profile is compared in this form, so an unchanged one
+     * is not rewritten (and the service not reloaded) at every refresh.
+     */
+    fun saved(content: String): String = HomeLink.apply(Routing.apply(content, RoutingSettings.current(), CategoryListKeeper.ready()), current())
+
     suspend fun refreshSaved() = withContext(Dispatchers.IO) {
         val home = current()
         val routing = RoutingSettings.current()

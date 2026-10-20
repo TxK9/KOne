@@ -60,7 +60,8 @@ object ManagedConfig {
         val used = mutableSetOf<String>()
         val renamed = mutableMapOf<String, String>()
         fun claim(wanted: String): String {
-            val base = wanted.ifBlank { "node" }
+            // A provider's "Automatic · Japan" is a node, not KOne's group of that name (Routing.AUTO).
+            val base = wanted.ifBlank { "node" }.let { if (it.startsWith("${Routing.AUTO} · ")) it.replaceFirst(" · ", " - ") else it }
             var tag = base
             var index = 2
             while (tag in used || tag in RESERVED) tag = "$base-${index++}"

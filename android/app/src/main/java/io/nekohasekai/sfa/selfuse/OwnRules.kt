@@ -30,10 +30,14 @@ object OwnRules {
         return Rule(json.optString("kind"), json.optString("value"), json.optString("action"))
     }
 
-    /** Refused or straight out in every mode; through the node in Rule mode only. */
+    /**
+     * Refused or straight out in every mode; through the node in Rule mode only. A refusal says its
+     * method ("default", what sing-box does anyway), so it is never taken for the console's Claude
+     * block, which names only domains (see [Routing]): otherwise each re-apply would add it again.
+     */
     fun route(rule: Rule): JSONObject = match(rule).apply {
         when (rule.action) {
-            "block" -> put("action", "reject")
+            "block" -> put("action", "reject").put("method", "default")
             "direct" -> put("outbound", "direct")
             else -> put("clash_mode", "Rule").put("outbound", PairedProfile.PROXY_TAG)
         }
@@ -44,7 +48,7 @@ object OwnRules {
         if (rule.kind == "cidr" || rule.kind == "port" || (rule.kind == "set" && rule.value.startsWith("geoip-"))) return null
         return match(rule).apply {
             when (rule.action) {
-                "block" -> put("action", "reject")
+                "block" -> put("action", "reject").put("method", "default")
                 "direct" -> put("server", "local-dns")
                 else -> put("clash_mode", "Rule").put("server", "proxy-dns")
             }

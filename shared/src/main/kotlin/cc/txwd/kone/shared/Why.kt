@@ -4,7 +4,7 @@ package cc.txwd.kone.shared
  * Why a connection went the way it did, in the person's own terms: the rule the core matched
  * (as its connection list reports it, "domain_suffix=[example.cn] => route(direct)"), read back
  * against what KOne put in the template: their app and site lists, their own rules, a category,
- * the China lists, the local network, Home, the mode, or "everything else". Both Apps say it the
+ * the China lists, the local network, Home, a refusal, the mode, or "everything else". Both Apps say it the
  * same way.
  */
 object Why {
@@ -24,6 +24,8 @@ object Why {
             sets.any { it == Rules.ADS } -> "Ads"
             sets.isNotEmpty() -> "Category " + sets.joinToString(", ") { Categories.title(it) ?: it }
             "process_name=sing-box.exe" in match -> "KOne's own test"
+            // Refused: the console's block, a rule of the person's own or an ad list, said as what happened.
+            action.startsWith("reject") -> "Blocked"
             "package_name=" in match -> "Your rule"
             "process_name=" in match -> if (direct && names(match, "process_name").all { name -> lists.bypass.any { it.equals(name, ignoreCase = true) } }) "Your direct apps" else "Your rule"
             home != null && action.startsWith("route($home") -> "Home"

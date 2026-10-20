@@ -121,7 +121,7 @@ class RoutingTest {
         assertEquals(
             listOf(
                 """{"domain_suffix":["example.org"],"outbound":"direct"}""",
-                """{"domain_keyword":["tracker"],"action":"reject"}""",
+                """{"domain_keyword":["tracker"],"action":"reject","method":"default"}""",
                 """{"ip_cidr":["203.0.113.0/24"],"outbound":"direct"}""",
                 """{"port_range":["1000:2000"],"clash_mode":"Rule","outbound":"proxy"}""",
                 """{"package_name":["com.example.app"],"outbound":"direct"}""",
@@ -265,6 +265,17 @@ class RoutingTest {
         assertEquals(2, outbounds.single { it.optString("tag") == "${Routing.AUTO} · Japan" }.getJSONArray("outbounds").length())
         assertEquals(config.toString(2), Routing.apply(config.toString(), Routing.Choices(automatic = true)))
         assertEquals(JSONObject(three).toString(2), Routing.apply(config.toString(), Routing.Choices()))
+    }
+
+    @Test
+    fun aBlockRuleOfOnesOwnIsNotTakenForTheClaudeBlock() {
+        val built = managed()
+        val blocking = Routing.Choices(rules = listOf(Rule("suffix", "example.com", "block")))
+        val once = Routing.apply(built, blocking)
+        // Applied again, it is not copied; removed, it is gone.
+        assertEquals(once, Routing.apply(once, blocking))
+        assertEquals(1, rules(JSONObject(once), "route").count { it.optJSONArray("domain_suffix")?.optString(0) == "example.com" })
+        assertEquals(JSONObject(built).toString(2), Routing.apply(once, Routing.Choices()))
     }
 
     @Test

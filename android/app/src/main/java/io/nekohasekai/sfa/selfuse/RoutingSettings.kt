@@ -9,7 +9,11 @@ import cc.txwd.kone.shared.Rule
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.database.Settings
 import org.json.JSONArray
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -63,10 +67,16 @@ object RoutingSettings {
         Settings.knineRoutingRegion = Region.clean(choices.region)
         Settings.knineRoutingHosts = hostLines(choices.hosts)
         Settings.knineRoutingNameServers = nameServerLines(choices.nameServers)
-        HomeSettings.refreshSaved()
-        // A service that is not running has nothing to reload.
-        runCatching { Libbox.newStandaloneCommandClient().serviceReload() }
-        // A new category list is fetched now; its rules join once it is kept.
-        CategoryListKeeper.update()
+        // Finished even when the screen that saved goes away meanwhile.
+        withContext(NonCancellable) {
+            HomeSettings.refreshSaved()
+            // A service that is not running has nothing to reload.
+            runCatching { Libbox.newStandaloneCommandClient().serviceReload() }
+        }
+        // A new category list is fetched in the background; its rules join once it is kept.
+        background.launch { CategoryListKeeper.update() }
     }
+
+    /** Work a save starts that outlives the screen: list downloads. */
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 }

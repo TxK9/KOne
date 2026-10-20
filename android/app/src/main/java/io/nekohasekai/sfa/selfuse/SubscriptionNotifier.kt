@@ -23,9 +23,11 @@ object SubscriptionNotifier {
     private const val NOTIFICATION_ID_BASE = 0x6B10
 
     fun warn(context: Context, profileId: Long, warning: String) {
+        // Said once per kind: "used 91%" and "used 93%" are the same news; "ends in 2 days" and "in 1" are not.
+        val kind = warning.replace(Regex("""\d+%"""), "%")
         val said = Settings.knineSubscriptionWarned
-        if (SubscriptionTerms.said(said, profileId) == warning) return
-        Settings.knineSubscriptionWarned = SubscriptionTerms.withSaid(said, profileId, warning)
+        if (SubscriptionTerms.said(said, profileId) == kind) return
+        Settings.knineSubscriptionWarned = SubscriptionTerms.withSaid(said, profileId, kind)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "Subscriptions", NotificationManager.IMPORTANCE_DEFAULT),

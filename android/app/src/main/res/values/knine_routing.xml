@@ -78,4 +78,5 @@
     <string name="knine_connection_sent_node">%1$s now goes through the node</string>
     <string name="knine_diagnose_copy">Copy report</string>
     <string name="knine_diagnose_copied">Diagnosis copied</string>
+    <string name="knine_connection_sites_full">The list is full: remove some sites in Settings → Routing first</string>
 </resources>

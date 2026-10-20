@@ -17,6 +17,8 @@ class WhyTest {
         // Android's Home: its tailnet route, ahead of the local network.
         assertEquals("Home", Why.explain("ip_cidr=[100.64.0.0/10] => route(home-tailnet)", lists, home = "home-tailnet"))
         assertEquals("Local network", Why.explain("ip_is_private=true => route(direct)", lists, home = "home-tailnet"))
+        // The console's Claude block, and any other refusal, is said as what happened.
+        assertEquals("Blocked", Why.explain("domain_suffix=[claude.ai] => reject", lists))
         assertEquals(null, Why.explain("", lists))
     }
 }

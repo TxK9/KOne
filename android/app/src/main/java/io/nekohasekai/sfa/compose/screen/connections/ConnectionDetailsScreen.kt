@@ -249,6 +249,12 @@ fun ConnectionDetailsScreen(
                 fun send(direct: Boolean) {
                     scope.launch {
                         val choices = io.nekohasekai.sfa.selfuse.RoutingSettings.current()
+                        // A full list keeps the site off rather than dropping it silently, and the other list is left as it was.
+                        val list = io.nekohasekai.sfa.selfuse.Routing.sites((if (direct) choices.direct else choices.proxied) + site)
+                        if (site !in list) {
+                            android.widget.Toast.makeText(context, context.getString(R.string.knine_connection_sites_full), android.widget.Toast.LENGTH_LONG).show()
+                            return@launch
+                        }
                         io.nekohasekai.sfa.selfuse.RoutingSettings.save(
                             if (direct) choices.copy(direct = choices.direct + site, proxied = choices.proxied - site)
                             else choices.copy(proxied = choices.proxied + site, direct = choices.direct - site),
