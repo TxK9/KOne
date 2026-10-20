@@ -421,6 +421,8 @@ class ScreensTest {
         }
         // Through a country: the countries the nodes' names say, with their flags.
         shoot("rules-country", dark = false) { WithRail(Page.Rules, {}) { RulesView(state.copy(rules = state.rules.takeLast(3)), RulesActions(), openWith = "suffix", openThrough = true) } }
+        // A rule's way changed where it stands, and a search over many rules.
+        shoot("rules-way", dark = true) { WithRail(Page.Rules, {}) { RulesView(state.copy(rules = state.rules.takeLast(4)), RulesActions(), changingAt = 1) } }
         // Adding a category: the common lists by group, under the field.
         shoot("rules-category", dark = false) { WithRail(Page.Rules, {}) { RulesView(state.copy(rules = state.rules.take(2)), RulesActions(), openWith = "set") } }
     }

@@ -919,6 +919,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     fun removeRule(index: Int) = ruleBook.remove(index)
 
+    fun setRuleAction(index: Int, action: String) = ruleBook.setAction(index, action)
+
+    /** Every rule as Clash rule lines, handed to [copy]. */
+    fun copyRules(copy: (String) -> Unit) = ruleBook.copy(copy)
+
     fun moveRule(index: Int, up: Boolean) = ruleBook.move(index, up)
 
     // Connections and usage (Tools): see ConnectionsPage.

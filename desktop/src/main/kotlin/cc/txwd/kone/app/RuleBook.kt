@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import cc.txwd.kone.core.KoneConfig
+import cc.txwd.kone.shared.RuleExport
 import cc.txwd.kone.shared.RuleImport
 import cc.txwd.kone.shared.Rules
 import cc.txwd.kone.core.UserRule
@@ -130,6 +131,23 @@ class RuleBook(
         return true
     }
 
+    /** The rule at [index] going another way ([action]: proxy, direct, block or through a country), where it stands. */
+    fun setAction(index: Int, action: String) {
+        val rules = preferences.rules
+        val rule = rules.getOrNull(index) ?: return
+        if (!Rules.isAction(action) || rule.action == action) return
+        preferences.rules = UserRules.clean(rules.toMutableList().also { it[index] = rule.copy(action = action) })
+        changed()
+    }
+
+    /** Every rule as Clash rule lines, handed to [copy] (the clipboard), which either App or another client reads back; said on the page. */
+    fun copy(copy: (String) -> Unit) {
+        val rules = preferences.rules
+        if (rules.isEmpty()) return
+        copy(RuleExport.write(rules))
+        say(if (rules.size == 1) "1 rule copied, as Clash rules" else "${rules.size} rules copied, as Clash rules")
+    }
+
     fun remove(index: Int) {
         val rules = preferences.rules
         if (index !in rules.indices) return
@@ -176,8 +194,10 @@ class RuleBook(
     }
 
     /** [import], said on the Rules page for a few seconds. */
-    fun importAndSay(text: String) {
-        val said = import(text)
+    fun importAndSay(text: String) = say(import(text))
+
+    /** One line on the Rules page for a few seconds. */
+    private fun say(said: String) {
         notice = said
         show()
         scope.launch {

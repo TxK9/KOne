@@ -52,6 +52,25 @@ class RuleBookTest {
     }
 
     @Test
+    fun aRuleChangesItsWayWhereItStandsAndRulesCopyAsClashLines() {
+        assertTrue(book.add(UserRule("suffix", "example.com", "proxy")))
+        assertTrue(book.add(UserRule("keyword", "tracker", "block")))
+        val before = restarts
+        book.setAction(0, "via:JP")
+        assertEquals(listOf(UserRule("suffix", "example.com", "via:JP"), UserRule("keyword", "tracker", "block")), preferences.rules)
+        assertEquals(before + 1, restarts)
+        // The same way, a way that is not one, a rule that is not there: nothing changes.
+        book.setAction(0, "via:JP")
+        book.setAction(1, "via:jp")
+        book.setAction(5, "direct")
+        assertEquals(before + 1, restarts)
+        var copied: String? = null
+        book.copy { copied = it }
+        assertEquals("DOMAIN-SUFFIX,example.com,Japan\nDOMAIN-KEYWORD,tracker,REJECT", copied)
+        assertEquals("2 rules copied, as Clash rules", book.page.notice)
+    }
+
+    @Test
     fun eachChangeIsKeptShownAndTakenByTheConnection() {
         assertTrue(book.addSite("https://www.example.com/path", direct = true))
         assertEquals(listOf("www.example.com"), book.page.direct)

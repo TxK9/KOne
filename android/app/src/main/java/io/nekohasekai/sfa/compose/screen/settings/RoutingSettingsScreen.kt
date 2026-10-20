@@ -1,6 +1,7 @@
 package io.nekohasekai.sfa.compose.screen.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -53,6 +54,7 @@ import cc.txwd.kone.shared.Hosts
 import cc.txwd.kone.shared.ListStatus
 import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.shared.Rule
+import cc.txwd.kone.shared.RuleExport
 import cc.txwd.kone.shared.Rules
 import cc.txwd.kone.shared.Region
 import io.nekohasekai.sfa.selfuse.CategoryListKeeper
@@ -364,7 +366,10 @@ private fun kindHint(kind: String): String = stringResource(
  */
 @Composable
 private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, countries: List<String>, onImport: () -> String, onChange: (List<Rule>) -> Unit) {
+    val context = LocalContext.current
     var said by remember { mutableStateOf<String?>(null) }
+    // The rule whose way is being changed, by its place.
+    var changing by remember { mutableStateOf<Int?>(null) }
     var kind by remember { mutableStateOf(0) }
     var action by remember { mutableStateOf(0) }
     var country by remember(countries) { mutableStateOf(countries.firstOrNull()) }
@@ -377,7 +382,7 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, count
         if (rules.isEmpty()) Text(stringResource(R.string.knine_routing_rules_none), style = MaterialTheme.typography.bodyMedium)
         rules.forEachIndexed { index, rule ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f).clickable { changing = if (changing == index) null else index }) {
                     val shown = if (rule.kind == "set") Categories.title(rule.value) ?: rule.value else rule.value
                     Text("${kindName(rule.kind)} · $shown → ${actionName(rule.action)}", style = MaterialTheme.typography.bodyLarge)
                     val status = lists[rule.value]
@@ -390,12 +395,19 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, count
                     }
                 }
                 IconButton(onClick = {
+                    changing = null
                     if (index > 0) onChange(rules.toMutableList().also { it[index] = it[index - 1].also { _ -> it[index - 1] = rule } })
                 }, enabled = index > 0) {
                     Icon(imageVector = Icons.Outlined.KeyboardArrowUp, contentDescription = null)
                 }
-                IconButton(onClick = { onChange(rules.filterIndexed { i, _ -> i != index }) }) {
+                IconButton(onClick = { changing = null; onChange(rules.filterIndexed { i, _ -> i != index }) }) {
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = null)
+                }
+            }
+            if (changing == index) {
+                RuleWay(rule.action, countries) { way ->
+                    changing = null
+                    if (way != rule.action) onChange(OwnRules.clean(rules.toMutableList().also { it[index] = rule.copy(action = way) }))
                 }
             }
         }
@@ -415,6 +427,11 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, count
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             said?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f)) }
             TextButton(onClick = { said = onImport() }) { Text(stringResource(R.string.knine_routing_rule_import)) }
+            if (rules.isNotEmpty()) TextButton(onClick = {
+                // As Clash rule lines, which either KOne, or another client, reads back.
+                clipboardText = RuleExport.write(rules)
+                said = context.resources.getQuantityString(R.plurals.knine_routing_rules_copied, rules.size, rules.size)
+            }) { Text(stringResource(R.string.knine_routing_rule_copy)) }
             TextButton(onClick = {
                 val checked = OwnRules.value(KINDS[kind], value)
                 val goes = if (action == through) country?.let(Rules::through) else OwnRules.ACTIONS[action]
@@ -426,6 +443,25 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, count
                 }
             }) { Text(stringResource(R.string.knine_routing_rule_add)) }
         }
+    }
+}
+
+/**
+ * Where a rule goes, changed where it stands: the node, straight out, blocked, or a country
+ * ([countries], and the one it goes through now). [onPick] takes the new way.
+ */
+@Composable
+private fun RuleWay(action: String, countries: List<String>, onPick: (String) -> Unit) {
+    val now = Rules.via(action)
+    var country by remember { mutableStateOf(now != null) }
+    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        KnineSegmented(
+            options = OwnRules.ACTIONS.map { actionName(it) } + stringResource(R.string.knine_routing_action_country),
+            selected = if (country) OwnRules.ACTIONS.size else OwnRules.ACTIONS.indexOf(action).coerceAtLeast(0),
+            onSelect = { picked -> if (picked == OwnRules.ACTIONS.size) country = true else onPick(OwnRules.ACTIONS[picked]) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (country) CountryPicker((countries + listOfNotNull(now)).distinct(), now) { onPick(Rules.through(it)) }
     }
 }
 

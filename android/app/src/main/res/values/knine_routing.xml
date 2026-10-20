@@ -10,11 +10,16 @@
     <string name="knine_routing_saved">Saved</string>
     <string name="knine_routing_save_names">Save names</string>
     <string name="knine_routing_rules">Rules</string>
-    <string name="knine_routing_rules_detail">In order: the first that matches decides. After the sites, before Block ads.</string>
+    <string name="knine_routing_rules_detail">In order: the first that matches decides. After the sites, before Block ads. Tap a rule to change where it goes.</string>
     <string name="knine_routing_rules_none">No rules of your own yet</string>
     <string name="knine_routing_rule_value">Matches</string>
     <string name="knine_routing_rule_add">Add rule</string>
     <string name="knine_routing_rule_import">Paste from Clash or v2rayN</string>
+    <string name="knine_routing_rule_copy">Copy rules</string>
+    <plurals name="knine_routing_rules_copied">
+        <item quantity="one">%d rule copied, as Clash rules</item>
+        <item quantity="other">%d rules copied, as Clash rules</item>
+    </plurals>
     <string name="knine_routing_rule_wrong">That does not fit the kind chosen</string>
     <string name="knine_routing_kind_domain">Site</string>
     <string name="knine_routing_kind_suffix">Ends</string>

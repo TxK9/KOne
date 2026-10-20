@@ -329,6 +329,8 @@ fun main(args: Array<String>) {
                                               onUnmatched = model::setUnmatched,
                                               // Clash rules from the clipboard; what happened is said on the page.
                                               onImportRules = { model.importRulesFrom(clipboardText().orEmpty()) },
+                                              onSetAction = model::setRuleAction,
+                                              onCopyRules = { model.copyRules(::copyText) },
                                               onUpdateLists = { model.updateLists(force = true) },
                                           ),
                                       )

@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -94,6 +94,10 @@ class RulesActions(
     val onImportRules: () -> Unit = {},
     /** What nothing matched: straight out (true) or through the node. */
     val onUnmatched: (Boolean) -> Unit = {},
+    /** The rule at an index going another way: proxy, direct, block, or through a country (via:JP). */
+    val onSetAction: (Int, String) -> Unit = { _, _ -> },
+    /** Copies every rule as Clash rule lines, which either App or another client reads back. */
+    val onCopyRules: () -> Unit = {},
 )
 
 /** The kinds and actions as the page names them. */
@@ -117,10 +121,14 @@ private val HINTS = mapOf(
  * tried in order after them; the first that matches wins. The Claude block comes before all of it.
  */
 @Composable
-fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null, openThrough: Boolean = false) {
+fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null, openThrough: Boolean = false, changingAt: Int? = null) {
     val ink = LocalInk.current
-    // [openWith] opens the new rule's form on that kind, [openThrough] on going through a country (the screenshots use them).
+    // [openWith] opens the new rule's form on that kind, [openThrough] on going through a country, and
+    // [changingAt] the way of the rule at that place (the screenshots use them).
     var adding by remember { mutableStateOf(openWith != null) }
+    // Finding a rule among many, and the one whose way is being changed (by its place among all).
+    var query by remember { mutableStateOf("") }
+    var changing by remember(state.rules) { mutableStateOf(changingAt) }
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
             // What everything below leaves over: the node by default, or straight out, so only what is chosen goes through.
@@ -151,6 +159,10 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
             Label("${state.rules.size}", 15.sp, ink.soft, tabular = true)
             Spacer(Modifier.width(22.dp))
             if (state.rules.isNotEmpty()) Label("First match wins", 13.sp, ink.soft)
+            if (state.rules.size > SEARCHED || query.isNotEmpty()) {
+                Spacer(Modifier.width(22.dp))
+                Search(query) { query = it }
+            }
             Spacer(Modifier.weight(1f))
             if (state.lists.isNotEmpty()) {
                 val oldest = state.lists.values.mapNotNull { it.checked }.minOrNull()
@@ -172,52 +184,68 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                 Label("Import", 14.sp, ink.soft)
             }
             Spacer(Modifier.width(22.dp))
+            if (state.rules.isNotEmpty()) {
+                Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onCopyRules), contentAlignment = Alignment.Center) {
+                    Label("Copy", 14.sp, ink.soft)
+                }
+                Spacer(Modifier.width(22.dp))
+            }
             Box(Modifier.height(34.dp).press(bleed = 8.dp) { adding = !adding }, contentAlignment = Alignment.Center) {
                 Label("Add rule", 14.sp, weight = FontWeight.SemiBold)
             }
         }
         state.notice?.let { Label(it, 13.sp, ink.soft, modifier = Modifier.padding(bottom = 6.dp)) }
         if (adding) NewRule(openWith ?: "suffix", state.countries, openThrough, onAdd = { rule -> actions.onAddRule(rule).also { if (it) adding = false } }, onCancel = { adding = false })
+        val shown = state.rules.withIndex().filter { (_, rule) -> matches(rule, query) }
+        if (shown.isEmpty() && query.isNotEmpty()) Label("No rule matches", 13.sp, ink.soft, modifier = Modifier.padding(vertical = 10.dp))
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
-            itemsIndexed(state.rules) { index, rule ->
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 40.dp).hairline(ink.hair, bottom = true),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Box(Modifier.width(90.dp)) { Label(KINDS.firstOrNull { it.first == rule.kind }?.second ?: rule.kind, 13.sp, ink.soft) }
-                    if (rule.kind == "set") {
-                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Label(Categories.title(rule.value) ?: rule.value, 13.sp)
-                            if (Categories.title(rule.value) != null) Label(rule.value, 12.sp, ink.soft)
-                            val status = state.lists[rule.value]
-                            when {
-                                status == null || (!status.kept && status.error == null) ->
-                                    Label(if (state.listsBusy) "Downloading" else "Not downloaded yet", 12.sp, NodeWeather.Mist.ink(ink.dark))
-                                !status.kept -> Label("Not in use: ${status.error}", 12.sp, NodeWeather.Cut.ink(ink.dark))
-                                status.error != null -> Label("Update failed, using the last copy", 12.sp, NodeWeather.Mist.ink(ink.dark))
+            items(shown, key = { it.index }) { (index, rule) ->
+                Column {
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 40.dp).hairline(ink.hair, bottom = true),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Box(Modifier.width(90.dp)) { Label(KINDS.firstOrNull { it.first == rule.kind }?.second ?: rule.kind, 13.sp, ink.soft) }
+                        if (rule.kind == "set") {
+                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Label(Categories.title(rule.value) ?: rule.value, 13.sp)
+                                if (Categories.title(rule.value) != null) Label(rule.value, 12.sp, ink.soft)
+                                val status = state.lists[rule.value]
+                                when {
+                                    status == null || (!status.kept && status.error == null) ->
+                                        Label(if (state.listsBusy) "Downloading" else "Not downloaded yet", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                    !status.kept -> Label("Not in use: ${status.error}", 12.sp, NodeWeather.Cut.ink(ink.dark))
+                                    status.error != null -> Label("Update failed, using the last copy", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                }
+                            }
+                        } else {
+                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Label(rule.value, 13.sp)
+                                // Through a country no node says now: the node in use carries it until one does.
+                                if (Rules.via(rule.action)?.let { it !in state.countries } == true) {
+                                    Label("No node there now; through the node in use", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                }
                             }
                         }
-                    } else {
-                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Label(rule.value, 13.sp)
-                            // Through a country no node says now: the node in use carries it until one does.
-                            if (Rules.via(rule.action)?.let { it !in state.countries } == true) {
-                                Label("No node there now; through the node in use", 12.sp, NodeWeather.Mist.ink(ink.dark))
-                            }
+                        // Where it goes; a click changes that where the rule stands.
+                        Row(
+                            Modifier.width(150.dp).height(32.dp).press(bleed = 6.dp) { changing = if (changing == index) null else index },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        ) {
+                            val color = if (rule.action == "block") NodeWeather.Cut.ink(ink.dark) else ink.ink
+                            Rules.via(rule.action)?.let { Flag(it, 18.dp, 12.dp) }
+                            Label(actionTitle(rule.action), 13.sp, color, FontWeight.SemiBold)
+                        }
+                        // Fixed width, so every row's controls stand in line.
+                        Row(Modifier.width(110.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                            Small("↑", enabled = index > 0) { actions.onMoveRule(index, true) }
+                            Small("↓", enabled = index < state.rules.lastIndex) { actions.onMoveRule(index, false) }
+                            Small("×") { actions.onRemoveRule(index) }
                         }
                     }
-                    Row(Modifier.width(150.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        val color = if (rule.action == "block") NodeWeather.Cut.ink(ink.dark) else ink.ink
-                        Rules.via(rule.action)?.let { Flag(it, 18.dp, 12.dp) }
-                        Label(actionTitle(rule.action), 13.sp, color, FontWeight.SemiBold)
-                    }
-                    // Fixed width, so every row's controls stand in line.
-                    Row(Modifier.width(110.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                        Small("↑", enabled = index > 0) { actions.onMoveRule(index, true) }
-                        Small("↓", enabled = index < state.rules.lastIndex) { actions.onMoveRule(index, false) }
-                        Small("×") { actions.onRemoveRule(index) }
-                    }
+                    if (changing == index) WayPicker(rule.action, state.countries) { way -> changing = null; if (way != rule.action) actions.onSetAction(index, way) }
                 }
             }
         }
@@ -275,6 +303,71 @@ private fun NewRule(startKind: String, countries: List<String>, through: Boolean
     LaunchedEffect(Unit) { focus.requestFocus() }
 }
 
+/** Whether [rule] is one [query] asks for: by its value, kind, list or where it goes. */
+private fun matches(rule: UserRule, query: String): Boolean {
+    val needle = query.trim()
+    if (needle.isEmpty()) return true
+    return listOfNotNull(rule.value, KINDS.firstOrNull { it.first == rule.kind }?.second, Categories.title(rule.value), actionTitle(rule.action))
+        .any { it.contains(needle, ignoreCase = true) }
+}
+
+/** The search over the rules, once there are more than [SEARCHED]. */
+@Composable
+private fun Search(query: String, onChange: (String) -> Unit) {
+    val ink = LocalInk.current
+    BasicTextField(
+        query,
+        onChange,
+        Modifier.width(200.dp).height(30.dp)
+            .onPreviewKeyEvent { if (it.key == Key.Escape && it.type == KeyEventType.KeyDown) { onChange(""); true } else false }
+            .hairline(ink.hair, bottom = true, width = 1.dp),
+        singleLine = true,
+        textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.ui, fontSize = 13.sp),
+        cursorBrush = SolidColor(ink.ink),
+        decorationBox = { field ->
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                if (query.isEmpty()) Label("Search rules", 13.sp, ink.soft)
+                field()
+            }
+        },
+    )
+}
+
+/** More rules than this, and the page offers a search over them. */
+private const val SEARCHED = 8
+
+/**
+ * Where a rule goes, changed where it stands: the node, straight out, blocked, or a country the
+ * nodes' names say ([countries], and the one it goes through now). [onPick] takes the new way.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WayPicker(action: String, countries: List<String>, onPick: (String) -> Unit) {
+    val ink = LocalInk.current
+    val now = Rules.via(action)
+    Row(Modifier.fillMaxWidth().hairline(ink.hair, bottom = true).padding(vertical = 8.dp)) {
+        Box(Modifier.width(90.dp).padding(top = 6.dp)) { Label("Goes", 13.sp, ink.soft) }
+        FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            ACTIONS.filter { it.first != VIA }.forEach { (value, title) -> Pill(title, null, value == action) { onPick(value) } }
+            (countries + listOfNotNull(now)).distinct().forEach { code -> Pill(Countries.byCode(code)?.en ?: code, code, code == now) { onPick(Rules.through(code)) } }
+        }
+    }
+}
+
+/** A choice in a pill, filled when [on], with a country's flag when it is one. */
+@Composable
+private fun Pill(title: String, flag: String?, on: Boolean, onClick: () -> Unit) {
+    val ink = LocalInk.current
+    Row(
+        Modifier.height(28.dp).clip(RoundedCornerShape(14.dp)).background(if (on) ink.ink else ink.press).press(onClick = onClick).padding(horizontal = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        flag?.let { Flag(it, 16.dp, 11.dp) }
+        Label(title, 12.sp, if (on) ink.paper else ink.ink)
+    }
+}
+
 /** The countries the nodes' names say, in pills with their flags; the one picked is where the rule goes. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -288,18 +381,7 @@ private fun CountryPicker(countries: List<String>, picked: String?, onPick: (Str
                 return@Column
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                countries.forEach { code ->
-                    val on = code == picked
-                    Row(
-                        Modifier.height(28.dp).clip(RoundedCornerShape(14.dp)).background(if (on) ink.ink else ink.press)
-                            .press { onPick(code) }.padding(horizontal = 11.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(7.dp),
-                    ) {
-                        Flag(code, 16.dp, 11.dp)
-                        Label(Countries.byCode(code)?.en ?: code, 12.sp, if (on) ink.paper else ink.ink)
-                    }
-                }
+                countries.forEach { code -> Pill(Countries.byCode(code)?.en ?: code, code, code == picked) { onPick(code) } }
             }
             Label("The fastest of that country's nodes carries it, in Rule mode; its names are looked up there too.", 12.sp, ink.soft)
         }

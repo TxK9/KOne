@@ -70,6 +70,8 @@ Other gaps, in order of what people meet first:
   several nodes, and one per country with two nodes or more ("Automatic · Japan"). Nodes in a
   group keep their provider's names.
 - **Fake IP** as an option (Settings → Routing → DNS), mappings kept across restarts.
+- **Rules, easier to keep**: tap a rule to change where it goes; copy every rule as Clash rule
+  lines, which KOne for Windows (or another client) reads back.
 - **Rules through a country** (Settings → Routing → Rules → Country): the fastest of that
   country's nodes carries the rule's traffic in Rule mode ("Through Japan", tested as
   Automatic is), and its names are looked up there too. A country no node says goes through the
