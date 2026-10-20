@@ -71,14 +71,20 @@ Other gaps, in order of what people meet first:
   group keep their provider's names.
 - **Fake IP** as an option (Settings → Routing → DNS), mappings kept across restarts.
 - **Why** each connection went its way, in the connection's details.
+- **Subscriptions, finished**: words that leave nodes out per subscription, and a notification
+  once when one has ended, ends within three days or has used 90% of its data.
+- **From a connection**: its site sent straight out or through the node with one press.
+- **Diagnose** copies a plain-text report (no key, no node addresses), as Windows does.
+- **Hosts** take a pasted hosts file.
 - **Android CI**: the shared edition with the debug key, unit tests and an assembled build. No
   APK is uploaded; releases keep the authorized signing path in `tools/`.
 
 ## Next, without a decision
 
-1. Per-subscription words that leave nodes out, as on Windows.
-2. A warning notification when a subscription is about to end, not only on its row.
-3. Site check (try a site straight out and through the node), as on Windows.
+1. Site check (try a site straight out and through the node), as on Windows; how the VPN treats
+   KOne's own traffic is best confirmed on a phone first.
+2. Pause for 15 minutes, then connect again, as on Windows; starting the VPN again from the
+   background is subject to Android's limits on starting services, so also after a device check.
 
 ## Needing the owner
 
