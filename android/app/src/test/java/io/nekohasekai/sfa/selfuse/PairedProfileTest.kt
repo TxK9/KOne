@@ -75,4 +75,41 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    @Test
+    fun acceptsBracketedIpv6Server() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@[2001:db8::1]:8443")))
+        val node = config.getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(8443, node.getInt("server_port"))
+        assertEquals("example.org", node.getJSONObject("tls").getString("server_name"))
+    }
+
+    @Test
+    fun ignoresUnencodedDisplayName() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link#Home node 1"))
+        assertEquals("node.invalid", config.getJSONArray("outbounds").getJSONObject(1).getString("server"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link&fp="))
+        val tls = config.getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls")
+        assertEquals("chrome", tls.getJSONObject("utls").getString("fingerprint"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsNonObjectRuleBeforePrivateRoute() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link))
+        val original = config.getJSONObject("route").getJSONArray("rules")
+        val reordered = JSONArray().put("proxy")
+        for (index in 0 until original.length()) reordered.put(original.getJSONObject(index))
+        config.getJSONObject("route").put("rules", reordered)
+        PairedProfile.requirePaired(config.toString())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsNonObjectConfiguration() {
+        PairedProfile.requirePaired("[]")
+    }
 }
