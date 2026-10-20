@@ -161,6 +161,20 @@ fun RoutingSettingsScreen(navController: NavController) {
                 if (imported.choices != choices) keep(imported.choices)
                 imported.said
             }) { keep(choices.copy(rules = it)) }
+            // The category lists the rules name, downloaded again now if they changed (otherwise once a day).
+            if (choices.rules.any { it.kind == "set" }) {
+                var updatingLists by remember { mutableStateOf(false) }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(enabled = !updatingLists, onClick = {
+                        updatingLists = true
+                        scope.launch {
+                            CategoryListKeeper.update(force = true)
+                            lists = withContext(Dispatchers.IO) { CategoryListKeeper.status() }
+                            updatingLists = false
+                        }
+                    }) { Text(stringResource(if (updatingLists) R.string.knine_routing_lists_updating else R.string.knine_routing_lists_update)) }
+                }
+            }
         }
 
         Spacer(Modifier.height(16.dp))

@@ -32,6 +32,7 @@ object CategoryListKeeper {
     private val updating = Mutex()
 
     @Volatile private var again = false
+    @Volatile private var againForced = false
 
     /** The lists the person's rules name, each once. */
     fun named(): List<String> = Rules.sets(OwnRules.clean(RoutingSettings.current().rules))
@@ -51,6 +52,7 @@ object CategoryListKeeper {
     suspend fun update(force: Boolean = false) = withContext(Dispatchers.IO) {
         // One running at a time; a request while it runs (a new rule saved) makes it go round once more.
         if (!updating.tryLock()) {
+            if (force) againForced = true
             again = true
             return@withContext
         }
@@ -63,7 +65,8 @@ object CategoryListKeeper {
                 val before = ready().keys
                 val now = System.currentTimeMillis()
                 names.filter { forced || lists.due(it, now) }.forEach { lists.update(it, now) }
-                forced = false
+                forced = againForced
+                againForced = false
                 if (!before.containsAll(ready().keys)) {
                     HomeSettings.refreshSaved()
                     runCatching { Libbox.newStandaloneCommandClient().serviceReload() }

@@ -79,4 +79,6 @@
     <string name="knine_diagnose_copy">Copy report</string>
     <string name="knine_diagnose_copied">Diagnosis copied</string>
     <string name="knine_connection_sites_full">The list is full: remove some sites in Settings → Routing first</string>
+    <string name="knine_routing_lists_update">Update lists</string>
+    <string name="knine_routing_lists_updating">Updating lists…</string>
 </resources>
