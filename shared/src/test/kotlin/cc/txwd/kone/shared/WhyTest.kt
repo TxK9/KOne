@@ -19,6 +19,11 @@ class WhyTest {
         assertEquals("Local network", Why.explain("ip_is_private=true => route(direct)", lists, home = "home-tailnet"))
         // The console's Claude block, and any other refusal, is said as what happened.
         assertEquals("Blocked", Why.explain("domain_suffix=[claude.ai] => reject", lists))
+        // Program names may hold spaces; the rule's text is read against the person's list whole.
+        val spaced = Why.Lists(listOf("My App.exe", "WeChat.exe"), emptyList(), emptyList())
+        assertEquals("Your direct apps", Why.explain("process_name=[My App.exe WeChat.exe] => route(direct)", spaced))
+        assertEquals("Your direct apps", Why.explain("process_name=My App.exe => route(direct)", spaced))
+        assertEquals("Your rule", Why.explain("process_name=[My App.exe Other.exe] => route(direct)", spaced))
         assertEquals(null, Why.explain("", lists))
     }
 }

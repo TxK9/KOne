@@ -27,7 +27,7 @@ object Why {
             // Refused: the console's block, a rule of the person's own or an ad list, said as what happened.
             action.startsWith("reject") -> "Blocked"
             "package_name=" in match -> "Your rule"
-            "process_name=" in match -> if (direct && names(match, "process_name").all { name -> lists.bypass.any { it.equals(name, ignoreCase = true) } }) "Your direct apps" else "Your rule"
+            "process_name=" in match -> if (direct && madeOf(raw(match, "process_name"), lists.bypass)) "Your direct apps" else "Your rule"
             home != null && action.startsWith("route($home") -> "Home"
             "ip_is_private" in match -> "Local network"
             match == "clash_mode=Global" -> "Global mode"
@@ -37,6 +37,33 @@ object Why {
             "domain_suffix=" in match && !direct && names(match, "domain_suffix").any { it in lists.proxied } -> "Your proxied sites"
             else -> "Your rule"
         }
+    }
+
+    /**
+     * [field]'s value as the rule's text writes it, unsplit: inside its brackets, or up to the next
+     * field. Program names may hold spaces ("My App.exe"), so splitting on them would cut a name.
+     */
+    private fun raw(match: String, field: String): String {
+        val found = Regex("""(?<![a-z_])$field=(\[[^\]]*]|.+?)(?= [a-z_]+=|$)""").find(match)?.groupValues?.get(1) ?: return ""
+        return found.removePrefix("[").removeSuffix("]")
+    }
+
+    /** Whether [text] is some of [names] (any case) one after another, a space between each. */
+    private fun madeOf(text: String, names: List<String>): Boolean {
+        if (text.isEmpty()) return false
+        val lower = text.lowercase()
+        val candidates = names.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.distinct()
+        val reachable = BooleanArray(lower.length + 1).also { it[0] = true }
+        for (start in 0 until lower.length) {
+            if (!reachable[start]) continue
+            for (name in candidates) {
+                if (!lower.startsWith(name, start)) continue
+                val end = start + name.length
+                if (end == lower.length) return true
+                if (lower[end] == ' ') reachable[end + 1] = true
+            }
+        }
+        return false
     }
 
     /** The values of [field] in a rule's text: field=value or field=[a b c]. */
