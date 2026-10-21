@@ -27,25 +27,46 @@ object PairedProfile {
             val pieces = it.split('=', limit = 2)
             val key = URLDecoder.decode(pieces[0], "UTF-8")
             require(!parameters.containsKey(key)) { "Connection contains duplicate parameters" }
-            parameters[key] = URLDecoder.decode(pieces.getOrElse(1) { "" }, "UTF-8")
+            // Query values are not form-encoded: a literal '+' (for example in a Base64 key) stays '+'.
+            parameters[key] = URLDecoder.decode(pieces.getOrElse(1) { "" }.replace("+", "%2B"), "UTF-8")
         }
-        require(parameters["type"].orEmpty() in setOf("", "tcp")) { "Import this transport using a complete configuration" }
+        // Xray renamed the plain TCP transport to "raw"; both mean no transport layer.
+        require(parameters["type"].orEmpty() in setOf("", "tcp", "raw")) { "Import this transport using a complete configuration" }
+        require(parameters["headerType"].orEmpty() in setOf("", "none")) { "Import this transport using a complete configuration" }
         require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
         val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
         val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"]?.takeIf { it.isNotBlank() } ?: "chrome")))
+            "utls" to obj("enabled" to true, "fingerprint" to fingerprint(parameters["fp"])))
         if (parameters["security"] == "reality") {
-            val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
-            val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }
-            require(decoded.size == 32) { "Invalid Reality public key format" }
+            val publicKey = realityPublicKey(parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing"))
             val shortId = parameters["sid"].orEmpty()
             require(shortId.length <= 16 && shortId.length % 2 == 0 && shortId.all { it in "0123456789abcdefABCDEF" }) { "Invalid Reality short ID format" }
             tls.put("reality", obj("enabled" to true, "public_key" to publicKey, "short_id" to shortId))
         }
         val node = obj("type" to "vless", "tag" to "node", "server" to host, "server_port" to port,
             "uuid" to uuid, "tls" to tls)
-        parameters["flow"]?.takeIf { it.isNotBlank() }?.let { node.put("flow", it) }
+        parameters["flow"]?.takeIf { it.isNotBlank() }?.let {
+            require(it == "xtls-rprx-vision") { "Unsupported VLESS flow: $it" }
+            node.put("flow", it)
+        }
         return build(node, rulesDirectory)
+    }
+
+    // Names accepted by the core's uTLS client; Xray-only names have no equivalent there.
+    private val fingerprints = setOf("chrome", "firefox", "edge", "safari", "360", "qq", "ios", "android", "random", "randomized")
+
+    private fun fingerprint(value: String?): String {
+        val name = value?.trim()?.lowercase().orEmpty().ifEmpty { return "chrome" }
+        require(name in fingerprints) { "Unsupported TLS fingerprint: $name" }
+        return name
+    }
+
+    /** The core decodes public_key as unpadded URL-safe Base64, so normalize padded or standard-alphabet keys. */
+    private fun realityPublicKey(value: String): String {
+        val normalized = value.trim().replace('+', '-').replace('/', '_').trimEnd('=')
+        val decoded = try { Base64.getUrlDecoder().decode(normalized) } catch (_: Exception) { ByteArray(0) }
+        require(decoded.size == 32) { "Invalid Reality public key format" }
+        return normalized
     }
 
     fun build(node: JSONObject, rulesDirectory: String = "rules"): String {

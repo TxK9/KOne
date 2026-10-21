@@ -112,4 +112,43 @@ class PairedProfileTest {
     fun rejectsNonObjectConfiguration() {
         PairedProfile.requirePaired("[]")
     }
+
+    @Test
+    fun normalizesRealityPublicKeyForCore() {
+        // 32 bytes whose Base64 needs '+', '/' and padding in the standard alphabet.
+        val bytes = ByteArray(32) { if (it % 2 == 0) 0xfb.toByte() else 0xff.toByte() }
+        val standard = java.util.Base64.getEncoder().encodeToString(bytes)
+        assertTrue(standard.contains('+') && standard.contains('/') && standard.endsWith("="))
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", standard)))
+        val key = config.getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls").getJSONObject("reality").getString("public_key")
+        assertEquals(java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes), key)
+    }
+
+    @Test
+    fun acceptsRawTransportName() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("type=tcp", "type=raw") + "&headerType=none"))
+        assertEquals("vless", config.getJSONArray("outbounds").getJSONObject(1).getString("type"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsHttpHeaderObfuscation() {
+        PairedProfile.fromVlessLink("$link&headerType=http")
+    }
+
+    @Test
+    fun normalizesFingerprintCase() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link&fp=Firefox"))
+        val tls = config.getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls")
+        assertEquals("firefox", tls.getJSONObject("utls").getString("fingerprint"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsFingerprintUnknownToCore() {
+        PairedProfile.fromVlessLink("$link&fp=randomizednoalpn")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnsupportedFlow() {
+        PairedProfile.fromVlessLink(link.replace("flow=xtls-rprx-vision", "flow=xtls-rprx-direct"))
+    }
 }
