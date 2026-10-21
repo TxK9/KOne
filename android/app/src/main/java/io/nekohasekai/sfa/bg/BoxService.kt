@@ -138,9 +138,14 @@ class BoxService(private val service: Service, private val platformInterface: Pl
             }
 
             val content = File(profile.typed.path).readText()
-            PairedProfile.requirePaired(content)
             if (content.isBlank()) {
                 stopAndAlert(Alert.EmptyConfiguration)
+                return
+            }
+            try {
+                PairedProfile.requirePaired(content)
+            } catch (e: IllegalArgumentException) {
+                stopAndAlert(Alert.CreateService, e.message)
                 return
             }
 
@@ -228,14 +233,14 @@ class BoxService(private val service: Service, private val platformInterface: Pl
         }
 
         val content = File(profile.typed.path).readText()
+        if (content.isBlank()) {
+            stopAndAlert(Alert.EmptyConfiguration)
+            return
+        }
         try {
             PairedProfile.requirePaired(content)
         } catch (e: IllegalArgumentException) {
             stopAndAlert(Alert.CreateService, e.message)
-            return
-        }
-        if (content.isBlank()) {
-            stopAndAlert(Alert.EmptyConfiguration)
             return
         }
         lastProfileName = profile.name
