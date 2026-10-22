@@ -69,6 +69,30 @@ class PairedProfileTest {
         PairedProfile.requirePaired(config.toString())
     }
 
+    @Test
+    fun ignoresUnescapedRemarkFragment() {
+        val node = nodeOf(PairedProfile.fromVlessLink("$link#US West 01"))
+        assertEquals("node.invalid", node.getString("server"))
+    }
+
+    @Test
+    fun acceptsBracketedIpv6Server() {
+        val node = nodeOf(PairedProfile.fromVlessLink(link.replace("node.invalid:443", "[2001:db8::1]:8443")))
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(8443, node.getInt("server_port"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val node = nodeOf(PairedProfile.fromVlessLink("$link&fp="))
+        assertEquals("chrome", node.getJSONObject("tls").getJSONObject("utls").getString("fingerprint"))
+    }
+
+    private fun nodeOf(content: String): JSONObject {
+        val outbounds = JSONObject(content).getJSONArray("outbounds")
+        return (0 until outbounds.length()).map { outbounds.getJSONObject(it) }.first { it.getString("tag") == "node" }
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsTailnetOnlyProfile() {
         val config = JSONObject(PairedProfile.fromVlessLink(link))
