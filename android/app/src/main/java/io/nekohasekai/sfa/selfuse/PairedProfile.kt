@@ -18,7 +18,8 @@ object PairedProfile {
         val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
         val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        // java.net.URI keeps the brackets of an IPv6 literal; sing-box expects the bare address.
+        val host = uri.host?.removeSurrounding("[", "]")?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
         val port = if (uri.port == -1) 443 else uri.port
         require(port in 1..65535) { "Invalid connection port" }
         val parameters = mutableMapOf<String, String>()
@@ -32,7 +33,7 @@ object PairedProfile {
         require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
         val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
         val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"] ?: "chrome")))
+            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"]?.takeIf { it.isNotBlank() } ?: "chrome")))
         if (parameters["security"] == "reality") {
             val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
             val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }

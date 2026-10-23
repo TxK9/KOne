@@ -16,6 +16,17 @@ class CountryProfileGroupingTest {
         assertEquals("DE", CountryProfileGrouping.fromName("🇩🇪 \u8282\u70b9"))
     }
 
+    @Test fun lowercaseWordsDoNotMatchCountryCodes() {
+        assertEquals("JP", CountryProfileGrouping.fromName("Servidor de Japan"))
+        assertEquals("FR", CountryProfileGrouping.fromName("Serveur au France"))
+        assertEquals("SG", CountryProfileGrouping.fromName("ca Singapore 2"))
+        for (name in listOf("contact us", "de", "au relay")) {
+            assertEquals(name, CountryProfileGrouping.UNCLASSIFIED, CountryProfileGrouping.fromName(name))
+        }
+        assertEquals("US", CountryProfileGrouping.fromName("US-West 01"))
+        assertEquals("GB", CountryProfileGrouping.fromName("united kingdom 3"))
+    }
+
     @Test fun manualCategoryWinsAndLocalProfilesKeepTheirIdentityAndOrder() {
         val profiles = listOf(Profile(id = 1, name = "US 1"), Profile(id = 2, name = "Verizon"), Profile(id = 3, name = "Neutral"))
         val groups = CountryProfileGrouping.group(profiles, mapOf(1L to "GB"))

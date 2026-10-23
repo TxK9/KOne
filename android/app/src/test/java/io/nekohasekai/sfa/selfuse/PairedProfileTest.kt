@@ -75,4 +75,20 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    @Test
+    fun bracketedIpv6ServerBecomesABareAddress() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("node.invalid:443", "[2001:db8::1]:8443").replace("sni=example.org&", "")))
+        val node = config.getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(8443, node.getInt("server_port"))
+        assertEquals("2001:db8::1", node.getJSONObject("tls").getString("server_name"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link&fp="))
+        val utls = config.getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls").getJSONObject("utls")
+        assertEquals("chrome", utls.getString("fingerprint"))
+    }
 }
