@@ -75,4 +75,29 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    @Test
+    fun ipv6ServerLiteralIsStoredWithoutBrackets() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("node.invalid", "[2001:db8::1]")))
+        val node = config.getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(443, node.getInt("server_port"))
+    }
+
+    @Test
+    fun ipv6ServerLiteralWithoutSniUsesBareAddress() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("node.invalid", "[2001:db8::1]").replace("&sni=example.org", "")))
+        val tls = config.getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls")
+        assertEquals("2001:db8::1", tls.getString("server_name"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsNonObjectRuleBeforePrivateRoute() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link))
+        val original = config.getJSONObject("route").getJSONArray("rules")
+        val reordered = JSONArray().put("proxy")
+        for (index in 0 until original.length()) reordered.put(original.getJSONObject(index))
+        config.getJSONObject("route").put("rules", reordered)
+        PairedProfile.requirePaired(config.toString())
+    }
 }
