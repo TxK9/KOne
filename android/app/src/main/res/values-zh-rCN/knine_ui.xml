@@ -7,4 +7,12 @@
     <string name="knine_conceal_link">隐藏链接</string>
     <string name="knine_import_steps">导入后，在仪表开启连接。需要回家时，可前往工具登录 Tailscale。</string>
     <string name="knine_qr_scan_hint">在接收设备上扫描此二维码。</string>
+    <string name="knine_import_vless_title">导入 VLESS 节点</string>
+    <string name="knine_import_vless_supported">支持使用 TLS 或 Reality 的 VLESS TCP 节点。</string>
+    <string name="knine_import_link_label">节点链接</string>
+    <string name="knine_import_confirm">导入并选中</string>
+    <string name="knine_import_busy">正在导入</string>
+    <string name="knine_import_done">节点已导入并选中。如未连接，请点击连接，然后选择 Rule 或 Global 模式。</string>
+    <string name="knine_import_invalid_parameters">连接参数无效</string>
+    <string name="knine_import_save_failed">无法保存配置。请检查链接格式后重试。</string>
 </resources>
