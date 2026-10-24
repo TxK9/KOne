@@ -14,6 +14,16 @@ object PairedProfile {
     private fun obj(vararg values: Pair<String, Any>) = JSONObject().apply { values.forEach { put(it.first, it.second) } }
     private fun array(vararg values: Any) = JSONArray().apply { values.forEach { put(it) } }
 
+    const val DEFAULT_NAME = "Proxy and Home"
+
+    /** The link's display name (its fragment), so country grouping can classify the saved profile. */
+    fun displayName(link: String): String {
+        val fragment = link.trim().substringAfter('#', "")
+        val decoded = try { URLDecoder.decode(fragment.replace("+", "%2B"), "UTF-8") } catch (_: Exception) { fragment }
+        val name = decoded.filterNot { it.isISOControl() }.trim()
+        return if (name.isEmpty()) DEFAULT_NAME else name.take(64).let { if (it.last().isHighSurrogate()) it.dropLast(1) else it }
+    }
+
     fun fromVlessLink(link: String, rulesDirectory: String = "rules"): String {
         // The fragment is only a display name and is often shared unencoded.
         val uri = try { URI(link.trim().substringBefore('#')) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }

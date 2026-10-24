@@ -159,4 +159,22 @@ class PairedProfileTest {
     fun rejectsUnsupportedFlow() {
         PairedProfile.fromVlessLink(link.replace("flow=xtls-rprx-vision", "flow=xtls-rprx-direct"))
     }
+
+    @Test
+    fun displayNameComesFromTheFragment() {
+        assertEquals("US West 01", PairedProfile.displayName("$link#US%20West%2001"))
+        assertEquals("Japan · Tokyo", PairedProfile.displayName("$link#Japan · Tokyo"))
+        assertEquals("A+B", PairedProfile.displayName("$link#A+B"))
+        assertEquals("100% uptime", PairedProfile.displayName("$link#100% uptime"))
+        assertEquals("Node2", PairedProfile.displayName("$link#Node%0A2"))
+    }
+
+    @Test
+    fun displayNameFallsBackAndStaysBounded() {
+        assertEquals(PairedProfile.DEFAULT_NAME, PairedProfile.displayName(link))
+        assertEquals(PairedProfile.DEFAULT_NAME, PairedProfile.displayName("$link#%20%0A"))
+        assertEquals(64, PairedProfile.displayName("$link#" + "x".repeat(200)).length)
+        val emoji = PairedProfile.displayName("$link#" + "x".repeat(63) + "🇺🇸")
+        assertTrue(!emoji.last().isHighSurrogate())
+    }
 }

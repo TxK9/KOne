@@ -93,7 +93,7 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
                                     file.setReadable(false, false)
                                     file.setReadable(true, true)
                                     val typed = TypedProfile().apply { type = TypedProfile.Type.Local; path = file.absolutePath }
-                                    val profile = Profile(name = "Proxy and Home", typed = typed).apply { userOrder = ProfileManager.nextOrder() }
+                                    val profile = Profile(name = PairedProfile.displayName(input), typed = typed).apply { userOrder = ProfileManager.nextOrder() }
                                     ProfileManager.create(profile, andSelect = false)
                                 } catch (failure: Exception) {
                                     file.delete()
