@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -94,17 +95,21 @@ fun scaled(painting: ImageBitmap, w: Int, h: Int): ImageBitmap {
 @Composable
 fun rememberClock(moving: Boolean, perSecond: () -> Int): State<Double> {
     val clock = remember { mutableDoubleStateOf(0.0) }
+    // Asked afresh each step: the window learns it draws in software only after the first frame.
+    val rate by rememberUpdatedState(perSecond)
     if (moving) {
         LaunchedEffect(Unit) {
             var last = withFrameNanos { it }
             var time = clock.doubleValue
             while (true) {
-                val step = 1.0 / perSecond().coerceAtLeast(1)
+                val step = 1.0 / rate().coerceAtLeast(1)
                 delay((step * 1000).toLong())
-                val now = withFrameNanos { it }
-                time += ((now - last) / 1e9).coerceIn(0.0, step + 0.1)
-                last = now
-                clock.doubleValue = time
+                // Taken inside the frame it waits for, so a step costs that one frame and not a second one after it.
+                withFrameNanos { now ->
+                    time += ((now - last) / 1e9).coerceIn(0.0, step + 0.1)
+                    last = now
+                    clock.doubleValue = time
+                }
             }
         }
     }
