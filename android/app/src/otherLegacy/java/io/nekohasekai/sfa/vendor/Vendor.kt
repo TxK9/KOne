@@ -96,6 +96,7 @@ object Vendor : VendorInterface {
     override val hasCustomUpdate = true
 
     override fun checkUpdateAsync(): UpdateInfo? {
+        GitHubUpdateChecker.requireUpstreamPackage(Application.application.packageName)
         val track = UpdateTrack.fromString(Settings.updateTrack)
         return GitHubUpdateChecker().use { checker ->
             checker.checkUpdate(track, Settings.githubToken)
