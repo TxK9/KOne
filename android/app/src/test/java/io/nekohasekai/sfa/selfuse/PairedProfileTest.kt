@@ -92,6 +92,14 @@ class PairedProfileTest {
     }
 
     @Test
+    fun bracketedIpv6ServerBecomesDefaultServerName() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("node.invalid:443", "[2001:db8::1]:8443").replace("sni=example.org&", "")))
+        val node = config.getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals("2001:db8::1", node.getJSONObject("tls").getString("server_name"))
+    }
+
+    @Test
     fun blankFingerprintFallsBackToChrome() {
         val config = JSONObject(PairedProfile.fromVlessLink("$link&fp="))
         val tls = config.getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls")
