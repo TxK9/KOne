@@ -30,6 +30,24 @@ real supported x64 and ARM64 Windows devices as applicable:
 Record exact versions, artifact digests, platform, executed tests and failures.
 CI success and source-level tests do not replace real-device acceptance.
 
+## Licenses and source
+
+The installer carries the third-party notices and full license texts in
+`app\resources\licenses` beside `KOne.exe`; Settings shows them under Third-party
+notices. Their source is `desktop/src/main/resources/licenses`, and `LicensesTest`
+checks that every text is packaged and that the overview quotes the core's notice
+from `core/LICENSE` word for word.
+
+Two decisions belong to the owner before distribution:
+
+- `sing-box.exe` is GPL-3.0 and built from KOne's modified `core/`. Recipients of the
+  binary must be able to obtain its Corresponding Source (GPL-3.0 section 6), for
+  example the matching `core/` source published beside the installer, or a written
+  offer. Record the chosen route in `NOTICES.txt`.
+- The sing-box notice adds that derivative works may not use its name or imply
+  association without prior consent. Review the installed core's file name and any
+  visible wording against it.
+
 ## Build artifacts
 
 Inspect the current Windows workflow for actual job and artifact names. Its

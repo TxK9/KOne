@@ -133,10 +133,14 @@ private fun directDns(region: String) =
 
 /**
  * Settings: Appearance, Background (with Ambient sound for the cities), Start with Windows,
- * Keyboard shortcut, the DNS servers and IPv6, and the version with its update, one line each on the paper.
+ * Keyboard shortcut, the DNS servers and IPv6, the version with its update, and the third-party
+ * notices, one line each on the paper. [noticesOpen]: the notices open as it appears.
  */
 @Composable
-fun SettingsView(state: SettingsState, actions: SettingsActions, network: NetworkState = NetworkState(), networkActions: NetworkActions = NetworkActions()) {
+fun SettingsView(
+    state: SettingsState, actions: SettingsActions, network: NetworkState = NetworkState(), networkActions: NetworkActions = NetworkActions(),
+    noticesOpen: Boolean = false,
+) {
     val ink = LocalInk.current
     // Scrolls when the window is too short for every line, with the scrollbar at the page's edge.
     val scroll = rememberScrollState()
@@ -201,6 +205,12 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
                 }
             }
         }
+        // What KOne includes and under which licenses, opened in place below the line.
+        var notices by remember { mutableStateOf(noticesOpen) }
+        Line("Third-party notices") {
+            Action(if (notices) "Hide" else "Show", { notices = !notices }, label = if (notices) "Hide third-party notices" else "Show third-party notices")
+        }
+        if (notices) LicensesPanel()
         // Open-Meteo's terms: the weather the cities show is credited to it.
         if (state.backdrop == Backdrop.City) {
             Label("Weather data: Open-Meteo.com", 12.sp, ink.soft, modifier = Modifier.padding(top = 14.dp))
@@ -361,8 +371,8 @@ private fun Choice(name: String, on: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Action(text: String, onClick: () -> Unit) {
-    Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClick).padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
+private fun Action(text: String, onClick: () -> Unit, label: String? = null) {
+    Box(Modifier.height(34.dp).press(bleed = 8.dp, label = label, onClick = onClick).padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
         Label(text, 14.sp, weight = FontWeight.SemiBold)
     }
 }
