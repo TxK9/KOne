@@ -18,7 +18,7 @@ yet.
 | Monitoring | Rates, connections, usage by node and program over 30 days, logs | unit, screens |
 | Install | MSI, x64 and ARM64, upgrade and uninstall leave nothing behind | CI |
 | Size | MSI about 143 MB (x64), of which 63 MB are the City backdrop's 604 pictures | CI artefacts |
-| Memory, CPU | Idle, no key, whole process tree: 220 to 230 MB private, 33 to 35 threads; 0.1 to 0.4 % of a core minimised. Shown, drawn in software, it took 83 % of a core: the backdrop's clock made the window redraw at the screen's rate; it now wakes the window only for its 4 steps a second, not yet measured (run 43 measured a launcher error box: the App stopped at start, since fixed and now caught by a test and by CI's window check) | CI (run 41, x64 and ARM64) |
+| Memory, CPU | Idle, no key, whole process tree: 220 to 230 MB private, 33 to 35 threads; 0.1 to 0.4 % of a core minimised. Shown, drawn in software, it took 83 % of a core. The backdrop's clock never learnt it was drawing in software (it kept the rate of the first frame) and each step cost two frames: 25 frames a second where 4 steps were meant. Fixed: 3.5 frames a second, 16 to 17 % of a core shown, 0.2 to 0.3 % minimised, window after 2.7 to 3.0 s (Linux under Xvfb, software drawing, key page, three runs; not yet on Windows). Minimised or hidden, the pages no longer redraw for the connection's figures each second (run 43 measured a launcher error box: the App stopped at start, since fixed and now caught by a test and by CI's window check) | CI (run 41, x64 and ARM64); Linux measurement 2026-10-24 |
 | Code | 16,900 lines of Kotlin (AppModel alone 1,800), 2,300 of Go, 3,900 of tests | source |
 
 ## Where the leading clients are ahead
@@ -68,8 +68,9 @@ From their issue trackers and forums:
 3. **Sign-in networks handled end to end** (this round): KOne notices the network holding
    traffic, steps aside on one press, opens the page and connects again when the network
    opens. Neither leading client does this.
-4. **Quiet when unseen.** Animation stops when minimised; CI now fails if the minimised App
-   keeps a core more than 10 % busy, so a regression of the kind above is caught before release.
+4. **Quiet when unseen.** Animation stops when minimised, and the pages keep what they last
+   showed, so a minimised window draws nothing even while connected; CI fails if the minimised
+   App keeps a core more than 10 % busy, so a regression of the kind above is caught before release.
 
 ## Direction
 
@@ -132,8 +133,8 @@ Next:
    found a real bug (restoring twice doubled rules, hosts and DNS servers), now fixed and
    tested. Left: the connection itself and node steering, the parts most worth a device test
    before they move.
-2. **CPU while shown, measured again** now that the backdrop's clock sleeps between steps; a
-   ceiling in CI once the figure is known.
+2. **CPU while shown, measured on Windows** (16 to 17 % of a core in software on Linux after the
+   clock fix); a ceiling in CI once the Windows figure is known.
 
 ### Needing the owner
 
