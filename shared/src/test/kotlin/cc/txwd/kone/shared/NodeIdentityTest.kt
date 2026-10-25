@@ -7,8 +7,10 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class NodeIdentityTest {
     private val id = "00000000-0000-0000-0000-000000000001"
@@ -22,12 +24,49 @@ class NodeIdentityTest {
 
     private fun serverOf(tag: String?, nodes: List<JsonObject>) = nodes.first { it.text("tag") == tag }.text("server")
 
+    private fun outbound(json: String) = Json.parseToJsonElement(json).jsonObject
+
+    private val trojan = outbound("""{"type":"trojan","tag":"A","server":"203.0.113.1","server_port":443,"password":"pw","tls":{"enabled":true,"server_name":"t.invalid"}}""")
+
     @Test
     fun aNodeIsTheSameWhateverItsNameOrFieldOrder() {
-        val first = Json.parseToJsonElement("""{"type":"trojan","tag":"A","server":"203.0.113.1","server_port":443,"password":"pw","tls":{"enabled":true,"server_name":"t.invalid"}}""").jsonObject
-        val again = Json.parseToJsonElement("""{"tls":{"server_name":"t.invalid","enabled":true},"password":"pw","server_port":443,"server":"203.0.113.1","tag":"B","type":"trojan"}""").jsonObject
-        assertEquals(NodeIdentity.key(first), NodeIdentity.key(again))
-        assertNotEquals(NodeIdentity.key(first), NodeIdentity.key(JsonObject(first + ("password" to JsonPrimitive("other")))))
+        val again = outbound("""{"tls":{"server_name":"t.invalid","enabled":true},"password":"pw","server_port":443,"server":"203.0.113.1","tag":"B","type":"trojan"}""")
+        assertEquals(NodeIdentity.key(trojan), NodeIdentity.key(again))
+        assertNotEquals(NodeIdentity.key(trojan), NodeIdentity.key(JsonObject(trojan + ("password" to JsonPrimitive("other")))))
+    }
+
+    @Test
+    fun identitiesAreOpaqueAndTheSameEverywhere() {
+        // Computed apart from KOne (Python's hashlib) from the labelled canonical forms:
+        // key: kone.node.key.v1 NUL {"password":"pw","server":"203.0.113.1","server_port":443,"tls":{"enabled":true,"server_name":"t.invalid"},"type":"trojan"}
+        // endpoint: kone.node.endpoint.v1 NUL trojan, 203.0.113.1, 443, then uuid, username, user, password, auth_str, auth, joined by NUL.
+        assertEquals("5e279342fc7634e2fa5c9111badc5394020f9a95251edcfd5019978369a33412", NodeIdentity.key(trojan))
+        assertEquals("ab624fbefa61b81d0252ede19822a5592c7201ac8b19ec454f8c0a0d74b1f035", NodeIdentity.endpoint(trojan))
+        for (identity in listOf(NodeIdentity.key(trojan), NodeIdentity.endpoint(trojan)!!)) {
+            assertTrue(identity.matches(Regex("[0-9a-f]{64}")), identity)
+            assertFalse("pw" in identity || "203.0.113" in identity || "trojan" in identity)
+        }
+    }
+
+    @Test
+    fun anEndpointIsTheServerAndAccountWhateverTheSettings() {
+        val endpoint = NodeIdentity.endpoint(trojan)
+        // Another name, TLS and transport; the address written in another case: the same server and account.
+        assertEquals(endpoint, NodeIdentity.endpoint(outbound("""{"type":"Trojan","tag":"C","server":" 203.0.113.1 ","server_port":443,"password":"pw","transport":{"type":"ws","path":"/x"}}""")))
+        assertEquals(
+            NodeIdentity.endpoint(outbound("""{"type":"vless","server":"[2001:DB8::1]","server_port":443,"uuid":"$id"}""")),
+            NodeIdentity.endpoint(outbound("""{"type":"vless","server":"2001:db8::1","server_port":443,"uuid":"$id","flow":"xtls-rprx-vision"}""")),
+        )
+        assertNotEquals(endpoint, NodeIdentity.endpoint(JsonObject(trojan + ("password" to JsonPrimitive("other")))))
+        assertNotEquals(endpoint, NodeIdentity.endpoint(JsonObject(trojan + ("server_port" to JsonPrimitive(8443)))))
+        assertNull(NodeIdentity.endpoint(JsonObject(trojan - "server")))
+        // Port ranges in any order are the same ranges.
+        assertEquals(
+            NodeIdentity.endpoint(outbound("""{"type":"hysteria2","server":"203.0.113.3","server_ports":["443:443","20000:30000"],"password":"pw"}""")),
+            NodeIdentity.endpoint(outbound("""{"type":"hysteria2","server":"203.0.113.3","server_ports":["20000:30000","443:443"],"password":"pw"}""")),
+        )
+        // The labels keep the two kinds apart.
+        assertNotEquals(NodeIdentity.key(trojan), endpoint)
     }
 
     @Test
@@ -143,6 +182,23 @@ class NodeIdentityTest {
         val nodes = read("trojan://pw@203.0.113.1:443#HK 01", "trojan://pw@203.0.113.1:443#HK 01 Netflix")
         val kept = NodeIdentity.distinct(nodes).nodes
         assertEquals("HK 01", NodeIdentity.follow("HK 01 Netflix", nodes, kept))
+    }
+
+    @Test
+    fun aNodeSplitIntoSeveralOnItsServerIsNotGuessedAt() {
+        fun osaka(path: String, name: String) = "vless://$id@203.0.113.1:443?security=tls&sni=o.invalid&type=ws&path=%2F$path#$name"
+        val before = read(osaka("a", "Osaka"), "trojan://pw@203.0.113.2:443#Seoul")
+        // One old node becomes two new ones on its server and account, neither the same node nor under its tag.
+        val split = read("trojan://pw@203.0.113.2:443#Seoul", osaka("b", "Osaka A"), osaka("c", "Osaka B"))
+        assertNull(NodeIdentity.follow("Osaka", before, split))
+        assertEquals(emptyMap(), NodeIdentity.renamed(before, split))
+        // Nor when one of them keeps its tag: the name alone does not settle a split.
+        assertNull(NodeIdentity.follow("Osaka", before, read(osaka("b", "Osaka"), osaka("c", "Osaka B"))))
+        // The same node among them settles it.
+        assertEquals("Osaka classic", NodeIdentity.follow("Osaka", before, read(osaka("c", "Osaka B"), osaka("a", "Osaka classic"))))
+        // Twins of one new setting are still one node.
+        assertEquals("Osaka IPLC", NodeIdentity.follow("Osaka", before, read(osaka("b", "Osaka IPLC"), osaka("b", "Osaka IPLC copy"))))
+        assertEquals("Osaka IPLC copy", NodeIdentity.follow("Osaka", before, read(osaka("b", "Osaka IPLC copy"), osaka("b", "Osaka IPLC"))))
     }
 
     @Test
