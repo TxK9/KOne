@@ -149,6 +149,27 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** While a chosen node is not answering (and failover is on): the node standing in for it. */
     private var standIn: String? = null
 
+    /** The chosen node, what was measured of each node, and the running core, through changes of the list: see NodeContinuity. */
+    private val continuity = NodeContinuity(object : NodeContinuity.Host {
+        override val selected get() = account.binding?.selected
+        override val through get() = cc.txwd.kone.shared.Rules.countries(UserRules.clean(preferences.rules)).toSet()
+        override fun keep(tag: String) = account.select(tag)
+        override fun carry(carry: Map<String, String>) {
+            delays.carry(carry)
+            speeds.carry(carry)
+            health.carry(carry)
+            // KOne's own picks follow their nodes, or go with them; a bandwidth test under way
+            // keeps its place, measuring what its node no longer is ("").
+            val back = carry.entries.associate { (now, before) -> before to now }
+            drivenPick = drivenPick?.let(back::get)
+            standIn = standIn?.let(back::get)
+            autoNow = autoNow?.let(back::get)
+            speedTesting = speedTesting?.let { back[it] ?: "" }
+        }
+        override fun reload() = this@AppModel.reload()
+        override fun tell(message: String) = tellConnection(message)
+    })
+
     /** One line for the Nodes page, and whether it says something went wrong. */
     private var nodesNotice: Pair<String, Boolean>? = null
 
@@ -248,6 +269,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** Set to start the core afresh (the programs sent straight out changed, or the line died in sleep). */
     private var restarting = false
 
+    /** The list changed while the core was starting, from what it was given: it starts afresh once up (see reload). */
+    private var staleCore = false
+
     /** The port Windows' proxy points at while connected through it, without TUN. */
     private var proxied: Int? = null
 
@@ -301,14 +325,15 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         regionOf(tag)?.let { region ->
             val pick = regionPick(region)?.tag
             if (running != null && pick != null) {
-                if (pick !in runningTags) restart() else scope.launch(Dispatchers.IO) { if (running.select(pick)) detectExit() }
+                if (!carried(pick)) restart() else scope.launch(Dispatchers.IO) { if (running.select(pick)) detectExit() }
             }
             refresh()
             return
         }
         if (running != null) {
-            // A node added since the core started is not in it: the core starts afresh with it.
-            if (tag != KoneConfig.AUTO_TAG && tag !in runningTags) {
+            // A node added since the core started is not in it, nor Automatic in a core started with
+            // one node: the core starts afresh with it.
+            if (if (tag == KoneConfig.AUTO_TAG) runningTags.size < 2 else !carried(tag)) {
                 restart()
                 refresh()
                 return
@@ -319,6 +344,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
         refresh()
     }
+
+    /** Whether the running core carries the node listed as [tag], under whatever name it knows it by. */
+    private fun carried(tag: String) = continuity.running.core(tag)?.let { it in runningTags } == true
 
     fun power() {
         when (connection) {
@@ -387,8 +415,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun connect() {
         val binding = account.binding ?: return
         val source = source() ?: return
-        val running = nodesOf(source)
+        val built = builtOf(source)
+        val running = built?.nodes.orEmpty()
         runningTags = running.mapTo(HashSet()) { it.tag }
+        continuity.started(NodeContinuity.Listing.of(built))
+        staleCore = false
         connection = Connection.Connecting
         notice = null
         refresh()
@@ -437,7 +468,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 since = status.next
                 if (status.state == "running" && clash == null && status.api != null) {
                     ran = true
-                    follow(ClashApi(status.api))
+                    follow(ClashApi(status.api) { continuity.running })
                     if (told) onNotice("Reconnected")
                     attempts = 0
                     held = true
@@ -485,7 +516,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             ended("no service")
             return
         }
-        runningTags = tagsOf(source)
+        val built = builtOf(source)
+        runningTags = built?.nodes.orEmpty().mapTo(HashSet()) { it.tag }
+        continuity.started(NodeContinuity.Listing.of(built))
+        staleCore = false
         if (fellBack) noAdapter = true
         connection = Connection.Connecting
         refresh()
@@ -508,7 +542,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 ended("failed")
                 return@launch
             }
-            val running = ClashApi(api)
+            val running = ClashApi(api) { continuity.running }
             val ready = withContext(Dispatchers.IO) {
                 repeat(50) { if (running.answers()) return@withContext true; Thread.sleep(200) }
                 false
@@ -556,6 +590,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         scope.launch(Dispatchers.IO) { usage.save(); traffic.save() }
         service = null
         clash = null
+        continuity.stopped()
+        staleCore = false
         exit = null
         autoNow = null
         drivenPick = null
@@ -659,8 +695,14 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     tester.stop()
                 }
             }
+            // The node's tag now, or "" when it changed meanwhile and the test measured what it no longer is.
+            val tested = speedTesting.orEmpty()
             speedTesting = null
-            if (result == null || (result.down == null && result.up == null)) tell("${nameOf(tag)} did not carry the test", error = true) else speeds[tag] = result
+            when {
+                tested.isEmpty() -> Unit
+                result == null || (result.down == null && result.up == null) -> tell("${nameOf(tested)} did not carry the test", error = true)
+                else -> speeds[tested] = result
+            }
             refresh()
         }
     }
@@ -697,6 +739,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         coroutineScope {
             nodes.map { node ->
                 async {
+                    if (!asks(api, node.tag)) return@async
                     val measured = gate.withPermit { withContext(Dispatchers.IO) { api.delay(node.tag) } }
                     if (current()) {
                         health.record(node.tag, measured)
@@ -1045,6 +1088,21 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     fun closeConnection(id: String?) = connections.close(id)
 
+    /** The running core no longer runs what is listed (NodeContinuity): it starts afresh with the list, now or once it is up. */
+    private fun reload() {
+        when (connection) {
+            Connection.Online -> restart()
+            Connection.Connecting -> staleCore = true
+            Connection.Idle -> Unit
+        }
+    }
+
+    /**
+     * Whether [api] is asked about [tag]: a core KOne started for testing always; the running core
+     * only for a node it runs exactly as listed, so a node it does not is never counted as silent.
+     */
+    private fun asks(api: ClashApi, tag: String) = api !== clash || carried(tag)
+
     private fun restart() {
         if (connection != Connection.Online) return
         if (proxied != null) {
@@ -1071,6 +1129,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         connection = Connection.Online
         seconds = 0
         refresh()
+        // The list changed while it was starting: afresh with it, once the start has settled.
+        if (staleCore) {
+            staleCore = false
+            scope.launch { restart() }
+        }
         following = scope.launch {
             launch(Dispatchers.IO) {
                 api.traffic({ clash === api }) { down, up ->
@@ -1218,6 +1281,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** Tests one node through [api] and keeps the result. */
     private suspend fun testOne(api: ClashApi, tag: String) {
+        if (!asks(api, tag)) return
         val measured = withContext(Dispatchers.IO) { api.delay(tag) }
         if (clash !== api) return
         health.record(tag, measured)
@@ -1341,21 +1405,21 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     private fun source(): JsonObject? = merged()?.source
 
-    /** The nodes [source] carries. */
-    private fun nodesOf(source: JsonObject): List<SourceNode> =
-        runCatching { KoneConfig.build(source, rules, CoreApi(9090, "list")).nodes }.getOrDefault(emptyList())
-
-    /** The nodes [source] carries, by tag. */
-    private fun tagsOf(source: JsonObject): Set<String> = nodesOf(source).mapTo(HashSet()) { it.tag }
+    /** [source] as the core is given it, its nodes listed; null when it does not build. */
+    private fun builtOf(source: JsonObject): KoneConfig.Built? = runCatching { KoneConfig.build(source, rules, CoreApi(9090, "list")) }.getOrNull()
 
     private fun loadNodes() {
-        val binding = account.binding
         val merged = merged()
         importedOrder = merged?.groups?.firstOrNull().orEmpty()
         importedTags = importedOrder.toSet()
         subscribed = merged?.let { all -> subscriptions.all.zip(all.groups.drop(1)).flatMap { (subscription, tags) -> tags.map { it to subscription } }.toMap() }.orEmpty()
-        nodes = merged?.source?.let { runCatching { KoneConfig.build(it, rules, CoreApi(9090, "list")).nodes }.getOrNull() }.orEmpty()
+        val built = merged?.source?.let(::builtOf)
+        nodes = built?.nodes.orEmpty()
+        // The choice follows its node, what was measured stays with nodes exactly as they were, and
+        // a running core that no longer runs what is listed starts afresh (NodeContinuity).
+        continuity.listed(NodeContinuity.Listing.of(built))
         health.forget(nodes.mapTo(HashSet()) { it.tag })
+        val binding = account.binding
         // The countries rules can go through, in the order the country list keeps them.
         val present = nodes.mapNotNullTo(HashSet()) { it.country }
         ruleBook.countriesChanged(Countries.all.map { it.code }.filter { it in present })

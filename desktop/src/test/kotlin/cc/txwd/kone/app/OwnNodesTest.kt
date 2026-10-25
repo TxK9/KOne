@@ -70,6 +70,41 @@ class OwnNodesTest {
     }
 
     @Test
+    fun theNodeInUseRenamedByAnEditStillStartsTheConnectionAfresh() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val store = Imports(File(Files.createTempDirectory("edit").toFile(), "imported.bin"), Vault.Memory())
+        store.addOutbounds(listOf(JsonObject(mine - "tag") to "My node"))
+        var choice: String? = "My node"
+        var restarts = 0
+        val editing = OwnNodes(scope, store, object : OwnNodes.Host {
+            override val managed: JsonObject = JsonObject(mapOf("outbounds" to kotlinx.serialization.json.JsonArray(listOf(console))))
+            override val selected get() = choice
+            override val imported = listOf("My node")
+            override fun own() = OwnNodes.Own(listOf(console, mine), setOf("My node"))
+            override fun nameOf(tag: String) = tag
+            override fun inUse() = choice
+            override fun accepts(source: JsonObject) = true
+            override fun accepted(managed: JsonObject, nodes: List<JsonObject>) = nodes
+            // Listed again, the choice follows the node to its new name (NodeContinuity).
+            override fun nodesChanged(gone: String?) {
+                choice = "My node, renamed"
+            }
+            override fun restart() {
+                restarts++
+            }
+            override fun refresh() {}
+            override fun tell(message: String, error: Boolean) {}
+            override fun imported(message: String, good: Boolean) {}
+            override fun addSubscription(link: String): String? = null
+        })
+        editing.edit("My node")
+        editing.save(editing.editing!!.draft.copy(name = "My node, renamed", port = "8443"))
+        runBlocking { scope.coroutineContext[Job]!!.children.forEach { it.join() } }
+        assertEquals("My node, renamed", (store.all.single()["tag"] as JsonPrimitive).content)
+        assertEquals(1, restarts)
+    }
+
+    @Test
     fun qrCodesBringNodesAndSubscriptions() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val dashboard = mutableListOf<Pair<String, Boolean>>()

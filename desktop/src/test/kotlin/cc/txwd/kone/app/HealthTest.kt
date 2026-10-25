@@ -10,6 +10,20 @@ class HealthTest {
     private fun Health.tests(tag: String, vararg delays: Int?) = delays.forEach { record(tag, it) }
 
     @Test
+    fun testsStayOnlyWithNodesExactlyAsTheyWereThoughNamesakesTradeTags() {
+        val health = Health()
+        health.tests("Tokyo", 100, 110)
+        health.tests("Tokyo 2", null)
+        health.tests("Rome", 300)
+        // Tokyo and Tokyo 2 traded tags; Rome changed, and is not carried.
+        health.carry(mapOf("Tokyo" to "Tokyo 2", "Tokyo 2" to "Tokyo"))
+        assertEquals(listOf<Int?>(null), health.samples("Tokyo"))
+        assertEquals(listOf<Int?>(100, 110), health.samples("Tokyo 2"))
+        assertEquals(emptyList(), health.samples("Rome"))
+        assertEquals(1, health.failing("Tokyo"))
+    }
+
+    @Test
     fun aSteadyNodeBeatsOneWithALuckySample() {
         val health = Health()
         health.tests("steady", 120, 125, 118, 122, 121)
