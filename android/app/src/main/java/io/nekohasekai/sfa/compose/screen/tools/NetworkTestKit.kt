@@ -51,7 +51,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -224,15 +223,11 @@ internal fun TestRow(
                 .padding(horizontal = TestGutter, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Neither text is cut: the layout below stacks them rather than shorten either.
             TitleAndValue(
-                title = { Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                title = { Text(title, style = MaterialTheme.typography.bodyLarge) },
                 value = value?.let {
-                    {
-                        Text(
-                            it, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.End, modifier = Modifier.graphicsLayer { alpha = 0.75f },
-                        )
-                    }
+                    { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.graphicsLayer { alpha = 0.75f }) }
                 },
                 modifier = Modifier.weight(1f),
             )
@@ -247,29 +242,38 @@ internal fun TestRow(
 }
 
 /**
- * A row's title on the start and its value on the end, each on one line while both fit. When they
- * do not (a long value, or large text), the title keeps up to [TitleShare] of the width and the
- * value wraps under itself, instead of squeezing the title to a letter as a plain row would.
+ * A row's title on the start and its value on the end while both fit on one line. When they do
+ * not (a long value, a narrow screen, large text), the value goes under the title, whole and
+ * wrapping at the row's full width, so nothing is squeezed, clipped or ellipsized.
  */
 @Composable
 private fun TitleAndValue(title: @Composable () -> Unit, value: (@Composable () -> Unit)?, modifier: Modifier = Modifier) {
     Layout(contents = listOf<@Composable () -> Unit>(title, value ?: {}), modifier = modifier) { (titles, values), constraints ->
-        val width = constraints.maxWidth
         val gap = 12.dp.roundToPx()
-        val titleNeed = titles.first().maxIntrinsicWidth(Constraints.Infinity)
-        val valueNeed = values.firstOrNull()?.maxIntrinsicWidth(Constraints.Infinity) ?: 0
-        val titleMax = if (values.isEmpty()) width else minOf(titleNeed, maxOf((width * TitleShare).toInt(), width - gap - valueNeed)).coerceIn(0, width)
-        val titlePlaced = titles.first().measure(Constraints(maxWidth = titleMax))
-        val valuePlaced = values.firstOrNull()?.measure(Constraints(maxWidth = (width - titlePlaced.width - gap).coerceAtLeast(0)))
-        val height = maxOf(titlePlaced.height, valuePlaced?.height ?: 0)
-        layout(width, height) {
-            titlePlaced.placeRelative(0, (height - titlePlaced.height) / 2)
-            valuePlaced?.placeRelative(width - valuePlaced.width, (height - valuePlaced.height) / 2)
+        val titleMeasurable = titles.first()
+        val valueMeasurable = values.firstOrNull()
+        val titleNeed = titleMeasurable.maxIntrinsicWidth(Constraints.Infinity)
+        val valueNeed = valueMeasurable?.maxIntrinsicWidth(Constraints.Infinity) ?: 0
+        val oneLine = titleNeed + if (valueMeasurable == null) 0 else gap + valueNeed
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else oneLine
+        val loose = Constraints(maxWidth = width)
+        val titlePlaced = titleMeasurable.measure(loose)
+        val valuePlaced = valueMeasurable?.measure(loose)
+        if (valuePlaced == null || oneLine <= width) {
+            val height = maxOf(titlePlaced.height, valuePlaced?.height ?: 0)
+            layout(width, height) {
+                titlePlaced.placeRelative(0, (height - titlePlaced.height) / 2)
+                valuePlaced?.placeRelative(width - valuePlaced.width, (height - valuePlaced.height) / 2)
+            }
+        } else {
+            val between = 2.dp.roundToPx()
+            layout(width, titlePlaced.height + between + valuePlaced.height) {
+                titlePlaced.placeRelative(0, 0)
+                valuePlaced.placeRelative(0, titlePlaced.height + between)
+            }
         }
     }
 }
-
-private const val TitleShare = 0.6f
 
 /** A heading that opens what belongs under it, such as Wi-Fi Calling or the test's scope. */
 @Composable

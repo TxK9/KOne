@@ -1,6 +1,13 @@
 package io.nekohasekai.sfa.compose.screen.account
 
 import android.app.Application
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.text.TextLayoutResult
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import android.content.res.Configuration
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -101,6 +108,36 @@ class AccountVisualTest {
         output.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    /**
+     * Every text laid out on the page shows all of itself, read from its actual text layout: no
+     * line limit cut it, no line ends in an ellipsis, no line is wider than the text's own box, the
+     * box is not clipped in height, and the box lies inside the screen.
+     *
+     * (`hasVisualOverflow` is not used: here it is true for any short text, as the paragraph is
+     * laid out at the constraint's width while the box takes the text's own.)
+     */
+    private fun assertNoTextIsCut() {
+        val rootWidth = compose.onRoot().fetchSemanticsNode().boundsInRoot.width
+        val nodes = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text), useUnmergedTree = true).fetchSemanticsNodes()
+        assertTrue(nodes.isNotEmpty())
+        for (node in nodes) {
+            val text = node.config[SemanticsProperties.Text].joinToString()
+            val layouts = mutableListOf<TextLayoutResult>()
+            node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
+            assertTrue("no text layout for \"$text\"", layouts.isNotEmpty())
+            for (layout in layouts) {
+                assertFalse("\"$text\" is cut by its line limit", layout.multiParagraph.didExceedMaxLines)
+                assertFalse("\"$text\" is clipped in height", layout.didOverflowHeight)
+                for (line in 0 until layout.lineCount) {
+                    assertFalse("\"$text\" is ellipsized", layout.isLineEllipsized(line))
+                    assertTrue("\"$text\" line $line is wider than its box", layout.getLineRight(line) - layout.getLineLeft(line) <= layout.size.width + 0.5f)
+                }
+            }
+            val bounds = node.boundsInRoot
+            assertTrue("\"$text\" runs past the screen's edge", bounds.left >= -0.5f && bounds.right <= rootWidth + 0.5f)
+        }
+    }
+
     @Test fun syncedAccountShowsItsTermsAndActions() {
         var syncs = 0
         var unlinks = 0
@@ -114,6 +151,7 @@ class AccountVisualTest {
         compose.onNodeWithText("Standard").assertIsDisplayed()
         compose.onNodeWithText("Tokyo 1").assertIsDisplayed()
         compose.onNodeWithText("Expires").assertIsDisplayed()
+        assertNoTextIsCut()
         capture("account-synced-light.png")
         compose.onNodeWithText("Sync now").assertHasClickAction().performClick()
         compose.onNodeWithText("Share diagnostics", substring = true).assertDoesNotExist()
@@ -145,6 +183,14 @@ class AccountVisualTest {
             }
         }
         compose.onNodeWithText("Service paused").assertIsDisplayed()
+        assertNoTextIsCut()
+        // The whole value, under its title when the two no longer fit side by side.
+        val dataTitle = compose.onNodeWithText("Data allowance", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val dataValue = compose.onNodeWithText("100 GB · monthly", useUnmergedTree = true).assertExists().fetchSemanticsNode().boundsInRoot
+        assertTrue("value stacks under its title", dataValue.top >= dataTitle.bottom)
+        val deviceTitle = compose.onNodeWithText("This device", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val deviceValue = compose.onNodeWithText("KOne · Example Phone", useUnmergedTree = true).assertExists().fetchSemanticsNode().boundsInRoot
+        assertTrue("value stacks under its title", deviceValue.top >= deviceTitle.bottom)
         capture("account-paused-font200.png")
     }
 

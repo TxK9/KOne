@@ -15,7 +15,8 @@ configuration, signing or update-feed change.
 - **Account** (customer edition, linked copies only, `settings/account`): the
   binding's state as weather with the console's reason one tap away, plan,
   route, data allowance, device limit, end date (ending within three days or
-  ended shows its weather), this device's name, Sync now, Feedback and Unlink
+  ended shows its weather; re-read on each minute with the phone's current zone,
+  written in the App's language), this device's name, Sync now, Feedback and Unlink
   (confirmed; uses the existing `ManagedSync.unbind`, after which the App returns
   to the access key page by itself). Pure date/weather rules are in
   `AccountFacts.kt` with JVM tests.
@@ -33,9 +34,10 @@ configuration, signing or update-feed change.
   power reports, whose pages are deliberately unreachable, so the badge could
   never clear. Taildrop counts remain.
 - **Rows that show a value** (`TestRow`, used by network tests, feedback, the
-  update prompt and Account) give the title up to 60% of the width when the two
-  collide; values wrap and ellipsize instead of cutting titles to a letter at
-  large text sizes. Rows with details announce "Show details"/"Hide details".
+  update prompt and Account) keep title and value on one line while both fit;
+  otherwise the whole value goes under the title and wraps. Neither is limited
+  in lines or ellipsized, so nothing is cut at large text sizes or on narrow
+  screens. Rows with details announce "Show details"/"Hide details".
 - **Dashboard** controls say what they are and do: the folded panel is a
   "Choose node" button (a flag-only node is announced by name), the status line
   announces Expanded/Collapsed with a "Show/Hide details" action, the fold
