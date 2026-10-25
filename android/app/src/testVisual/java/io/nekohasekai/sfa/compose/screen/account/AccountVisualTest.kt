@@ -1,6 +1,15 @@
 package io.nekohasekai.sfa.compose.screen.account
 
 import android.app.Application
+import android.content.res.Configuration
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
+import org.junit.Assert.assertNotEquals
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.Locale
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -51,16 +60,23 @@ import java.io.File
 class AccountVisualTest {
     @get:Rule val compose = createComposeRule()
 
-    private val now = 1_793_000_000_000L // 2026-10-26, fixed so the preview does not drift
+    private val now = 1_793_000_000_000L // 2026-10-26T07:33:20Z, fixed so the preview does not drift
+    private val utc = ZoneId.of("UTC")
+    private val clock = AccountClock(now, utc)
 
-    private fun snapshot(status: ManagedStatus, detail: String? = null, diagnostics: Boolean = false) = ManagedSnapshot(
+    private fun snapshot(
+        status: ManagedStatus,
+        detail: String? = null,
+        diagnostics: Boolean = false,
+        expiresAt: String = "2026-10-28",
+    ) = ManagedSnapshot(
         endpoint = "https://console.example.com",
         deviceName = "KOne · Example Phone",
         bound = true,
         profileId = 7L,
         configName = "Tokyo 1",
         groupName = "Standard",
-        policy = ManagedPolicy(quotaBytes = 100_000_000_000L, deviceLimit = 3, expiresAt = "2026-10-28", period = "monthly"),
+        policy = ManagedPolicy(quotaBytes = 100_000_000_000L, deviceLimit = 3, expiresAt = expiresAt, period = "monthly"),
         syncedAt = now - 4 * 60_000L,
         status = status,
         detail = detail,
@@ -90,7 +106,7 @@ class AccountVisualTest {
         var unlinks = 0
         compose.setContent {
             Page(dark = false) {
-                ManagedAccountContent(snapshot(ManagedStatus.Synced), now, syncing = false, unlinking = false, unlinkFailed = false,
+                ManagedAccountContent(snapshot(ManagedStatus.Synced), clock, syncing = false, unlinking = false, unlinkFailed = false,
                     onSync = { syncs++ }, onFeedback = {}, onUnlink = { unlinks++ })
             }
         }
@@ -109,7 +125,7 @@ class AccountVisualTest {
     @Test fun offlineAccountKeepsItsReasonOneTapAway() {
         compose.setContent {
             Page(dark = true) {
-                ManagedAccountContent(snapshot(ManagedStatus.Offline, diagnostics = true), now, syncing = true, unlinking = false, unlinkFailed = false,
+                ManagedAccountContent(snapshot(ManagedStatus.Offline, diagnostics = true), clock, syncing = true, unlinking = false, unlinkFailed = false,
                     onSync = {}, onFeedback = {}, onUnlink = {})
             }
         }
@@ -124,12 +140,60 @@ class AccountVisualTest {
     @Test fun accountRowsWrapAtDoubleFontSize() {
         compose.setContent {
             Page(dark = false, fontScale = 2f) {
-                ManagedAccountContent(snapshot(ManagedStatus.Refused, detail = "Renewal pending"), now, syncing = false, unlinking = false, unlinkFailed = false,
+                ManagedAccountContent(snapshot(ManagedStatus.Refused, detail = "Renewal pending"), clock, syncing = false, unlinking = false, unlinkFailed = false,
                     onSync = {}, onFeedback = {}, onUnlink = {})
             }
         }
         compose.onNodeWithText("Service paused").assertIsDisplayed()
         capture("account-paused-font200.png")
+    }
+
+    @Test fun anEndWithinTheHourTurnsToEndedOnTheMinuteTick() {
+        // 07:33:20 and 07:41:00 share an hour; the end at 07:40 must still show on the next tick.
+        var tick by mutableStateOf(clock)
+        compose.setContent {
+            Page(dark = false) {
+                ManagedAccountContent(snapshot(ManagedStatus.Synced, expiresAt = "2026-10-26T07:40:00Z"), tick, syncing = false, unlinking = false,
+                    unlinkFailed = false, onSync = {}, onFeedback = {}, onUnlink = {})
+            }
+        }
+        compose.onNodeWithText("Expires").assertIsDisplayed()
+        compose.onNodeWithText("Ended").assertDoesNotExist()
+        compose.runOnIdle { tick = AccountClock(now + 7 * 60_000L + 40_000L, utc) }
+        compose.onNodeWithText("Ended").assertIsDisplayed()
+        compose.onNodeWithText("Expires").assertDoesNotExist()
+    }
+
+    @Test fun theEndDateFollowsTheZoneReadWithTheClock() {
+        var tick by mutableStateOf(clock)
+        compose.setContent {
+            Page(dark = false) {
+                ManagedAccountContent(snapshot(ManagedStatus.Synced, expiresAt = "2026-12-01T20:00:00Z"), tick, syncing = false, unlinking = false,
+                    unlinkFailed = false, onSync = {}, onFeedback = {}, onUnlink = {})
+            }
+        }
+        compose.onNodeWithText(expiryDateText(LocalDate.of(2026, 12, 1), Locale.US), useUnmergedTree = true).assertIsDisplayed()
+        compose.runOnIdle { tick = AccountClock(now + 60_000L, ZoneId.of("Asia/Tokyo")) }
+        compose.onNodeWithText(expiryDateText(LocalDate.of(2026, 12, 2), Locale.US), useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test fun theEndDateFollowsTheAppLocale() {
+        var locale by mutableStateOf(Locale.US)
+        compose.setContent {
+            val configuration = Configuration(LocalConfiguration.current).apply { setLocale(locale) }
+            CompositionLocalProvider(LocalConfiguration provides configuration) {
+                Page(dark = false) {
+                    ManagedAccountContent(snapshot(ManagedStatus.Synced), clock, syncing = false, unlinking = false,
+                        unlinkFailed = false, onSync = {}, onFeedback = {}, onUnlink = {})
+                }
+            }
+        }
+        val date = LocalDate.of(2026, 10, 28)
+        assertNotEquals(expiryDateText(date, Locale.US), expiryDateText(date, Locale.GERMANY))
+        compose.onNodeWithText(expiryDateText(date, Locale.US), useUnmergedTree = true).assertIsDisplayed()
+        compose.runOnIdle { locale = Locale.GERMANY }
+        compose.onNodeWithText(expiryDateText(date, Locale.GERMANY), useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText(expiryDateText(date, Locale.US), useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test fun hubRowsShareOneCardAndTheirBadges() {

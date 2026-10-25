@@ -8,6 +8,23 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
+
+/**
+ * The account page's clock: the time and the phone's zone, read together on each tick, so a zone
+ * change reaches the end date as soon as the time does.
+ */
+internal data class AccountClock(val now: Long, val zone: ZoneId) {
+    companion object {
+        fun read(): AccountClock = AccountClock(System.currentTimeMillis(), ZoneId.systemDefault())
+    }
+}
+
+/** The end date as written in [locale], the App's own language rather than the phone's. */
+internal fun expiryDateText(date: LocalDate, locale: Locale): String =
+    date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
 
 /** The binding's state as weather: working, degraded but still connecting, failing, or paused. */
 internal fun accountWeather(status: ManagedStatus): NodeWeather = when (status) {

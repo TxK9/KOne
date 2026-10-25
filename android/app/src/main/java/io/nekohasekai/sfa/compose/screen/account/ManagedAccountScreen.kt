@@ -34,11 +34,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.os.ConfigurationCompat
 import androidx.navigation.NavController
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.screen.settings.AccountRoutes
@@ -57,9 +59,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
+import java.util.Locale
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import io.nekohasekai.sfa.compose.theme.KnineGlassAlertDialog as AlertDialog
@@ -81,11 +81,12 @@ fun ManagedAccountScreen(navController: NavController) {
     var confirmUnlink by remember { mutableStateOf(false) }
     var unlinking by remember { mutableStateOf(false) }
     var unlinkFailed by remember { mutableStateOf(false) }
-    // A minute's tick keeps "Synced 3 minutes ago" true while the page stays open.
-    val now by produceState(System.currentTimeMillis()) {
+    // Ticks on each minute, so "Synced 3 minutes ago" and an end date that has just passed change
+    // together, and a new time zone is picked up with the time.
+    val clock by produceState(AccountClock.read()) {
         while (true) {
-            delay(60_000)
-            value = System.currentTimeMillis()
+            delay(60_000 - System.currentTimeMillis() % 60_000)
+            value = AccountClock.read()
         }
     }
 
@@ -132,7 +133,7 @@ fun ManagedAccountScreen(navController: NavController) {
         if (state.bound) {
             ManagedAccountContent(
                 state = state,
-                now = now,
+                clock = clock,
                 syncing = syncing,
                 unlinking = unlinking,
                 unlinkFailed = unlinkFailed,
@@ -169,7 +170,7 @@ fun ManagedAccountScreen(navController: NavController) {
 @Composable
 internal fun ManagedAccountContent(
     state: ManagedSnapshot,
-    now: Long,
+    clock: AccountClock,
     syncing: Boolean,
     unlinking: Boolean,
     unlinkFailed: Boolean,
@@ -179,8 +180,8 @@ internal fun ManagedAccountContent(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 12.dp)) {
-        AccountStatus(state, now)
-        AccountTerms(state, now)
+        AccountStatus(state, clock.now)
+        AccountTerms(state, clock)
         Spacer(Modifier.height(12.dp))
         SyncRow(syncing = syncing, onClick = onSync)
         TestLink(stringResource(R.string.kone_feedback), onClick = onFeedback)
@@ -216,11 +217,13 @@ private fun AccountStatus(state: ManagedSnapshot, now: Long) {
 
 /** What the service states for this device: plan, route, data, devices, end date, its own name. */
 @Composable
-private fun AccountTerms(state: ManagedSnapshot, now: Long) {
+private fun AccountTerms(state: ManagedSnapshot, clock: AccountClock) {
     val context = LocalContext.current
     val policy = state.policy
-    val zone = remember { ZoneId.systemDefault() }
-    val expiry = remember(policy?.expiresAt, now / DateUtils.HOUR_IN_MILLIS) { accountExpiry(policy?.expiresAt, Instant.ofEpochMilli(now), zone) }
+    // The App's language may differ from the phone's; the configuration carries the one in use.
+    val locale = ConfigurationCompat.getLocales(LocalConfiguration.current)[0] ?: Locale.getDefault()
+    // Read again on every tick: an end within the hour must turn to Ended at its minute, not the next hour.
+    val expiry = remember(policy?.expiresAt, clock) { accountExpiry(policy?.expiresAt, Instant.ofEpochMilli(clock.now), clock.zone) }
     var expiryOpen by remember(expiry) { mutableStateOf(false) }
     if (state.groupName.isNotBlank()) TestRow(stringResource(R.string.kone_account_plan), null, value = state.groupName, open = false, onToggle = {})
     if (state.configName.isNotBlank()) TestRow(stringResource(R.string.kone_account_route), null, value = state.configName, open = false, onToggle = {})
@@ -233,7 +236,7 @@ private fun AccountTerms(state: ManagedSnapshot, now: Long) {
         TestRow(stringResource(R.string.kone_account_devices), null, value = policy.deviceLimit.toString(), open = false, onToggle = {})
     }
     if (expiry != null) {
-        val date = remember(expiry.date) { expiry.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) }
+        val date = remember(expiry.date, locale) { expiryDateText(expiry.date, locale) }
         TestRow(
             if (expiry.state == TermState.Ended) stringResource(R.string.kone_account_ended) else stringResource(R.string.kone_account_expires),
             expiry.state.weather(),
