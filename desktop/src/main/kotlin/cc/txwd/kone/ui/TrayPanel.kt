@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -55,18 +56,23 @@ private fun fogOf(weather: NodeWeather) = when (weather) {
 /**
  * The tray panel, opened from the KOne icon by the clock: the Golden Gate above, under fog that
  * follows the connection (thin when S, thick when M, all but hiding it when !, grey when Z),
- * and below it the node, its delay and traffic, and Disconnect / Open KOne / Quit.
+ * and below it the node and its delay, its weather and traffic, where the traffic leaves and
+ * for how long, the last minute of it drawn, the mode in one click, and Disconnect (in the
+ * dashboard's ring) / Open KOne / Quit.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun TrayPanel(state: DashboardState, onPower: () -> Unit, onOpen: () -> Unit, onQuit: () -> Unit, moving: Boolean = true) {
+fun TrayPanel(
+    state: DashboardState, onPower: () -> Unit, onOpen: () -> Unit, onQuit: () -> Unit, moving: Boolean = true,
+    mode: String? = null, onMode: (String) -> Unit = {},
+) {
     val ink = LocalInk.current
     val node = state.current
     val online = state.connection == Connection.Online
     val weather = if (online && node != null) node.weather else NodeWeather.Rest
     Column(Modifier.fillMaxSize().background(ink.panel).border(1.dp, ink.hair)) {
         Sky(weather, moving)
-        Column(Modifier.weight(1f).fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f).fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Flag(node?.country, 26.dp, 18.dp)
                 // A long name ends in … and leaves the delay its place at the end.
@@ -81,22 +87,46 @@ fun TrayPanel(state: DashboardState, onPower: () -> Unit, onOpen: () -> Unit, on
                         13.sp,
                     )
                 }
-                if (online) {
-                    Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 13.sp, ink.soft, tabular = true)
-                    Label(clock(state.seconds), 13.sp, ink.soft, tabular = true)
-                    if (state.home) Label("Home", 13.sp, ink.soft)
-                }
+                if (online) Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 13.sp, ink.soft, tabular = true)
+            }
+            if (online) {
+                // Where the traffic leaves, for how long, and its last minute drawn across the panel.
+                Label(
+                    listOfNotNull(state.exit?.let { "Exit $it" }, clock(state.seconds), "Home".takeIf { state.home }).joinToString("  ·  "),
+                    12.sp, ink.soft, tabular = true, ellipsis = true,
+                )
+                if (state.trail.size >= 2) Sparkline(state.trail, Modifier.fillMaxWidth().height(26.dp))
             }
             Spacer(Modifier.weight(1f))
+            mode?.let { now ->
+                // The mode in one click, as Tools has it.
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Label("Mode", 13.sp, ink.soft)
+                    Spacer(Modifier.weight(1f))
+                    for (choice in listOf("Rule", "Global", "Direct")) {
+                        val on = choice == now
+                        Box(
+                            Modifier.height(30.dp).press(bleed = 6.dp) { onMode(choice) }
+                                .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), Size(size.width, 2.dp.toPx())) }
+                                .padding(horizontal = 2.dp),
+                            contentAlignment = Alignment.Center,
+                        ) { Label(choice, 13.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal) }
+                    }
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 val shape = RoundedCornerShape(22.dp)
                 Row(
                     Modifier.height(44.dp).clip(shape).background(ink.ink, shape).press(onDark = true, onClick = onPower)
-                        .padding(horizontal = 20.dp),
+                        .padding(start = 8.dp, end = 20.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Glyph(Glyphs.power, ink.panel, 18.dp, strokeWidth = 2.1f)
+                    // The dashboard's ring, in paper on the ink pill.
+                    Box(contentAlignment = Alignment.Center) {
+                        ConnectionRing(state.connection, weather, 32.dp, moving, tint = ink.panel)
+                        Glyph(Glyphs.power, ink.panel, 15.dp, strokeWidth = 2.1f)
+                    }
                     Label(
                         when (state.connection) {
                             Connection.Online -> "Disconnect"

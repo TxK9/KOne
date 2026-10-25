@@ -462,9 +462,9 @@ class ScreensTest {
         for (dark in listOf(false, true)) {
             for ((name, delay) in weathers) {
                 val state = online.copy(nodes = online.nodes.map { if (it.id == "us1") it.copy(delay = delay) else it })
-                shoot("tray-$name", dark, 360, 420, framed = false) { TrayPanel(state, {}, {}, {}, moving = false) }
+                shoot("tray-$name", dark, 360, 420, framed = false) { TrayPanel(state, {}, {}, {}, moving = false, mode = "Rule") }
             }
-            shoot("tray-xie", dark, 360, 420, framed = false) { TrayPanel(sample, {}, {}, {}, moving = false) }
+            shoot("tray-xie", dark, 360, 420, framed = false) { TrayPanel(sample, {}, {}, {}, moving = false, mode = "Rule") }
         }
     }
 

@@ -334,9 +334,9 @@ private fun BoxScope.More(open: Boolean, onOpen: (Boolean) -> Unit, onPick: (Men
 
 /** The last minute of traffic as two thin lines of ink, down above up, scaled to the busiest second. */
 @Composable
-private fun Sparkline(trail: List<Pair<Long, Long>>) {
+internal fun Sparkline(trail: List<Pair<Long, Long>>, modifier: Modifier = Modifier.size(84.dp, 20.dp)) {
     val ink = LocalInk.current
-    androidx.compose.foundation.Canvas(Modifier.size(84.dp, 20.dp)) {
+    androidx.compose.foundation.Canvas(modifier) {
         val most = trail.maxOf { maxOf(it.first, it.second) }.coerceAtLeast(1024)
         val step = size.width / 59f
         val start = size.width - step * (trail.size - 1)

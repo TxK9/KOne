@@ -471,6 +471,8 @@ fun main(args: Array<String>) {
                         onPower = model::power,
                         onOpen = { panel = false; shown = true; window.isMinimized = false },
                         onQuit = ::quit,
+                        mode = model.tools.mode,
+                        onMode = model::pickMode,
                     )
                   }
                 }
