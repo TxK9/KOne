@@ -11,6 +11,7 @@ internal object GlobalRoutingPolicy {
         strict: Boolean = true,
         directPackages: Set<String> = emptySet(),
         proxyPackages: Set<String>? = null,
+        preparedRouting: Boolean = false,
     ): String {
         if (!strict) return content
         val config = JSONObject(content)
@@ -27,6 +28,12 @@ internal object GlobalRoutingPolicy {
         val route = config.optJSONObject("route") ?: error("Global proxy requires routing settings")
         val sourceRoutes = objects(route.optJSONArray("rules"))
         val sourceDnsRules = objects(dns.optJSONArray("rules"))
+        // HomeSettings.prepare has already replaced the template's editable rule block with
+        // Routing's validated choices. Keep that block ahead of Global, as the editor promises.
+        val routeBoundary = if (preparedRouting) sourceRoutes.indexOfFirst { it.optString("clash_mode") == "Direct" } else -1
+        val dnsBoundary = if (preparedRouting) sourceDnsRules.indexOfFirst { it.optString("clash_mode") == "Direct" } else -1
+        fun protectedRefusal(rule: JSONObject) = rule.optString("action") == "reject" &&
+            (!preparedRouting || !rule.has("method"))
         val tuns = objects(config.optJSONArray("inbounds")).filter { it.optString("type") == "tun" }
         require(tuns.isNotEmpty()) { "Global proxy requires VPN/TUN routing" }
 
@@ -90,7 +97,7 @@ internal object GlobalRoutingPolicy {
             .map { it.getString("tag") }.toSet()
         val newRoutes = JSONArray().put(JSONObject().put("action", "sniff"))
             .put(JSONObject().put("protocol", "dns").put("action", "hijack-dns"))
-        sourceRoutes.filter { it.optString("action") == "reject" }.forEach { newRoutes.put(copy(it)) }
+        sourceRoutes.filter(::protectedRefusal).forEach { newRoutes.put(copy(it)) }
         val privateRules = mutableSetOf<String>()
         for (rule in sourceRoutes) {
             val tag = rule.optString("outbound")
@@ -102,16 +109,22 @@ internal object GlobalRoutingPolicy {
             if (privateRules.add(safe.toString())) newRoutes.put(safe)
         }
         appPredicates.forEach { newRoutes.put(copy(it).put("outbound", directTag)) }
+        if (routeBoundary >= 0) {
+            sourceRoutes.take(routeBoundary).filterNot {
+                it.optString("action") in setOf("sniff", "hijack-dns") || protectedRefusal(it) || it.has("clash_mode") ||
+                    it.optString("outbound") in endpointTags || it.optBoolean("ip_is_private")
+            }.forEach { newRoutes.put(copy(it)) }
+        }
         newRoutes.put(JSONObject().put("clash_mode", "Global").put("outbound", "proxy"))
         // Other modes keep their source semantics; Global has already matched every remaining flow.
-        sourceRoutes.filterNot {
-            it.optString("action") in setOf("sniff", "hijack-dns", "reject") || it.optString("clash_mode").equals("Global", true)
+        (if (routeBoundary >= 0) sourceRoutes.drop(routeBoundary) else sourceRoutes).filterNot {
+            it.optString("action") in setOf("sniff", "hijack-dns") || protectedRefusal(it) || it.optString("clash_mode").equals("Global", true)
         }.forEach { newRoutes.put(copy(it)) }
         route.put("rules", newRoutes)
         if (!route.has("final")) route.put("final", "proxy")
 
         val newDnsRules = JSONArray()
-        sourceDnsRules.filter { it.optString("action") == "reject" }.forEach { newDnsRules.put(copy(it)) }
+        sourceDnsRules.filter(::protectedRefusal).forEach { newDnsRules.put(copy(it)) }
         // The managed domain refusals are also enforced at DNS, even if an imported profile omitted them there.
         sourceRoutes.filter { it.optString("action") == "reject" && it.keys().asSequence().all { key -> key in setOf("action", "domain", "domain_suffix") } }
             .filter { it.has("domain") || it.has("domain_suffix") }.forEach { rule ->
@@ -125,8 +138,18 @@ internal object GlobalRoutingPolicy {
             if (suffixes.isNotEmpty()) newDnsRules.put(JSONObject().put("domain_suffix", JSONArray(suffixes)).put("server", rule.getString("server")))
         }
         appPredicates.forEach { newDnsRules.put(copy(it).put("server", "local-dns")) }
+        if (dnsBoundary >= 0) {
+            sourceDnsRules.take(dnsBoundary).filterNot {
+                protectedRefusal(it) || it.has("clash_mode") || it.optString("server") in homeDnsTags
+            }.forEach { newDnsRules.put(copy(it)) }
+            sourceDnsRules.filter {
+                it.optString("clash_mode") == "Global" && (it.optString("server") == "proxy-dns" ||
+                    it.optString("server") == "fake-dns" && servers["fake-dns"]?.optString("type") == "fakeip")
+            }.forEach { newDnsRules.put(copy(it)) }
+        }
         newDnsRules.put(JSONObject().put("clash_mode", "Global").put("server", "proxy-dns"))
-        sourceDnsRules.filterNot { it.optString("action") == "reject" || it.optString("clash_mode").equals("Global", true) }
+        (if (dnsBoundary >= 0) sourceDnsRules.drop(dnsBoundary) else sourceDnsRules)
+            .filterNot { protectedRefusal(it) || it.optString("clash_mode").equals("Global", true) }
             .forEach { newDnsRules.put(copy(it)) }
         dns.put("rules", newDnsRules)
         if (!dns.has("final")) dns.put("final", "proxy-dns")

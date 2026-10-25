@@ -40,5 +40,6 @@ internal object RuntimeConnectionConfig {
             strict = true,
             directPackages = appPolicy.directPackages,
             proxyPackages = appPolicy.proxyPackages,
+            preparedRouting = io.nekohasekai.sfa.selfuse.Routing.isTemplate(org.json.JSONObject(homePreparedContent)),
         ), calling.videoTcp)
 }

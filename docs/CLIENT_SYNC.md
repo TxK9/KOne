@@ -9,6 +9,8 @@ Android build 10040 uses the existing separate application IDs and signing
 identity. It does not enable silent installation. Publish the verified APK and
 matching source archive before changing the existing update manifest.
 
+The final runtime guard preserves explicitly configured direct sites and Fake IP before Global mode.
+
 Subscription refresh compares JSON content independently of formatting and
 object-key order. Changes to rule order, node values and policy still apply.
 Video compatibility is an optional, per-profile setting, off by default. It
@@ -32,7 +34,7 @@ tests, install/upgrade, service and uninstall checks are saved in a private draf
 release. It does not update the public website. Candidate installers are unsigned;
 the existing download disclosure must remain until a signed release is supplied.
 
-Validation at integration: 300 Android JVM tests and 46 shared JVM tests pass.
+Validation at integration: 303 Android JVM tests and 46 shared JVM tests pass.
 These checks do not establish physical-device playback, native router operation,
 Windows installer acceptance or publication. Use the corresponding build/run and
 deployment receipts for those results.
