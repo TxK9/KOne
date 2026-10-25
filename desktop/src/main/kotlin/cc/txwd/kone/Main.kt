@@ -23,6 +23,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +98,21 @@ import java.awt.datatransfer.DataFlavor
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import kotlin.math.roundToInt
+
+/**
+ * What [read] gives while [inSight], and out of sight what it gave last, without looking: a
+ * change no one can see then neither recomposes nor draws the window.
+ */
+@Composable
+internal fun <T> heldOutOfSight(inSight: () -> Boolean, read: () -> T): State<T> {
+    val last = remember { arrayOfNulls<Any>(1) }
+    return remember {
+        derivedStateOf {
+            @Suppress("UNCHECKED_CAST")
+            if (inSight() || last[0] == null) read().also { last[0] = it } else last[0] as T
+        }
+    }
+}
 
 /** The rail's pages, in order: Ctrl+1 is the first. */
 private val RAIL = listOf(Page.Dashboard, Page.Nodes, Page.Rules, Page.Log, Page.Tools, Page.Settings)
@@ -243,11 +260,16 @@ fun main(args: Array<String>) {
                 },
             ) {
                 LaunchedEffect(shown) { if (shown) { this@Window.window.toFront(); this@Window.window.requestFocus() } }
-                // The connections are asked for only while Tools is in sight and KOne connected.
-                val online = model.dashboard.connection == Connection.Online
-                LaunchedEffect(page, online, shown) { model.watchConnections(page == Page.Tools && online && shown) }
                 // The scrolls stand still while no one can see them, and step slowly when Windows draws in software.
                 val inSight = shown && !window.isMinimized
+                // Out of sight the pages keep what they last showed: a minimised window still draws a
+                // whole frame for each change, and a connection changes its figures every second.
+                val dashboard by heldOutOfSight({ shown && !window.isMinimized }) { model.dashboard }
+                val nodesPage by heldOutOfSight({ shown && !window.isMinimized }) { model.nodesPage }
+                val tools by heldOutOfSight({ shown && !window.isMinimized }) { model.tools }
+                // The connections are asked for only while Tools is in sight and KOne connected.
+                val online = dashboard.connection == Connection.Online
+                LaunchedEffect(page, online, inSight) { model.watchConnections(page == Page.Tools && online && inSight) }
                 var software by remember { mutableStateOf(false) }
                 DisposableEffect(Unit) {
                     val composeWindow = this@Window.window
@@ -286,7 +308,7 @@ fun main(args: Array<String>) {
                               ) {
                                   when (page) {
                                       Page.Nodes -> NodesView(
-                                          model.nodesPage,
+                                          nodesPage,
                                           NodesActions(
                                               onUse = model::pickNode,
                                               onTest = model::testAll,
@@ -335,7 +357,7 @@ fun main(args: Array<String>) {
                                           ),
                                       )
                                       Page.Tools -> ToolsView(
-                                          model.tools,
+                                          tools,
                                           ToolsActions(
                                               onMode = model::pickMode,
                                               onWay = model::pickWay,
@@ -377,7 +399,7 @@ fun main(args: Array<String>) {
                                           ),
                                       )
                                       else -> DashboardView(
-                                          model.dashboard,
+                                          dashboard,
                                           DashboardActions(
                                               onTab = model::pickTab, onNode = model::pickNode, onPower = model::power, onRemove = model::removeImported,
                                               onSignIn = model::signIn, onCancelSignIn = model::cancelSignIn, onPause = { model.pause() },

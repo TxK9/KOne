@@ -80,11 +80,12 @@ fun CityScroll(
         }
     }
     var skies by remember(scenes, at) { mutableStateOf(scenes.map { Sky.at(it, (at ?: Instant.now()).toEpochMilli()) }) }
-    if (at == null) {
+    // Looked at again while the scroll is in sight, at once when it comes back into sight.
+    if (at == null && moving) {
         LaunchedEffect(scenes) {
             while (true) {
-                delay(30_000)
                 skies = scenes.map { Sky.at(it, System.currentTimeMillis()) }
+                delay(30_000)
             }
         }
     }
