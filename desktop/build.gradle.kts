@@ -92,6 +92,8 @@ tasks.test {
     providers.gradleProperty("kone.e2e").orNull?.let { systemProperty("kone.e2e", it) }
     // -Pkone.live=true: tests that ask real services on the internet (CI's runners have it open).
     providers.gradleProperty("kone.live").orNull?.let { systemProperty("kone.live", it) }
+    // -Pkone.dpi=true: ScreensTest also renders the main screens at 150 and 200 % into build/screens/dpi.
+    providers.gradleProperty("kone.dpi").orNull?.let { systemProperty("kone.dpi", it) }
     jvmArgs("-Dfile.encoding=UTF-8")
 }
 

@@ -69,8 +69,8 @@ fun TrayPanel(state: DashboardState, onPower: () -> Unit, onOpen: () -> Unit, on
         Column(Modifier.weight(1f).fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Flag(node?.country, 26.dp, 18.dp)
-                Label(node?.name ?: "KOne", 17.sp, weight = FontWeight.SemiBold)
-                Spacer(Modifier.weight(1f))
+                // A long name ends in … and leaves the delay its place at the end.
+                Label(node?.name ?: "KOne", 17.sp, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f), ellipsis = true)
                 if (online && node != null) Label(delayText(node.delay), 16.sp, weight = FontWeight.SemiBold, tabular = true)
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {

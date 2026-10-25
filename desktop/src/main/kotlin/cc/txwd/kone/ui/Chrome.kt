@@ -36,6 +36,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -53,6 +54,8 @@ fun Label(
     letterSpacing: TextUnit = TextUnit.Unspecified,
     /** A line height as CSS sets one, centred on the line; unspecified keeps the font's own. */
     lineHeight: TextUnit = TextUnit.Unspecified,
+    /** Ends in … where the room ends, rather than cut through a letter (names from providers run long). */
+    ellipsis: Boolean = false,
 ) {
     BasicText(
         text,
@@ -63,6 +66,8 @@ fun Label(
             lineHeight = lineHeight, lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
         ),
         softWrap = false,
+        overflow = if (ellipsis) TextOverflow.Ellipsis else TextOverflow.Clip,
+        maxLines = if (ellipsis) 1 else Int.MAX_VALUE,
     )
 }
 

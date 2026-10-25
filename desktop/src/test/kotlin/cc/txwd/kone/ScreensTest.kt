@@ -104,19 +104,23 @@ class ScreensTest {
 
     private val out = File(System.getProperty("kone.screens") ?: "build/screens").apply { mkdirs() }
 
-    private fun shoot(name: String, dark: Boolean, width: Int = 1280, height: Int = 800, framed: Boolean = true, pointer: Offset? = null, content: @Composable () -> Unit) {
+    private fun shoot(
+        name: String, dark: Boolean, width: Int = 1280, height: Int = 800, framed: Boolean = true, pointer: Offset? = null,
+        scale: Float = 1f, into: File = out, content: @Composable () -> Unit,
+    ) {
         runBlocking { InkGallery.paint(dark) }
-        val scene = ImageComposeScene(width, height, Density(1f)) {
+        // [width] by [height] in dp, drawn at Windows' display [scale] (1.5 at 150 %).
+        val scene = ImageComposeScene((width * scale).toInt(), (height * scale).toInt(), Density(scale)) {
             KoneTheme(dark) { if (framed) Frame({ TitleBar() }) { content() } else content() }
         }
         try {
             // Twice: the first frame lays out, the second has the paintings in place.
             scene.render(0)
             // Where the mouse rests, for the hover wash.
-            pointer?.let { scene.sendPointerEvent(PointerEventType.Move, it) }
+            pointer?.let { scene.sendPointerEvent(PointerEventType.Move, it * scale) }
             val image = scene.render(16_000_000)
             val png = checkNotNull(image.encodeToData(EncodedImageFormat.PNG)) { "could not encode $name" }
-            val file = File(out, "$name-${if (dark) "dark" else "light"}.png")
+            val file = File(into, "$name-${if (dark) "dark" else "light"}.png")
             file.writeBytes(png.bytes)
             assertTrue(file.length() > 4_000, "$file looks empty")
         } finally {
@@ -457,6 +461,54 @@ class ScreensTest {
                 shoot("tray-$name", dark, 360, 420, framed = false) { TrayPanel(state, {}, {}, {}, moving = false) }
             }
             shoot("tray-xie", dark, 360, 420, framed = false) { TrayPanel(sample, {}, {}, {}, moving = false) }
+        }
+    }
+
+    /**
+     * The key page, the dashboard, Settings and the tray panel at Windows' 100, 150 and 200 %
+     * display scales, light and dark, and long names at 100 and 150 %, into build/screens/dpi.
+     * Run on request (-Pkone.dpi=true): at 200 % each picture is four times the pixels.
+     */
+    @Test
+    fun dpi() {
+        if (System.getProperty("kone.dpi") != "true") return
+        val into = File(out, "dpi").apply { mkdirs() }
+        val settings = SettingsState(Appearance.System, Backdrop.Ink, autostart = false, hotkey = true, version = "1.0.0", update = UpdateState.Available("1.0.7"))
+        val network = NetworkState(remoteDns = "https://dns.example.com:443/dns-query", directDns = "dnspod", ipv6 = true)
+        for (scale in listOf(1f, 1.5f, 2f)) {
+            val percent = (scale * 100).toInt()
+            for (dark in listOf(false, true)) {
+                shoot("key-$percent", dark, scale = scale, into = into) { KeyView(KeyState("kone-7q4m-x2p9-hd3k"), {}, {}, {}, moving = false) }
+                shoot("dashboard-$percent", dark, scale = scale, into = into) {
+                    WithRail(Page.Dashboard, {}) { DashboardView(online, DashboardActions(), false, {}, moving = false) }
+                }
+                shoot("settings-$percent", dark, scale = scale, into = into) {
+                    WithRail(Page.Settings, {}, marked = setOf(Page.Settings)) { SettingsView(settings, SettingsActions(), network) }
+                }
+                shoot("tray-$percent", dark, 360, 420, framed = false, scale = scale, into = into) { TrayPanel(online, {}, {}, {}, moving = false) }
+            }
+        }
+        // Long names: a provider's node name, a long category and a long exit, where they are cut.
+        val long = online.copy(
+            categories = listOf("United States of America · West Coast", "Japan", "Singapore"),
+            nodes = listOf(
+                Node("us1", "United States · Los Angeles · Premium IPLC 01 (backup line)", "US", "United States of America · West Coast", 245),
+                Node("jp1", "Japan", "JP", "Japan", 186),
+            ),
+            tab = "United States of America · West Coast", selected = "us1", exit = "2001:db8:1234:5678:9abc:def0:1234:5678",
+        )
+        for (scale in listOf(1f, 1.5f)) {
+            val percent = (scale * 100).toInt()
+            for (dark in listOf(false, true)) {
+                shoot("long-dashboard-$percent", dark, scale = scale, into = into) {
+                    WithRail(Page.Dashboard, {}) { DashboardView(long, DashboardActions(), false, {}, moving = false) }
+                }
+                shoot("long-tray-$percent", dark, 360, 420, framed = false, scale = scale, into = into) { TrayPanel(long, {}, {}, {}, moving = false) }
+            }
+        }
+        // The smallest the window goes, as at 150 % on a 1366 by 768 screen.
+        shoot("long-dashboard-smallest", dark = false, width = 960, height = 620, scale = 1.5f, into = into) {
+            WithRail(Page.Dashboard, {}) { DashboardView(long, DashboardActions(), false, {}, moving = false) }
         }
     }
 
