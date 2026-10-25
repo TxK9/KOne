@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
@@ -102,7 +103,7 @@ fun NodeEditor(start: NodeDraft, editing: Boolean, error: String?, saving: Boole
                 Spacer(Modifier.width(18.dp))
                 Label("Allow insecure", 13.sp, ink.soft)
                 Spacer(Modifier.width(10.dp))
-                Switch(draft.insecure) { draft = draft.copy(insecure = !draft.insecure) }
+                Switch(draft.insecure, "Allow insecure") { draft = draft.copy(insecure = !draft.insecure) }
             }
             if (draft.type != "hysteria2" && draft.type != "tuic") {
                 Field("Fingerprint") { FINGERPRINTS.forEach { (value, title) -> Pick(title, draft.fingerprint == value) { draft = draft.copy(fingerprint = value) } } }
@@ -179,7 +180,7 @@ private fun RowScope.Text(value: String, onChange: (String) -> Unit, hint: Strin
 private fun Pick(name: String, on: Boolean, onClick: () -> Unit) {
     val ink = LocalInk.current
     Box(
-        Modifier.height(30.dp).press(bleed = 6.dp, onClick = onClick)
+        Modifier.height(30.dp).press(bleed = 6.dp, role = Role.Tab, selected = on, onClick = onClick)
             .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,

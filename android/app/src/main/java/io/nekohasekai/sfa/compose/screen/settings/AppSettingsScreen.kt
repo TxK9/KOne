@@ -87,6 +87,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.VpnLock
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -186,6 +192,10 @@ fun AppSettingsScreen(
     val isChecking by UpdateState.isChecking
     val koneUpdate by io.nekohasekai.sfa.update.KoneUpdates.state.collectAsState()
     var checkingKoneUpdate by remember { mutableStateOf(false) }
+    // The last manual check's outcome, said on the row instead of in a passing toast.
+    var koneCheckOutcome by remember { mutableStateOf<Boolean?>(null) }
+    // Read once and again on return, as signing in happens on the console's page.
+    var ownerNeedsSignIn by remember { mutableStateOf(BuildConfig.KNINE_OWNER && io.nekohasekai.sfa.update.OwnerUpdateAccess.credential(context) == null) }
     fun checkKoneUpdate() {
         if (BuildConfig.KNINE_OWNER && io.nekohasekai.sfa.update.OwnerUpdateAccess.credential(context) == null) {
             context.startActivity(android.content.Intent(context, io.nekohasekai.sfa.compose.screen.console.ConsoleActivity::class.java))
@@ -201,9 +211,7 @@ fun AppSettingsScreen(
             try {
                 val checked = io.nekohasekai.sfa.update.KoneUpdates.check(context.applicationContext)
                 io.nekohasekai.sfa.update.KoneUpdates.show()
-                if (io.nekohasekai.sfa.update.KoneUpdates.state.value.release == null) {
-                    Toast.makeText(context, if (checked) "Up to date" else "Cannot check for updates right now", Toast.LENGTH_SHORT).show()
-                }
+                koneCheckOutcome = checked
             } finally { checkingKoneUpdate = false }
         }
     }
@@ -265,6 +273,7 @@ fun AppSettingsScreen(
     // Re-check states when returning from background (e.g., after granting permission)
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         HookStatusClient.refresh()
+        ownerNeedsSignIn = BuildConfig.KNINE_OWNER && io.nekohasekai.sfa.update.OwnerUpdateAccess.credential(context) == null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Application.notification.createNotificationChannel(
                 NotificationChannel(
@@ -536,15 +545,31 @@ fun AppSettingsScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         ) {
             ListItem(
-                headlineContent = { Text("Block connections without VPN") },
+                headlineContent = { Text(stringResource(R.string.kone_app_block_without_vpn), style = MaterialTheme.typography.bodyLarge) },
                 supportingContent = {
-                    Text(if (systemVpnProtected == true)
-                        "System protection is enabled. Managed exceptions can still connect directly."
-                    else "Enable Always-on VPN and Block connections without VPN in system settings.")
+                    Text(
+                        stringResource(if (systemVpnProtected == true) R.string.kone_app_block_without_vpn_on else R.string.kone_app_block_without_vpn_off),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 },
-                modifier = Modifier.clickable {
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Outlined.VpnLock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                },
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                },
+                modifier = Modifier.clickable(role = Role.Button) {
                     runCatching { context.startActivity(Intent(AndroidSettings.ACTION_VPN_SETTINGS)) }
-                        .onFailure { Toast.makeText(context, "Search for VPN in system settings.", Toast.LENGTH_SHORT).show() }
+                        .onFailure { Toast.makeText(context, context.getString(R.string.kone_app_vpn_settings_missing), Toast.LENGTH_SHORT).show() }
                 },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             )
@@ -590,7 +615,7 @@ fun AppSettingsScreen(
                         Modifier
                             .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                             .combinedClickable(
-                                onClick = { if (io.nekohasekai.sfa.update.KoneUpdates.enabled) checkKoneUpdate() },
+                                onClick = { showVersionMenu = true },
                                 onLongClick = { showVersionMenu = true },
                             ),
                         colors =
@@ -625,6 +650,48 @@ fun AppSettingsScreen(
                     }
                 }
 
+
+                if (io.nekohasekai.sfa.update.KoneUpdates.enabled) {
+                    val release = koneUpdate.release
+                    val status = when {
+                        checkingKoneUpdate -> stringResource(R.string.kone_update_checking)
+                        release != null -> {
+                            val line = io.nekohasekai.sfa.update.updateLine(koneUpdate, release)
+                            stringResource(R.string.kone_update_ready, appName, release.versionName, listOfNotNull(line.title, line.value).joinToString(" "))
+                        }
+                        ownerNeedsSignIn -> stringResource(R.string.kone_update_sign_in)
+                        koneCheckOutcome == true -> stringResource(R.string.kone_update_up_to_date)
+                        koneCheckOutcome == false -> stringResource(R.string.kone_update_check_failed)
+                        else -> null
+                    }
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.kone_update_check), style = MaterialTheme.typography.bodyLarge) },
+                        supportingContent = status?.let {
+                            {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                                )
+                            }
+                        },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Outlined.SystemUpdateAlt,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        trailingContent = {
+                            when {
+                                checkingKoneUpdate -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                                release != null -> Badge(containerColor = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        modifier = Modifier.clickable(enabled = !checkingKoneUpdate, role = Role.Button) { checkKoneUpdate() },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                }
 
                 ListItem(
                     headlineContent = {
@@ -662,7 +729,7 @@ fun AppSettingsScreen(
                 var showSwitcherMenu by remember { mutableStateOf(false) }
                 Box {
                     ListItem(
-                        headlineContent = { Text("Category navigation", style = MaterialTheme.typography.bodyLarge) },
+                        headlineContent = { Text(stringResource(R.string.kone_app_category_navigation), style = MaterialTheme.typography.bodyLarge) },
                         supportingContent = { Text(KnineAppearance.switcher.label, style = MaterialTheme.typography.bodyMedium) },
                         leadingContent = {
                             Icon(
@@ -706,15 +773,15 @@ fun AppSettingsScreen(
                             try {
                                 WallpaperCatalog.usePhoto(context, uri)
                             } catch (_: Exception) {
-                                Toast.makeText(context, "This photo cannot be used.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.kone_app_photo_unusable), Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
                 }
                 Box {
                     ListItem(
-                        headlineContent = { Text("Wallpaper", style = MaterialTheme.typography.bodyLarge) },
-                        supportingContent = { Text(WallpaperCatalog.mode.label, style = MaterialTheme.typography.bodyMedium) },
+                        headlineContent = { Text(stringResource(R.string.kone_app_wallpaper), style = MaterialTheme.typography.bodyLarge) },
+                        supportingContent = { Text(if (WallpaperCatalog.mode == WallpaperMode.City) stringResource(R.string.city_wallpaper_city) else WallpaperCatalog.mode.label, style = MaterialTheme.typography.bodyMedium) },
                         leadingContent = {
                             Icon(
                                 imageVector = Icons.Outlined.Wallpaper,
@@ -732,7 +799,7 @@ fun AppSettingsScreen(
                         ) {
                             WallpaperMode.entries.filter { it != WallpaperMode.Builtin || WallpaperCatalog.hasBundledPhotos }.forEach { mode ->
                                 DropdownMenuItem(
-                                    text = { Text(mode.label) },
+                                    text = { Text(if (mode == WallpaperMode.City) stringResource(R.string.city_wallpaper_city) else mode.label) },
                                     trailingIcon = if (mode == WallpaperCatalog.mode) {
                                         { Icon(imageVector = Icons.Filled.Check, contentDescription = null) }
                                     } else {
@@ -754,11 +821,15 @@ fun AppSettingsScreen(
                     }
                 }
 
+                if (WallpaperCatalog.mode == WallpaperMode.City) {
+                    io.nekohasekai.sfa.compose.theme.CityWallpaperSettings()
+                }
+
                 // Light or dark: as the phone is, or KOne's own; the paintings follow it too.
                 var showThemeMenu by remember { mutableStateOf(false) }
                 Box {
                     ListItem(
-                        headlineContent = { Text("Appearance", style = MaterialTheme.typography.bodyLarge) },
+                        headlineContent = { Text(stringResource(R.string.kone_app_appearance), style = MaterialTheme.typography.bodyLarge) },
                         supportingContent = { Text(KnineAppearance.theme.label, style = MaterialTheme.typography.bodyMedium) },
                         leadingContent = {
                             Icon(
@@ -795,7 +866,7 @@ fun AppSettingsScreen(
 
                 // One row: the size, and Clear beside it while there is something to clear.
                 ListItem(
-                    headlineContent = { Text("Cache", style = MaterialTheme.typography.bodyLarge) },
+                    headlineContent = { Text(stringResource(R.string.kone_app_cache), style = MaterialTheme.typography.bodyLarge) },
                     supportingContent = {
                         if (cacheSizeText.isNotEmpty()) {
                             Text(cacheSizeText, style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"))
@@ -818,7 +889,7 @@ fun AppSettingsScreen(
                                         cacheSizeText = Formatter.formatFileSize(context, 0L)
                                     }
                                 }
-                            }) { Text("Clear") }
+                            }) { Text(stringResource(R.string.kone_app_cache_clear)) }
                         }
                     },
                     modifier = Modifier.clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)),
@@ -888,20 +959,20 @@ fun AppSettingsScreen(
                     trailingContent = {
                         KnineSwitch(
                             checked = dynamicNotification,
-                            onCheckedChange = { checked ->
-                                dynamicNotification = checked
-                                scope.launch(Dispatchers.IO) {
-                                    Settings.dynamicNotification = checked
-                                    withContext(Dispatchers.Main) {
-                                        notifyApplyChange(UiEvent.ApplyServiceChange.Mode.Restart)
-                                    }
-                                }
-                            },
+                            onCheckedChange = null,
                         )
                     },
                     modifier =
                     Modifier
-                        .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)),
+                        .toggleable(value = dynamicNotification, role = Role.Switch) { checked ->
+                            dynamicNotification = checked
+                            scope.launch(Dispatchers.IO) {
+                                Settings.dynamicNotification = checked
+                                withContext(Dispatchers.Main) {
+                                    notifyApplyChange(UiEvent.ApplyServiceChange.Mode.Restart)
+                                }
+                            }
+                        },
                     colors =
                     ListItemDefaults.colors(
                         containerColor = Color.Transparent,

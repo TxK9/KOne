@@ -119,6 +119,7 @@ real Windows PC yet.
 | Rules through a chosen country (`via:JP`): any rule kind, Rule mode only; a group of that country's nodes (by their names), tested as Automatic is, with its names asked through it too (and faked there with Fake IP); a country no node says goes through the node in use, and its row says so. Clash rules aimed at a country group come over this way, and a whole profile's groups are followed to their first choice. Service, App and Android alike (consistency test; accepted by the real sing-box) | Done |
 | Restoring a backup twice adds nothing twice (rules, hosts, DNS for domains) | Done |
 | The App's model in controllers: rules, network, subscriptions, site tools, sign-in networks, own nodes, diagnosis, backup, connections | Done; the connection and steering wait for the device round |
+| Third-party notices: an overview of what KOne includes and under which license, and each full text, installed in `app\resources\licenses` and shown in Settings; the core's notice quoted word for word (test) | Done; the source route for the core is the owner's decision (RELEASE.md) |
 
 **Category rules (Option B, chosen by the owner).** A category is one more rule kind,
 `set`, in the person's ordered rule list: `geosite-netflix → Proxy`, `geoip-jp → Direct`.

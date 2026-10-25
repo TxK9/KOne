@@ -46,11 +46,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
 import io.nekohasekai.sfa.compose.screen.dashboard.weatherInk
@@ -211,20 +215,62 @@ internal fun TestRow(
         Row(
             Modifier
                 .fillMaxWidth()
-                .clickable(enabled = detail != null, onClick = onToggle)
+                .clickable(
+                    enabled = detail != null,
+                    onClickLabel = if (detail == null) null else stringResource(if (open) R.string.kone_row_hide_details else R.string.kone_row_show_details),
+                    onClick = onToggle,
+                )
                 .padding(horizontal = TestGutter, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, modifier = Modifier.weight(1f))
-            if (value != null) {
-                Text(value, style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.padding(start = 12.dp).graphicsLayer { alpha = 0.75f })
-            }
+            // Neither text is cut: the layout below stacks them rather than shorten either.
+            TitleAndValue(
+                title = { Text(title, style = MaterialTheme.typography.bodyLarge) },
+                value = value?.let {
+                    { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.graphicsLayer { alpha = 0.75f }) }
+                },
+                modifier = Modifier.weight(1f),
+            )
             Box(Modifier.padding(start = 12.dp).size(20.dp), contentAlignment = Alignment.Center) {
                 if (weather != null) WeatherGlyph(weather, size = 20.dp, ink = ink)
             }
         }
         AnimatedVisibility(open && detail != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             TestNote(detail.orEmpty(), Modifier.padding(bottom = 10.dp))
+        }
+    }
+}
+
+/**
+ * A row's title on the start and its value on the end while both fit on one line. When they do
+ * not (a long value, a narrow screen, large text), the value goes under the title, whole and
+ * wrapping at the row's full width, so nothing is squeezed, clipped or ellipsized.
+ */
+@Composable
+private fun TitleAndValue(title: @Composable () -> Unit, value: (@Composable () -> Unit)?, modifier: Modifier = Modifier) {
+    Layout(contents = listOf<@Composable () -> Unit>(title, value ?: {}), modifier = modifier) { (titles, values), constraints ->
+        val gap = 12.dp.roundToPx()
+        val titleMeasurable = titles.first()
+        val valueMeasurable = values.firstOrNull()
+        val titleNeed = titleMeasurable.maxIntrinsicWidth(Constraints.Infinity)
+        val valueNeed = valueMeasurable?.maxIntrinsicWidth(Constraints.Infinity) ?: 0
+        val oneLine = titleNeed + if (valueMeasurable == null) 0 else gap + valueNeed
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else oneLine
+        val loose = Constraints(maxWidth = width)
+        val titlePlaced = titleMeasurable.measure(loose)
+        val valuePlaced = valueMeasurable?.measure(loose)
+        if (valuePlaced == null || oneLine <= width) {
+            val height = maxOf(titlePlaced.height, valuePlaced?.height ?: 0)
+            layout(width, height) {
+                titlePlaced.placeRelative(0, (height - titlePlaced.height) / 2)
+                valuePlaced?.placeRelative(width - valuePlaced.width, (height - valuePlaced.height) / 2)
+            }
+        } else {
+            val between = 2.dp.roundToPx()
+            layout(width, titlePlaced.height + between + valuePlaced.height) {
+                titlePlaced.placeRelative(0, 0)
+                valuePlaced.placeRelative(0, titlePlaced.height + between)
+            }
         }
     }
 }

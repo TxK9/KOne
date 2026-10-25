@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
@@ -123,7 +124,7 @@ private fun Action(text: String, color: androidx.compose.ui.graphics.Color = Loc
 private fun Choice(name: String, on: Boolean, onClick: () -> Unit) {
     val ink = LocalInk.current
     Box(
-        Modifier.height(32.dp).press(bleed = 6.dp, onClick = onClick)
+        Modifier.height(32.dp).press(bleed = 6.dp, role = Role.Tab, selected = on, onClick = onClick)
             .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,

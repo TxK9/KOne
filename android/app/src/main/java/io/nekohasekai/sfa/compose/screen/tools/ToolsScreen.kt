@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -49,17 +48,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.nekohasekai.sfa.BuildConfig
+import io.nekohasekai.sfa.compose.component.KnineChevron
+import io.nekohasekai.sfa.compose.component.KnineNavRow
+import io.nekohasekai.sfa.compose.component.KnineRowGroup
 import io.nekohasekai.sfa.R
-import io.nekohasekai.sfa.bg.CrashReportManager
-import io.nekohasekai.sfa.bg.OOMReportManager
-import io.nekohasekai.sfa.bg.PowerReportManager
 import io.nekohasekai.sfa.compose.component.RemoteControlMenuItems
 import io.nekohasekai.sfa.compose.component.rememberRemoteServers
 import io.nekohasekai.sfa.compose.navigation.DeviceRoutes
@@ -120,9 +119,6 @@ fun ToolsScreen(
         )
     }
 
-    val crashUnreadCount by CrashReportManager.unreadCount.collectAsState()
-    val oomUnreadCount by OOMReportManager.unreadCount.collectAsState()
-    val powerUnreadCount by PowerReportManager.unreadCount.collectAsState()
     val tailscaleState by tailscaleViewModel.uiState.collectAsState()
     val taildropSendSessions by TaildropSendManager.sessions.collectAsState()
     val usbIPState by usbIPViewModel.uiState.collectAsState()
@@ -158,7 +154,6 @@ fun ToolsScreen(
             ) {
                 tailscaleTags.forEachIndexed { index, endpointTag ->
                     val endpoint = tailscaleEndpoints.firstOrNull { it.endpointTag == endpointTag }
-                    val shape = endpointRowShape(index, endpointRowCount)
                     var showSSHMenu by remember { mutableStateOf(false) }
                     val sshPeers = remember(endpoint) {
                         endpoint?.userGroups.orEmpty().flatMap { it.peers }.filter { peer ->
@@ -203,10 +198,11 @@ fun ToolsScreen(
                                     Badge(containerColor = MaterialTheme.colorScheme.primary) {
                                         Text("${endpoint?.unreadFileCount}")
                                     }
+                                } else {
+                                    KnineChevron()
                                 }
                             },
                             modifier = Modifier
-                                .clip(shape)
                                 .combinedClickable(
                                     onClick = {
                                         navController.navigate("tools/tailscale/${Uri.encode(endpointTag)}")
@@ -285,9 +281,9 @@ fun ToolsScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         },
+                        trailingContent = { KnineChevron() },
                         modifier = Modifier
-                            .clip(endpointRowShape(tailscaleTags.size + index, endpointRowCount))
-                            .clickable {
+                            .clickable(role = Role.Button) {
                                 navController.navigate("tools/openconnect/${Uri.encode(endpoint.endpointTag)}")
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -312,14 +308,9 @@ fun ToolsScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         },
+                        trailingContent = { KnineChevron() },
                         modifier = Modifier
-                            .clip(
-                                endpointRowShape(
-                                    tailscaleTags.size + openConnectEndpoints.size + index,
-                                    endpointRowCount,
-                                ),
-                            )
-                            .clickable {
+                            .clickable(role = Role.Button) {
                                 navController.navigate("tools/openvpn/${Uri.encode(endpoint.endpointTag)}")
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -341,12 +332,6 @@ fun ToolsScreen(
             ) {
                 val servers = usbIPState.servers
                 servers.forEachIndexed { index, server ->
-                    val shape = when {
-                        servers.size == 1 -> RoundedCornerShape(12.dp)
-                        index == 0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-                        index == servers.size - 1 -> RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                        else -> RoundedCornerShape(0.dp)
-                    }
                     ListItem(
                         headlineContent = {
                             Text(
@@ -365,9 +350,9 @@ fun ToolsScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         },
+                        trailingContent = { KnineChevron() },
                         modifier = Modifier
-                            .clip(shape)
-                            .clickable {
+                            .clickable(role = Role.Button) {
                                 navController.navigate("tools/usbip/${Uri.encode(server.serverTag)}")
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -379,34 +364,12 @@ fun ToolsScreen(
         // The private management console is available only in the self-use build.
         if (BuildConfig.KNINE_OWNER && BuildConfig.KONE_ADMIN.isNotBlank()) {
             val context = LocalContext.current
-            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = "Management")
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            ) {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            "Management console",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Outlined.Apartment,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { context.startActivity(Intent(context, ConsoleActivity::class.java)) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.kone_tools_management))
+            KnineRowGroup {
+                KnineNavRow(
+                    title = stringResource(R.string.kone_tools_console),
+                    icon = Icons.Outlined.Apartment,
+                    onClick = { context.startActivity(Intent(context, ConsoleActivity::class.java)) },
                 )
             }
         }
@@ -416,107 +379,39 @@ fun ToolsScreen(
             val routerContext = LocalContext.current
             val integrations by io.nekohasekai.sfa.devices.DeviceIntegrations.registry.integrations.collectAsState()
             io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.kone_devices))
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            ) {
-                if (integrations.isNotEmpty()) ListItem(
-                    headlineContent = {
-                        Text(
-                            "Device management",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Outlined.Devices,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { navController.navigate(DeviceRoutes.Main) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.kone_router)) },
-                    leadingContent = { Icon(Icons.Outlined.Hub, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable {
-                        routerContext.startActivity(Intent(routerContext, io.nekohasekai.sfa.compose.screen.router.RouterActivity::class.java))
-                    },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            KnineRowGroup {
+                if (integrations.isNotEmpty()) {
+                    KnineNavRow(
+                        title = stringResource(R.string.kone_tools_devices),
+                        icon = Icons.Outlined.Devices,
+                        onClick = { navController.navigate(DeviceRoutes.Main) },
+                    )
+                }
+                KnineNavRow(
+                    title = stringResource(R.string.kone_router),
+                    icon = Icons.Outlined.Hub,
+                    onClick = { routerContext.startActivity(Intent(routerContext, io.nekohasekai.sfa.compose.screen.router.RouterActivity::class.java)) },
                 )
             }
         }
 
         io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.title_network))
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ),
-        ) {
-            ListItem(
-                headlineContent = {
-                    Text(
-                        stringResource(R.string.knine_diagnose),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                },
-                leadingContent = {
-                    Icon(
-                        imageVector = Icons.Outlined.HealthAndSafety,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { navController.navigate("tools/diagnose") },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        KnineRowGroup {
+            KnineNavRow(
+                title = stringResource(R.string.knine_diagnose),
+                icon = Icons.Outlined.HealthAndSafety,
+                onClick = { navController.navigate("tools/diagnose") },
             )
-            ListItem(
-                headlineContent = {
-                    Text(
-                        "Network tests",
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                },
-                leadingContent = {
-                    Icon(
-                        imageVector = Icons.Outlined.NetworkCheck,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { navController.navigate(NetworkTestRoutes.Main) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            KnineNavRow(
+                title = stringResource(R.string.kone_tools_network_tests),
+                icon = Icons.Outlined.NetworkCheck,
+                onClick = { navController.navigate(NetworkTestRoutes.Main) },
             )
         }
-
-
     }
 }
 
 private val STATUS_BAR_CONTENT_PADDING = 8.dp
-
-private fun endpointRowShape(index: Int, count: Int): RoundedCornerShape = when {
-    count == 1 -> RoundedCornerShape(12.dp)
-    index == 0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-    index == count - 1 -> RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-    else -> RoundedCornerShape(0.dp)
-}
 
 internal fun handleSSHNavigation(
     navController: NavController,

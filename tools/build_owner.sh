@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build the self-use edition and restore tracked placeholders on exit.
-# The photos are never committed; .git/info/exclude hides them while they are in the tree.
+# Git's exclude file covers private image staging in normal checkouts and worktrees.
 #
 # Usage: tools/build_owner.sh [outdir]       (default outdir: dist/)
 # Environment: KONE_PHOTOS must identify the external eight-image resource folder.
@@ -10,9 +10,11 @@ PHOTOS="${KONE_PHOTOS:?Set KONE_PHOTOS to the external image resource folder}"
 OUT="${1:-$ROOT/dist}"
 RES="$ROOT/android/app/src/main/res"
 NAMES="owner_wallpaper_1 owner_wallpaper_2 owner_wallpaper_3 owner_wallpaper_4 owner_wallpaper_5 owner_wallpaper_6 portrait_backdrop sunset_backdrop"
+EXCL="$(git -C "$ROOT" rev-parse --git-path info/exclude)" || exit 1
+case "$EXCL" in /*) ;; *) EXCL="$ROOT/$EXCL" ;; esac
+[ -f "$EXCL" ] || { echo "Git exclude file is unavailable"; exit 1; }
 # An explicit template: macOS mktemp would otherwise ignore TMPDIR, which a sandbox relies on.
 HOLD="$(mktemp -d "${TMPDIR:-/tmp}/kone-photos.XXXXXX")" || { echo "no temporary folder for the placeholders"; exit 1; }
-EXCL="$ROOT/.git/info/exclude"
 VERSION="$(sed -n 's/^KONE_VERSION=//p' "$ROOT/android/kone-version.properties")"
 
 restore() {

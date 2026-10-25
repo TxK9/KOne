@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<link rel="stylesheet" href="wallpaper.css">
+<title>City wallpaper</title>
+</head>
+<body aria-hidden="true">
+<div id="stage">
+  <img id="night" class="wallpaper wallpaper-night" alt="">
+  <img id="day" class="wallpaper wallpaper-day" alt="">
+  <div id="motion" class="layer"></div>
+  <div id="marine" class="layer"></div>
+  <div id="lighting" class="layer"></div>
+  <div id="sky" class="layer"></div>
+  <div id="life" class="layer"></div>
+  <div id="weather" class="layer"></div>
+</div>
+<script src="vendor/suncalc-2.1.1.js"></script>
+<script src="sky-v5.js"></script>
+<script src="environment-v10.js"></script>
+<script src="weather-model-v11.js"></script>
+<script src="environment-v13.js"></script>
+<script src="motion-v13.js"></script>
+<script src="lighting-v13.js"></script>
+<script src="marine-v13.js"></script>
+<script src="city-life-v13.js"></script>
+<script src="weather-v13.js"></script>
+<script src="wallpaper.js"></script>
+</body>
+</html>

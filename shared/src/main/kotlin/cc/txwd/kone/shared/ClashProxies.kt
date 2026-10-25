@@ -82,7 +82,11 @@ object ClashProxies {
                 base["type"] = JsonPrimitive("vless")
                 base["server_port"] = JsonPrimitive(port ?: fail("A proxy has no port"))
                 base["uuid"] = JsonPrimitive(uuid(proxy.text("uuid")))
-                proxy.text("flow")?.takeIf { it.isNotBlank() }?.let { base["flow"] = JsonPrimitive(it) }
+                proxy.text("flow")?.takeIf { it.isNotBlank() }?.let {
+                    // As mihomo and sing-box both hold: Vision or nothing.
+                    if (it != "xtls-rprx-vision") fail("Unsupported VLESS flow")
+                    base["flow"] = JsonPrimitive(it)
+                }
                 // VLESS carries no encryption of its own.
                 if (!proxy.flag("tls") && proxy["reality-opts"] == null) fail("VLESS proxies require TLS or Reality encryption.")
                 base["tls"] = tls(proxy, server)
@@ -172,17 +176,23 @@ object ClashProxies {
 
     /**
      * TLS over TCP, with Reality and uTLS when the proxy asks, as mihomo does: a fingerprint only
-     * when one is named, except that Reality needs one (Chrome's when none is named).
+     * when one is named, except that Reality needs one (Chrome's when none is named). A
+     * fingerprint sing-box does not know is left out, as mihomo leaves it out for plain TLS; Reality
+     * cannot do without one, so there it is refused. A Reality key is read in either base64
+     * alphabet, as a share link's is.
      */
     private fun tls(proxy: Map<*, *>, server: String): JsonObject = buildJsonObject {
         put("enabled", true)
         put("server_name", proxy.text("servername") ?: proxy.text("sni") ?: server)
         if (proxy.flag("skip-cert-verify")) put("insecure", true)
         alpn(proxy)?.let { put("alpn", it) }
-        val fingerprint = proxy.text("client-fingerprint")?.lowercase()?.takeIf { it.isNotBlank() && it != "none" }
+        val named = proxy.text("client-fingerprint")?.lowercase()?.takeIf { it.isNotBlank() && it != "none" }
+        val fingerprint = named?.takeIf { it in ShareLinks.FINGERPRINTS }
         val reality = proxy["reality-opts"] as? Map<*, *>
         if (reality != null) {
-            val key = reality.text("public-key")?.takeIf { it.isNotBlank() } ?: fail("The Reality proxy has no public key.")
+            if (named != null && fingerprint == null) fail("Unsupported TLS fingerprint")
+            val written = reality.text("public-key")?.takeIf { it.isNotBlank() } ?: fail("The Reality proxy has no public key.")
+            val key = ShareLinks.realityKey(written) ?: fail("Invalid Reality public key format")
             val shortId = reality.text("short-id").orEmpty()
             if (shortId.length > 16 || shortId.length % 2 != 0 || !shortId.all { it in "0123456789abcdefABCDEF" }) fail("Invalid Reality short ID format")
             put("reality", buildJsonObject { put("enabled", true); put("public_key", key); put("short_id", shortId) })

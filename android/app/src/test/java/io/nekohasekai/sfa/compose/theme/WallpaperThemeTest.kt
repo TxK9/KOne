@@ -6,6 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WallpaperThemeTest {
+    @Test fun cityVeilKeepsBothInkAndAccentReadableEvenOverWhiteArtwork() {
+        val brightest = KninePalette.composite(0xFF000000.toInt(), 0xFFFFFFFF.toInt(), CITY_WALLPAPER_VEIL_ALPHA)
+        val background = KninePalette.luminance(brightest)
+        assertTrue(KninePalette.contrast(KninePalette.LIGHT_INK, background) >= 5f)
+        assertTrue(KninePalette.contrast(KninePalette.LIGHT_ACCENT, background) >= 5f)
+    }
     @Test fun wallpaperDistributionSelectsOneStablePalette() {
         assertFalse(KninePalette.wallpaperTheme(List(98) { 0xFFF3EFFF.toInt() } + List(2) { 0xFF16131E.toInt() }).lightInk)
         assertTrue(KninePalette.wallpaperTheme(List(98) { 0xFF16131E.toInt() } + List(2) { 0xFFF3EFFF.toInt() }).lightInk)

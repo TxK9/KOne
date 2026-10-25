@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
@@ -106,7 +107,7 @@ fun TrayPanel(
                     for (choice in listOf("Rule", "Global", "Direct")) {
                         val on = choice == now
                         Box(
-                            Modifier.height(30.dp).press(bleed = 6.dp) { onMode(choice) }
+                            Modifier.height(30.dp).press(bleed = 6.dp, role = Role.Tab, selected = on) { onMode(choice) }
                                 .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), Size(size.width, 2.dp.toPx())) }
                                 .padding(horizontal = 2.dp),
                             contentAlignment = Alignment.Center,
