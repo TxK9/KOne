@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import java.security.MessageDigest
 
 /**
  * Which node an outbound is, whatever it is called. A subscription's tags are made from its
@@ -15,23 +16,28 @@ import kotlinx.serialization.json.contentOrNull
  */
 object NodeIdentity {
     /**
-     * [outbound] as a node: every field but its tag, each object's keys in one order. Equal for
-     * the same node however it is written or named. It holds the node's credentials: compare it,
-     * never show or log it.
+     * [outbound] as a node, in 64 lowercase hex digits: the SHA-256 of every field but its tag,
+     * each object's keys in one order. Equal for the same node however it is written or named, in
+     * either App. Opaque: the node's settings and credentials cannot be read from it. It is for
+     * comparing, not publishing, as a guessed password could still be checked against it.
      */
-    fun key(outbound: JsonObject): String = sorted(JsonObject(outbound - "tag")).toString()
+    fun key(outbound: JsonObject): String = digest(KEY, sorted(JsonObject(outbound - "tag")).toString())
 
     /**
-     * The server and account [outbound] reaches: its protocol, address, port or port ranges, user
-     * and password, whatever its TLS, transport or chain. Null without a server. Like [key], never
-     * shown or logged.
+     * The server and account [outbound] reaches, as opaque as its [key], whatever its TLS,
+     * transport or chain: the SHA-256 of one JSON array holding, in order, its protocol, address,
+     * ports (an array of its one port, or of its port ranges sorted) and account fields. Each
+     * field is a JSON string of its own, so no two different accounts share a form, whatever
+     * characters they hold. Null without a server.
      */
-    internal fun endpoint(outbound: JsonObject): String? {
+    fun endpoint(outbound: JsonObject): String? {
         val server = outbound.text("server")?.trim()?.removeSurrounding("[", "]")?.lowercase()?.takeIf { it.isNotEmpty() } ?: return null
-        val port = (outbound["server_port"] as? JsonPrimitive)?.contentOrNull
-            ?: (outbound["server_ports"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.sorted()?.joinToString(",")
-        val account = CREDENTIALS.map { outbound.text(it).orEmpty() }
-        return (listOf(outbound.text("type").orEmpty().lowercase(), server, port.orEmpty()) + account).joinToString("\u0000")
+        val ports = (outbound["server_port"] as? JsonPrimitive)?.contentOrNull?.let(::listOf)
+            ?: (outbound["server_ports"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.sorted()
+            ?: emptyList()
+        val fields = listOf(JsonPrimitive(outbound.text("type").orEmpty().lowercase()), JsonPrimitive(server), JsonArray(ports.map(::JsonPrimitive))) +
+            CREDENTIALS.map { JsonPrimitive(outbound.text(it).orEmpty()) }
+        return digest(ENDPOINT, JsonArray(fields).toString())
     }
 
     /** The nodes kept, and for each tag left out, the tag of the twin kept in its place. */
@@ -74,12 +80,14 @@ object NodeIdentity {
 
     /**
      * Where the node tagged [tag] in [before] is in [after], the nodes an update gave: the same
-     * node ([key]); else, when no other node of [before] shares its server and account, the node on
-     * them under new settings; else the node under the same tag, when the provider moved it to a
-     * new address and kept its name, unless that node was another one of [before]. Among several,
-     * the one under the same tag, else the first. Null when the node is gone, so the caller says so
-     * rather than move the person elsewhere unasked. A tag [before] does not hold (Automatic, a
-     * country, the console's) is not a node of this list and comes back as it is.
+     * node ([key]); else, when its server and account ([endpoint]) carry one node in [before] and
+     * one in [after], each perhaps listed twice, that node under new settings; else the node under
+     * the same tag, when the provider moved it to a new address and kept its name, unless that
+     * node was another one of [before]. Among twins, the one under the same tag, else the first.
+     * Null when the node is gone, or became several on its server and account none of which is
+     * the same node, so the caller says so rather than move the person elsewhere unasked. A tag
+     * [before] does not hold (Automatic, a country, the console's) is not a node of this list and
+     * comes back as it is.
      */
     fun follow(tag: String, before: List<JsonObject>, after: List<JsonObject>): String? {
         val old = before.firstOrNull { it.tag == tag } ?: return tag
@@ -127,7 +135,12 @@ object NodeIdentity {
             val key = key(old)
             pick(after.indices.filter { afterKeys[it] == key }, tag)?.let { return it }
             val endpoint = endpoint(old)
-            if (telling(endpoint)) pick(after.indices.filter { afterEndpoints[it] == endpoint }, tag)?.let { return it }
+            if (telling(endpoint)) {
+                val found = after.indices.filter { afterEndpoints[it] == endpoint }
+                // A node split into several, none of them the same node, is not guessed at, not even by its name.
+                if (found.mapTo(HashSet()) { afterKeys[it] }.size > 1) return null
+                pick(found, tag)?.let { return it }
+            }
             val named = afterTags.indexOf(tag)
             return tag.takeIf { named >= 0 && was(named).all { it == tag } }
         }
@@ -144,6 +157,29 @@ object NodeIdentity {
             return (tagged.firstOrNull { afterTags[it] == tag } ?: tagged.firstOrNull())?.let(afterTags::get)
         }
     }
+
+    /**
+     * The lowercase hex SHA-256 of [label], a NUL and [canonical]. The label names the form hashed
+     * and its version, so a key and an endpoint never coincide and a form changed after release
+     * takes a new label. It holds no NUL, so the first one ends it; the form after it is JSON,
+     * which writes every character of a field unambiguously. Only MessageDigest and a table of
+     * digits: both are there on the oldest Android KOne is built for (API 21), where neither
+     * HexFormat nor Java 8's map calls can be counted on.
+     */
+    private fun digest(label: String, canonical: String): String {
+        val bytes = MessageDigest.getInstance("SHA-256").digest("$label\u0000$canonical".toByteArray(Charsets.UTF_8))
+        val hex = CharArray(bytes.size * 2)
+        bytes.forEachIndexed { index, byte ->
+            val value = byte.toInt() and 0xff
+            hex[index * 2] = DIGITS[value ushr 4]
+            hex[index * 2 + 1] = DIGITS[value and 0x0f]
+        }
+        return String(hex)
+    }
+
+    private const val KEY = "kone.node.key.v1"
+    private const val ENDPOINT = "kone.node.endpoint.v1"
+    private const val DIGITS = "0123456789abcdef"
 
     /** What says whose account a node is, across the protocols KOne carries. */
     private val CREDENTIALS = listOf("uuid", "username", "user", "password", "auth_str", "auth")
