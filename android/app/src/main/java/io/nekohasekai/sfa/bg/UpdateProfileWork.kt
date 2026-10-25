@@ -81,7 +81,7 @@ class UpdateProfileWork {
                     Libbox.checkConfig(content)
                     io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info, profile.name)
                     val file = File(profile.typed.path)
-                    if (file.readText() != content) {
+                    if (!cc.txwd.kone.shared.ConfigurationContent.same(file.readText(), content)) {
                         File(profile.typed.path).writeText(content)
                         if (profile.id == selectedProfile) {
                             selectedProfileUpdated = true

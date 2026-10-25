@@ -175,16 +175,6 @@ fun ConnectionDetailsScreen(
 
         DetailSection(title = stringResource(R.string.connection_section_metadata)) {
             DetailRow(
-                label = stringResource(R.string.connection_inbound),
-                value = connection.inbound,
-                monospace = true,
-            )
-            DetailRow(
-                label = stringResource(R.string.connection_inbound_type),
-                value = connection.inboundType,
-                monospace = true,
-            )
-            DetailRow(
                 label = stringResource(R.string.connection_ip_version),
                 value = "IPv${connection.ipVersion}",
             )
@@ -213,20 +203,6 @@ fun ConnectionDetailsScreen(
                 DetailRow(
                     label = stringResource(R.string.connection_protocol),
                     value = connection.protocolName,
-                    monospace = true,
-                )
-            }
-            if (connection.user.isNotEmpty()) {
-                DetailRow(
-                    label = stringResource(R.string.connection_user),
-                    value = connection.user,
-                    monospace = true,
-                )
-            }
-            if (connection.fromOutbound.isNotEmpty()) {
-                DetailRow(
-                    label = stringResource(R.string.connection_from_outbound),
-                    value = connection.fromOutbound,
                     monospace = true,
                 )
             }
@@ -267,30 +243,6 @@ fun ConnectionDetailsScreen(
                     TextButton(onClick = { send(direct = true) }) { Text(stringResource(R.string.knine_connection_send_direct)) }
                     TextButton(onClick = { send(direct = false) }) { Text(stringResource(R.string.knine_connection_send_node)) }
                 }
-            }
-            if (connection.rule.isNotEmpty()) {
-                DetailRow(
-                    label = stringResource(R.string.connection_match_rule),
-                    value = connection.rule,
-                    monospace = true,
-                )
-            }
-            DetailRow(
-                label = stringResource(R.string.connection_outbound),
-                value = connection.outbound,
-                monospace = true,
-            )
-            DetailRow(
-                label = stringResource(R.string.connection_outbound_type),
-                value = connection.outboundType,
-                monospace = true,
-            )
-            if (connection.chain.size > 1) {
-                DetailRow(
-                    label = stringResource(R.string.connection_chain),
-                    value = connection.chain.joinToString(" → "),
-                    monospace = true,
-                )
             }
         }
 

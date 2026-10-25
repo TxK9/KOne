@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_import_nodes_title">Import nodes</string>
+    <string name="knine_import_nodes_supported">Supports VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, and AnyTLS links.</string>
+    <string name="knine_import_link_label">Node link</string>
+    <string name="knine_import_done">Node imported and selected</string>
+    <string name="knine_import_invalid_parameters">Invalid connection parameters</string>
+    <string name="knine_import_save_failed">Could not save the profile. Check the link and try again.</string>
+    <string name="knine_import_busy">Importing</string>
+    <string name="knine_import_confirm">Import and select</string>
+</resources>

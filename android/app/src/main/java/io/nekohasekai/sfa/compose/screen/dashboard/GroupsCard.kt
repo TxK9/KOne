@@ -196,7 +196,7 @@ fun GroupsCard(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun GroupsCardContent(
+internal fun GroupsCardContent(
     uiState: GroupsUiState,
     onToggleExpanded: (String) -> Unit,
     onItemSelected: (String, String) -> Unit,
@@ -267,11 +267,12 @@ private fun GroupsCardContent(
             }
 
             else -> {
-                uiState.groups.forEach { group ->
+                uiState.groups.forEachIndexed { groupIndex, group ->
                     val isExpanded = uiState.expandedGroups.contains(group.tag)
                     val headerContent: @Composable (Modifier) -> Unit = { headerModifier ->
                         GroupHeader(
                             group = group,
+                            displayName = "Policy group ${groupIndex + 1}",
                             isExpanded = isExpanded,
                             isTesting = uiState.testingGroups.contains(group.tag),
                             onToggleExpanded = { onToggleExpanded(group.tag) },
@@ -297,6 +298,7 @@ private fun GroupsCardContent(
                             ) {
                                 GroupItemRow(
                                     row = row,
+                                    firstItemIndex = rowIndex * 2,
                                     selectedTag = group.selected,
                                     isSelectable = group.selectable,
                                     isLast = rowIndex == rowItems.lastIndex,
@@ -368,6 +370,7 @@ private fun rememberUrlTestPalette(): UrlTestPalette {
 @Composable
 private fun GroupHeader(
     group: Group,
+    displayName: String,
     isExpanded: Boolean,
     isTesting: Boolean,
     onToggleExpanded: () -> Unit,
@@ -393,7 +396,7 @@ private fun GroupHeader(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = group.tag,
+                    text = displayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -523,6 +526,7 @@ private fun GroupDotsGrid(
 @Composable
 private fun GroupItemRow(
     row: List<GroupItem>,
+    firstItemIndex: Int,
     selectedTag: String,
     isSelectable: Boolean,
     isLast: Boolean,
@@ -549,9 +553,10 @@ private fun GroupItemRow(
             ),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            row.forEach { item ->
+            row.forEachIndexed { itemIndex, item ->
                 ProxyChip(
                     item = item,
+                    displayName = "Route ${firstItemIndex + itemIndex + 1}",
                     isSelected = item.tag == selectedTag,
                     isSelectable = isSelectable,
                     palette = palette,
@@ -571,6 +576,7 @@ private fun GroupItemRow(
 @Composable
 private fun ProxyChip(
     item: GroupItem,
+    displayName: String,
     isSelected: Boolean,
     isSelectable: Boolean,
     palette: UrlTestPalette,
@@ -603,7 +609,7 @@ private fun ProxyChip(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = item.tag,
+                    text = displayName,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     color =
@@ -621,7 +627,7 @@ private fun ProxyChip(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = item.displayType,
+                        text = if (isSelected) "Selected" else "Available routes",
                         style = MaterialTheme.typography.labelSmall,
                         color =
                         if (isSelected) {
@@ -686,5 +692,5 @@ private fun rememberBounceBlockingNestedScrollConnection(lazyListState: LazyList
 private fun groupTypeLabel(group: Group): String = when (group.type.lowercase()) {
     "selector" -> stringResource(R.string.knine_group_type_selector)
     "urltest" -> stringResource(R.string.knine_group_type_urltest)
-    else -> group.displayType
+    else -> "Route group"
 }

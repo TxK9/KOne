@@ -1,5 +1,8 @@
 package io.nekohasekai.sfa.compose.screen.profile
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -40,10 +43,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.IosShare
-import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.CircularProgressIndicator
@@ -77,8 +77,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import io.nekohasekai.libbox.Libbox
-import io.nekohasekai.sfa.compose.component.qr.QRCodeDialog
 import io.nekohasekai.sfa.compose.screen.dashboard.FlagStrip
 import io.nekohasekai.sfa.compose.screen.dashboard.HealthLabel
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeCategories
@@ -97,17 +95,14 @@ import io.nekohasekai.sfa.compose.util.RelativeTimeFormatter
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.TypedProfile
-import io.nekohasekai.sfa.ktx.errorDialogBuilder
-import io.nekohasekai.sfa.ktx.shareProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Personal build only: a node on one page. The node itself up top, its flag and name edited
- * where they stand; below, one group with its category, its configuration and sharing; delete
- * last, on its own. The parts settle in one after another when the page opens.
+ * Node appearance and update preferences. Configuration and subscription details stay
+ * inside the service and are never exposed through the editor.
  */
 @Composable
 internal fun KnineNodeEditor(
@@ -115,8 +110,6 @@ internal fun KnineNodeEditor(
     onName: (String) -> Unit,
     onIcon: (String?) -> Unit,
     onMoreIcons: () -> Unit,
-    onContent: () -> Unit,
-    onRemoteUrl: (String) -> Unit,
     onAutoUpdate: (Boolean) -> Unit,
     onAutoUpdateInterval: (String) -> Unit,
     onLeaveOut: (String) -> Unit,
@@ -129,7 +122,6 @@ internal fun KnineNodeEditor(
     val scope = rememberCoroutineScope()
     val remote = state.profileType == TypedProfile.Type.Remote
     var flagsOpen by remember { mutableStateOf(false) }
-    var showQrCode by remember { mutableStateOf(false) }
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) { appear.animateTo(1f, tween(760, easing = LinearEasing)) }
     fun Modifier.settle(order: Int): Modifier = graphicsLayer {
@@ -160,22 +152,9 @@ internal fun KnineNodeEditor(
             Spacer(Modifier.height(26.dp))
             BackdropCard(Modifier.fillMaxWidth().settle(3)) {
                 CategoryChoice(profile = profile, savedName = state.originalName)
-                Hairline()
-                ActionRow(Icons.Default.Code, if (remote) "View profile" else "Profile content", onClick = onContent)
-                // A node a KOne console manages is this phone's alone: not shared, and only unbinding removes it.
-                if (!managed) ActionRow(Icons.Default.IosShare, "Share", onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        try {
-                            context.shareProfile(profile)
-                        } catch (e: Exception) {
-                            withContext(Dispatchers.Main) { context.errorDialogBuilder(e).show() }
-                        }
-                    }
-                })
                 if (remote) {
-                    ActionRow(Icons.Default.QrCode2, "QR code", onClick = { showQrCode = true })
                     Hairline()
-                    RemoteOptions(state, onRemoteUrl, onAutoUpdate, onAutoUpdateInterval, onLeaveOut, onUpdateNow)
+                    RemoteOptions(state, onAutoUpdate, onAutoUpdateInterval, onLeaveOut, onUpdateNow)
                 }
             }
             if (managed) {
@@ -190,10 +169,6 @@ internal fun KnineNodeEditor(
         }
     }
 
-    if (showQrCode) {
-        val link = remember(profile) { Libbox.generateRemoteProfileImportLink(profile.name, profile.typed.remoteURL) }
-        QRCodeDialog(content = link, onDismiss = { showQrCode = false })
-    }
 }
 
 /** The node's flag in a circle; tapping it lays the flags out below. */
@@ -375,11 +350,10 @@ private fun ActionRow(icon: ImageVector, label: String, onClick: () -> Unit, tra
     }
 }
 
-/** A subscription's address, its automatic refresh and a refresh now. */
+/** Refresh preferences without exposing a subscription address. */
 @Composable
 private fun RemoteOptions(
     state: EditProfileUiState,
-    onRemoteUrl: (String) -> Unit,
     onAutoUpdate: (Boolean) -> Unit,
     onAutoUpdateInterval: (String) -> Unit,
     onLeaveOut: (String) -> Unit,
@@ -387,10 +361,6 @@ private fun RemoteOptions(
 ) {
     val context = LocalContext.current
     Column(Modifier.padding(vertical = 6.dp)) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            BText("Subscription URL", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp).graphicsLayer { alpha = 0.7f })
-            PillField(value = state.remoteUrl, onValueChange = onRemoteUrl, modifier = Modifier.fillMaxWidth())
-        }
         // Words that leave nodes out, as KOne for Windows offers per subscription.
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             BText("Leave out nodes named", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp).graphicsLayer { alpha = 0.7f })
@@ -487,7 +457,7 @@ private fun DeleteNode(profile: Profile, onDeleted: () -> Unit, modifier: Modifi
                             android.widget.Toast.makeText(context, "Deleted ${profile.name}", android.widget.Toast.LENGTH_SHORT).show()
                             onDeleted()
                         } catch (e: Exception) {
-                            context.errorDialogBuilder(e).show()
+                            android.widget.Toast.makeText(context, "Deletion incomplete. Try again later.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }

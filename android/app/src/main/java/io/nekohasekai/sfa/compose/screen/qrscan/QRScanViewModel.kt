@@ -380,7 +380,8 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
                     val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                     resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
                     var sample = 1
-                    while (maxOf(options.outWidth, options.outHeight) / sample > 3072) sample *= 2
+                    while (maxOf(options.outWidth, options.outHeight) / sample > 4096 ||
+                        options.outWidth.toLong() * options.outHeight / sample / sample > 12_000_000) sample *= 2
                     options.inJustDecodeBounds = false
                     options.inSampleSize = sample
                     val bitmap = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }

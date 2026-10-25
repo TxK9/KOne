@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_import_nodes_title">导入节点</string>
+    <string name="knine_import_nodes_supported">支持 VLESS、VMess、Trojan、Shadowsocks、Hysteria2、TUIC 和 AnyTLS 链接。</string>
+    <string name="knine_import_link_label">节点链接</string>
+    <string name="knine_import_done">已导入并选中节点</string>
+    <string name="knine_import_invalid_parameters">连接参数无效</string>
+    <string name="knine_import_save_failed">保存失败，请检查链接后重试。</string>
+    <string name="knine_import_busy">正在导入</string>
+    <string name="knine_import_confirm">导入并选中</string>
+</resources>

@@ -49,7 +49,7 @@ internal fun rememberExitIp(profileId: Long, status: Status, routeMode: String, 
                 }
                 state.value = ExitIpUi(detecting = true)
                 try {
-                    val info = detector.detect(network)
+                    val info = detectWithRetry { detector.detect(network) }
                     state.value = ExitIpUi(info)
                     if (info == null) Log.i("KnineExitIp", "IP hidden: no verified response")
                 } catch (cancelled: CancellationException) {

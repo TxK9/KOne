@@ -106,14 +106,14 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
     var error by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
-        title = { Text("Import nodes") },
+        title = { Text(stringResource(R.string.knine_import_nodes_title)) },
         text = {
             Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Supports VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, and AnyTLS links.", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.knine_import_nodes_supported), style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(
                     value = link,
                     onValueChange = { link = it; error = null },
-                    label = { Text("Node link") },
+                    label = { Text(stringResource(R.string.knine_import_link_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     isError = error != null,
                     visualTransformation = if (revealLink) VisualTransformation.None else PasswordVisualTransformation(),
@@ -141,19 +141,19 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
                             val created = createPairedProfile(context, input).profile
                             link = ""
                             onCreated(created)
-                            Toast.makeText(context, "Node imported and selected. Tap Connect if disconnected, then choose Rule or Global.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, R.string.knine_import_done, Toast.LENGTH_SHORT).show()
                             onDismiss()
                         } catch (failure: ShareLinkException) {
-                            error = failure.message
+                            error = failure.message ?: context.getString(R.string.knine_import_invalid_parameters)
                         } catch (_: Exception) {
-                            error = "Could not save the profile. Check the link format and try again."
+                            error = context.getString(R.string.knine_import_save_failed)
                         } finally {
                             busy = false
                         }
                     }
                 },
-            ) { Text(if (busy) "Importing" else "Import and select") }
+            ) { Text(stringResource(if (busy) R.string.knine_import_busy else R.string.knine_import_confirm)) }
         },
-        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

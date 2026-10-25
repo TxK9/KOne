@@ -134,6 +134,10 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".compose.screen.router.RouterActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden" />
         <!-- The private edition console (Tools → Management console); it closes at once in a build without the address. -->
         <activity
             android:name=".compose.screen.console.ConsoleActivity"
@@ -216,17 +220,6 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/cache_paths" />
-        </provider>
-
-        <provider
-            android:name=".WorkingDirectoryProvider"
-            android:authorities="${applicationId}.workingdir"
-            android:exported="true"
-            android:grantUriPermissions="true"
-            android:permission="android.permission.MANAGE_DOCUMENTS">
-            <intent-filter>
-                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
-            </intent-filter>
         </provider>
 
     </application>

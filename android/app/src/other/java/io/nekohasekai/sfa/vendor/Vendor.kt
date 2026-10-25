@@ -100,9 +100,14 @@ object Vendor : VendorInterface {
     override val updateSources = listOf(UpdateSource.GITHUB, UpdateSource.FDROID)
 
     override fun checkUpdateAsync(): UpdateInfo? {
-        if (Application.application.packageName == "cc.txwd.tianxiawudi.proxy") {
-            throw IllegalStateException("Update the private edition using its signed package. The upstream SFA package is not downloaded.")
+        if (io.nekohasekai.sfa.update.KoneUpdates.enabled) {
+            val release = io.nekohasekai.sfa.update.KoneUpdates.fetchRelease(Application.application)
+                ?.takeIf { it.versionCode > io.nekohasekai.sfa.BuildConfig.VERSION_CODE } ?: return null
+            return UpdateInfo(release.versionCode, release.versionName, release.downloadUrl,
+                io.nekohasekai.sfa.BuildConfig.KONE_UPDATE_FEED.substringBefore("/release.json"), release.notes, false, release.bytes)
         }
+
+        GitHubUpdateChecker.requireUpstreamPackage(Application.application.packageName)
         return when (UpdateSource.fromString(Settings.updateSource)) {
             UpdateSource.FDROID -> checkFDroidUpdate(Application.application)
             UpdateSource.GITHUB -> {
@@ -137,6 +142,12 @@ object Vendor : VendorInterface {
     }
 
     override suspend fun downloadAndInstall(context: android.content.Context, downloadUrl: String) {
+        if (io.nekohasekai.sfa.update.KoneUpdates.enabled) {
+            io.nekohasekai.sfa.update.KoneUpdates.updateNow(context)
+            return
+        }
+
+        GitHubUpdateChecker.requireUpstreamPackage(context.packageName)
         val cachedApk = UpdateState.cachedApkFile.value
         val apkFile = if (cachedApk != null && cachedApk.exists() && cachedApk.length() > 0) {
             cachedApk

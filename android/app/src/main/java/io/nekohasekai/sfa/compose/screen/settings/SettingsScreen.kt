@@ -224,6 +224,14 @@ fun SettingsScreen(navController: NavController) {
                     ),
                 )
 
+                ListItem(
+                    headlineContent = { Text("Feedback") },
+                    leadingContent = { Icon(Icons.Outlined.Description, contentDescription = null) },
+                    trailingContent = { SettingsChevron() },
+                    modifier = Modifier.clickable { navController.navigate("settings/feedback") },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+
                 // Privilege escalation (LSPosed): hides the VPN from chosen Apps such as PayPal; needs root and LSPosed.
                 ListItem(
                     headlineContent = {

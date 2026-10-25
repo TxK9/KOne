@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kone_devices">Devices</string>
+    <string name="kone_router_back">Back</string>
+    <string name="kone_router">Router</string>
+    <string name="kone_router_address">Router address</string>
+    <string name="kone_router_pin">Certificate SHA-256 (optional)</string>
+    <string name="kone_router_pin_help">For a self-signed router, enter the certificate fingerprint verified in its administration page. Sign in with the router account on the next page.</string>
+    <string name="kone_router_open">Open router</string>
+    <string name="kone_router_refresh">Refresh</string>
+    <string name="kone_router_invalid">Enter an HTTPS router address and, if needed, a 64-digit certificate fingerprint.</string>
+    <string name="kone_router_unreachable">Router unavailable. Check its address and your local or Home connection.</string>
+    <string name="kone_router_certificate">Certificate not trusted or changed. Verify the router certificate before connecting.</string>
+    <string name="kone_router_download">Use the router browser page to download files.</string>
+</resources>

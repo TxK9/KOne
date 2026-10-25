@@ -134,8 +134,9 @@ object RuleImport {
             val action = when (tag.lowercase()) {
                 "direct" -> "direct"
                 "block", "blocked", "reject" -> "block"
-                // An outbound named for a country ("jp-out") goes through that country.
-                else -> Countries.of(tag)?.let { Rules.through(it.code) } ?: "proxy"
+                // Preserve explicit Xray country-out tags; ordinary lowercase words are not country aliases.
+                else -> (Countries.of(tag) ?: Regex("^([A-Za-z]{2})-out$").matchEntire(tag)
+                    ?.groupValues?.get(1)?.let(Countries::byCode))?.let { Rules.through(it.code) } ?: "proxy"
             }
             fun texts(key: String): List<String> = when (val value = rule[key]) {
                 is JsonArray -> value.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty) }

@@ -47,7 +47,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.model.GroupItem
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
@@ -97,19 +96,12 @@ fun OutboundPickerScreen(
 ) {
     val viewModel: OutboundPickerViewModel = viewModel()
     val outbounds by viewModel.outbounds.collectAsState()
-    var searchText by rememberSaveable { mutableStateOf("") }
 
     DisposableEffect(Unit) {
         viewModel.connect()
         onDispose {
             viewModel.disconnect()
         }
-    }
-
-    val filteredOutbounds = if (searchText.isEmpty()) {
-        outbounds
-    } else {
-        outbounds.filter { it.tag.contains(searchText, ignoreCase = true) }
     }
 
     fun selectOutbound(tag: String) {
@@ -131,6 +123,19 @@ fun OutboundPickerScreen(
         )
     }
 
+    OutboundPickerContent(outbounds, selectedOutbound, ::selectOutbound)
+}
+
+/** Only numbered labels are public; selecting one still returns its exact service tag. */
+@Composable
+internal fun OutboundPickerContent(
+    outbounds: List<GroupItem>,
+    selectedOutbound: String,
+    onSelected: (String) -> Unit,
+) {
+    var searchText by rememberSaveable { mutableStateOf("") }
+    val filteredOutbounds = outbounds.mapIndexed { index, item -> index to item }
+        .filter { (index, _) -> "Route ${index + 1}".contains(searchText.trim(), ignoreCase = true) }
     val scaffoldPadding = LocalScaffoldPadding.current
 
     Column(
@@ -161,22 +166,22 @@ fun OutboundPickerScreen(
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             item {
                 OutboundPickerItem(
-                    tag = stringResource(R.string.tool_default_outbound),
+                    label = stringResource(R.string.tool_default_outbound),
                     isSelected = selectedOutbound.isEmpty(),
-                    onClick = { selectOutbound("") },
+                    onClick = { onSelected("") },
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                 )
             }
-            items(filteredOutbounds, key = { it.tag }) { item ->
+            items(filteredOutbounds, key = { it.second.tag }) { (index, item) ->
                 OutboundPickerItem(
-                    tag = item.tag,
-                    type = Libbox.proxyDisplayType(item.type),
+                    label = "Route ${index + 1}",
+                    type = "Available route",
                     urlTestDelay = item.urlTestDelay,
                     isSelected = selectedOutbound == item.tag,
-                    onClick = { selectOutbound(item.tag) },
+                    onClick = { onSelected(item.tag) },
                 )
             }
             if (filteredOutbounds.isEmpty() && searchText.isNotBlank()) {
@@ -190,7 +195,7 @@ fun OutboundPickerScreen(
 
 @Composable
 private fun OutboundPickerItem(
-    tag: String,
+    label: String,
     type: String? = null,
     urlTestDelay: Int = 0,
     isSelected: Boolean,
@@ -209,7 +214,7 @@ private fun OutboundPickerItem(
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(
-                text = tag,
+                text = label,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             )
@@ -251,7 +256,7 @@ fun OutboundPickerRow(
     val displayText = if (selectedOutbound.isEmpty()) {
         stringResource(R.string.tool_default_outbound)
     } else {
-        selectedOutbound
+        "Route selected"
     }
 
     Surface(

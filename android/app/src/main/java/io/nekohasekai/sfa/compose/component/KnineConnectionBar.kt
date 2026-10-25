@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.CircularProgressIndicator
@@ -117,6 +119,8 @@ fun KnineConnectionBar(
     onStopClick: () -> Unit,
     modifier: Modifier = Modifier,
     homeStatus: String = "",
+    homeStatusAlpha: Float = 1f,
+    onHomeClick: () -> Unit = {},
     onHeightChanged: (Int) -> Unit = {},
 ) {
     AnimatedVisibility(
@@ -169,7 +173,7 @@ fun KnineConnectionBar(
                         // home label may ellipsize, while TalkBack retains its text.
                         val detailWidth = if (startTime != null) {
                             textMeasurer.measure("00:00:00", labelStyle.copy(fontFeatureSettings = "tnum")).size.width +
-                                if (homeStatus.isNotBlank()) textMeasurer.measure("Home", labelStyle).size.width + with(density) { 8.dp.roundToPx() } else 0
+                                if (homeStatus.isNotBlank()) with(density) { 44.dp.roundToPx() } else 0
                         } else 0
                         val summaryWidth = maxOf(statusWidth, detailWidth)
                         val compact = summaryWidth + controlsWidth + with(density) { 8.dp.roundToPx() } <= with(density) { maxWidth.roundToPx() }
@@ -184,6 +188,8 @@ fun KnineConnectionBar(
                                     statusLabel = statusLabel,
                                     started = started,
                                     homeStatus = homeStatus,
+                                    homeStatusAlpha = homeStatusAlpha,
+                                    onHomeClick = onHomeClick,
                                     startTime = startTime,
                                     modifier = Modifier.weight(1f),
                                 )
@@ -215,7 +221,7 @@ fun KnineConnectionBar(
 }
 
 @Composable
-private fun ConnectionSummary(statusLabel: String, started: Boolean, homeStatus: String, startTime: Long?, modifier: Modifier = Modifier) {
+private fun ConnectionSummary(statusLabel: String, started: Boolean, homeStatus: String, homeStatusAlpha: Float, onHomeClick: () -> Unit, startTime: Long?, modifier: Modifier = Modifier) {
     Column(modifier.padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(5.dp).background(if (started) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, CircleShape))
@@ -230,14 +236,9 @@ private fun ConnectionSummary(statusLabel: String, started: Boolean, homeStatus:
         if (homeStatus.isNotBlank() || startTime != null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (homeStatus.isNotBlank()) {
-                    Text(
-                        text = homeStatus,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
+                    IconButton(onClick = onHomeClick, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Outlined.Home, contentDescription = homeStatus, modifier = Modifier.size(18.dp).alpha(homeStatusAlpha))
+                    }
                 }
                 if (startTime != null) StableUptimeText(startTime)
             }

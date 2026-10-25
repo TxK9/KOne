@@ -13,10 +13,11 @@ class NodeHealthRulesTest {
 
     @Test
     fun badgesShowTheWeatherAndLatencyButNoReason() {
-        assertEquals("S · 245 ms", NodeHealthRules.badge(NodeReading("245 ms", NodeHealth.Good)))
-        assertEquals("M · 1203 ms", NodeHealthRules.badge(NodeReading("1203 ms", NodeHealth.Slow)))
-        assertEquals("M", NodeHealthRules.badge(NodeReading("Proxy unreachable", NodeHealth.Slow, failed = true)))
-        assertEquals("X", NodeHealthRules.badge(NodeReading("Proxy unreachable", NodeHealth.Down, failed = true)))
+        // The seal picture beside it shows the weather, so the words carry no seal letter.
+        assertEquals("245 ms", NodeHealthRules.badge(NodeReading("245 ms", NodeHealth.Good)))
+        assertEquals("Slow · 1203 ms", NodeHealthRules.badge(NodeReading("1203 ms", NodeHealth.Slow)))
+        assertEquals("Slow", NodeHealthRules.badge(NodeReading("Proxy unreachable", NodeHealth.Slow, failed = true)))
+        assertEquals("Unreachable", NodeHealthRules.badge(NodeReading("Proxy unreachable", NodeHealth.Down, failed = true)))
     }
 
     @Test

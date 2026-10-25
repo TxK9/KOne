@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,10 +18,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -29,6 +32,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
@@ -36,6 +42,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -52,11 +59,17 @@ import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 
 /** How long each mountain stays, and how long one fades into the next. */
 private const val SCENE_SECONDS = 20.0
 private const val FADE_SECONDS = 4.0
+
+// Painted layers extend past the viewport so their drift cannot expose a bitmap edge.
+// Keep their intended size and origin instead of coercing them to the parent's width.
+internal fun Modifier.inkLayerSize(width: Dp, height: Dp): Modifier =
+    wrapContentSize(Alignment.TopStart, unbounded = true).size(width, height)
 
 /**
  * Whether the page in front is the dashboard. Elsewhere the mountains stay but the seal and the
@@ -82,9 +95,10 @@ private class ShownScene(val back: ImageBitmap, val front: ImageBitmap, val seal
 @Composable
 internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val mountains = InkMountains.all
+    // The paintings of the chosen style (Settings → App → Style): by default those of where the phone is.
+    val mountains = remember(KnineAppearance.inkStyle) { InkMountains.shown(KnineAppearance.inkStyle) }
     // Start where the day has got to, so opening the App does not always show the same mountain.
-    val first = remember { ((System.currentTimeMillis() / 1000 / SCENE_SECONDS.toLong()) % mountains.size).toInt() }
+    val first = remember(mountains) { ((System.currentTimeMillis() / 1000 / SCENE_SECONDS.toLong()) % mountains.size).toInt() }
     val brush by produceState<android.graphics.Bitmap?>(null) {
         value = withContext(Dispatchers.IO) { runCatching { BitmapFactory.decodeResource(context.resources, R.drawable.kone_ink_mountains) }.getOrNull() }
     }
@@ -119,9 +133,9 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
     }
 
     // The scene on screen, the one before it (still fading out) and the next (painted ahead).
-    val scenes = remember(dark) { mutableStateMapOf<Int, ShownScene>() }
+    val scenes = remember(dark, mountains) { mutableStateMapOf<Int, ShownScene>() }
     val step = (clock.doubleValue / SCENE_SECONDS).toInt()
-    LaunchedEffect(step, dark, brush) {
+    LaunchedEffect(step, dark, brush, mountains) {
         val texture = brush ?: return@LaunchedEffect
         val wanted = listOf(step, step + 1)
         for (index in wanted) {
@@ -154,7 +168,7 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
             Box(
                 Modifier
                     .offset(artLeft, artTop)
-                    .size(artWidth, artHeight)
+                    .inkLayerSize(artWidth, artHeight)
                     .graphicsLayer {
                         alpha = fade() * 0.92f
                         translationX = -drift() * size.width * 0.006f
@@ -165,7 +179,7 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
             Box(
                 Modifier
                     .offset(artLeft, artTop)
-                    .size(artWidth, artHeight)
+                    .inkLayerSize(artWidth, artHeight)
                     .graphicsLayer {
                         alpha = fade()
                         translationX = drift() * size.width * 0.012f
@@ -212,12 +226,17 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
             androidx.compose.animation.core.tween(900),
             label = "skyShown",
         )
+        // Where the sky's body stands on the page: across from the left (east), up from the horizon.
+        fun DrawScope.skyCenter(body: SkyClock.Body): Offset {
+            val zenith = (artTop + artHeight * 0.10f).toPx()
+            val horizon = (artTop + artHeight * 0.58f).toPx()
+            return Offset(artLeft.toPx() + artWidth.toPx() * (0.10f + 0.80f * body.across), horizon - (horizon - zenith) * body.height)
+        }
         Canvas(Modifier.matchParentSize().graphicsLayer { alpha = skyShown; compositingStrategy = CompositingStrategy.ModulateAlpha }) {
-            val left = artLeft.toPx() + artWidth.toPx() * 0.10f
-            val span = artWidth.toPx() * 0.80f
             val zenith = (artTop + artHeight * 0.10f).toPx()
             val horizon = (artTop + artHeight * 0.58f).toPx()
             val radius = artWidth.toPx() * 0.05f
+            val seconds = if (still.value) 0.0 else clock.doubleValue
             if (dark) {
                 // Stars, faint and slow, high in the sky; the mountains hide the low ones.
                 stars.forEachIndexed { index, (x, y, scale) ->
@@ -227,8 +246,26 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
             }
             val body = sky.body
             if (body.up) {
-                val center = Offset(left + span * body.across, horizon - (horizon - zenith) * body.height)
-                if (dark) drawMoon(center, radius * 0.86f, sky.phase) else drawSun(center, radius, body.height)
+                val center = skyCenter(body)
+                if (dark) {
+                    drawMoon(center, radius * 0.86f, sky.phase)
+                    drawWisps(center, radius * 0.86f, NIGHT_PAPER, seconds, 0.55f)
+                } else {
+                    drawSun(center, radius, body.height)
+                    drawWisps(center, radius, DAY_PAPER, seconds, 0.62f)
+                }
+                // Its light on the water, for the paintings with a harbour or a bay: the old one's
+                // path fading with it, the new one's coming as it does.
+                val u = local() / FADE_SECONDS.toFloat()
+                val smooth = { x: Float -> x.coerceIn(0f, 1f).let { it * it * (3f - 2f * it) } }
+                for (index in listOf(step - 1, step)) {
+                    val water = mountains[Math.floorMod(first + index, mountains.size)].water ?: continue
+                    val shown = if (index == step) smooth((u - 0.35f) / 0.65f) else 1f - smooth(u / 0.6f)
+                    if (shown <= 0.01f) continue
+                    val top = (artTop + artHeight * water).toPx()
+                    val bottom = (artTop + artHeight * minOf(1f, water + 0.20f)).toPx()
+                    drawGlints(center.x, top, bottom, radius, if (dark) MOONLIGHT else SUN_GLINT, seconds, shown * if (dark) 0.40f else 0.50f)
+                }
             }
         }
 
@@ -240,7 +277,7 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
         Box(
             Modifier
                 .offset(artLeft, artTop + artHeight * 0.18f)
-                .size(artWidth, artHeight * 0.82f)
+                .inkLayerSize(artWidth, artHeight * 0.82f)
                 .graphicsLayer {
                     val u = local() / FADE_SECONDS.toFloat()
                     alpha = if (step == 0 || still.value) 0f else (sin((u.coerceIn(0f, 1f) * PI).toFloat()) * 0.7f)
@@ -258,7 +295,7 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
             Box(
                 Modifier
                     .offset(x = -maxWidth * 0.3f, y = artTop + artHeight * (if (bank == 0) 0.60f else 0.74f))
-                    .size(maxWidth * 1.6f, artHeight * 0.12f)
+                    .inkLayerSize(maxWidth * 1.6f, artHeight * 0.12f)
                     .graphicsLayer {
                         val drift = sin((clock.doubleValue / (if (bank == 0) 46.0 else 61.0) * 2.0 * PI).toFloat())
                         translationX = drift * size.width * (if (bank == 0) 0.09f else -0.07f)
@@ -286,6 +323,19 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
             )
         }
 
+        // Early and late in the day the low sun warms the whole painting from its side, mountains and all.
+        if (!dark) {
+            Canvas(Modifier.matchParentSize().graphicsLayer { alpha = skyShown; compositingStrategy = CompositingStrategy.ModulateAlpha }) {
+                val body = sky.body
+                val low = ((0.30f - body.height) / 0.30f).coerceIn(0f, 1f)
+                if (body.up && low > 0f) {
+                    val center = skyCenter(body)
+                    val reach = size.maxDimension * 0.95f
+                    drawRect(Brush.radialGradient(0f to GOLDEN.copy(alpha = 0.16f * low), 0.45f to GOLDEN.copy(alpha = 0.07f * low), 1f to Color.Transparent, center = center, radius = reach))
+                }
+            }
+        }
+
         // Weather seal on the painting: while connected, a slow node brings mist drifting across the
         // mountains and one that does not answer is lost in fog; clear leaves the painting alone.
         val fog by androidx.compose.animation.core.animateFloatAsState(
@@ -302,7 +352,7 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
             Box(
                 Modifier
                     .offset(artLeft, artTop)
-                    .size(artWidth, artHeight)
+                    .inkLayerSize(artWidth, artHeight)
                     .graphicsLayer {
                         alpha = fog * fog
                         compositingStrategy = CompositingStrategy.ModulateAlpha
@@ -313,7 +363,7 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
                 Box(
                     Modifier
                         .offset(x = -maxWidth * 0.3f, y = artTop + artHeight * (0.24f + 0.15f * bank))
-                        .size(maxWidth * 1.6f, artHeight * 0.16f)
+                        .inkLayerSize(maxWidth * 1.6f, artHeight * 0.16f)
                         .graphicsLayer {
                             val drift = sin((clock.doubleValue / (29.0 + bank * 9.0) * 2.0 * PI).toFloat() + bank)
                             translationX = drift * size.width * (if (bank % 2 == 0) 0.11f else -0.09f)
@@ -387,6 +437,18 @@ internal fun PlainBackdropMark(dark: Boolean, modifier: Modifier = Modifier) {
 }
 
 private val MOONLIGHT = Color(0xFFEDE6CF)
+private val SUN_GLINT = Color(0xFFE6A066)
+private val GOLDEN = Color(0xFFF2B46A)
+
+/** The page's own colours, which the drifting cloud is painted in. */
+private val DAY_PAPER = Color(0xFFF0F2F5)
+private val NIGHT_PAPER = Color(0xFF181A1F)
+
+/** Paler patches in the sun's wash: offset from the centre and size, in its radius. */
+private val SUN_POOLS = listOf(Triple(-0.30f, -0.22f, 0.42f), Triple(0.28f, 0.18f, 0.30f), Triple(-0.05f, 0.42f, 0.26f))
+
+/** The strands of cloud across the sun or the moon: offset down, length and thickness, in its radius. */
+private val STRANDS = listOf(Triple(-0.18f, 4.2f, 0.26f), Triple(0.46f, 3.4f, 0.20f))
 
 /** Where the stars are, as shares of the width and of the sky's height, and how large. */
 private val stars = listOf(
@@ -404,14 +466,98 @@ private fun skyNow(dark: Boolean): SkyNow {
     return if (dark) SkyClock.moon(now).let { SkyNow(it.body, it.phase) } else SkyNow(SkyClock.sun(now), 0f)
 }
 
-/** The sun as ink painters set it down: a flat vermilion disc with a soft rim, deeper and larger low in the sky. */
+/**
+ * The sun as ink painters set it down: a wash of vermilion with a soft, slightly uneven wet edge
+ * and pigment pooled unevenly in it, a corona close round it and a wide warm haze. High in the
+ * sky it is paler and golden; low it deepens toward crimson, grows a little, and spreads a band
+ * of light along the haze of the horizon.
+ */
 private fun DrawScope.drawSun(center: Offset, radius: Float, height: Float) {
-    val low = ((0.25f - height) / 0.25f).coerceIn(0f, 1f)
-    val r = radius * (1f + 0.18f * low)
-    val core = lerp(Color(0xFFD0503A), Color(0xFFB8321F), low)
-    drawCircle(Brush.radialGradient(0f to core.copy(alpha = 0.20f), 0.45f to core.copy(alpha = 0.07f), 1f to Color.Transparent, center = center, radius = r * 3.2f), r * 3.2f, center)
-    drawCircle(core.copy(alpha = 0.35f), r * 1.07f, center)
-    drawCircle(Brush.radialGradient(0f to core.copy(alpha = 0.9f), 0.85f to core, 1f to core.copy(alpha = 0.92f), center = center, radius = r), r, center)
+    val low = ((0.30f - height) / 0.30f).coerceIn(0f, 1f)
+    val r = radius * (1f + 0.12f * low)
+    val warm = lerp(Color(0xFFF3BE8E), Color(0xFFF09A68), low)
+    val haze = r * (6f + 3f * low)
+    drawCircle(Brush.radialGradient(0f to warm.copy(alpha = 0.11f + 0.07f * low), 0.4f to warm.copy(alpha = 0.045f + 0.04f * low), 1f to Color.Transparent, center = center, radius = haze), haze, center)
+    if (low > 0f) {
+        scale(1f, 0.28f, pivot = center) {
+            drawCircle(Brush.radialGradient(0f to warm.copy(alpha = 0.16f * low), 0.5f to warm.copy(alpha = 0.06f * low), 1f to Color.Transparent, center = center, radius = r * 10f), r * 10f, center)
+        }
+    }
+    drawCircle(Brush.radialGradient(0f to warm.copy(alpha = 0.36f), 0.5f to warm.copy(alpha = 0.13f), 1f to Color.Transparent, center = center, radius = r * 2.2f), r * 2.2f, center)
+    val inner = lerp(Color(0xFFF0A274), Color(0xFFDA5A3B), low)
+    val outer = lerp(Color(0xFFE0734C), Color(0xFFB8362A), low)
+    drawIntoCanvas { canvas ->
+        // A brush never leaves a perfect circle: the rim wavers a little, and the wash is soft at it.
+        val rim = android.graphics.Path()
+        for (k in 0..90) {
+            val a = k / 90.0 * 2.0 * PI
+            val wobble = 1f + 0.016f * sin(a * 3.0 + 0.7).toFloat() + 0.010f * sin(a * 7.0 + 2.1).toFloat() + 0.006f * sin(a * 13.0 + 4.0).toFloat()
+            val x = center.x + cos(a).toFloat() * r * wobble
+            val y = center.y + sin(a).toFloat() * r * wobble
+            if (k == 0) rim.moveTo(x, y) else rim.lineTo(x, y)
+        }
+        rim.close()
+        val wash = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            shader = android.graphics.RadialGradient(
+                center.x - r * 0.22f, center.y - r * 0.26f, r * 1.35f,
+                intArrayOf(inner.copy(alpha = 0.80f).toArgb(), outer.copy(alpha = 0.88f).toArgb()), floatArrayOf(0f, 1f),
+                android.graphics.Shader.TileMode.CLAMP,
+            )
+            maskFilter = android.graphics.BlurMaskFilter(r * 0.06f, android.graphics.BlurMaskFilter.Blur.NORMAL)
+        }
+        canvas.nativeCanvas.drawPath(rim, wash)
+    }
+    // Pigment settles unevenly: a few paler patches, as on paper that took the wash.
+    SUN_POOLS.forEach { (dx, dy, size) ->
+        val at = Offset(center.x + dx * r, center.y + dy * r)
+        drawCircle(Brush.radialGradient(0f to Color.White.copy(alpha = 0.10f), 1f to Color.Transparent, center = at, radius = r * size), r * size, at)
+    }
+}
+
+/**
+ * Thin cloud drifting slowly across the sun or the moon, in the paper's own colour: like the
+ * cloud an ink painter leaves as bare paper, it shows only where it veils the light. Each strand
+ * is a few soft puffs of different sizes along a slightly rising line, and it drifts far enough
+ * that the light is sometimes clear and sometimes veiled.
+ */
+private fun DrawScope.drawWisps(center: Offset, r: Float, paper: Color, seconds: Double, strength: Float) {
+    STRANDS.forEachIndexed { index, (dy, length, thick) ->
+        val drift = sin(seconds / (53.0 + index * 19.0) * 2.0 * PI + index * 2.4).toFloat() * r * 1.5f
+        val start = Offset(center.x + drift - length * r / 2f, center.y + dy * r)
+        val random = kotlin.random.Random(31 + index)
+        val puffs = 6
+        for (k in 0 until puffs) {
+            val along = (k + 0.5f) / puffs
+            val at = Offset(start.x + length * r * along, start.y - along * length * r * 0.06f + (random.nextFloat() - 0.5f) * thick * r * 0.8f)
+            val half = r * length / puffs * (0.9f + 0.9f * random.nextFloat())
+            val high = thick * r * (0.6f + 0.8f * random.nextFloat())
+            // Thickest in the middle of the strand, thinning to nothing at its ends.
+            val taper = sin(PI * along).toFloat()
+            val alpha = strength * (0.55f + 0.45f * random.nextFloat()) * taper
+            scale(1f, high / half, pivot = at) {
+                drawCircle(Brush.radialGradient(0f to paper.copy(alpha = alpha), 0.45f to paper.copy(alpha = alpha * 0.45f), 1f to Color.Transparent, center = at, radius = half), half, at)
+            }
+        }
+    }
+}
+
+/**
+ * The light's broken path on water under it (sunlight glittering on water by day, moonlight reflected on water by night): many small
+ * uneven strokes in a cone that widens toward us, fainter as it comes, each flickering on its own.
+ */
+private fun DrawScope.drawGlints(x: Float, top: Float, bottom: Float, r: Float, color: Color, seconds: Double, strength: Float) {
+    val random = kotlin.random.Random(7)
+    repeat(30) { k ->
+        val t = random.nextFloat().pow(1.3f)
+        val y = top + (bottom - top) * t + r * 0.06f
+        val spread = r * (0.15f + 1.1f * t)
+        val cx = x + (random.nextFloat() * 2f - 1f) * spread
+        val flicker = 0.5f + 0.5f * sin(seconds * (1.2 + 1.6 * random.nextFloat()) + k * 2.7).toFloat()
+        val half = r * (0.06f + 0.30f * t) * (0.5f + random.nextFloat())
+        val tall = r * (0.018f + 0.03f * t)
+        val alpha = strength * (1f - 0.7f * t) * flicker * flicker
+        drawOval(color.copy(alpha = alpha), Offset(cx - half, y - tall), Size(half * 2f, tall * 2f))
+    }
 }
 
 /** The moon in its phase: the lit part in pale light, the rest only traced (earthshine), inside a halo. */

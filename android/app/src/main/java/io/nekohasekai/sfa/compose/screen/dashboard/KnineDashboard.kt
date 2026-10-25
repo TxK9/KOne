@@ -1,6 +1,9 @@
 package io.nekohasekai.sfa.compose.screen.dashboard
 
 import cc.txwd.kone.shared.Countries
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PriorityHigh
+
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -156,9 +159,11 @@ internal enum class HomeState {
 /** What the dashboard borrows from the activity: the home tunnel state and its shared sheets. */
 internal data class KnineHost(
     val homeStatus: String = "",
+    val homeStatusAlpha: Float = 1f,
     val homeState: HomeState = HomeState.None,
     val openGroups: () -> Unit = {},
     val openConnections: () -> Unit = {},
+    val openHome: () -> Unit = {},
 )
 
 internal val LocalKnineHost = compositionLocalOf { KnineHost() }
@@ -171,6 +176,7 @@ internal class KnineDashboardActions(
     val selectMode: (String) -> Unit,
     val toggleSystemProxy: (Boolean) -> Unit,
     val import: () -> Unit = {},
+    val delete: (Profile) -> Unit = {},
 )
 
 internal const val SHOWN_NODES = 3
@@ -207,7 +213,7 @@ internal fun visibleNodes(group: NodeGroup, selectedId: Long): List<Profile> {
 }
 
 /**
- * The personal dashboard: one panel over the whole photograph, and the start action alone
+ * The photo dashboard: one panel over the whole photograph, and the start action alone
  * in the bottom corner. The panel folds to a single line, so the photograph can show whole;
  * tapping that line lifts the nodes out of it. Nothing here opens a sheet: categories switch
  * on their tabs or the dial, edit in place, and the ways to import bloom out of the menu.
@@ -286,24 +292,22 @@ internal fun KnineDashboard(
     }
     LaunchedEffect(started) { if (!started) statusOpen = false }
 
-    // Node health, only while this page is on screen: every 5 s at first (every 15 s later on
-    // mobile data) and again whenever the connection changes the network underneath.
+    // Node health, only while this page is on screen: every 6 s on Wi-Fi and mobile data and again whenever the connection changes the network underneath.
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(profiles, serviceStatus) {
+    LaunchedEffect(profiles, serviceStatus, selectedId, uiState.latencyRefreshToken) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            var round = 0
             while (true) {
                 NodeLatency.refresh(context, profiles)
-                delay(NodeLatency.gap(context, round++, 15) * 1_000)
+                delay(NodeLatency.gap() * 1_000)
             }
         }
     }
-    // While connected, the core also tests the node in use through the proxy, every 5 s at
-    // first and every 30 s later on mobile data. A test that has not answered within 10 s
+    // While connected, the core also tests the node in use through the proxy, every 6 s on
+    // Wi-Fi and mobile data. A test that has not answered within 6 s
     // counts as a failure.
     val probeTime by rememberUpdatedState(uiState.probeTime)
-    LaunchedEffect(started, selectedId, uiState.probeGroupTag) {
+    LaunchedEffect(started, selectedId, uiState.probeGroupTag, uiState.latencyRefreshToken) {
         val tag = uiState.probeGroupTag
         if (!started || tag == null) {
             NodeLatency.useProxyReadings(null)
@@ -312,15 +316,13 @@ internal fun KnineDashboard(
         NodeLatency.useProxyReadings(selectedId)
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             var pendingSince = 0L
-            var round = 0
             while (true) {
                 val now = System.currentTimeMillis() / 1_000
                 val answered = pendingSince == 0L || probeSeconds(probeTime) >= pendingSince - 1
-                val overdue = !answered && now - pendingSince >= 10
+                val overdue = !answered && now - pendingSince >= 6
                 if (overdue) NodeLatency.recordProxy(selectedId, LatencySample(null, "Proxy unreachable"))
-                if (overdue || answered && now - pendingSince >= NodeLatency.gap(context, round, 30)) {
+                if (overdue || answered && now - pendingSince >= NodeLatency.gap()) {
                     pendingSince = now
-                    round++
                     launch(Dispatchers.IO) { runCatching { CommandTarget.standaloneClient().urlTest(tag) } }
                 }
                 delay(NodeLatency.INTERVAL_MS)
@@ -432,6 +434,13 @@ internal fun KnineDashboard(
                         floating = floating,
                         onSelect = ::pick,
                         onEdit = ::edit,
+                        onDelete = { id ->
+                            profiles.firstOrNull { it.id == id }?.let { profile ->
+                                if (id == selectedId && serviceStatus != Status.Stopped) {
+                                    android.widget.Toast.makeText(context, "Disconnect before deleting the active node.", android.widget.Toast.LENGTH_SHORT).show()
+                                } else actions.delete(profile)
+                            }
+                        },
                         onOpenDial = { dialAnchor = it },
                         modifier = modifier,
                         onImport = if (profiles.isEmpty()) ({ at -> importFrom = at; actions.import() }) else null,
@@ -683,7 +692,7 @@ private fun ExpandedPanel(
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CollapsedPanel(
+internal fun CollapsedPanel(
     uiState: DashboardUiState,
     serviceStatus: Status,
     exit: ExitIpUi,
@@ -695,9 +704,9 @@ private fun CollapsedPanel(
     val selected = uiState.profiles.firstOrNull { it.id == uiState.selectedProfileId }
     val reading = selected?.let { NodeLatency[it.id] }
     val flag = selected?.let { FlagIcons.codeFor(it.icon, it.name) }
-    val type = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+    val type = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum", platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = true))
     // Every item is the same height, so wrapped or not they sit on one centre line.
-    val item = Modifier.height(24.dp)
+    val item = Modifier.heightIn(min = 24.dp).padding(vertical = 2.dp)
     FlowRow(
         modifier
             .clip(RoundedCornerShape(12.dp))
@@ -711,13 +720,7 @@ private fun CollapsedPanel(
             if (flag != null) {
                 FlagGlyph(flag, size = 18.dp)
             } else {
-                BText(selected?.name ?: "No node selected", style = type, fontWeight = FontWeight.SemiBold, emphasized = true, maxLines = 1, softWrap = false)
-            }
-        }
-        val ip = exit.info?.ip
-        if (started && ip != null) {
-            Row(item, verticalAlignment = Alignment.CenterVertically) {
-                BText(ip, style = type, fontWeight = FontWeight.SemiBold, emphasized = true, maxLines = 1, softWrap = false)
+                BText(selected?.name ?: "No node selected", style = type, fontWeight = FontWeight.SemiBold, emphasized = true, maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis)
             }
         }
         if (reading != null) {
@@ -814,16 +817,7 @@ private fun PanelHeader(
                         .clickable(onClick = onToggleStatus),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
-                    val info = exit.info
-                    when {
-                        info != null -> FitText(
-                            listOfNotNull(Countries.byCode(info.country)?.zh, info.ip).joinToString(" "),
-                            lineStyle.copy(fontWeight = FontWeight.SemiBold),
-                            alignEnd = true,
-                        )
-                        exit.detecting -> Shimmer(96.dp, 12.dp)
-                        else -> FitText("↓ ${uiState.downlink}   ↑ ${uiState.uplink}", lineStyle, alignEnd = true)
-                    }
+                    FitText("↓ ${uiState.downlink}   ↑ ${uiState.uplink}", lineStyle, alignEnd = true)
                 }
             }
         }
@@ -835,62 +829,39 @@ private fun PanelHeader(
  * while it settles, and words only when it needs the user.
  */
 @Composable
-private fun HomeMark(host: KnineHost) {
+internal fun HomeMark(host: KnineHost) {
+    if (host.homeState == HomeState.None) return
     val ink = LocalContentColor.current
-    when (host.homeState) {
-        HomeState.Online -> Box(Modifier.padding(start = 6.dp)) {
-            Icon(Icons.Outlined.Home, contentDescription = "Home online", modifier = Modifier.size(14.dp))
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .size(5.dp)
-                    .background(okColor(ink), CircleShape),
-            )
+    val breath = if (host.homeState == HomeState.Settling) {
+        val value by rememberInfiniteTransition(label = "homeSettling").animateFloat(
+            .38f, .85f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "homeBreath")
+        value
+    } else 1f
+    // The 44dp target is easy to tap; the status itself stays a small, quiet icon.
+    Box(Modifier.size(44.dp).clip(CircleShape).clickable(onClick = host.openHome), contentAlignment = Alignment.Center) {
+        Icon(Icons.Outlined.Home, contentDescription = host.homeStatus.ifBlank { "Tailscale status" },
+            modifier = Modifier.size(18.dp).graphicsLayer { alpha = breath })
+        if (host.homeState == HomeState.Online || host.homeState == HomeState.NeedsAction) {
+            val mark = if (host.homeState == HomeState.Online) Icons.Default.Check else Icons.Default.PriorityHigh
+            Icon(mark, contentDescription = null, tint = if (host.homeState == HomeState.Online) okColor(ink) else healthColor(NodeHealth.Slow, ink),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 6.dp, bottom = 7.dp).size(10.dp))
         }
-        // Coming up, as after every node switch: said quietly in plain ink, breathing, not as a warning.
-        HomeState.Settling -> {
-            val breath by rememberInfiniteTransition(label = "homeSettling").animateFloat(
-                initialValue = 0.35f,
-                targetValue = 0.7f,
-                animationSpec = infiniteRepeatable(tween(1_100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-                label = "homeBreath",
-            )
-            BText(
-                host.homeStatus,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier.padding(start = 6.dp).graphicsLayer { alpha = breath },
-            )
-        }
-        HomeState.NeedsAction -> BText(
-            host.homeStatus,
-            style = MaterialTheme.typography.labelMedium,
-            color = healthColor(NodeHealth.Slow, ink),
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.padding(start = 6.dp),
-        )
-        HomeState.None -> Unit
     }
 }
 
 /**
- * The weather and the latency: on the folded line and the node page the weather's seal and its
- * glyph, in the lists the glyph alone. A failure shows the weather alone; its reason is in the details.
+ * The weather and the latency: on the folded line and the node page the weather's seal, in the
+ * lists its glyph alone. A failure shows the weather alone; its reason is in the details.
  */
 @Composable
 internal fun HealthLabel(reading: NodeReading, large: Boolean = false) {
     val ink = LocalContentColor.current
     val weather = NodeWeather.of(reading.health)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        if (large) {
-            WeatherSeal(weather, 18.dp)
-            Spacer(Modifier.width(4.dp))
-        }
-        WeatherGlyph(weather, if (large) 16.dp else 14.dp, ink)
+        // The seal carries the glyph itself now, so it stands alone rather than beside a second sun.
+        if (large) WeatherSeal(weather, 18.dp) else WeatherGlyph(weather, 14.dp, ink)
         if (!reading.failed) {
-            Spacer(Modifier.width(if (large) 5.dp else 4.dp))
+            Spacer(Modifier.width(if (large) 6.dp else 4.dp))
             if (large) {
                 BText(
                     reading.label,
@@ -952,19 +923,14 @@ private fun StatusDetails(
     val ink = LocalContentColor.current
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
-    val info = exit.info
-    val country = Countries.byCode(info?.country)
     val tiles = buildList {
-        if (info != null) {
-            add(TileSpec("Exit", Icons.Outlined.Public, country?.label ?: "Unknown region", info.ip, copy = info.ip))
-        }
         if (reading != null) {
             val verdict = when (reading.health) {
                 NodeHealth.Good -> "Good"
                 NodeHealth.Slow -> if (reading.failed) "No recent response" else "Slow"
                 NodeHealth.Down -> "Repeatedly unresponsive"
             }
-            add(TileSpec("Latency", Icons.Outlined.Speed, reading.label, NodeWeather.of(reading.health).char + " · " + verdict))
+            add(TileSpec("Latency", Icons.Outlined.Speed, reading.label, verdict))
         }
         if (uiState.clashModeVisible && uiState.clashModes.isNotEmpty()) {
             add(TileSpec("Route", Icons.Outlined.Tune, routeModeLabel(uiState.selectedClashMode), routeModeShort(uiState.selectedClashMode), onClick = onModes))
@@ -1165,8 +1131,8 @@ internal fun NodeRow(
             }
         }
         AnimatedCheck(selected)
-        IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Default.MoreHoriz, contentDescription = "Edit profile", modifier = Modifier.size(18.dp))
+        IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.Default.MoreHoriz, contentDescription = "Edit node", modifier = Modifier.size(18.dp))
         }
     }
 }

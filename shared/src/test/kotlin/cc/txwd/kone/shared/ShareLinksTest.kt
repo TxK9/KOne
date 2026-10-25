@@ -9,6 +9,37 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ShareLinksTest {
+    @Test fun vlessIpv6AndBlankFingerprintsMatchTheNativeCore() {
+        val node = ShareLinks.parse("vless://$id@[2001:db8::1]:443?security=tls&type=raw&fp=#US West 01").outbound
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals("2001:db8::1", node.getJSONObject("tls").getString("server_name"))
+        assertEquals("chrome", node.getJSONObject("tls").getJSONObject("utls").getString("fingerprint"))
+        assertFalse(node.has("transport"))
+    }
+
+    @Test fun standardAlphabetAndPaddedRealityKeysAreNormalized() {
+        val bytes = ByteArray(32) { 0xfb.toByte() }
+        val standard = Base64.getEncoder().encodeToString(bytes)
+        val node = ShareLinks.parse("vless://$id@n.invalid?security=reality&pbk=$standard&fp=Safari").outbound
+        val tls = node.getJSONObject("tls")
+        assertEquals(Base64.getUrlEncoder().withoutPadding().encodeToString(bytes), tls.getJSONObject("reality").getString("public_key"))
+        assertEquals("safari", tls.getJSONObject("utls").getString("fingerprint"))
+    }
+
+    @Test fun unsupportedVlessOptionsFailBeforeSavingWithoutRepeatingTheirValues() {
+        listOf("flow=private-invalid-flow", "fp=private-invalid-fingerprint", "type=raw&headerType=private-invalid-header").forEach {
+            val failure = runCatching { ShareLinks.parse("vless://$id@n.invalid?security=tls&$it") }.exceptionOrNull()
+            assertTrue(failure is ShareLinkException)
+            assertFalse(failure!!.message!!.contains("private-invalid"))
+        }
+    }
+
+    @Test fun displayNamesKeepLiteralPlusAndRemoveControlsWithoutSplittingEmoji() {
+        assertEquals("US + West", ShareLinks.parse("vless://$id@n.invalid?security=tls#US%20+%20West%00%0A").name)
+        assertNull(ShareLinks.parse("vless://$id@n.invalid?security=tls#%00%0A").name)
+        assertEquals("bad%name", ShareLinks.parse("vless://$id@n.invalid?security=tls#bad%name").name)
+        assertEquals("x".repeat(63), ShareLinks.parse("vless://$id@n.invalid?security=tls#${"x".repeat(63)}😀").name)
+    }
     private val id = "00000000-0000-0000-0000-000000000001"
     private val realityKey = "A".repeat(43)
 

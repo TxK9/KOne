@@ -74,7 +74,10 @@ object ShareLinks {
         // VLESS carries no encryption of its own.
         if (security !in setOf("tls", "reality", "xtls")) fail("VLESS links require TLS or Reality encryption.")
         val node = node("vless", host, port(parts.port, 443)).put("uuid", uuid(parts.userInfo))
-        parts.query["flow"]?.trim()?.takeIf { it.isNotEmpty() }?.let { node.put("flow", it) }
+        parts.query["flow"]?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            if (it != "xtls-rprx-vision") fail("Unsupported VLESS flow")
+            node.put("flow", it)
+        }
         node.put("tls", tls(parts.query, host, security, fingerprintByDefault = true))
         transport(parts.query)?.let { node.put("transport", it) }
         return SharedNode(node, parts.name)
@@ -216,8 +219,10 @@ object ShareLinks {
         if (query.flag("allowInsecure", "insecure", "allow_insecure")) tls.put("insecure", true)
         alpn(query)?.let { tls.put("alpn", it) }
         val fingerprint = query["fp"]?.trim()?.lowercase()?.takeIf { it.isNotEmpty() && it != "none" }
+        if (fingerprint != null && fingerprint !in fingerprints) fail("Unsupported TLS fingerprint")
         if (security == "reality") {
-            val key = query["pbk"]?.trim()?.takeIf { it.isNotEmpty() } ?: fail("The Reality link has no public key.")
+            val key = query["pbk"]?.trim()?.takeIf { it.isNotEmpty() }
+                ?.replace('+', '-')?.replace('/', '_')?.trimEnd('=') ?: fail("The Reality link has no public key.")
             val bytes = try {
                 Base64.getUrlDecoder().decode(key)
             } catch (_: Exception) {
@@ -253,7 +258,7 @@ object ShareLinks {
         val path = query["path"].orEmpty()
         return when (query["type"]?.trim()?.lowercase().orEmpty()) {
             "", "tcp", "raw" -> {
-                if (query["headerType"]?.trim()?.lowercase() == "http") fail("sing-box does not support TCP HTTP camouflage.")
+                if (query["headerType"]?.trim()?.lowercase().orEmpty() !in setOf("", "none")) fail("sing-box does not support this TCP camouflage.")
                 null
             }
             "ws", "websocket" -> websocket(host, path, query["ed"])
@@ -376,7 +381,11 @@ object ShareLinks {
         return tidy(decoded)
     }
 
-    private fun tidy(name: String): String? = name.replace(Regex("[\\t\\r\\n]+"), " ").trim().take(32).takeIf { it.isNotEmpty() }
+    private val fingerprints = setOf("chrome", "chrome_psk", "chrome_psk_shuffle", "chrome_padding_psk_shuffle", "chrome_pq", "chrome_pq_psk",
+        "firefox", "edge", "safari", "360", "qq", "ios", "android", "random", "randomized")
+
+    private fun tidy(name: String): String? = name.replace(Regex("[\\t\\r\\n]+"), " ").filterNot { it.isISOControl() }.trim().take(64)
+        .let { if (it.lastOrNull()?.isHighSurrogate() == true) it.dropLast(1) else it }.takeIf { it.isNotEmpty() }
 
     private fun fail(message: String): Nothing = throw ShareLinkException(message)
 }

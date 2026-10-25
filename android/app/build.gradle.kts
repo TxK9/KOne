@@ -57,6 +57,8 @@ fun getProps(propName: String): String {
 val koneVersionProps = Properties().apply { rootProject.file("kone-version.properties").inputStream().use { load(it) } }
 val koneVersion: String = koneVersionProps.getProperty("KONE_VERSION")
 val koneVersionCode: Int = koneVersionProps.getProperty("KONE_BUILD").toInt()
+val koneUpdateFeed = providers.gradleProperty("koneUpdateFeed").getOrElse(if (koneShare) "https://kone.qingwanli.com/release.json" else getProps("kone.ownerUpdateFeed"))
+
 
 fun getVersionProps(propName: String): String {
     val propsFile = rootProject.file("version.properties")
@@ -100,6 +102,7 @@ android {
         // Private console origin: kone.admin in untracked local.properties, reached over Home.
         buildConfigField("String", "KONE_ADMIN", "\"${if (koneShare) "" else getProps("kone.admin").replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         // The sing-box release the bundled core comes from (version.properties tracks it).
+        buildConfigField("String", "KONE_UPDATE_FEED", "\"${koneUpdateFeed.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         buildConfigField("String", "CORE_VERSION", "\"${getVersionProps("VERSION_NAME")}\"")
         buildConfigField("String", "KNINE_HOME_SUBNETS", if (koneShare) "\"\"" else "\"192.168.10.0/24\"")
         buildConfigField("String", "KNINE_HOME_HOSTNAME", if (koneShare) "\"\"" else "\"txwd-phone\"")

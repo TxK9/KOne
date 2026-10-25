@@ -44,6 +44,22 @@ class QRImageDecoderTest {
         assertNull(QRImageDecoder.decode(IntArray(480 * 480) { 0xFFFFFFFF.toInt() }, 480, 480))
     }
 
+    @Test fun photographedActivationCodeIsRecognizedAwayFromTheCenter() {
+        val claim = "kone://claim?server=https%3A%2F%2Fconsole.example.org&code=TestInvite_0123456789"
+        val code = image(claim, false)
+        val width = 1920
+        val height = 1440
+        // A rotated screen photo, dim paper, and unrelated background texture.
+        val photo = IntArray(width * height) { index ->
+            val gray = 48 + ((index * 17L + index / width * 29L) % 42).toInt()
+            0xFF000000.toInt() or (gray shl 16) or (gray shl 8) or gray
+        }
+        for (y in 0 until 480) for (x in 0 until 480) {
+            photo[(y + 760) * width + x + 1220] = if (code[x * 480 + (479 - y)] == 0xFF000000.toInt()) 0xFF222222.toInt() else 0xFFCCCCCC.toInt()
+        }
+        assertEquals(claim, QRImageDecoder.decode(photo, width, height))
+    }
+
     @Test fun unsupportedTransportExplainsTheLimitWithoutTheLink() {
         val failure = runCatching { PairedProfile.fromLink(link.replace("type=tcp", "type=xhttp"), HomeLink.Home(true, emptyList(), "phone")) }.exceptionOrNull() as Exception
         val message = QRImportErrors.controlledMessage(failure)

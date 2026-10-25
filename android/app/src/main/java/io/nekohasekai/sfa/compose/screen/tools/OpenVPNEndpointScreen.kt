@@ -84,7 +84,7 @@ fun OpenVPNEndpointScreen(
                     if (state.endpoints.size <= 1) {
                         stringResource(R.string.openvpn)
                     } else {
-                        stringResource(R.string.openvpn_with_tag, endpointTag)
+                        stringResource(R.string.openvpn) + " ${state.endpoints.indexOfFirst { it.endpointTag == endpointTag } + 1}"
                     },
                 )
             },
@@ -140,27 +140,6 @@ fun OpenVPNEndpointScreen(
                 StateRow(endpoint.state, endpoint.stateText)
                 val tunnelInfo = endpoint.tunnelInfo
                 if (endpoint.state == "connected" && tunnelInfo != null) {
-                    if (tunnelInfo.server.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.server, stringResource(R.string.endpoint_server))
-                    }
-                    if (tunnelInfo.network.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.network, stringResource(R.string.endpoint_network))
-                    }
-                    if (tunnelInfo.cipher.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.cipher, stringResource(R.string.endpoint_cipher))
-                    }
-                    if (tunnelInfo.ipv4.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.ipv4.joinToString(", "), stringResource(R.string.endpoint_ipv4))
-                    }
-                    if (tunnelInfo.ipv6.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.ipv6.joinToString(", "), stringResource(R.string.endpoint_ipv6))
-                    }
-                    if (tunnelInfo.dns.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.dns.joinToString(", "), stringResource(R.string.endpoint_dns))
-                    }
-                    if (tunnelInfo.mtu > 0) {
-                        TunnelInfoRow(tunnelInfo.mtu.toString(), stringResource(R.string.endpoint_mtu))
-                    }
                     if (tunnelInfo.connectedSince > 0) {
                         val connectedText = DateUtils.getRelativeTimeSpanString(
                             tunnelInfo.connectedSince * 1000,
@@ -198,9 +177,6 @@ fun OpenVPNEndpointScreen(
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(authURL)))
                             }) {
                                 Text(stringResource(R.string.endpoint_open_auth_url))
-                            }
-                            OutlinedButton(onClick = { showAuthQRCode = true }) {
-                                Text(stringResource(R.string.endpoint_open_auth_url_qr_code))
                             }
                         }
                     } else {

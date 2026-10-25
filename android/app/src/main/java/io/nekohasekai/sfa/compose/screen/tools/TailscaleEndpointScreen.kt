@@ -97,7 +97,7 @@ fun TailscaleEndpointScreen(
                     if (state.endpoints.size <= 1) {
                         stringResource(R.string.tailscale)
                     } else {
-                        stringResource(R.string.tailscale_with_tag, endpointTag)
+                        stringResource(R.string.tailscale) + " ${state.endpoints.indexOfFirst { it.endpointTag == endpointTag } + 1}"
                     },
                 )
             },

@@ -17,6 +17,7 @@ object DefaultNetworkMonitor {
 
     suspend fun start() {
         DefaultNetworkListener.start(this) {
+            io.nekohasekai.sfa.udp.UdpRuntime.networkChanged(it?.networkHandle ?: 0L)
             defaultNetwork = it
             if (it != null) underlying?.invoke(it)
             checkDefaultInterfaceUpdate(it)

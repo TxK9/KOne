@@ -102,12 +102,17 @@ internal object NodeHealthRules {
     }
 
     /**
-     * A reading outside the App, in the notification and on the quick-settings tile: the
-     * weather's character (sun, mist, storm) and the latency unless it failed (the dashboard says why).
+     * A reading outside the App, in the notification and on the quick-settings tile, whose
+     * seal picture already shows the weather: the latency when all is well, the weather's word
+     * before it when slow, and the word alone when it failed (the dashboard says why).
      */
     fun badge(reading: NodeReading): String {
-        val weather = NodeWeather.of(reading.health).char
-        return if (reading.failed) weather else "$weather · ${reading.label}"
+        val word = NodeWeather.of(reading.health).word
+        return when {
+            reading.failed -> word
+            reading.health == NodeHealth.Good -> reading.label
+            else -> "$word · ${reading.label}"
+        }
     }
 }
 
@@ -118,7 +123,7 @@ internal object NodeHealthRules {
  * catches a wrong key or a blocked TLS handshake.
  */
 internal object NodeLatency {
-    const val INTERVAL_MS = 5_000L
+    const val INTERVAL_MS = 6_000L
     private const val CONNECT_TIMEOUT_MS = 2_500
 
     private val readings = mutableStateMapOf<Long, NodeReading>()
@@ -227,14 +232,8 @@ internal object NodeLatency {
         return manager.getNetworkCapabilities(network)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) != true
     }
 
-    /**
-     * Seconds until the next check: every 5 s for the first few rounds, so a fresh connection
-     * or a new node shows its health at once, and after that every [meteredSeconds] on mobile
-     * data. Each round costs a little data: a handshake per node, or an HTTPS request through
-     * the node in use.
-     */
-    fun gap(context: Context, round: Int, meteredSeconds: Long): Long =
-        if (round < 3 || !metered(context)) INTERVAL_MS / 1_000 else meteredSeconds
+    /** Same interval on Wi-Fi and mobile data. */
+    fun gap(): Long = INTERVAL_MS / 1_000
 
     /** A validated non-VPN network with internet, Wi-Fi first; null falls back to the default route. */
     @Suppress("DEPRECATION")

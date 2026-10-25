@@ -9,6 +9,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PairedProfileTest {
+    @Test(expected = IllegalArgumentException::class)
+    fun aMalformedRuleBeforeHomeHasAControlledValidationFailure() {
+        val config = JSONObject(PairedProfile.fromLink(link, home))
+        val rules = config.getJSONObject("route").getJSONArray("rules")
+        val prefixed = JSONArray().put("invalid route")
+        for (index in 0 until rules.length()) prefixed.put(rules.get(index))
+        config.getJSONObject("route").put("rules", prefixed)
+        PairedProfile.requirePaired(config.toString())
+    }
     private val home = HomeLink.Home(true, listOf("192.168.1.0/24"), "phone")
     private val link = "vless://00000000-0000-0000-0000-000000000001@node.invalid:443?security=reality&sni=example.org&pbk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&type=tcp&flow=xtls-rprx-vision"
 

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kone_video_compatibility">Video compatibility</string>
+    <string name="kone_video_compatibility_detail">Try TCP when HTTPS video stalls over UDP. Leave off when playback is smooth.</string>
+</resources>

@@ -29,6 +29,7 @@ import io.nekohasekai.libbox.SystemProxyStatus
 import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.udp.UdpRuntime
 import io.nekohasekai.sfa.selfuse.HomeSettings
 import io.nekohasekai.sfa.compose.MainActivity
 import io.nekohasekai.sfa.constant.Action
@@ -37,7 +38,8 @@ import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.ktx.hasPermission
-import io.nekohasekai.sfa.vendor.Vendor
+import io.nekohasekai.sfa.connection.AppPolicySnapshot
+import io.nekohasekai.sfa.connection.RuntimeConnectionConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -120,6 +122,16 @@ class BoxService(private val service: Service, private val platformInterface: Pl
 
     private var lastProfileName = ""
 
+    private fun runtimeContent(profile: io.nekohasekai.sfa.database.Profile): String {
+        val content = File(profile.typed.path).readText()
+        if (content.isBlank()) return content
+        return RuntimeConnectionConfig.prepare(
+            HomeSettings.prepare(content),
+            io.nekohasekai.sfa.connection.CallingPreferences(service).read(profile.id),
+            AppPolicySnapshot.current(service.applicationContext.packageName),
+        )
+    }
+
     private suspend fun startService() {
         try {
             withContext(Dispatchers.Main) {
@@ -144,7 +156,12 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 return
             }
 
-            val content = HomeSettings.prepare(File(profile.typed.path).readText())
+            val content = try {
+                runtimeContent(profile)
+            } catch (e: IllegalArgumentException) {
+                stopAndAlert(Alert.CreateService, e.message)
+                return
+            }
             if (content.isBlank()) {
                 stopAndAlert(Alert.EmptyConfiguration)
                 return
@@ -162,16 +179,6 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                     content,
                     OverrideOptions().apply {
                         autoRedirect = Settings.autoRedirect
-                        if (Vendor.isPerAppProxyAvailable() && Settings.perAppProxyEnabled) {
-                            val appList = Settings.getEffectivePerAppProxyList()
-                            if (Settings.getEffectivePerAppProxyMode() == Settings.PER_APP_PROXY_INCLUDE) {
-                                includePackage =
-                                    PlatformInterfaceWrapper.StringArray((appList + Application.application.packageName).iterator())
-                            } else {
-                                excludePackage =
-                                    PlatformInterfaceWrapper.StringArray((appList - Application.application.packageName).iterator())
-                            }
-                        }
                     },
                 )
             } catch (e: Exception) {
@@ -192,6 +199,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 }
             }
 
+            UdpRuntime.started(selectedProfileId, profile.name, content)
             status.postValue(Status.Started)
             withContext(Dispatchers.Main) {
                 notification.show(lastProfileName, R.string.status_started)
@@ -223,6 +231,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
     }
 
     suspend fun serviceReload0() {
+        UdpRuntime.changing()
         val selectedProfileId = Settings.selectedProfile
         if (selectedProfileId == -1L) {
             stopAndAlert(Alert.EmptyConfiguration)
@@ -236,7 +245,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
         }
 
         val content = try {
-            HomeSettings.prepare(File(profile.typed.path).readText())
+            runtimeContent(profile)
         } catch (e: IllegalArgumentException) {
             stopAndAlert(Alert.CreateService, e.message)
             return
@@ -251,14 +260,6 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 content,
                 OverrideOptions().apply {
                     autoRedirect = Settings.autoRedirect
-                    if (Vendor.isPerAppProxyAvailable() && Settings.perAppProxyEnabled) {
-                        val appList = Settings.getEffectivePerAppProxyList()
-                        if (Settings.getEffectivePerAppProxyMode() == Settings.PER_APP_PROXY_INCLUDE) {
-                            includePackage = PlatformInterfaceWrapper.StringArray((appList + Application.application.packageName).iterator())
-                        } else {
-                            excludePackage = PlatformInterfaceWrapper.StringArray((appList - Application.application.packageName).iterator())
-                        }
-                    }
                 },
             )
         } catch (e: Exception) {
@@ -278,6 +279,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 return
             }
         }
+        UdpRuntime.started(selectedProfileId, profile.name, content)
         withContext(Dispatchers.Main) {
             NodeWatch.reset()
             notification.retitle(lastProfileName)
@@ -343,6 +345,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
     }
 
     private fun closeService() {
+        UdpRuntime.changing()
         runCatching {
             commandServer.closeService()
         }.onFailure {

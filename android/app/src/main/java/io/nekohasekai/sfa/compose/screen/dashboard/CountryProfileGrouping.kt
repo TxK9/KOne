@@ -24,8 +24,7 @@ internal object CountryProfileGrouping {
         "TW" to "\u53f0\u6e7e|Taiwan|TW|🇹🇼",
     ).mapValues { (_, words) ->
         words.split('|').map { word ->
-            if (word.all { it.code < 128 }) Regex("(?<![A-Za-z])${Regex.escape(word)}(?![A-Za-z])", RegexOption.IGNORE_CASE)
-            else Regex(Regex.escape(word))
+            cc.txwd.kone.shared.aliasRegex(word)
         }
     }
 

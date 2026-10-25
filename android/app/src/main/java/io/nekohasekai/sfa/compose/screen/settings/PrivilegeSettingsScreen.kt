@@ -321,8 +321,8 @@ fun PrivilegeSettingsScreen(navController: NavController, serviceStatus: Status 
             ),
     ) {
         val isLsposedActivated = systemHookStatus?.active == true
-        val showLogs = isLsposedActivated && !hasPendingChange
-        val showExportDebug = showLogs
+        val showLogs = false // Raw hook logs may contain connection details.
+        val showExportDebug = false // Debug archives include raw logcat and service errors.
         val statusShape =
             if (showLogs || hasPendingChange) {
                 RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)

@@ -53,9 +53,18 @@ internal fun knineSurface(): Color {
     return Color(if (lightInk) KninePalette.DARK_READING_SURFACE else KninePalette.LIGHT_READING_SURFACE)
 }
 
-/** A row of choices; a light knob springs under the selected one. */
+/**
+ * A row of choices; a light knob springs under the selected one. With no valid [selected] there is
+ * no knob, and an option [optionEnabled] refuses is dimmed and cannot be picked.
+ */
 @Composable
-fun KnineSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun KnineSegmented(
+    options: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    optionEnabled: (Int) -> Boolean = { true },
+) {
     val ink = LocalContentColor.current
     val surface = knineSurface()
     val density = LocalDensity.current
@@ -89,13 +98,14 @@ fun KnineSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit
         }
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             options.forEachIndexed { index, label ->
+                val enabled = optionEnabled(index)
                 Box(
                     Modifier
                         .height(32.dp)
                         .widthIn(min = 40.dp)
                         .clip(RoundedCornerShape(9.dp))
                         .onGloballyPositioned { bounds[index] = it.boundsInParentX() }
-                        .selectable(selected = index == selected, role = Role.RadioButton) { onSelect(index) }
+                        .selectable(selected = index == selected, enabled = enabled, role = Role.RadioButton) { onSelect(index) }
                         .padding(horizontal = 12.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -104,6 +114,7 @@ fun KnineSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (index == selected) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
+                        color = if (enabled) Color.Unspecified else ink.copy(alpha = 0.4f),
                     )
                 }
             }

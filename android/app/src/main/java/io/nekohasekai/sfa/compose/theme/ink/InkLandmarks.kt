@@ -8,12 +8,17 @@ import android.graphics.Path
 import android.graphics.PointF
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.acosh
 import kotlin.math.cos
+import kotlin.math.cosh
 import kotlin.math.hypot
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.sinh
 import kotlin.random.Random
 
 /**
@@ -31,6 +36,13 @@ internal object InkLandmarks {
             Landmark.Capitol -> capitol(canvas, placed, w, h, palette)
             Landmark.Rushmore -> rushmore(canvas, placed, w, h, palette)
             Landmark.Niagara -> niagara(canvas, placed, w, h, palette)
+            Landmark.BrooklynBridge -> brooklynBridge(canvas, placed, w, h, palette)
+            Landmark.WashingtonMonument -> washingtonMonument(canvas, placed, w, h, palette)
+            Landmark.ElmRows -> elmRows(canvas, placed, w, h, palette)
+            Landmark.GatewayArch -> gatewayArch(canvas, placed, w, h, palette)
+            Landmark.ColoradoRiver -> coloradoRiver(canvas, placed, w, h, palette)
+            Landmark.Geyser -> geyser(canvas, placed, w, h, palette)
+            Landmark.Lodgepoles -> lodgepoles(canvas, placed, w, h, palette)
         }
     }
 
@@ -567,8 +579,473 @@ internal object InkLandmarks {
         }
     }
 
+    // ---- The newer American scenes -------------------------------------------------------------
+
+    /** The Brooklyn Bridge in metres: x along it from the Brooklyn tower, y across it, z up from the river. */
+    private object Brooklyn {
+        const val SPAN = 486f
+        const val SIDE = 283f
+        const val TOP = 84f
+        const val DECK = 38f
+        const val LOW = 46f
+        const val ANCHOR = 30f
+
+        /** Half the towers' width across the bridge, and half their depth along it. */
+        const val HALF = 21f
+        const val DEEP = 9f
+
+        /** The outer cables, either side of the middle. */
+        const val CABLE = 12.5f
+
+        fun cableZ(x: Float): Float = when {
+            x < 0f -> side(-x / SIDE)
+            x > SPAN -> side((x - SPAN) / SIDE)
+            else -> ((x - SPAN / 2f) / (SPAN / 2f)).let { LOW + (TOP - 2f - LOW) * it * it }
+        }
+
+        private fun side(t: Float) = (TOP - 2f) + (ANCHOR - TOP + 2f) * t - 18f * t * (1f - t)
+
+        /**
+         * One of the pointed arches through a tower, across (y) and up (z): straight jambs from the
+         * roadway, then two arcs struck from the opposite springing, meeting at the point.
+         */
+        fun arch(centre: Float): List<Pair<Float, Float>> {
+            val half = 5.1f
+            val springing = 65f
+            val sill = DECK - 2f
+            val points = mutableListOf(centre - half to sill, centre - half to springing)
+            for (k in 1..8) {
+                val angle = Math.toRadians(180.0 - 60.0 * k / 8).toFloat()
+                points += (centre + half + 2f * half * cos(angle)) to (springing + 2f * half * sin(angle))
+            }
+            for (k in 1..8) {
+                val angle = Math.toRadians(60.0 - 60.0 * k / 8).toFloat()
+                points += (centre - half + 2f * half * cos(angle)) to (springing + 2f * half * sin(angle))
+            }
+            points += centre + half to sill
+            return points
+        }
+    }
+
     /**
-     * A bank of trees on rock, the way foliage stippling paints woods: dots dense along the top for the crowns,
+     * A view in perspective, in metres (x along a bridge, y across it, z up from the water), from
+     * an eye at a given place looking toward a given point, scaled so the tower at x = 0 stands
+     * where it is placed: its deck at the placed base, its top the placed height above.
+     */
+    private class Perspective(
+        placed: Placed, w: Float, h: Float,
+        private val eyeX: Float, private val eyeY: Float, private val eyeZ: Float,
+        lookX: Float, lookY: Float, deckZ: Float, topZ: Float,
+    ) {
+        private val forwardX: Float
+        private val forwardY: Float
+        private val scale: Float
+        private val originX: Float
+        private val horizon: Float
+
+        init {
+            val length = hypot(lookX - eyeX, lookY - eyeY)
+            forwardX = (lookX - eyeX) / length
+            forwardY = (lookY - eyeY) / length
+            val deck = raw(0f, 0f, deckZ)
+            val top = raw(0f, 0f, topZ)
+            scale = placed.height * h / (deck.y - top.y)
+            originX = placed.x * w - scale * deck.x
+            horizon = placed.base * h - scale * deck.y
+        }
+
+        fun depth(x: Float, y: Float) = (x - eyeX) * forwardX + (y - eyeY) * forwardY
+
+        private fun raw(x: Float, y: Float, z: Float): PointF {
+            val depth = depth(x, y)
+            return PointF(((x - eyeX) * forwardY - (y - eyeY) * forwardX) / depth, (eyeZ - z) / depth)
+        }
+
+        fun at(x: Float, y: Float, z: Float): PointF = raw(x, y, z).let { PointF(originX + scale * it.x, horizon + scale * it.y) }
+
+        fun pixels(metres: Float, x: Float, y: Float) = scale * metres / depth(x, y)
+
+        /** A flat face through the given corners, each as x, y, z. */
+        fun face(vararg corners: Float): Path = Path().apply {
+            for (i in corners.indices step 3) at(corners[i], corners[i + 1], corners[i + 2]).let { if (i == 0) moveTo(it.x, it.y) else lineTo(it.x, it.y) }
+            close()
+        }
+    }
+
+    /**
+     * Brooklyn Bridge from the Brooklyn shore, north of it, low by the water: the Brooklyn tower near
+     * with its two pointed arches, the Manhattan tower down the river, the four cables slung
+     * between them and the web of stays and hangers that is the bridge's own, and haze off the
+     * river round the towers' feet. Lower Manhattan stands behind, across the water.
+     */
+    private fun brooklynBridge(canvas: Canvas, placed: Placed, w: Float, h: Float, palette: InkPainter.Palette) {
+        val view = Perspective(placed, w, h, -420f, 160f, 4f, Brooklyn.SPAN, 0f, Brooklyn.DECK, Brooklyn.TOP)
+        val ink = placed.ink
+        // The far things first, so the near ones lie over them.
+        gothicTower(canvas, view, Brooklyn.SPAN, ink * 0.60f, palette, w)
+        web(canvas, view, -Brooklyn.CABLE, ink * 0.26f, palette, w)
+        mainCable(canvas, view, -Brooklyn.CABLE, ink * 0.55f, palette, w)
+        brooklynDeck(canvas, view, ink, palette, w)
+        web(canvas, view, Brooklyn.CABLE, ink * 0.40f, palette, w)
+        gothicTower(canvas, view, 0f, ink, palette, w)
+        mainCable(canvas, view, Brooklyn.CABLE, ink * 0.92f, palette, w)
+        val near = view.at(0f, 0f, 0f)
+        val far = view.at(Brooklyn.SPAN, 0f, 0f)
+        InkPainter.mistBank(canvas, far.x, far.y, w * 0.20f, 0.30f, palette, 0.80f)
+        InkPainter.mistBank(canvas, near.x, near.y, w * 0.32f, 0.24f, palette, 0.86f)
+    }
+
+    /** A granite tower: the side toward us in shade, the face with its two arches cut through, the cornice ruled pale. */
+    private fun gothicTower(canvas: Canvas, view: Perspective, at: Float, ink: Float, palette: InkPainter.Palette, w: Float) {
+        val front = at - Brooklyn.DEEP
+        val back = at + Brooklyn.DEEP
+        val half = Brooklyn.HALF
+        val base = -2f
+        val side = view.face(front, half, base, back, half, base, back, half, Brooklyn.TOP, front, half, Brooklyn.TOP)
+        val face = view.face(front, -half, base, front, half, base, front, half, Brooklyn.TOP, front, -half, Brooklyn.TOP)
+        for (centre in listOf(-9.6f, 9.6f)) {
+            val opening = Path()
+            Brooklyn.arch(centre).forEachIndexed { index, (y, z) -> view.at(front, y, z).let { if (index == 0) opening.moveTo(it.x, it.y) else opening.lineTo(it.x, it.y) } }
+            opening.close()
+            face.op(opening, Path.Op.DIFFERENCE)
+        }
+        val top = view.at(front, 0f, Brooklyn.TOP).y
+        val foot = view.at(front, 0f, base).y
+        val blur = view.pixels(0.25f, front, 0f)
+        InkPainter.inkShape(canvas, side, top, foot, ink, palette, false, blur, outline = 0f, fadeTo = 0.30f, seed = 13)
+        InkPainter.inkShape(canvas, face, top, foot, ink * 0.74f, palette, false, blur, outline = w * 0.0009f, fadeTo = 0.24f, seed = 17)
+        canvas.save()
+        canvas.clipPath(face)
+        val course = line(max(0.6f, view.pixels(0.45f, front, 0f)), palette.paper(0.38f))
+        for (z in listOf(76f, 80f, 82.5f)) {
+            val a = view.at(front, -half, z)
+            val b = view.at(front, half, z)
+            canvas.drawLine(a.x, a.y, b.x, b.y, course)
+        }
+        canvas.restore()
+    }
+
+    /** The roadway's truss, from the Brooklyn anchorage to the Manhattan one, passing through both towers' arches. */
+    private fun brooklynDeck(canvas: Canvas, view: Perspective, ink: Float, palette: InkPainter.Palette, w: Float) {
+        val from = -Brooklyn.SIDE * 0.9f
+        val to = Brooklyn.SPAN + Brooklyn.SIDE
+        val edge = 13f
+        val shape = view.face(from, edge, Brooklyn.DECK + 4f, to, edge, Brooklyn.DECK + 4f, to, edge, Brooklyn.DECK - 1.5f, from, edge, Brooklyn.DECK - 1.5f)
+        val top = view.at(to, edge, Brooklyn.DECK + 4f).y
+        val foot = view.at(from, edge, Brooklyn.DECK - 1.5f).y
+        InkPainter.inkShape(canvas, shape, min(top, foot) - 1f, max(top, foot) + 1f, ink * 0.8f, palette, false, w * 0.0008f, outline = 0f, textured = false, fadeTo = 0.6f)
+    }
+
+    /** One of the main cables, slung from anchorage over both towers to anchorage. */
+    private fun mainCable(canvas: Canvas, view: Perspective, side: Float, ink: Float, palette: InkPainter.Palette, w: Float) {
+        val path = Path()
+        var x = -Brooklyn.SIDE * 0.9f
+        var first = true
+        while (x <= Brooklyn.SPAN + Brooklyn.SIDE) {
+            val p = view.at(x, side, Brooklyn.cableZ(x))
+            if (first) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
+            first = false
+            x += 6f
+        }
+        canvas.drawPath(path, line(max(0.8f, view.pixels(0.9f, Brooklyn.SPAN / 2f, side)), palette.ink(ink)))
+    }
+
+    /** The web: hangers straight down from the cable, and the stays fanning from each tower's top to the roadway. */
+    private fun web(canvas: Canvas, view: Perspective, side: Float, ink: Float, palette: InkPainter.Palette, w: Float) {
+        val hanger = line(max(0.5f, w * 0.0006f), palette.ink(ink))
+        var x = -Brooklyn.SIDE * 0.9f
+        while (x <= Brooklyn.SPAN + Brooklyn.SIDE) {
+            if (abs(x) > Brooklyn.DEEP && abs(x - Brooklyn.SPAN) > Brooklyn.DEEP) {
+                val a = view.at(x, side, Brooklyn.cableZ(x))
+                val b = view.at(x, side, Brooklyn.DECK + 3f)
+                canvas.drawLine(a.x, a.y, b.x, b.y, hanger)
+            }
+            x += 9f
+        }
+        val stay = line(max(0.5f, w * 0.0007f), palette.ink(ink * 0.9f))
+        for (tower in listOf(0f, Brooklyn.SPAN)) {
+            for (direction in listOf(-1f, 1f)) {
+                for (k in 1..11) {
+                    val a = view.at(tower + direction * Brooklyn.DEEP, side, Brooklyn.TOP - 6f)
+                    val b = view.at(tower + direction * (Brooklyn.DEEP + k * 13f), side, Brooklyn.DECK + 3f)
+                    canvas.drawLine(a.x, a.y, b.x, b.y, stay)
+                }
+            }
+        }
+    }
+
+    /**
+     * Washington Monument from the Lincoln Memorial, in metres: the marble shaft tapering from 16.8 m to
+     * 10.5 m over 152 m, the pyramidion to 169 m, the change in the stone a third of the way up
+     * where building stopped for twenty years, the ring of flags round its foot on the knoll, and
+     * the whole of it again, upside down and broken by ripples, in the Reflecting Pool.
+     */
+    private fun washingtonMonument(canvas: Canvas, placed: Placed, w: Float, h: Float, palette: InkPainter.Palette) {
+        val f = Frame(placed, w, h, 169.3f)
+        val blur = blurFor(placed, w)
+        val shaft = f.poly(-8.4f, 0f, 8.4f, 0f, 5.25f, 152.4f, 0f, 169.3f, -5.25f, 152.4f)
+        // Its reflection first, under everything: in the pool, between its stone edges.
+        val water = (placed.base + 0.024f) * h
+        canvas.save()
+        canvas.clipPath(Path().apply {
+            moveTo(f.cx - w * 0.05f, water); lineTo(f.cx + w * 0.05f, water)
+            lineTo(f.cx + w * 0.36f, h); lineTo(f.cx - w * 0.36f, h); close()
+        })
+        canvas.save()
+        canvas.scale(1f, -1f, 0f, water)
+        canvas.translate(0f, water - f.foot)
+        InkPainter.inkShape(canvas, shaft, f.y(169.3f), f.foot, placed.ink * 0.32f, palette, true, blur * 3f, outline = 0f, textured = false, fadeTo = 0.6f)
+        canvas.restore()
+        // Ripples break it into bands.
+        val random = Random(1884)
+        val ripple = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = w * 0.0028f; color = palette.paper(0.75f); maskFilter = BlurMaskFilter(w * 0.0012f, BlurMaskFilter.Blur.NORMAL) }
+        var y = water + h * 0.008f
+        while (y < h) {
+            val length = w * (0.02f + 0.06f * random.nextFloat()) * (1f + (y - water) / h * 3f)
+            val x0 = f.cx + (random.nextFloat() - 0.5f) * w * 0.10f
+            canvas.drawLine(x0 - length / 2f, y, x0 + length / 2f, y, ripple)
+            y += h * (0.006f + 0.010f * random.nextFloat()) * (1f + (y - water) / h * 4f)
+        }
+        canvas.restore()
+
+        // The knoll it stands on, and the monument.
+        val knoll = Path().apply {
+            moveTo(f.x(-160f), f.foot + f.unit * 2f)
+            quadTo(f.x(0f), f.y(16f), f.x(160f), f.foot + f.unit * 2f)
+            close()
+        }
+        InkPainter.inkShape(canvas, knoll, f.y(9f), f.foot + f.unit * 2f, placed.ink * 0.30f, palette, false, blur * 2f, outline = 0f, textured = false, fadeTo = 0.1f)
+        InkPainter.inkShape(canvas, shaft, f.y(169.3f), f.y(8f), placed.ink, palette, placed.far, blur, outline = w * 0.0009f, fadeTo = 0.32f, seed = 19)
+        canvas.save()
+        canvas.clipPath(shaft)
+        InkPainter.sideLight(canvas, f.x(-8.4f), f.x(8.4f), f.y(169.3f), f.foot, placed.ink, palette)
+        // Above 46 m the marble came from another quarry: a paler stone below, a line where it changes.
+        canvas.drawRect(f.x(-9f), f.y(46f), f.x(9f), f.foot, Paint().apply { color = palette.paper(0.10f) })
+        canvas.drawLine(f.x(-9f), f.y(46f), f.x(9f), f.y(46f), line(w * 0.0011f, palette.paper(0.36f)))
+        // The ridge of the pyramidion catching the light.
+        canvas.drawLine(f.x(0f), f.y(169.3f), f.x(0f), f.y(152.4f), line(w * 0.0008f, palette.paper(0.42f)))
+        canvas.restore()
+        // Fifty flags in a ring round its foot: short masts, each with a flick of a flag.
+        val mast = line(max(0.6f, w * 0.0006f), palette.ink(placed.ink * 0.75f))
+        var x = -84f
+        while (x <= 84f) {
+            if (abs(x) > 11f) {
+                val ground = 13f * (1f - (x / 160f) * (x / 160f))
+                canvas.drawLine(f.x(x), f.y(ground), f.x(x), f.y(ground + 9f), mast)
+                canvas.drawLine(f.x(x), f.y(ground + 9f), f.x(x + 2.4f), f.y(ground + 8.4f), mast)
+            }
+            x += 8.4f
+        }
+    }
+
+    /**
+     * The elms along the Reflecting Pool, in two rows that run toward the monument: each tree a
+     * crown of Foliage stippling dots, large and near at the page's foot, small far off by the monument.
+     */
+    private fun elmRows(canvas: Canvas, placed: Placed, w: Float, h: Float, palette: InkPainter.Palette) {
+        val vx = placed.x * w
+        val vy = placed.base * h
+        // The pool's stone edges, ruled faint toward the monument.
+        val edge = line(max(0.6f, w * 0.0010f), palette.ink(placed.ink * 0.35f))
+        canvas.drawLine(vx - w * 0.05f, vy + h * 0.015f, vx - w * 0.36f, h, edge)
+        canvas.drawLine(vx + w * 0.05f, vy + h * 0.015f, vx + w * 0.36f, h, edge)
+        for (k in 0 until 9) {
+            val t = (k / 8f).pow(1.7f)
+            val y = vy + (h * 1.05f - vy) * t
+            val half = w * (0.018f + 0.17f * t)
+            val tall = half * 1.15f
+            val spread = w * (0.085f + 0.62f * t)
+            val ink = placed.ink * (0.45f + 0.55f * t)
+            grove(canvas, vx - spread, y - tall, y, half, ink, palette, w, 400 + k)
+            grove(canvas, vx + spread, y - tall, y, half, ink, palette, w, 500 + k)
+        }
+    }
+
+    /**
+     * Gateway Arch in metres: the weighted catenary its centre line follows, 192 m high and as wide
+     * (y = 231 - 38.9 cosh(x / 38.9)), its legs tapering from 16.5 m at the ground to 5.2 m at the
+     * top; stainless steel, so pale where it faces the light and dark on its far curve.
+     */
+    private fun gatewayArch(canvas: Canvas, placed: Placed, w: Float, h: Float, palette: InkPainter.Palette) {
+        val f = Frame(placed, w, h, 195f)
+        val a = 38.92f
+        val c = 230.95f
+        val reach = a * acosh(c / a)
+        val outer = ArrayList<PointF>()
+        val inner = ArrayList<PointF>()
+        val centre = ArrayList<PointF>()
+        val steps = 96
+        for (i in 0..steps) {
+            val x = -reach + 2f * reach * i / steps
+            val y = (c - a * cosh(x / a)).coerceAtLeast(0f)
+            val slope = -sinh(x / a)
+            val length = hypot(1f, slope)
+            val nx = -slope / length
+            val ny = 1f / length
+            val half = (16.5f + (5.2f - 16.5f) * (y / 192f)) / 2f
+            outer += PointF(x + nx * half, (y + ny * half).coerceAtLeast(0f))
+            inner += PointF(x - nx * half, (y - ny * half).coerceAtLeast(0f))
+            centre += PointF(x, y)
+        }
+        val shape = Path().apply {
+            outer.forEachIndexed { i, p -> if (i == 0) moveTo(f.x(p.x), f.y(p.y)) else lineTo(f.x(p.x), f.y(p.y)) }
+            inner.asReversed().forEach { lineTo(f.x(it.x), f.y(it.y)) }
+            close()
+        }
+        InkPainter.inkShape(canvas, shape, f.y(195f), f.foot, placed.ink * 0.82f, palette, false, blurFor(placed, w), outline = w * 0.0009f, textured = false, fadeTo = 0.55f)
+        canvas.save()
+        canvas.clipPath(shape)
+        InkPainter.sideLight(canvas, f.x(-reach - 8f), f.x(reach + 8f), f.y(195f), f.foot, placed.ink, palette)
+        // The steel's sheen: a bright line down the face that turns to the light, a dark one on the far leg.
+        val sheen = Path()
+        val shade = Path()
+        centre.forEachIndexed { i, p ->
+            val q = PointF(f.x(p.x), f.y(p.y))
+            if (p.x <= 0f) { if (sheen.isEmpty) sheen.moveTo(q.x, q.y) else sheen.lineTo(q.x, q.y) }
+            if (p.x >= 0f) { if (shade.isEmpty) shade.moveTo(q.x, q.y) else shade.lineTo(q.x, q.y) }
+        }
+        canvas.drawPath(sheen, line(w * 0.0030f, palette.paper(0.55f)))
+        canvas.drawPath(shade, line(w * 0.0030f, palette.ink(placed.ink * 0.35f)))
+        canvas.restore()
+    }
+
+    /** The Colorado at the bottom of the canyon: a thin bright ribbon winding across its floor, wider toward us. */
+    private fun coloradoRiver(canvas: Canvas, placed: Placed, w: Float, h: Float, palette: InkPainter.Palette) {
+        val y0 = placed.base * h
+        val upper = ArrayList<PointF>()
+        val lower = ArrayList<PointF>()
+        val steps = 48
+        for (i in 0..steps) {
+            val t = i / steps.toFloat()
+            val x = (0.18f + 0.64f * t) * w
+            val y = y0 + sin(t * PI.toFloat() * 2.6f + 0.4f) * h * 0.012f + (t - 0.5f) * h * 0.012f
+            val half = h * (0.0025f + 0.003f * sin(t * PI.toFloat()))
+            upper += PointF(x, y - half)
+            lower += PointF(x, y + half)
+        }
+        val ribbon = Path().apply {
+            upper.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) }
+            lower.asReversed().forEach { lineTo(it.x, it.y) }
+            close()
+        }
+        canvas.drawPath(ribbon, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = palette.bright(0.92f); maskFilter = BlurMaskFilter(max(0.5f, w * 0.0010f), BlurMaskFilter.Blur.NORMAL) })
+        val bank = line(max(0.5f, w * 0.0008f), palette.ink(placed.ink * 0.6f, far = true))
+        canvas.drawPath(Path().apply { lower.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) } }, bank)
+    }
+
+    /**
+     * Old Faithful in eruption: the pale sinter mound, the white column of water some forty metres
+     * high, and steam billowing far above it, leaning with the wind and thinning as it rises. The
+     * steam is the paper itself on a light page, shaped only by a grey wash on its shaded side;
+     * at night it holds the moonlight.
+     */
+    private fun geyser(canvas: Canvas, placed: Placed, w: Float, h: Float, palette: InkPainter.Palette) {
+        val foot = placed.base * h
+        val cx = placed.x * w
+        val tall = placed.height * h
+        val mound = Path().apply {
+            moveTo(cx - w * 0.17f, foot + h * 0.006f)
+            quadTo(cx, foot - h * 0.034f, cx + w * 0.17f, foot + h * 0.006f)
+            close()
+        }
+        canvas.drawPath(mound, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, foot - h * 0.03f, 0f, foot + h * 0.006f, palette.ink(placed.ink * 0.30f), palette.ink(placed.ink * 0.06f), Shader.TileMode.CLAMP)
+            maskFilter = BlurMaskFilter(w * 0.004f, BlurMaskFilter.Blur.NORMAL)
+        })
+        val random = Random(1870)
+        class Puff(val x: Float, val y: Float, val r: Float, val t: Float)
+        val puffs = List(30) { i ->
+            val t = i / 29f
+            Puff(
+                cx + w * (0.11f * t * t + (random.nextFloat() - 0.5f) * 0.05f * (0.4f + t)),
+                foot - h * 0.03f - (tall - h * 0.03f) * (0.18f + 0.82f * t),
+                w * (0.030f + 0.095f * t) * (0.7f + 0.5f * random.nextFloat()),
+                t,
+            )
+        }
+        // The shaded undersides first, then the bright bodies over them.
+        puffs.forEach { p ->
+            val sx = p.x + p.r * 0.20f
+            val sy = p.y + p.r * 0.26f
+            canvas.drawCircle(sx, sy, p.r, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = RadialGradient(sx, sy, p.r, palette.ink(placed.ink * 0.16f * (1f - 0.5f * p.t)), palette.ink(0f), Shader.TileMode.CLAMP)
+            })
+        }
+        // The column of water, white and narrow, spreading as it rises.
+        val column = Path().apply {
+            moveTo(cx - w * 0.007f, foot - h * 0.028f)
+            lineTo(cx - w * 0.026f, foot - tall * 0.34f)
+            lineTo(cx + w * 0.030f, foot - tall * 0.34f)
+            lineTo(cx + w * 0.008f, foot - h * 0.028f)
+            close()
+        }
+        canvas.drawPath(column, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(cx - w * 0.03f, 0f, cx + w * 0.03f, 0f, intArrayOf(palette.bright(0.7f), palette.bright(0.98f), palette.ink(placed.ink * 0.12f)), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
+            maskFilter = BlurMaskFilter(w * 0.004f, BlurMaskFilter.Blur.NORMAL)
+        })
+        puffs.forEach { p ->
+            canvas.drawCircle(p.x, p.y, p.r * 0.92f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = RadialGradient(p.x, p.y, p.r * 0.92f, intArrayOf(palette.bright(0.96f * (1f - 0.45f * p.t)), palette.bright(0.7f * (1f - 0.45f * p.t)), palette.bright(0f)), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
+            })
+        }
+    }
+
+    /**
+     * Lodgepole pines round the geyser basin: thin straight trunks with narrow, ragged crowns, a
+     * paler, shorter row behind a darker one, and a clearing where the geyser stands.
+     */
+    private fun lodgepoles(canvas: Canvas, placed: Placed, w: Float, h: Float, palette: InkPainter.Palette) {
+        val random = Random(1872)
+        val foot = placed.base * h
+        val tall = placed.height * h
+        canvas.drawRect(0f, foot - h * 0.01f, w, foot + h * 0.06f, Paint().apply {
+            shader = LinearGradient(0f, foot - h * 0.01f, 0f, foot + h * 0.06f, palette.ink(placed.ink * 0.22f), palette.ink(0f), Shader.TileMode.CLAMP)
+        })
+        for (row in 0..1) {
+            var x = -0.02f * w
+            while (x < 1.02f * w) {
+                val clearing = abs(x / w - 0.56f) < (if (row == 0) 0.08f else 0.12f)
+                if (!clearing) {
+                    val height = tall * (if (row == 0) 0.55f else 1f) * (0.6f + 0.5f * random.nextFloat())
+                    val base = foot - (if (row == 0) h * 0.014f else 0f)
+                    val ink = placed.ink * (if (row == 0) 0.42f else 0.9f) * (0.75f + 0.25f * random.nextFloat())
+                    lodgepole(canvas, x, base, height, palette.ink(ink), random, w)
+                }
+                x += w * (if (row == 0) 0.013f else 0.021f) * (0.6f + 0.8f * random.nextFloat())
+            }
+        }
+    }
+
+    /** One lodgepole: a straight trunk and a narrow crown of short ragged tiers, the top a single spike. */
+    private fun lodgepole(canvas: Canvas, x: Float, base: Float, height: Float, color: Int, random: Random, w: Float) {
+        val half = height * 0.085f
+        val crownTop = base - height
+        val crownFoot = base - height * 0.22f
+        val crown = Path().apply {
+            moveTo(x, crownTop)
+            val tiers = 7
+            for (k in 1..tiers) {
+                val y = crownTop + (crownFoot - crownTop) * k / tiers
+                val reach = half * (0.30f + 0.70f * k / tiers) * (0.75f + 0.5f * random.nextFloat())
+                lineTo(x + reach, y)
+                lineTo(x + reach * 0.35f, y - (crownFoot - crownTop) / tiers * 0.35f)
+            }
+            lineTo(x, crownFoot)
+            for (k in tiers downTo 1) {
+                val y = crownTop + (crownFoot - crownTop) * k / tiers
+                val reach = half * (0.30f + 0.70f * k / tiers) * (0.75f + 0.5f * random.nextFloat())
+                lineTo(x - reach * 0.35f, y - (crownFoot - crownTop) / tiers * 0.35f)
+                lineTo(x - reach, y)
+            }
+            close()
+        }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; maskFilter = BlurMaskFilter(max(0.4f, w * 0.0007f), BlurMaskFilter.Blur.NORMAL) }
+        canvas.drawPath(crown, paint)
+        canvas.drawLine(x, crownFoot, x, base, line(max(0.6f, height * 0.018f), color))
+    }
+
+    /**
+     * A bank of trees on rock, the way Foliage stippling paints woods: dots dense along the top for the crowns,
      * thinning as they go down over the rock, the rock itself a soft dark wash under them.
      */
     private fun grove(canvas: Canvas, cx: Float, top: Float, bottom: Float, half: Float, ink: Float, palette: InkPainter.Palette, w: Float, seed: Int) {

@@ -128,5 +128,6 @@ class RuleImportTest {
         assertEquals(listOf(Rule("suffix", "example.com", "proxy")), RuleImport.read("""{"routing":{"rules":[{"type":"field","outboundTag":"node","domain":["domain:example.com"]}]}}""", Rules.WINDOWS).rules)
         // An outbound named for a country goes through it.
         assertEquals(listOf(Rule("suffix", "example.com", "via:JP")), RuleImport.read("""[{"outboundTag":"jp-out","domain":["domain:example.com"]}]""", Rules.WINDOWS).rules)
+        assertEquals(listOf(Rule("suffix", "example.com", "proxy")), RuleImport.read("""[{"outboundTag":"contact us","domain":["domain:example.com"]}]""", Rules.WINDOWS).rules)
     }
 }

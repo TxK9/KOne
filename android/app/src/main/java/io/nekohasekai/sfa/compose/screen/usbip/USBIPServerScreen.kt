@@ -96,7 +96,7 @@ fun USBIPServerScreen(
                     if (state.servers.size <= 1) {
                         stringResource(R.string.title_usbip)
                     } else {
-                        stringResource(R.string.usbip_with_tag, serverTag)
+                        stringResource(R.string.title_usbip) + " ${state.servers.indexOfFirst { it.serverTag == serverTag } + 1}"
                     },
                 )
             },

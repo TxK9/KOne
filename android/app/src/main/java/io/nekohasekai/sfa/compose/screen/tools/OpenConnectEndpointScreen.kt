@@ -79,7 +79,7 @@ fun OpenConnectEndpointScreen(
                     if (state.endpoints.size <= 1) {
                         stringResource(R.string.openconnect)
                     } else {
-                        stringResource(R.string.openconnect_with_tag, endpointTag)
+                        stringResource(R.string.openconnect) + " ${state.endpoints.indexOfFirst { it.endpointTag == endpointTag } + 1}"
                     },
                 )
             },
@@ -139,27 +139,6 @@ fun OpenConnectEndpointScreen(
                 StateRow(endpoint.state, endpoint.stateText)
                 val tunnelInfo = endpoint.tunnelInfo
                 if (endpoint.state == "connected" && tunnelInfo != null) {
-                    if (tunnelInfo.server.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.server, stringResource(R.string.endpoint_server))
-                    }
-                    if (tunnelInfo.flavor.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.flavor, stringResource(R.string.endpoint_flavor))
-                    }
-                    if (tunnelInfo.transport.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.transport, stringResource(R.string.endpoint_transport))
-                    }
-                    if (tunnelInfo.ipv4.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.ipv4.joinToString(", "), stringResource(R.string.endpoint_ipv4))
-                    }
-                    if (tunnelInfo.ipv6.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.ipv6.joinToString(", "), stringResource(R.string.endpoint_ipv6))
-                    }
-                    if (tunnelInfo.dns.isNotEmpty()) {
-                        TunnelInfoRow(tunnelInfo.dns.joinToString(", "), stringResource(R.string.endpoint_dns))
-                    }
-                    if (tunnelInfo.mtu > 0) {
-                        TunnelInfoRow(tunnelInfo.mtu.toString(), stringResource(R.string.endpoint_mtu))
-                    }
                     if (tunnelInfo.connectedSince > 0) {
                         val connectedText = DateUtils.getRelativeTimeSpanString(
                             tunnelInfo.connectedSince * 1000,

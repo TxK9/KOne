@@ -54,14 +54,7 @@ fun ProfileSelectorButton(selectedProfile: Profile?, onClick: () -> Unit, modifi
                     overflow = TextOverflow.Ellipsis,
                     // Text semantics retain the full name even when it ellipsizes.
                 )
-                if (selectedProfile != null && !exitIp.isNullOrBlank()) {
-                    Text(
-                        text = exitIp,
-                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                    )
-                }
+
             }
             Spacer(Modifier.width(8.dp))
             Icon(

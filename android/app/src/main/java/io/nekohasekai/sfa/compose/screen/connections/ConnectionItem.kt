@@ -169,7 +169,7 @@ fun ConnectionItem(connection: Connection, onClick: () -> Unit, onClose: () -> U
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Row 2: Upload stats + inbound tag
+                    // Traffic stays visible; internal routing tags may contain server details.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -180,18 +180,8 @@ fun ConnectionItem(connection: Connection, onClick: () -> Unit, onClose: () -> U
                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Text(
-                            modifier = Modifier.weight(1f).padding(start = 12.dp),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                            text = "${connection.inboundType}/${connection.inbound}",
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
 
-                    // Row 3: Download stats + outbound tag
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -199,15 +189,6 @@ fun ConnectionItem(connection: Connection, onClick: () -> Unit, onClose: () -> U
                     ) {
                         Text(
                             text = "↓ ${Libbox.formatBytes(connection.download)}/s | ${Libbox.formatBytes(connection.downloadTotal)}",
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            modifier = Modifier.weight(1f).padding(start = 12.dp),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                            text = (connection.chain.firstOrNull() ?: connection.outbound).let { LocalOutboundNames.current[it] ?: it },
                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

@@ -7,6 +7,16 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class CountryProfileGroupingTest {
+    @Test fun shortCodesAreCaseSensitiveAndFullNamesIgnoreCase() {
+        assertEquals("JP", CountryProfileGrouping.fromName("Servidor de Japan"))
+        assertEquals("FR", CountryProfileGrouping.fromName("Serveur au France"))
+        assertEquals("SG", CountryProfileGrouping.fromName("ca Singapore 2"))
+        listOf("contact us", "de", "au relay").forEach {
+            assertEquals(CountryProfileGrouping.UNCLASSIFIED, CountryProfileGrouping.fromName(it))
+        }
+        assertEquals("US", CountryProfileGrouping.fromName("US-West 01"))
+        assertEquals("GB", CountryProfileGrouping.fromName("united kingdom 3"))
+    }
     @Test fun neutralProviderAndIncidentalLettersDoNotInventARealCountry() {
         for (name in listOf("Verizon", "RUSSELL", "demo", "proxy.example", "US / \u82f1\u56fd")) {
             assertEquals(CountryProfileGrouping.UNCLASSIFIED, CountryProfileGrouping.fromName(name))

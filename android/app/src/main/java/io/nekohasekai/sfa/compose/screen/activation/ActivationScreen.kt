@@ -1,5 +1,8 @@
 package io.nekohasekai.sfa.compose.screen.activation
 
+import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,6 +58,10 @@ import io.nekohasekai.sfa.managed.ManagedState
 import io.nekohasekai.sfa.managed.ManagedStatus
 import io.nekohasekai.sfa.managed.ManagedSync
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
@@ -146,6 +153,21 @@ fun ActivationScreen() {
                 }
                 Spacer(Modifier.height(4.dp))
                 StartPill(busy = busy, enabled = key.isNotBlank() && (builtIn != null || address.isNotBlank() || ManagedClaimLink.find(key) != null)) { activate() }
+                // A phone without a key can't report through the console, so a failed activation
+                // goes to whoever gave the key, through whatever app the person already uses with them.
+                val shown = problem
+                if (shown != null && !busy) {
+                    Text(
+                        "Get help",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { shareActivationProblem(context, shown) }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .graphicsLayer { alpha = 0.75f },
+                    )
+                }
             }
         }
     }
@@ -166,6 +188,22 @@ fun ActivationScreen() {
             },
         )
     }
+}
+
+/** The report a person sends for help: what went wrong, on which build and phone. Never the key. */
+internal fun activationReport(problem: String, now: Date = Date()): String {
+    val time = SimpleDateFormat("yyyy-MM-dd HH:mm 'UTC'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(now)
+    return "KOne activation problem\n" +
+        "Problem: $problem\n" +
+        "App: KOne ${BuildConfig.VERSION_NAME} · ${BuildConfig.VERSION_CODE}\n" +
+        "Phone: ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}\n" +
+        "Time: $time"
+}
+
+private fun shareActivationProblem(context: Context, problem: String) {
+    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, activationReport(problem))
+    runCatching { context.startActivity(Intent.createChooser(send, "Get help with activation")) }
+        .onFailure { Toast.makeText(context, "No app on this phone can send it", Toast.LENGTH_SHORT).show() }
 }
 
 /** The solid ink pill of KOne's main actions. */

@@ -1,0 +1,148 @@
+# One runner keeps its core, app and installer together. Draft-release assets do not use
+# the Actions artifact store, which is currently preventing the normal workflow from finishing.
+name: Windows candidate
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: windows-candidate-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  KONE_VERSION: 1.0.69
+  KONE_BUILD: '69'
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="candidate-sync-${{ github.run_id }}"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --draft --target '${{ github.sha }}' --title "KOne $KONE_VERSION candidate" --notes 'Candidate installers. Each architecture is uploaded only after its build, tests, installation, upgrade and uninstall checks pass. Not a public update feed.'
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+  build:
+    needs: prepare
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: windows-latest
+            jdk: temurin
+            wix: x64
+            suffix: ''
+          - arch: arm64
+            runner: windows-11-arm
+            jdk: microsoft
+            wix: arm64
+            suffix: '-arm64'
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - id: go
+        shell: bash
+        run: echo "version=$(python -c "import json; print(json.load(open('docs/CORE_BUILD.json'))['go'])")" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          cache-dependency-path: |
+            core/go.sum
+            desktop/service/go.sum
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95
+        with:
+          distribution: ${{ matrix.jdk }}
+          java-version: '21'
+          cache: gradle
+      - name: Build and check the core and service
+        env:
+          CGO_ENABLED: '0'
+          GOOS: windows
+          GOARCH: ${{ matrix.arch }}
+          GOTOOLCHAIN: local
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force desktop/build/core | Out-Null
+          Push-Location core
+          go test ./experimental/locale
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $commit = (Get-Content ../SNAPSHOT.json -Raw | ConvertFrom-Json).upstream_commits.core
+          $version = (go list -m -f '{{.Version}}' "github.com/sagernet/sing-box@$commit").TrimStart('v')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $tags = Get-Content release/DEFAULT_BUILD_TAGS_WINDOWS
+          $flags = Get-Content release/LDFLAGS
+          go build -trimpath -tags "$tags" -ldflags "-X github.com/sagernet/sing-box/constant.Version=$version $flags -s -w -buildid=" -o ../desktop/build/core/sing-box.exe ./cmd/sing-box
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+          Push-Location desktop/service
+          $env:KONE_SINGBOX = (Resolve-Path ../build/core/sing-box.exe).Path
+          go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go test ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go build -trimpath -ldflags "-X main.version=$env:KONE_VERSION -s -w -buildid=" -o ../build/core/kone-service.exe .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+          desktop/build/core/sing-box.exe check -c .github/windows/smoke-config.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test the desktop and create the application image
+        working-directory: desktop
+        run: |
+          ./gradlew.bat --no-daemon test createDistributable coreRules installerArt "-Pkone.build=$env:KONE_BUILD" "-Pkone.console=${{ vars.KONE_CONSOLE }}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build candidate and upgrade-test MSIs
+        working-directory: desktop
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = "$env:RUNNER_TEMP/wix.zip"
+          Invoke-WebRequest https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip -OutFile $zip
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne '6AC824E1642D6F7277D0ED7EA09411A508F6116BA6FAE0AA5F2C7DAA2FF43D31') { throw 'WiX hash mismatch' }
+          Expand-Archive $zip "$env:RUNNER_TEMP/wix"
+          $common = @{ Wix = "$env:RUNNER_TEMP/wix"; AppDir = (Resolve-Path build/compose/binaries/main/app/KOne).Path; CoreDir = (Resolve-Path build/core).Path; ArtDir = (Resolve-Path build/wix).Path; Site = '${{ vars.KONE_SITE }}' }
+          New-Item -ItemType Directory -Force build/msi, build/msi-old | Out-Null
+          ./packaging/build-msi.ps1 @common -Arch ${{ matrix.wix }} -Version $env:KONE_VERSION -Out "$PWD/build/msi/KOne-$env:KONE_VERSION${{ matrix.suffix }}.msi"
+          ./packaging/build-msi.ps1 @common -Arch ${{ matrix.wix }} -Culture zh-CN -Version 1.0.0 -Out "$PWD/build/msi-old/KOne-1.0.0${{ matrix.suffix }}.msi"
+      - name: Install, upgrade and exercise the service
+        working-directory: desktop
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Install([string] $msi) {
+            $run = Start-Process msiexec.exe -Wait -PassThru -ArgumentList "/i `"$msi`" /qn /l*v `"$env:RUNNER_TEMP/install.log`""
+            if ($run.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP/install.log" -Tail 80; throw "Install failed: $($run.ExitCode)" }
+          }
+          Install "$PWD/build/msi-old/KOne-1.0.0${{ matrix.suffix }}.msi"
+          ../.github/windows/installed.ps1 -Version 1.0.0
+          Install "$PWD/build/msi/KOne-$env:KONE_VERSION${{ matrix.suffix }}.msi"
+          ../.github/windows/installed.ps1 -Version $env:KONE_VERSION
+          $old = Start-Process msiexec.exe -Wait -PassThru -ArgumentList "/i `"$PWD/build/msi-old/KOne-1.0.0${{ matrix.suffix }}.msi`" /qn"
+          if ($old.ExitCode -eq 0) { throw 'Downgrade was accepted' }
+          ./gradlew.bat --no-daemon test --tests cc.txwd.kone.ServiceEndToEndTest '-Pkone.e2e=reject'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -Force 'HKLM:\SOFTWARE\KOne' | Out-Null
+          New-ItemProperty -Force 'HKLM:\SOFTWARE\KOne' -Name AllowAnyClient -PropertyType DWord -Value 1 | Out-Null
+          try {
+            ./gradlew.bat --no-daemon test --tests cc.txwd.kone.ServiceEndToEndTest '-Pkone.e2e=full'
+            if ($LASTEXITCODE -ne 0) { throw 'Service test failed' }
+          } finally { Remove-Item -Recurse -Force 'HKLM:\SOFTWARE\KOne' -ErrorAction SilentlyContinue }
+      - name: Uninstall and verify cleanup
+        working-directory: desktop
+        run: |
+          $run = Start-Process msiexec.exe -Wait -PassThru -ArgumentList "/x `"$PWD/build/msi/KOne-$env:KONE_VERSION${{ matrix.suffix }}.msi`" /qn"
+          if ($run.ExitCode -ne 0) { throw 'Uninstall failed' }
+          ../.github/windows/installed.ps1 -Gone
+      - name: Save verified candidate to the private draft release
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $msi = "build/msi/KOne-$env:KONE_VERSION${{ matrix.suffix }}.msi"
+          $hash = (Get-FileHash $msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Encoding ascii "$msi.sha256" "$hash  $([IO.Path]::GetFileName($msi))"
+          gh release upload '${{ needs.prepare.outputs.tag }}' $msi "$msi.sha256" --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

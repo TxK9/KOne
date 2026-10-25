@@ -263,13 +263,14 @@ class MainActivity :
             connection.reconnect()
             RemoteControlManager.restore()
 
-            // KOne is updated by hand: nothing is fetched from upstream and nothing waits in the background.
+            // The upstream SFA updater stays off; KOne uses its own verified release feed.
             if (Settings.cachedUpdateInfo.isNotBlank() || Settings.cachedApkPath.isNotBlank()) UpdateState.clear()
             if (Settings.autoUpdateEnabled) {
                 Settings.autoUpdateEnabled = false
                 Vendor.scheduleAutoUpdate()
             }
 
+            io.nekohasekai.sfa.update.KoneUpdates.start(this@MainActivity)
             handleIntent(intent)
             lifecycleScope.launch { runCatching { HomeSettings.refreshSaved() } }
             // A phone bound to a KOne console checks for a new configuration when the App opens.
@@ -303,6 +304,7 @@ class MainActivity :
                     } else {
                         App()
                     }
+                    io.nekohasekai.sfa.update.KoneUpdatePrompt()
                 }
             }
         }
@@ -314,6 +316,10 @@ class MainActivity :
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(io.nekohasekai.sfa.update.KoneUpdates.SHOW_UPDATE, false) == true) {
+            intent.removeExtra(io.nekohasekai.sfa.update.KoneUpdates.SHOW_UPDATE)
+            io.nekohasekai.sfa.update.KoneUpdates.requestShow(this)
+        }
         if (BuildConfig.DEBUG) {
             intent?.getStringExtra("knine_qa_wallpaper")?.let { id ->
                 if (WallpaperCatalog.choices.any { it.id == id }) WallpaperCatalog.select(id)
@@ -490,6 +496,19 @@ class MainActivity :
         var activeApplyServiceChangeMode by remember { mutableStateOf<UiEvent.ApplyServiceChange.Mode?>(null) }
         var applyServiceChangeJob by remember { mutableStateOf<Job?>(null) }
 
+        val latestServiceStateForReload = androidx.compose.runtime.rememberUpdatedState(currentServiceStatus)
+        val quietServiceReload = remember(scope) {
+            io.nekohasekai.sfa.compose.base.QuietServiceReload(
+                scope = scope,
+                shouldApply = { latestServiceStateForReload.value == Status.Started },
+                apply = { withContext(Dispatchers.IO) { Libbox.newStandaloneCommandClient().serviceReload() } },
+                onFailure = { e ->
+                    errorMessage = "Settings could not be applied. Try again."
+                    showErrorDialog = true
+                },
+            )
+        }
+
         fun mergeApplyServiceChangeMode(
             current: UiEvent.ApplyServiceChange.Mode?,
             incoming: UiEvent.ApplyServiceChange.Mode,
@@ -559,7 +578,7 @@ class MainActivity :
                                     }
                                 }
                             } catch (e: Exception) {
-                                errorMessage = e.message ?: e.toString()
+                                errorMessage = "Settings could not be applied. Try again."
                                 showErrorDialog = true
                             }
                         }
@@ -611,7 +630,7 @@ class MainActivity :
         if (showErrorDialog && currentAlert == null) {
             SelectableMessageDialog(
                 title = stringResource(R.string.error_title),
-                message = errorMessage,
+                message = io.nekohasekai.sfa.compose.base.publicErrorMessage(errorMessage),
                 onDismiss = { showErrorDialog = false },
             )
         }
@@ -966,7 +985,10 @@ class MainActivity :
                         }
                     }
 
-                    is UiEvent.ApplyServiceChange -> enqueueApplyServiceChange(event.mode)
+                    is UiEvent.ApplyServiceChange -> {
+                        if (event.automatic && event.mode == UiEvent.ApplyServiceChange.Mode.Reload) quietServiceReload.request()
+                        else enqueueApplyServiceChange(event.mode)
+                    }
                 }
             }
         }
@@ -990,19 +1012,11 @@ class MainActivity :
                     val showStatusBar = isRemote || serviceRunning || currentServiceStatus == Status.Stopping
                     val showStartFab = !isRemote && !serviceRunning && dashboardUiState.selectedProfileId != -1L
                     val bottomOverlayPadding = paddingValues.calculateBottomPadding()
-                    // The personal dashboard panel carries the start button and connection status itself.
+                    // The photo dashboard panel carries the start button and connection status itself.
                     val knineDashboard = currentRoute == Screen.Dashboard.route && !isRemote
                     val homeBackendState = (tailscaleState.endpoints.firstOrNull { it.endpointTag == PairedProfile.HOME_TAG } ?: tailscaleState.endpoints.firstOrNull())?.backendState
                     val homeOn = HomeSettings.isEnabled
-                    // Every node switch reloads the core and the home tunnel with it: for a few seconds there is
-                    // no endpoint yet, or one still logging in. Call that connecting, and name a problem
-                    // (Login required, Not configured…) only once the same state has lasted.
-                    var homeSettled by remember(homeBackendState, currentServiceStatus) { mutableStateOf(false) }
-                    LaunchedEffect(homeBackendState, currentServiceStatus) {
-                        delay(15_000)
-                        homeSettled = true
-                    }
-                    val homeShownState = if (homeBackendState == "Running" || homeSettled) homeBackendState else "Starting"
+                    val homeShownState = homeBackendState
                     val homeState = when {
                         !homeOn || currentServiceStatus != Status.Started -> HomeState.None
                         homeShownState == "Running" -> HomeState.Online
@@ -1042,6 +1056,7 @@ class MainActivity :
                                 homeState = homeState,
                                 openGroups = { showGroupsSheet = true },
                                 openConnections = { showConnectionsSheet = true },
+                                openHome = { navController.navigate("tools/tailscale/${android.net.Uri.encode(PairedProfile.HOME_TAG)}") },
                             ),
                         ) {
                         NavHost(
@@ -1087,6 +1102,7 @@ class MainActivity :
                                 serviceStatus = currentServiceStatus,
                                 onHeightChanged = { pixels -> connectionBarHeight = with(density) { pixels.toDp() } },
                                 homeStatus = homeStatusText,
+                                onHomeClick = { navController.navigate("tools/tailscale/${android.net.Uri.encode(PairedProfile.HOME_TAG)}") },
                                 startTime = dashboardUiState.serviceStartTime,
                                 groupsCount = dashboardUiState.groupsCount,
                                 hasGroups = groupsWorthShowing,
@@ -1616,7 +1632,7 @@ class MainActivity :
                 Alert.RequestNotificationPermission -> stringResource(R.string.notification_permission_required_description)
                 Alert.EmptyConfiguration -> stringResource(R.string.error_empty_configuration)
                 Alert.VPNRevoked -> stringResource(R.string.knine_vpn_revoked_message)
-                else -> message
+                else -> "Connection could not start. Try later or contact the administrator."
             }
 
         AlertDialog(

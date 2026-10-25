@@ -16,8 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class MaxRuntimeOption(val seconds: Int, val labelRes: Int) {
-    THIRTY(30, R.string.network_quality_max_runtime_30s),
-    SIXTY(60, R.string.network_quality_max_runtime_60s),
+    SIX(6, R.string.network_quality_max_runtime_6s),
 }
 
 data class NetworkQualityState(
@@ -35,12 +34,13 @@ data class NetworkQualityState(
     val configURL: String = Libbox.NetworkQualityDefaultConfigURL,
     val serial: Boolean = false,
     val http3: Boolean = false,
-    val maxRuntime: MaxRuntimeOption = MaxRuntimeOption.THIRTY,
+    val maxRuntime: MaxRuntimeOption = MaxRuntimeOption.SIX,
     val selectedOutbound: String = "",
     val showMeteredWarning: Boolean = false,
 )
 
 class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
+    private var testGeneration = 0L
     private var standaloneTest: io.nekohasekai.libbox.NetworkQualityTest? = null
     private var nqSession: NetworkQualityTestSession? = null
 
@@ -91,6 +91,7 @@ class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
     }
 
     private fun startTest(vpnRunning: Boolean) {
+        if (currentState.isRunning) return
         updateState {
             copy(
                 phase = -1,
@@ -112,12 +113,13 @@ class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
         val serial = currentState.serial
         val http3 = currentState.http3
         val maxRuntimeSeconds = currentState.maxRuntime.seconds
-        val handler = createHandler()
+        val generation = ++testGeneration
+        val handler = createHandler(generation)
 
         if (vpnRunning) {
             viewModelScope.launch(Dispatchers.IO) {
                 try {
-                    nqSession =
+                    val session =
                         CommandTarget.standaloneClient()
                             .startNetworkQualityTest(
                                 configURL,
@@ -127,9 +129,20 @@ class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
                                 http3,
                                 handler,
                             )
+                    var adopted = false
+                    try {
+                        withContext(Dispatchers.Main) {
+                            if (currentState.isRunning && generation == testGeneration) {
+                                nqSession = session
+                                adopted = true
+                            }
+                        }
+                    } finally {
+                        if (!adopted) session.close()
+                    }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        if (!currentState.isRunning) return@withContext
+                        if (!currentState.isRunning || generation != testGeneration) return@withContext
                         updateState { copy(isRunning = false) }
                         nqSession = null
                         sendError(e)
@@ -148,6 +161,7 @@ class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
     }
 
     fun cancelTest() {
+        testGeneration++
         try {
             nqSession?.close()
         } catch (_: Exception) {
@@ -163,12 +177,12 @@ class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
         super.onCleared()
     }
 
-    private fun createHandler(): NetworkQualityTestHandler {
+    private fun createHandler(generation: Long): NetworkQualityTestHandler {
         return object : NetworkQualityTestHandler {
             override fun onProgress(progress: NetworkQualityProgress?) {
                 progress ?: return
                 viewModelScope.launch {
-                    if (!currentState.isRunning) return@launch
+                    if (!currentState.isRunning || generation != testGeneration) return@launch
                     updateState {
                         copy(
                             phase = progress.phase.toInt(),
@@ -189,7 +203,7 @@ class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
             override fun onResult(result: NetworkQualityResult?) {
                 result ?: return
                 viewModelScope.launch {
-                    if (!currentState.isRunning) return@launch
+                    if (!currentState.isRunning || generation != testGeneration) return@launch
                     updateState {
                         copy(
                             phase = Libbox.NetworkQualityPhaseDone.toInt(),
@@ -212,12 +226,16 @@ class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
 
             override fun onError(message: String?) {
                 viewModelScope.launch {
-                    if (!currentState.isRunning) return@launch
+                    if (!currentState.isRunning || generation != testGeneration) return@launch
                     updateState { copy(isRunning = false) }
                     standaloneTest = null
                     nqSession = null
                     if (message != null) {
-                        sendErrorMessage(message)
+                        sendErrorMessage(when {
+                            message.contains("deadline exceeded") -> "The speed test timed out. Check the network and try again."
+                            message.contains("EOF") -> "The speed test connection was interrupted. Try again later."
+                            else -> message
+                        })
                     }
                 }
             }
