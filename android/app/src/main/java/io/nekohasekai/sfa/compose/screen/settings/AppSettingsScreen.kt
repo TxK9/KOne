@@ -781,7 +781,7 @@ fun AppSettingsScreen(
                 Box {
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.kone_app_wallpaper), style = MaterialTheme.typography.bodyLarge) },
-                        supportingContent = { Text(WallpaperCatalog.mode.label, style = MaterialTheme.typography.bodyMedium) },
+                        supportingContent = { Text(if (WallpaperCatalog.mode == WallpaperMode.City) stringResource(R.string.city_wallpaper_city) else WallpaperCatalog.mode.label, style = MaterialTheme.typography.bodyMedium) },
                         leadingContent = {
                             Icon(
                                 imageVector = Icons.Outlined.Wallpaper,
@@ -799,7 +799,7 @@ fun AppSettingsScreen(
                         ) {
                             WallpaperMode.entries.filter { it != WallpaperMode.Builtin || WallpaperCatalog.hasBundledPhotos }.forEach { mode ->
                                 DropdownMenuItem(
-                                    text = { Text(mode.label) },
+                                    text = { Text(if (mode == WallpaperMode.City) stringResource(R.string.city_wallpaper_city) else mode.label) },
                                     trailingIcon = if (mode == WallpaperCatalog.mode) {
                                         { Icon(imageVector = Icons.Filled.Check, contentDescription = null) }
                                     } else {
@@ -819,6 +819,10 @@ fun AppSettingsScreen(
                             }
                         }
                     }
+                }
+
+                if (WallpaperCatalog.mode == WallpaperMode.City) {
+                    io.nekohasekai.sfa.compose.theme.CityWallpaperSettings()
                 }
 
                 // Light or dark: as the phone is, or KOne's own; the paintings follow it too.

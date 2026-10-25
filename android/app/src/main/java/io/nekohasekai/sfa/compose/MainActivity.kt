@@ -297,6 +297,7 @@ class MainActivity :
                     backdropRes = WallpaperCatalog.backdropResource(darkSystem),
                     customBackdropPath = WallpaperCatalog.customPath(),
                     backdropRevision = WallpaperCatalog.revision,
+                    cityWallpaper = WallpaperCatalog.mode == io.nekohasekai.sfa.compose.theme.WallpaperMode.City,
                 ) {
                     // The edition for others is closed until a key from the KOne console opens it.
                     if (BuildConfig.KONE_ACTIVATION && !io.nekohasekai.sfa.managed.ManagedState.snapshot.bound) {

@@ -98,17 +98,18 @@ fun Theme(
     customBackdropPath: String? = null,
     backdropRevision: Int = 0,
     plainKnine: Boolean = false,
+    cityWallpaper: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
     val overlayState = remember { WallpaperOverlayState() }
     var backdropBounds by remember { mutableStateOf(Rect.Zero) }
     data class ReadyBackdrop(val resource: Int, val pixels: BackdropPixels?, val bitmap: ImageBitmap?, val focus: BackdropFocus = BackdropFocus())
-    val ready by produceState<ReadyBackdrop?>(null, portraitBackdrop, backdropRes, customBackdropPath, backdropRevision) {
+    val ready by produceState<ReadyBackdrop?>(null, portraitBackdrop, backdropRes, customBackdropPath, backdropRevision, cityWallpaper) {
         value = if (portraitBackdrop) withContext(Dispatchers.Default) {
             ReadyBackdrop(
                 backdropRes,
-                if (customBackdropPath != null) loadBackdropPixels(customBackdropPath) else loadBackdropPixels(context.resources, backdropRes),
+                if (cityWallpaper) null else if (customBackdropPath != null) loadBackdropPixels(customBackdropPath) else loadBackdropPixels(context.resources, backdropRes),
                 if (customBackdropPath != null) loadDisplayedBackdrop(customBackdropPath)?.asImageBitmap() else null,
                 WallpaperCatalog.focusFor(backdropRes),
             )
@@ -263,7 +264,11 @@ fun Theme(
                         leavingBackdrop?.let { drawBackdrop(it, 1f, leavingTheme, leavingReadingTop) }
                         currentBackdrop?.let { drawBackdrop(it, if (leavingBackdrop == null) 1f else transition.value, displayedTheme, if (displayedTheme.brightComposition) photoBoundary else null) }
                     }
-                    if (customBackdropPath == null && (backdropRes == R.drawable.knine_plain_light || backdropRes == R.drawable.knine_plain_dark)) {
+                    if (cityWallpaper) {
+                        CityWallpaper(Modifier.matchParentSize())
+                        // A stable reading veil keeps native controls readable through day/night changes.
+                        Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.46f)))
+                    } else if (customBackdropPath == null && (backdropRes == R.drawable.knine_plain_light || backdropRes == R.drawable.knine_plain_dark)) {
                         PlainBackdropMark(dark = backdropRes == R.drawable.knine_plain_dark, modifier = Modifier.matchParentSize())
                     }
                     // The photograph stays whole and sharp. Only the strips behind the

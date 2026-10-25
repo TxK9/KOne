@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import io.nekohasekai.sfa.Application
+import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.database.Settings
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import java.io.IOException
 
 /** Where the dashboard's picture comes from. */
 enum class WallpaperMode(val id: String, val label: String) {
+    City("city", "Living cities"),
     /** The photos built into this copy, taking turns. */
     Builtin("builtin", "Built-in rotation"),
 
@@ -88,10 +90,18 @@ object WallpaperCatalog {
 
     private fun resolveMode(): WallpaperMode {
         val stored = WallpaperMode.of(Settings.knineWallpaperMode)
-        val fallback = if (hasBundledPhotos) WallpaperMode.Builtin else WallpaperMode.None
+        if (BuildConfig.KNINE_OWNER && !Settings.knineCityWallpaperIntroduced) {
+            Settings.knineCityWallpaperIntroduced = true
+            if (stored != WallpaperMode.Photo || !photoFile.isFile) {
+                Settings.knineWallpaperMode = WallpaperMode.City.id
+                return WallpaperMode.City
+            }
+        }
+        val fallback = if (hasBundledPhotos) WallpaperMode.City else WallpaperMode.None
         return when (stored) {
             null -> fallback
-            WallpaperMode.Builtin -> fallback
+            WallpaperMode.Builtin -> if (hasBundledPhotos) stored else fallback
+            WallpaperMode.City -> stored
             WallpaperMode.Photo -> if (photoFile.isFile) stored else fallback
             WallpaperMode.None -> stored
         }
@@ -106,7 +116,7 @@ object WallpaperCatalog {
 
     /** The drawable behind everything: a built-in photo, or the plain gradient, also shown while a photo loads. */
     fun backdropResource(dark: Boolean): Int =
-        if (mode == WallpaperMode.Builtin) selectedChoice.resource else if (dark) R.drawable.knine_plain_dark else R.drawable.knine_plain_light
+        if (mode == WallpaperMode.Builtin) selectedChoice.resource else if (dark || mode == WallpaperMode.City) R.drawable.knine_plain_dark else R.drawable.knine_plain_light
 
     /** The chosen photo's file while it is the wallpaper. */
     fun customPath(): String? = photoFile.takeIf { mode == WallpaperMode.Photo && it.isFile }?.absolutePath
