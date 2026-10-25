@@ -17,10 +17,8 @@ object PairedProfile {
     fun fromVlessLink(link: String, rulesDirectory: String = "rules"): String {
         val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
-        val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
-        val port = if (uri.port == -1) 443 else uri.port
-        require(port in 1..65535) { "Invalid connection port" }
+        val (userInfo, host, port) = authority(uri)
+        val uuid = try { UUID.fromString(userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
         val parameters = mutableMapOf<String, String>()
         uri.rawQuery.orEmpty().split('&').filter { it.isNotBlank() }.forEach {
             val pieces = it.split('=', limit = 2)
@@ -32,7 +30,7 @@ object PairedProfile {
         require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
         val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
         val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"] ?: "chrome")))
+            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"]?.takeIf { it.isNotBlank() } ?: "chrome")))
         if (parameters["security"] == "reality") {
             val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
             val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }
@@ -45,6 +43,30 @@ object PairedProfile {
             "uuid" to uuid, "tls" to tls)
         parameters["flow"]?.takeIf { it.isNotBlank() }?.let { node.put("flow", it) }
         return build(node, rulesDirectory)
+    }
+
+    /**
+     * java.net.URI leaves IPv6 brackets in [URI.host] and drops the whole authority for
+     * hostnames it rejects, such as names containing '_'. Parse those links manually.
+     */
+    private fun authority(uri: URI): Triple<String?, String, Int> {
+        val (userInfo, rawHost, rawPort) = if (uri.host != null) {
+            Triple(uri.userInfo, uri.host, uri.port)
+        } else {
+            // URI only falls back to a registry authority for names, never for bracketed IPv6.
+            val raw = uri.rawAuthority ?: throw IllegalArgumentException("Connection server is missing")
+            val hostPort = raw.substringAfterLast('@')
+            val name = hostPort.substringBefore(':')
+            require(name.isNotEmpty() && name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it in "-._" }) { "Invalid connection server" }
+            val portText = hostPort.substringAfter(':', "")
+            val port = if (portText.isEmpty()) -1 else portText.toIntOrNull() ?: throw IllegalArgumentException("Invalid connection port")
+            val userInfo = if ('@' in raw) URLDecoder.decode(raw.substringBeforeLast('@'), "UTF-8") else null
+            Triple(userInfo, name, port)
+        }
+        val host = rawHost.removeSurrounding("[", "]").takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        val port = if (rawPort == -1) 443 else rawPort
+        require(port in 1..65535) { "Invalid connection port" }
+        return Triple(userInfo, host, port)
     }
 
     fun build(node: JSONObject, rulesDirectory: String = "rules"): String {

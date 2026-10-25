@@ -75,4 +75,33 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    private fun node(link: String) = JSONObject(PairedProfile.fromVlessLink(link)).getJSONArray("outbounds").getJSONObject(1)
+
+    @Test
+    fun stripsIpv6Brackets() {
+        val node = node(link.replace("@node.invalid:443", "@[2001:db8::1]:8443"))
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(8443, node.getInt("server_port"))
+    }
+
+    @Test
+    fun acceptsHostnameWithUnderscore() {
+        val node = node(link.replace("@node.invalid:443", "@edge_1.node.invalid:2053"))
+        assertEquals("edge_1.node.invalid", node.getString("server"))
+        assertEquals(2053, node.getInt("server_port"))
+        assertEquals("00000000-0000-0000-0000-000000000001", node.getString("uuid"))
+        assertEquals(443, node(link.replace("@node.invalid:443", "@edge_1.node.invalid")).getInt("server_port"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsInvalidPortOnUnderscoreHostname() {
+        PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@edge_1.node.invalid:70000"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val tls = node(link + "&fp=").getJSONObject("tls")
+        assertEquals("chrome", tls.getJSONObject("utls").getString("fingerprint"))
+    }
 }
