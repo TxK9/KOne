@@ -80,11 +80,11 @@ class NodeContinuity(private val host: Host) {
         }
     }
 
-    /** The chosen node, [name], is listed no more: Automatic instead, or the one node left. */
+    /** The chosen node, [name], cannot be found (gone, or not to be told apart): Automatic instead, or the one node left. */
     private fun gone(name: String, nodes: List<SourceNode>) {
         val instead = if (nodes.size >= 2) KoneConfig.AUTO_TAG else nodes.firstOrNull()?.tag ?: return
         host.choose(instead)
-        host.tell("$name is no longer listed; using ${if (instead == KoneConfig.AUTO_TAG) "Automatic" else names.getValue(instead)}")
+        host.tell("$name can no longer be found; using ${if (instead == KoneConfig.AUTO_TAG) "Automatic" else names.getValue(instead)}")
     }
 
     companion object {

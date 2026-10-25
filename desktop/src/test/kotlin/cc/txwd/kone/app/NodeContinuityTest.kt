@@ -109,7 +109,7 @@ class NodeContinuityTest {
         app.delays += mapOf("Paris" to 90, "Berlin" to 110)
         continuity.list(listing("trojan://pw@203.0.113.2:443#Berlin"))
         assertEquals(listOf(KoneConfig.AUTO_TAG), app.chosen)
-        assertEquals(listOf("Paris is no longer listed; using Automatic"), app.told)
+        assertEquals(listOf("Paris can no longer be found; using Automatic"), app.told)
         assertEquals(emptyList(), app.kept)
         // What is kept of the others stays as it was.
         assertEquals(110, app.delays["Berlin"])
@@ -123,7 +123,7 @@ class NodeContinuityTest {
         continuity.list(listing("trojan://pw@203.0.113.1:443#Paris", "trojan://pw@203.0.113.2:443#Berlin", withConsole = false))
         continuity.list(listing("trojan://pw@203.0.113.2:443#Berlin", withConsole = false))
         assertEquals(listOf("Berlin"), app.chosen)
-        assertEquals(listOf("Paris is no longer listed; using Berlin"), app.told)
+        assertEquals(listOf("Paris can no longer be found; using Berlin"), app.told)
     }
 
     @Test
@@ -135,7 +135,20 @@ class NodeContinuityTest {
         continuity.list(listing(cdn("us.invalid", "a", "US"), cdn("jp.invalid", "a", "JP")))
         continuity.list(listing(cdn("us.invalid", "b", "US")))
         assertEquals(listOf(KoneConfig.AUTO_TAG), app.chosen)
-        assertEquals(listOf("JP is no longer listed; using Automatic"), app.told)
+        assertEquals(listOf("JP can no longer be found; using Automatic"), app.told)
+        assertEquals(emptyList(), app.kept)
+    }
+
+    @Test
+    fun aNodeSplitIntoSeveralOnItsServerIsNotGuessedAt() {
+        fun osaka(sni: String, name: String) = "vless://$id@203.0.113.60:443?security=tls&sni=$sni&type=ws&host=$sni&path=%2F$sni#$name"
+        val app = App("Osaka")
+        val continuity = NodeContinuity(app)
+        continuity.list(listing(osaka("a.invalid", "Osaka"), "trojan://pw@203.0.113.2:443#Berlin"))
+        // Its server and account now carry two nodes, neither of them the one chosen: not even its name decides.
+        continuity.list(listing(osaka("b.invalid", "Osaka"), osaka("c.invalid", "Osaka"), "trojan://pw@203.0.113.2:443#Berlin"))
+        assertEquals(listOf(KoneConfig.AUTO_TAG), app.chosen)
+        assertEquals(listOf("Osaka can no longer be found; using Automatic"), app.told)
         assertEquals(emptyList(), app.kept)
     }
 
