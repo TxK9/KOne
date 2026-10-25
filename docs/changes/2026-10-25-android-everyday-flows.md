@@ -36,6 +36,13 @@ configuration, signing or update-feed change.
   update prompt and Account) give the title up to 60% of the width when the two
   collide; values wrap and ellipsize instead of cutting titles to a letter at
   large text sizes. Rows with details announce "Show details"/"Hide details".
+- **Dashboard** controls say what they are and do: the folded panel is a
+  "Choose node" button (a flag-only node is announced by name), the status line
+  announces Expanded/Collapsed with a "Show/Hide details" action, the fold
+  handle, Home mark and deck buttons carry roles, category tabs are tabs with
+  their selection, and flag choices are radio buttons named for their country.
+  Connection-state words, counts ("1 node") and the category editor's labels are
+  resources. Nothing changes visually.
 - **Import messages** use plurals ("Imported 1 node") and the empty clipboard
   says what to do next.
 - Remaining English literals on these screens moved to `kone_hubs.xml` and
@@ -47,8 +54,9 @@ configuration, signing or update-feed change.
 - No diagnostics toggle: `/api/client/diagnostics` waits for its approved
   disclosure and consent design (`docs/windows/README.md`). `ManagedState`
   keeps diagnostics off by default.
-- Dashboard deck and switcher internals still carry some English literals
-  (category editor, copy toasts, "System HTTP proxy").
+- Some dashboard literals remain: the metric tiles and routing-mode names, copy
+  and delete toasts, "System HTTP proxy", "Import nodes"/"No nodes yet", and
+  "New category" as a stored default name (it doubles as an identity check).
 
 ## Cross-module needs
 

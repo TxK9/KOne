@@ -1,5 +1,11 @@
 package io.nekohasekai.sfa.compose.screen.dashboard
 
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
+import io.nekohasekai.sfa.R
 import cc.txwd.kone.shared.Countries
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PriorityHigh
@@ -610,7 +616,13 @@ private fun FoldHandle(onTap: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .height(16.dp)
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onTap),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClickLabel = stringResource(R.string.kone_dashboard_fold),
+                role = Role.Button,
+                onClick = onTap,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -652,7 +664,7 @@ private fun ExpandedPanel(
             serviceStatus = serviceStatus,
             exit = exit,
             host = host,
-            name = selected?.name ?: "No node selected",
+            name = selected?.name ?: stringResource(R.string.kone_dashboard_no_node),
             open = statusOpen,
             onToggleStatus = onToggleStatus,
             onNameClick = onJumpToSelected,
@@ -710,17 +722,19 @@ internal fun CollapsedPanel(
     FlowRow(
         modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onSwitch)
+            .clickable(onClickLabel = stringResource(R.string.kone_dashboard_choose_node), role = Role.Button, onClick = onSwitch)
             // The flag lines up with the node names lifted above it.
             .padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Row(item, verticalAlignment = Alignment.CenterVertically) {
+        val noNode = stringResource(R.string.kone_dashboard_no_node)
+        // A flag alone says nothing to a screen reader; the node's name does.
+        Row(item.then(if (flag != null) Modifier.semantics { contentDescription = selected?.name ?: noNode } else Modifier), verticalAlignment = Alignment.CenterVertically) {
             if (flag != null) {
                 FlagGlyph(flag, size = 18.dp)
             } else {
-                BText(selected?.name ?: "No node selected", style = type, fontWeight = FontWeight.SemiBold, emphasized = true, maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis)
+                BText(selected?.name ?: noNode, style = type, fontWeight = FontWeight.SemiBold, emphasized = true, maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis)
             }
         }
         if (reading != null) {
@@ -747,6 +761,8 @@ private fun PanelHeader(
     val uptime = rememberUptime(if (started) uiState.serviceStartTime else null)
     val chevron by animateFloatAsState(if (open) 180f else 0f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow), label = "chevron")
     val lineStyle = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum", letterSpacing = 0.4.sp)
+    val detailsLabel = stringResource(if (open) R.string.kone_row_hide_details else R.string.kone_row_show_details)
+    val openState = stringResource(if (open) R.string.kone_dashboard_expanded else R.string.kone_dashboard_collapsed)
     Column(
         Modifier
             .fillMaxWidth()
@@ -759,17 +775,17 @@ private fun PanelHeader(
                 .fillMaxWidth()
                 .heightIn(min = 24.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .then(if (started) Modifier.clickable(onClick = onToggleStatus) else Modifier),
+                .then(if (started) Modifier.clickable(onClickLabel = detailsLabel, role = Role.Button, onClick = onToggleStatus).semantics { stateDescription = openState } else Modifier),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             StatusDot(started = started, busy = serviceStatus == Status.Starting || serviceStatus == Status.Stopping)
             Spacer(Modifier.width(4.dp))
             BText(
                 when (serviceStatus) {
-                    Status.Started -> if (uptime.isEmpty()) "Connected" else "Connected · $uptime"
-                    Status.Starting -> "Connecting"
-                    Status.Stopping -> "Disconnecting"
-                    Status.Stopped -> "Disconnected"
+                    Status.Started -> if (uptime.isEmpty()) stringResource(R.string.kone_dashboard_connected) else stringResource(R.string.kone_dashboard_connected_for, uptime)
+                    Status.Starting -> stringResource(R.string.kone_dashboard_connecting)
+                    Status.Stopping -> stringResource(R.string.kone_dashboard_disconnecting)
+                    Status.Stopped -> stringResource(R.string.kone_dashboard_disconnected)
                 },
                 style = lineStyle,
                 maxLines = 1,
@@ -780,7 +796,8 @@ private fun PanelHeader(
                 Spacer(Modifier.weight(1f))
                 Icon(
                     Icons.Default.ExpandMore,
-                    contentDescription = if (open) "Collapse" else "Expand",
+                    // The row above announces the state; the chevron only draws it.
+                    contentDescription = null,
                     modifier = Modifier
                         .size(16.dp)
                         .graphicsLayer {
@@ -795,7 +812,7 @@ private fun PanelHeader(
                 Modifier
                     .weight(1f, fill = false)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onNameClick),
+                    .clickable(onClickLabel = stringResource(R.string.kone_dashboard_show_selected), role = Role.Button, onClick = onNameClick),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BText(
@@ -814,7 +831,7 @@ private fun PanelHeader(
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable(onClick = onToggleStatus),
+                        .clickable(onClickLabel = detailsLabel, role = Role.Button, onClick = onToggleStatus),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     FitText("↓ ${uiState.downlink}   ↑ ${uiState.uplink}", lineStyle, alignEnd = true)
@@ -838,8 +855,8 @@ internal fun HomeMark(host: KnineHost) {
         value
     } else 1f
     // The 44dp target is easy to tap; the status itself stays a small, quiet icon.
-    Box(Modifier.size(44.dp).clip(CircleShape).clickable(onClick = host.openHome), contentAlignment = Alignment.Center) {
-        Icon(Icons.Outlined.Home, contentDescription = host.homeStatus.ifBlank { "Tailscale status" },
+    Box(Modifier.size(44.dp).clip(CircleShape).clickable(role = Role.Button, onClick = host.openHome), contentAlignment = Alignment.Center) {
+        Icon(Icons.Outlined.Home, contentDescription = host.homeStatus.ifBlank { stringResource(R.string.kone_dashboard_home_status) },
             modifier = Modifier.size(18.dp).graphicsLayer { alpha = breath })
         if (host.homeState == HomeState.Online || host.homeState == HomeState.NeedsAction) {
             val mark = if (host.homeState == HomeState.Online) Icons.Default.Check else Icons.Default.PriorityHigh

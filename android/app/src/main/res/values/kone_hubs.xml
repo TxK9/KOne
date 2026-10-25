@@ -47,6 +47,39 @@
     <!-- Dashboard menu. -->
     <string name="kone_dashboard_import">Import</string>
     <string name="kone_dashboard_add_category">Add category</string>
+    <string name="kone_dashboard_connected">Connected</string>
+    <string name="kone_dashboard_connected_for">Connected · %1$s</string>
+    <string name="kone_dashboard_connecting">Connecting</string>
+    <string name="kone_dashboard_disconnecting">Disconnecting</string>
+    <string name="kone_dashboard_disconnected">Disconnected</string>
+    <string name="kone_dashboard_no_node">No node selected</string>
+    <string name="kone_dashboard_choose_node">Choose node</string>
+    <string name="kone_dashboard_show_selected">Show selected node</string>
+    <string name="kone_dashboard_fold">Fold or unfold the panel</string>
+    <string name="kone_dashboard_expanded">Expanded</string>
+    <string name="kone_dashboard_collapsed">Collapsed</string>
+    <string name="kone_dashboard_home_status">Tailscale status</string>
+    <string name="kone_dashboard_edit_category">Edit category</string>
+    <string name="kone_dashboard_done">Done</string>
+    <string name="kone_dashboard_more_icons">More icons</string>
+    <string name="kone_dashboard_no_flag">No flag</string>
+    <string name="kone_dashboard_collapse">Collapse</string>
+    <plurals name="kone_dashboard_all_nodes">
+        <item quantity="one">All %d node</item>
+        <item quantity="other">All %d nodes</item>
+    </plurals>
+    <string name="kone_dashboard_new_category">New category</string>
+    <string name="kone_dashboard_empty">Empty</string>
+    <plurals name="kone_dashboard_node_count">
+        <item quantity="one">%d node</item>
+        <item quantity="other">%d nodes</item>
+    </plurals>
+    <plurals name="kone_dashboard_item_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <string name="kone_dashboard_search_categories">Search categories</string>
+    <string name="kone_dashboard_organize">Organize</string>
 
     <!-- Node import from the dashboard. -->
     <string name="kone_import_clipboard">Import from clipboard</string>
