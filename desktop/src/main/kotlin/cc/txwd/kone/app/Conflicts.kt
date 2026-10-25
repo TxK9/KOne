@@ -65,7 +65,7 @@ object Conflicts {
 
     const val TITLE = "Others"
     /** KOne's adapter's address (KoneConfig and desktop/service/plan.go). */
-    private const val OWN_ADDRESS = "172.19.0.1"
+    const val OWN_ADDRESS = "172.19.0.1"
     private const val PROXY_TYPE_PROXY = 2
     private const val PROXY_TYPE_AUTO_PROXY_URL = 4
 }

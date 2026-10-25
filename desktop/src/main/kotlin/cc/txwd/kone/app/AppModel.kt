@@ -991,6 +991,28 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
     }
 
+    /**
+     * The network changed under KOne (see [NetworkChanges]). Connections made over an address
+     * that is gone cannot recover, so they are ended and programs open new ones at once; the node
+     * in use is tested now, every node soon, and a new network is looked at for a sign-in page.
+     */
+    private fun networkChanged(change: NetworkChanges.Change) {
+        log(
+            when {
+                change.gained.isEmpty() -> "The network went away"
+                change.lost.isEmpty() -> "Another network joined"
+                else -> "The network changed"
+            },
+        )
+        val api = clash
+        if (api != null) {
+            if (change.lost.isNotEmpty()) scope.launch(Dispatchers.IO) { api.close(null) }
+            nudges.trySend(Unit)
+            if (change.gained.isNotEmpty()) signIns.look()
+        }
+        if (change.gained.isNotEmpty()) sweepNow.trySend(Unit)
+    }
+
     /** Waits for the next sweep of every node: due by [Sweeps.every], or asked for now. */
     private suspend fun untilSweep() {
         while (true) {
@@ -1467,6 +1489,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         // one that is ended with Windows puts it back on its way out.
         SystemProxy.restore()
         Runtime.getRuntime().addShutdownHook(Thread { SystemProxy.restore(); usage.save(); traffic.save() })
+        NetworkChanges { change -> scope.launch { networkChanged(change) } }.start()
         loadNodes()
         if (account.binding != null) {
             // Connected when Windows shut down or restarted (not ended by Close or Quit): connect again.
