@@ -70,6 +70,12 @@ import cc.txwd.kone.ui.TrayPanel
 import cc.txwd.kone.ui.UpdateState
 import cc.txwd.kone.ui.WithRail
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlin.coroutines.CoroutineContext
+import java.util.concurrent.FutureTask
+import java.util.concurrent.ExecutionException
+import javax.swing.SwingUtilities
+import org.junit.jupiter.api.RepeatedTest
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
 import java.time.Instant
@@ -84,6 +90,19 @@ import kotlin.test.assertTrue
  * the exit address are the preview's examples, not anyone's real servers.
  */
 class ScreensTest {
+    private val screenshotUi = object : CoroutineDispatcher() {
+        override fun isDispatchNeeded(context: CoroutineContext) = !SwingUtilities.isEventDispatchThread()
+        override fun dispatch(context: CoroutineContext, block: Runnable) = SwingUtilities.invokeLater(block)
+    }
+
+    /** Scene mutation, animation effects and disposal share the AWT UI thread. */
+    private fun onUiThread(block: () -> Unit) {
+        if (SwingUtilities.isEventDispatchThread()) return block()
+        val task = FutureTask<Unit> { block() }
+        SwingUtilities.invokeAndWait(task)
+        try { task.get() } catch (failure: ExecutionException) { throw failure.cause ?: failure }
+    }
+
     private val sample = DashboardState(
         categories = listOf("United States", "Japan", "Singapore"),
         nodes = listOf(
@@ -107,10 +126,10 @@ class ScreensTest {
     private fun shoot(
         name: String, dark: Boolean, width: Int = 1280, height: Int = 800, framed: Boolean = true, pointer: Offset? = null,
         scale: Float = 1f, into: File = out, content: @Composable () -> Unit,
-    ) {
+    ) = onUiThread {
         runBlocking { InkGallery.paint(dark) }
         // [width] by [height] in dp, drawn at Windows' display [scale] (1.5 at 150 %).
-        val scene = ImageComposeScene((width * scale).toInt(), (height * scale).toInt(), Density(scale)) {
+        val scene = ImageComposeScene((width * scale).toInt(), (height * scale).toInt(), Density(scale), coroutineContext = screenshotUi) {
             KoneTheme(dark) { if (framed) Frame({ TitleBar() }) { content() } else content() }
         }
         try {
@@ -521,12 +540,12 @@ class ScreensTest {
      * (the closed stroke drawing itself, the bloom fading), cut from the status line and laid
      * side by side in build/screens/ring-<theme>.png.
      */
-    @Test
-    fun ring() {
+    @RepeatedTest(5)
+    fun ring() = onUiThread {
         for (dark in listOf(false, true)) {
             runBlocking { InkGallery.paint(dark) }
             val connection = androidx.compose.runtime.mutableStateOf(Connection.Idle)
-            val scene = ImageComposeScene(1280, 800, Density(1f)) {
+            val scene = ImageComposeScene(1280, 800, Density(1f), coroutineContext = screenshotUi) {
                 KoneTheme(dark) {
                     Frame({ TitleBar() }) {
                         WithRail(Page.Dashboard, {}) {
@@ -564,9 +583,9 @@ class ScreensTest {
 
     /** The Nodes page's Add, clicked: every way a node comes in, in one menu under the button. */
     @Test
-    fun addMenu() {
+    fun addMenu() = onUiThread {
         runBlocking { InkGallery.paint(false) }
-        val scene = ImageComposeScene(1280, 800, Density(1f)) {
+        val scene = ImageComposeScene(1280, 800, Density(1f), coroutineContext = screenshotUi) {
             KoneTheme(false) { Frame({ TitleBar() }) { WithRail(Page.Nodes, {}) { NodesView(NodesState(), NodesActions()) } } }
         }
         try {
