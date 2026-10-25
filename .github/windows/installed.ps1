@@ -19,6 +19,10 @@ if ($Gone) {
     if ($entries.Count -ne 0) { $problems += "KOne is still in Apps & features" }
     if (Test-Path "HKLM:\SOFTWARE\Classes\kone") { $problems += "kone:// is still registered" }
     foreach ($link in $shortcuts) { if (Test-Path $link) { $problems += "$link is still there" } }
+    # Nothing of the connection outlives KOne: its adapter, or Windows' proxy pointed at it.
+    if (Get-NetAdapter -Name "KOne" -ErrorAction SilentlyContinue) { $problems += "KOne's network adapter is still there" }
+    $internet = Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -ErrorAction SilentlyContinue
+    if ($internet.ProxyEnable -eq 1 -and "$($internet.ProxyServer)" -like "127.0.0.1:*") { $problems += "Windows' proxy still points at $($internet.ProxyServer)" }
 } else {
     foreach ($file in $files) { if (-not (Test-Path (Join-Path $dir $file))) { $problems += "$file is missing" } }
     if ($entries.Count -ne 1) { $problems += "Apps & features lists KOne $($entries.Count) times" }
@@ -30,6 +34,9 @@ if ($Gone) {
         if ($service.StartName -ne "LocalSystem") { $problems += "the KOne service runs as $($service.StartName)" }
         $expected = "`"$(Join-Path $dir 'core\kone-service.exe')`" run"
         if ($service.PathName -ne $expected) { $problems += "the KOne service runs $($service.PathName), not $expected" }
+        # Windows starts it again after any failure, not only the first two of a day.
+        $restarts = @(sc.exe qfailure KOneService | Select-String "RESTART").Count
+        if ($restarts -lt 3) { $problems += "the KOne service is restarted after $restarts failures, not every one" }
     }
     $open = (Get-ItemProperty "HKLM:\SOFTWARE\Classes\kone\shell\open\command" -ErrorAction SilentlyContinue).'(default)'
     if ($open -ne "`"$(Join-Path $dir 'KOne.exe')`" `"%1`"") { $problems += "kone:// opens '$open'" }

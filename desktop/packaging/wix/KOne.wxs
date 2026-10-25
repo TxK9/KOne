@@ -56,7 +56,7 @@
               <File Id="ServiceExe" Source="$(var.CoreDir)\kone-service.exe" KeyPath="yes" />
               <ServiceInstall Id="KOneService" Name="KOneService" DisplayName="KOne" Description="!(loc.ServiceDescription)"
                               Type="ownProcess" Start="auto" ErrorControl="normal" Account="LocalSystem" Arguments="run" Vital="yes">
-                <util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart" ThirdFailureActionType="none"
+                <util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart" ThirdFailureActionType="restart"
                                     RestartServiceDelayInSeconds="5" ResetPeriodInDays="1" />
               </ServiceInstall>
               <ServiceControl Id="KOneServiceControl" Name="KOneService" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
