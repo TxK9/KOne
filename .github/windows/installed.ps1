@@ -7,7 +7,8 @@ param(
 $ErrorActionPreference = "Stop"
 $problems = @()
 $dir = Join-Path $env:ProgramFiles "KOne"
-$files = @("KOne.exe", "core\kone-service.exe", "core\sing-box.exe", "core\rules\geosite-cn.srs", "core\rules\geoip-cn.srs", "core\rules\geosite-category-ads-all.srs")
+$files = @("KOne.exe", "core\kone-service.exe", "core\sing-box.exe", "core\rules\geosite-cn.srs", "core\rules\geoip-cn.srs", "core\rules\geosite-category-ads-all.srs",
+           "app\resources\licenses\NOTICES.txt", "app\resources\licenses\GPL-3.0.txt")
 $shortcuts = @((Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\KOne.lnk"), (Join-Path $env:PUBLIC "Desktop\KOne.lnk"))
 $entries = @(Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName -eq "KOne" })

@@ -66,6 +66,9 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
 
     testImplementation(kotlin("test"))
+    // Compose's own UI tests: what a screen reader is told (AccessibilityTest).
+    @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+    testImplementation(compose.uiTest)
 }
 
 tasks.test {
@@ -102,6 +105,14 @@ tasks.register<Copy>("coreRules") {
     from("src/main/resources/rules")
     into(layout.buildDirectory.dir("core/rules"))
 }
+
+// The license texts beside the App once installed (app\resources\licenses), as well as inside it
+// for Settings: the App image takes its resources from build/app-resources.
+val licenseFiles = tasks.register<Sync>("licenseFiles") {
+    from("src/main/resources/licenses")
+    into(layout.buildDirectory.dir("app-resources/common/licenses"))
+}
+tasks.matching { it.name == "prepareAppResources" }.configureEach { dependsOn(licenseFiles) }
 
 // The installer's pictures, painted by the App's own ink painter (InstallerArt.kt).
 tasks.register<JavaExec>("installerArt") {
@@ -150,6 +161,7 @@ compose.desktop {
             description = "KOne"
             // suggestRuntimeModules, plus EC for the TLS the console speaks.
             modules("java.instrument", "java.net.http", "jdk.unsupported", "jdk.crypto.ec")
+            appResourcesRootDir.set(layout.buildDirectory.dir("app-resources"))
             windows {
                 iconFile.set(project.file("packaging/kone.ico"))
                 // Fixed for good: Windows recognises a newer MSI of the same app by this.

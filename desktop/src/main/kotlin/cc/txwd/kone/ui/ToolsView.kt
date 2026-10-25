@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -394,7 +395,7 @@ private fun Checks(checks: List<Check>, advice: String?, verdict: Boolean = fals
 }
 
 /** How the connection list is ordered: newest first, or by bytes down or up. */
-private enum class Order(val title: String) { Recent("Recent"), Down("↓"), Up("↑") }
+private enum class Order(val title: String, val spoken: String) { Recent("Recent", "Most recent"), Down("↓", "Most downloaded"), Up("↑", "Most uploaded") }
 
 @Composable
 private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, actions: ToolsActions) {
@@ -434,7 +435,7 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
         )
         Spacer(Modifier.width(18.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Order.entries.forEach { choice -> Choice(choice.title, choice == order) { order = choice } }
+            Order.entries.forEach { choice -> Choice(choice.title, choice == order, label = choice.spoken) { order = choice } }
         }
         Spacer(Modifier.weight(1f))
         if (carried.connections.isNotEmpty()) {
@@ -479,7 +480,7 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
                                 Label("Connect directly", 12.sp, ink.soft)
                             }
                         }
-                        Box(Modifier.height(28.dp).press(bleed = 6.dp) { actions.onClose(connection.id) }, contentAlignment = Alignment.Center) {
+                        Box(Modifier.height(28.dp).press(bleed = 6.dp, label = "Close this connection") { actions.onClose(connection.id) }, contentAlignment = Alignment.Center) {
                             Label("×", 15.sp, ink.soft)
                         }
                     }
@@ -505,10 +506,10 @@ private fun Line(title: String, content: @Composable RowScope.() -> Unit) {
 }
 
 @Composable
-private fun Choice(name: String, on: Boolean, onClick: () -> Unit) {
+private fun Choice(name: String, on: Boolean, label: String? = null, onClick: () -> Unit) {
     val ink = LocalInk.current
     Box(
-        Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClick)
+        Modifier.height(34.dp).press(bleed = 8.dp, role = Role.Tab, label = label, selected = on, onClick = onClick)
             .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,

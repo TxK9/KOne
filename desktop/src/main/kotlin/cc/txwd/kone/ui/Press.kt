@@ -19,6 +19,13 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -31,13 +38,31 @@ import kotlinx.coroutines.launch
  * Reached with Tab, it is outlined in the same ink, fully rounded so it lies inside a round
  * clip, or with [corner] when the thing is clipped to that and is not a circle or a pill.
  * Enter presses it.
+ *
+ * To a screen reader it is a [role] (a button unless said), named by the words inside it or by
+ * [label] when it has none (an icon, ×, an arrow); a choice or a tab says whether it is
+ * [selected], a switch whether it is [toggled] on.
  */
 @Composable
-fun Modifier.press(enabled: Boolean = true, onDark: Boolean = false, bleed: Dp = 0.dp, corner: Dp? = null, onClick: () -> Unit): Modifier {
+fun Modifier.press(
+    enabled: Boolean = true, onDark: Boolean = false, bleed: Dp = 0.dp, corner: Dp? = null,
+    role: Role = Role.Button, label: String? = null, selected: Boolean? = null, toggled: Boolean? = null,
+    onClick: () -> Unit,
+): Modifier {
     val ink = LocalInk.current
     val wash = if (onDark) ink.paper.copy(alpha = 0.14f) else ink.ink.copy(alpha = if (ink.dark) 0.10f else 0.06f)
     return pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
-        .clickable(interactionSource = null, indication = InkWash(wash, bleed, corner), enabled = enabled, onClick = onClick)
+        .clickable(interactionSource = null, indication = InkWash(wash, bleed, corner), enabled = enabled, role = role, onClick = onClick)
+        .then(
+            if (label == null && selected == null && toggled == null) Modifier else Modifier.semantics {
+                label?.let { contentDescription = it }
+                selected?.let { this.selected = it }
+                toggled?.let {
+                    toggleableState = ToggleableState(it)
+                    stateDescription = if (it) "On" else "Off"
+                }
+            },
+        )
 }
 
 private data class InkWash(val color: Color, val bleed: Dp, val corner: Dp?) : IndicationNodeFactory {

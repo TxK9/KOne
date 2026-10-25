@@ -1,0 +1,74 @@
+KOne for Windows: third-party software and data
+
+KOne includes the software and data below, each used under the license named
+beside it. The full texts are in this folder (installed beside KOne.exe in
+app\resources\licenses, and shown in KOne under Settings, Third-party notices).
+
+The core: core\sing-box.exe
+  sing-box, https://github.com/SagerNet/sing-box
+  Its notice, as the sing-box source carries it:
+
+    Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+    In addition, no derivative work may use the name or imply association
+    with this application without prior consent.
+
+  The license's full text: GPL-3.0.txt. The copy KOne installs is built from
+  the sing-box source kept with KOne's own source, including KOne's changes.
+
+  Wintun 0.14.1 (wintun.dll, carried inside sing-box.exe for the virtual adapter)
+  Copyright WireGuard LLC, https://www.wintun.net
+  Prebuilt Binaries License: Wintun.txt
+  Distributed unmodified and used only through its published API.
+
+The service: core\kone-service.exe
+  The Go standard library and golang.org/x/sys, Copyright The Go Authors
+  BSD 3-Clause License: BSD-3-Clause-Go.txt
+
+The Java runtime: runtime\ beside KOne.exe
+  OpenJDK (Eclipse Temurin on x64, the Microsoft Build of OpenJDK on ARM64)
+  GNU General Public License, version 2, with the Classpath Exception;
+  the runtime's own notices are in runtime\legal.
+
+The App: KOne.exe and the libraries in app\
+  Compose Multiplatform and Skiko (JetBrains), Kotlin, kotlinx.coroutines,
+  kotlinx.serialization, AndroidX (Compose runtime, lifecycle, savedstate,
+  collection, annotation, navigationevent), JetBrains Runtime API,
+  JetBrains annotations, JSpecify, SnakeYAML, ZXing core
+  Copyright their respective authors
+  Apache License, Version 2.0: Apache-2.0.txt
+
+  Java Native Access (jna, jna-platform)
+  Dual-licensed under the Apache License 2.0 or the LGPL 2.1 or later;
+  used under the Apache License 2.0: Apache-2.0.txt
+
+  Skia (inside Skiko), Copyright Google Inc.
+  BSD 3-Clause License: BSD-3-Clause-Skia.txt
+
+  JSON-java (org.json): Public Domain
+
+  SunCalc, Copyright Volodymyr Agafonkin, for the sun and moon over the cities
+  BSD 2-Clause License: suncalc.txt
+
+  KOne Seal fonts, cut from Noto Serif CJK SC (Copyright Adobe)
+  SIL Open Font License, Version 1.1: OFL-1.1.txt
+
+Data
+  Rule sets (core\rules\): see rule-sets.txt. The domain lists come from
+  v2fly/domain-list-community (MIT License: MIT-v2fly.txt), compiled by
+  SagerNet/sing-geosite and SagerNet/sing-geoip (GPL-3.0 or later).
+  Weather over the cities: Open-Meteo.com (CC BY 4.0), credited in Settings
+  while Cities is the background.

@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
@@ -72,7 +74,7 @@ fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onSta
                         BasicTextField(
                             state.key,
                             onKey,
-                            Modifier.weight(1f).height(46.dp),
+                            Modifier.weight(1f).height(46.dp).semantics { contentDescription = "Invitation code" },
                             enabled = !state.busy,
                             singleLine = true,
                             textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.mono, fontSize = 17.sp, letterSpacing = 0.04.em),
@@ -81,7 +83,7 @@ fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onSta
                             keyboardActions = KeyboardActions(onGo = { if (state.ready) onStart() }),
                             decorationBox = { field -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) { field() } },
                         )
-                        Box(Modifier.size(44.dp).clip(CircleShape).press(enabled = !state.busy, onClick = onPaste), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).clip(CircleShape).press(enabled = !state.busy, label = "Paste the invitation code", onClick = onPaste), contentAlignment = Alignment.Center) {
                             Glyph(Glyphs.paste, ink.ink, 20.dp, strokeWidth = 1.7f)
                         }
                     }
