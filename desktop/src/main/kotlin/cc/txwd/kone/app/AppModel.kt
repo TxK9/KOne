@@ -215,6 +215,16 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private var probeApi: CoreApi? = null
     private var following: Job? = null
 
+    /** Whether KOne's window is in sight: the nodes are tested often only then (see [Sweeps]). */
+    private var inSight = true
+
+    /** When every node was last tested, and a call to test them all again now. */
+    private var swept = 0L
+    private val sweepNow = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
+
+    /** Ends the testing core a while after the window went out of sight, while disconnected. */
+    private var resting: Job? = null
+
     /** Whether the person wants to be connected: on from Connect until Close, quitting, or the key taken back. */
     private var wanted = false
 
@@ -682,6 +692,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** Tests every node through [api], eight at a time, while [current] says the results still matter. */
     private suspend fun measure(api: ClashApi, current: () -> Boolean) {
+        swept = System.currentTimeMillis()
         val gate = Semaphore(8)
         coroutineScope {
             nodes.map { node ->
@@ -697,8 +708,6 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
     }
 
-    /** Once a minute for a few nodes; for many, every ten minutes, as each test is a real connection. */
-    private fun testEvery(): Long = if (nodes.size <= 30) 60_000 else 600_000
 
     /** After the person's nodes changed: the list, and the probe's nodes while not connected. */
     private fun nodesChanged() {
@@ -952,6 +961,47 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun watchConnections(on: Boolean) = connections.watch(on)
 
     /**
+     * The window came into sight or went out of it. In sight, delays gone stale are tested again
+     * at once, and while disconnected the core that tests them is started; out of sight, testing
+     * slows (see [Sweeps]) and that core is let go after [Sweeps.PROBE_REST].
+     */
+    fun seen(on: Boolean) {
+        if (inSight == on) return
+        inSight = on
+        resting?.cancel()
+        resting = null
+        if (on) {
+            if (connection == Connection.Idle && probeApi == null && probe?.running != true) startProbe()
+            if (Sweeps.stale(System.currentTimeMillis() - swept, nodes.size)) sweepNow.trySend(Unit)
+        } else {
+            restSoon()
+        }
+    }
+
+    /** While disconnected and out of sight, the testing core is stopped after a while. */
+    private fun restSoon() {
+        if (inSight || connection != Connection.Idle) return
+        resting?.cancel()
+        resting = scope.launch {
+            delay(Sweeps.PROBE_REST)
+            if (!inSight && connection == Connection.Idle) {
+                probeApi = null
+                withContext(Dispatchers.IO) { probe?.stop() }
+            }
+        }
+    }
+
+    /** Waits for the next sweep of every node: due by [Sweeps.every], or asked for now. */
+    private suspend fun untilSweep() {
+        while (true) {
+            val due = swept + Sweeps.every(inSight, nodes.size) - System.currentTimeMillis()
+            if (due <= 0) return
+            // Looked at again every quarter minute: the window coming into sight shortens the wait.
+            if (withTimeoutOrNull(minOf(due, 15_000L)) { sweepNow.receive() } != null) return
+        }
+    }
+
+    /**
      * While connected, every five seconds (each second while Tools shows the connections, which
      * count the same way): what each node and program carried since the last look.
      */
@@ -1039,6 +1089,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             inUse()?.let { tag ->
                 if (health.failing(tag) >= Health.FAILED) signIns.look()
                 else if (health.answering(tag) >= Health.RECOVERED) signIns.answered()
+                // And it is time to know which others answer now, for the move away from it.
+                if (Sweeps.afterFailure(health.failing(tag), System.currentTimeMillis() - swept)) sweepNow.trySend(Unit)
             }
             // Every 15 seconds, or at once when real traffic through the node in use stalls.
             withTimeoutOrNull(15_000) { nudges.receive() }
@@ -1182,11 +1234,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
     }
 
-    /** Tests every node through [api] now and then each minute, while it is the one in use. */
+    /** Tests every node through [api] now and then as [Sweeps] says, while it is the one in use. */
     private suspend fun testDelays(api: ClashApi) {
         while (clash === api) {
             measure(api) { clash === api }
-            delay(testEvery())
+            untilSweep()
         }
     }
 
@@ -1205,9 +1257,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 repeat(50) { if (clash.answers()) return@withContext true; Thread.sleep(200) }
                 false
             }
+            restSoon()
             while (ready && isActive && probeApi === api && connection == Connection.Idle) {
                 measure(clash) { probeApi === api }
-                delay(testEvery())
+                untilSweep()
             }
         }
     }

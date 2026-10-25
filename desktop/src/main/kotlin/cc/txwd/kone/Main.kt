@@ -223,6 +223,9 @@ fun main(args: Array<String>) {
             }
         }
 
+        // The nodes are tested often only while someone can see their delays (Sweeps).
+        LaunchedEffect(shown && !window.isMinimized) { model.seen(shown && !window.isMinimized) }
+
         Tray(
             model,
             windowInSight = { shown && !window.isMinimized },
