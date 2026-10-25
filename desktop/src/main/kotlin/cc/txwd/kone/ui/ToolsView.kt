@@ -175,7 +175,7 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
                         }
                     }
                     Box(Modifier.height(34.dp).press(enabled = !state.checking, bleed = 8.dp) { if (!state.checking) actions.onDiagnose() }, contentAlignment = Alignment.Center) {
-                        Label(if (state.checking) "Checking" else "Run", 14.sp, if (state.checking) ink.soft else ink.ink, FontWeight.SemiBold)
+                        if (state.checking) Busy("Checking") else Label("Run", 14.sp, ink.ink, FontWeight.SemiBold)
                     }
                 }
             }
@@ -364,7 +364,7 @@ private fun Ask(title: String, action: String, busy: String, asked: String?, run
             Spacer(Modifier.width(22.dp))
         }
         Box(Modifier.height(34.dp).press(enabled = !running, bleed = 8.dp) { go() }, contentAlignment = Alignment.Center) {
-            Label(if (running) busy else action, 14.sp, if (running) ink.soft else ink.ink, FontWeight.SemiBold)
+            if (running) Busy(busy) else Label(action, 14.sp, ink.ink, FontWeight.SemiBold)
         }
     }
     if (wrong) Label("Enter a domain name, such as example.com", 13.sp, NodeWeather.Cut.ink(ink.dark), modifier = Modifier.padding(top = 6.dp))

@@ -161,12 +161,22 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
         Row(Modifier.fillMaxWidth().padding(end = ROOM).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             state.notice?.let { Label(it, 13.sp, if (state.noticeIsError) NodeWeather.Cut.ink(ink.dark) else ink.soft) }
             Spacer(Modifier.weight(1f))
-            Action(if (state.testing) "Testing" else "Test all", enabled = !state.testing, onClick = actions.onTest)
-            Action("Add node", onClick = actions.onAddNode)
-            Action("Import", onClick = actions.onImport)
-            Action("Scan QR", onClick = actions.onScan)
-            Action("Export", onClick = actions.onExport)
-            Action("Add subscription") { adding = !adding }
+            if (state.testing) Busy("Testing") else Action("Test all", onClick = actions.onTest)
+            Action("Export", soft = true, onClick = actions.onExport)
+            // Every way a node comes in, behind the page's one filled button.
+            val adds = rememberMenu()
+            Box {
+                Primary("Add", adds::toggle)
+                InkMenu(
+                    adds,
+                    listOf(
+                        "Subscription link" to { adding = true },
+                        "Node by hand" to actions.onAddNode,
+                        "From the clipboard" to actions.onImport,
+                        "From a QR code on screen" to actions.onScan,
+                    ),
+                )
+            }
         }
         // Finding a node among hundreds: by name or kind, in an order, without the ones not answering.
         Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -247,7 +257,7 @@ private fun Header(section: NodeSection, open: Boolean, now: Long, onToggle: () 
         }
         if (section.kind == SourceKind.Subscription) {
             when {
-                section.updating -> Label("Updating", 13.sp, ink.soft)
+                section.updating -> Busy("Updating", 13.sp)
                 section.error != null -> Label(section.error, 13.sp, NodeWeather.Cut.ink(ink.dark))
                 section.updated > 0 -> Label("Updated ${ago(now - section.updated)}", 13.sp, ink.soft)
             }
@@ -299,7 +309,7 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
         Box(Modifier.width(140.dp), contentAlignment = Alignment.CenterEnd) {
             val speed = node.speed
             when {
-                speedTesting == node.id -> Label("Testing speed", 12.sp, ink.soft)
+                speedTesting == node.id -> Busy("Testing speed", 12.sp)
                 speed != null -> Box(Modifier.height(28.dp).press(enabled = speedTesting == null, bleed = 4.dp) { if (speedTesting == null) actions.onSpeed(node.id) }, contentAlignment = Alignment.Center) {
                     Label("↓ ${mbps(speed.down)}  ↑ ${mbps(speed.up)} Mbps", 12.sp, ink.ink, tabular = true)
                 }
@@ -430,10 +440,10 @@ private fun Field(hint: String, onDone: (String) -> Boolean, onCancel: () -> Uni
 }
 
 @Composable
-private fun Action(text: String, enabled: Boolean = true, onClick: () -> Unit) {
+private fun Action(text: String, enabled: Boolean = true, soft: Boolean = false, onClick: () -> Unit) {
     val ink = LocalInk.current
     Box(Modifier.height(34.dp).press(enabled = enabled, bleed = 8.dp, onClick = { if (enabled) onClick() }).padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
-        Label(text, 14.sp, if (enabled) ink.ink else ink.soft, FontWeight.SemiBold)
+        Label(text, 14.sp, if (enabled && !soft) ink.ink else ink.soft, if (soft) FontWeight.Normal else FontWeight.SemiBold)
     }
 }
 

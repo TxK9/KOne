@@ -140,9 +140,7 @@ fun NodeEditor(start: NodeDraft, editing: Boolean, error: String?, saving: Boole
         }
         Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             Spacer(Modifier.width(110.dp))
-            Box(Modifier.height(34.dp).press(enabled = !saving, bleed = 8.dp) { if (!saving) onSave(draft) }, contentAlignment = Alignment.Center) {
-                Label(if (saving) "Checking" else "Save", 14.sp, if (saving) ink.soft else ink.ink, FontWeight.SemiBold)
-            }
+            Primary("Save", { onSave(draft) }, busy = if (saving) "Checking" else null)
             Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onCancel), contentAlignment = Alignment.Center) { Label("Cancel", 14.sp, ink.soft) }
             error?.let { Label(it, 13.sp, NodeWeather.Cut.ink(ink.dark)) }
         }

@@ -95,10 +95,11 @@ fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onSta
                         .press(enabled = state.ready, onDark = state.ready, onClick = onStart),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Label(
-                        if (state.busy) "Activating" else "Get started", 16.sp,
-                        if (state.ready) ink.paper else ink.soft, FontWeight.SemiBold, letterSpacing = 1.28.sp,
-                    )
+                    if (state.busy) {
+                        Busy("Activating", 16.sp)
+                    } else {
+                        Label("Get started", 16.sp, if (state.ready) ink.paper else ink.soft, FontWeight.SemiBold, letterSpacing = 1.28.sp)
+                    }
                 }
             }
         }

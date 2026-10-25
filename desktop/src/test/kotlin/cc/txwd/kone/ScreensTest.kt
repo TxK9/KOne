@@ -562,6 +562,27 @@ class ScreensTest {
         }
     }
 
+    /** The Nodes page's Add, clicked: every way a node comes in, in one menu under the button. */
+    @Test
+    fun addMenu() {
+        runBlocking { InkGallery.paint(false) }
+        val scene = ImageComposeScene(1280, 800, Density(1f)) {
+            KoneTheme(false) { Frame({ TitleBar() }) { WithRail(Page.Nodes, {}) { NodesView(NodesState(), NodesActions()) } } }
+        }
+        try {
+            scene.render(0)
+            val add = Offset(1192f, 87f)
+            scene.sendPointerEvent(PointerEventType.Move, add)
+            scene.sendPointerEvent(PointerEventType.Press, add)
+            scene.sendPointerEvent(PointerEventType.Release, add)
+            for (at in listOf(16L, 100L, 300L)) scene.render(at * 1_000_000)
+            val png = checkNotNull(scene.render(1_000_000_000).encodeToData(EncodedImageFormat.PNG))
+            File(out, "nodes-add-light.png").writeBytes(png.bytes)
+        } finally {
+            scene.close()
+        }
+    }
+
     /** Each page with nothing in it yet: logs, nodes, rules, and connections while connected. */
     @Test
     fun empty() {

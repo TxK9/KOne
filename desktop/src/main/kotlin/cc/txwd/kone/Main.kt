@@ -296,7 +296,8 @@ fun main(args: Array<String>) {
                 KoneTheme(dark, still) {
                   // The cities are heard only when the person asked, on Dashboard, with the window in sight.
                   val heard = settings.state.sound && settings.state.backdrop == Backdrop.City && page == Page.Dashboard && inSight
-                  CompositionLocalProvider(LocalSoftware provides software, LocalStill provides still, LocalAmbient provides ambient.takeIf { heard }) {
+                  // Out of sight nothing moves: a turning stroke on a minimised window would still draw frames.
+                  CompositionLocalProvider(LocalSoftware provides software, LocalStill provides (still || !inSight), LocalAmbient provides ambient.takeIf { heard }) {
                     Box {
                       Frame({
                           TitleBar(
@@ -464,12 +465,14 @@ fun main(args: Array<String>) {
                     onDispose { this@Window.window.removeWindowListener(listener) }
                 }
                 KoneTheme(dark, still) {
+                  CompositionLocalProvider(LocalStill provides still) {
                     TrayPanel(
                         model.dashboard,
                         onPower = model::power,
                         onOpen = { panel = false; shown = true; window.isMinimized = false },
                         onQuit = ::quit,
                     )
+                  }
                 }
             }
         }

@@ -169,14 +169,11 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
             Spacer(Modifier.weight(1f))
             if (state.lists.isNotEmpty()) {
                 val oldest = state.lists.values.mapNotNull { it.checked }.minOrNull()
-                Label(
-                    when {
-                        state.listsBusy -> "Updating category lists"
-                        oldest == null -> "Category lists not downloaded yet"
-                        else -> "Category lists checked ${ago(state.now - oldest)}"
-                    },
-                    13.sp, ink.soft,
-                )
+                if (state.listsBusy) {
+                    Busy("Updating category lists", 13.sp)
+                } else {
+                    Label(if (oldest == null) "Category lists not downloaded yet" else "Category lists checked ${ago(state.now - oldest)}", 13.sp, ink.soft)
+                }
                 Spacer(Modifier.width(18.dp))
                 Box(Modifier.height(34.dp).press(enabled = !state.listsBusy, bleed = 8.dp) { if (!state.listsBusy) actions.onUpdateLists() }, contentAlignment = Alignment.Center) {
                     Label("Update", 14.sp, if (state.listsBusy) ink.soft else ink.ink, FontWeight.SemiBold)
@@ -219,7 +216,7 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                                     val status = state.lists[rule.value]
                                     when {
                                         status == null || (!status.kept && status.error == null) ->
-                                            Label(if (state.listsBusy) "Downloading" else "Not downloaded yet", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                            if (state.listsBusy) Busy("Downloading", 12.sp, NodeWeather.Mist.ink(ink.dark)) else Label("Not downloaded yet", 12.sp, NodeWeather.Mist.ink(ink.dark))
                                         !status.kept -> Label("Not in use: ${status.error}", 12.sp, NodeWeather.Cut.ink(ink.dark))
                                         status.error != null -> Label("Update failed, using the last copy", 12.sp, NodeWeather.Mist.ink(ink.dark))
                                     }

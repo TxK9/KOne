@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -313,32 +314,21 @@ private fun ConnectionInfo(state: DashboardState) {
 @Composable
 private fun BoxScope.More(open: Boolean, onOpen: (Boolean) -> Unit, onPick: (MenuItem) -> Unit, backed: Boolean = false) {
     val ink = LocalInk.current
+    // The press that closes the menu by clicking the dots must not open it again (see MenuState).
+    val closed = remember { longArrayOf(0L) }
     Column(
         Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 22.dp),
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
-            Modifier.size(44.dp).clip(CircleShape).then(if (backed) Modifier.background(ink.paper.copy(alpha = 0.72f)) else Modifier).press { onOpen(!open) },
+            Modifier.size(44.dp).clip(CircleShape).then(if (backed) Modifier.background(ink.paper.copy(alpha = 0.72f)) else Modifier)
+                .press { if (open || System.currentTimeMillis() - closed[0] > 300) onOpen(!open) },
             contentAlignment = Alignment.Center,
         ) {
             MoreDots(ink.ink)
         }
-        if (open) {
-            val shape = RoundedCornerShape(12.dp)
-            Column(
-                // As wide as its longest item, so no title is cut whatever the language.
-                Modifier.width(IntrinsicSize.Max).widthIn(min = 168.dp).shadow(14.dp, shape, ambientColor = Color(0x2E141C19), spotColor = Color(0x2E141C19))
-                    .background(ink.menu, shape).padding(6.dp),
-            ) {
-                MenuItem.entries.forEach { item ->
-                    Box(
-                        Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(8.dp)).press { onOpen(false); onPick(item) }.padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) { Label(item.title, 14.sp) }
-                }
-            }
-        }
+        InkMenu(open, { if (open) closed[0] = System.currentTimeMillis(); onOpen(false) }, MenuItem.entries.map { item -> item.title to { onPick(item) } }, below = 44.dp)
     }
 }
 

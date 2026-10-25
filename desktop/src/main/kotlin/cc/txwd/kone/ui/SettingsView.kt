@@ -184,18 +184,18 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 Label(state.version, 14.sp, ink.soft, tabular = true)
                 when (val update = state.update) {
-                    UpdateState.Checking -> Label("Checking", 14.sp, ink.soft)
+                    UpdateState.Checking -> Busy("Checking")
                     UpdateState.Latest -> Label("Up to date", 14.sp, ink.soft)
                     is UpdateState.Available -> Label("Update available", 14.sp, ink.ink)
-                    is UpdateState.Downloading -> Label("Downloading ${update.percent}%", 14.sp, ink.soft, tabular = true)
-                    UpdateState.Installing -> Label("Installing", 14.sp, ink.soft)
+                    is UpdateState.Downloading -> Busy("Downloading ${update.percent}%")
+                    UpdateState.Installing -> Busy("Installing")
                     is UpdateState.Failed -> Label(update.message, 14.sp, NodeWeather.Cut.ink(ink.dark))
                     UpdateState.Off, UpdateState.Idle -> Unit
                 }
                 when (state.update) {
                     UpdateState.Idle, UpdateState.Latest -> Action("Check for updates", actions.onCheck)
                     is UpdateState.Failed -> Action("Retry", actions.onCheck)
-                    is UpdateState.Available -> Action("Update", actions.onUpdate)
+                    is UpdateState.Available -> Primary("Update now", actions.onUpdate)
                     else -> Unit
                 }
             }

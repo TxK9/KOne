@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.pow
@@ -101,5 +102,37 @@ private fun DrawScope.brush(center: Offset, radius: Float, start: Float, sweep: 
         val width = (widest * profile((i + 0.5f) / pieces)).coerceAtLeast(0.6f)
         // A sliver more than the step, so the pieces meet without a seam.
         drawArc(color, start + i * step, step + 0.6f, false, topLeft, box, style = Stroke(width, cap = StrokeCap.Butt))
+    }
+}
+
+/**
+ * Work under way (testing, checking, updating, activating): a short brush stroke turning, the
+ * connection's ring in small, so every wait in KOne looks the same. Still when Windows keeps
+ * still, and when the window is out of sight; a few steps a second in software drawing.
+ */
+@Composable
+fun Working(size: Dp = 14.dp, color: Color = LocalInk.current.soft, modifier: Modifier = Modifier) {
+    val still = LocalStill.current
+    val software = LocalSoftware.current
+    val clock = rememberClock(!still) { if (software) 6 else 30 }
+    Canvas(modifier.size(size)) {
+        val widest = (this.size.minDimension * 0.13f).coerceAtLeast(1.4f)
+        val radius = this.size.minDimension / 2 - widest
+        val start = (clock.value * 300.0 % 360.0).toFloat() - 90f
+        brush(Offset(this.size.width / 2, this.size.height / 2), radius, start, 250f, widest, color) { t ->
+            sin(PI * t).pow(0.7).toFloat().coerceAtLeast(0.15f)
+        }
+    }
+}
+
+/** [word] with the turning stroke before it: what is under way, in its own words. */
+@Composable
+fun Busy(word: String, size: androidx.compose.ui.unit.TextUnit = 14.sp, color: Color = LocalInk.current.soft) {
+    androidx.compose.foundation.layout.Row(
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(7.dp),
+    ) {
+        Working((size.value + 1).dp, color)
+        Label(word, size, color)
     }
 }
