@@ -21,6 +21,12 @@ class Health(private val keep: Int = 10) {
         history.keys.retainAll(keepOnly)
     }
 
+    /** Each node's tests moved from its old tag to its new one ([moves]), two namesakes trading tags included. */
+    @Synchronized
+    fun rename(moves: Map<String, String>) {
+        history.rekey(moves)
+    }
+
     /** The recent tests of [tag], oldest first: a delay, or null for no answer. */
     @Synchronized
     fun samples(tag: String): List<Int?> = history[tag]?.toList().orEmpty()

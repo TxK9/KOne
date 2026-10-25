@@ -120,6 +120,7 @@ real Windows PC yet.
 | Restoring a backup twice adds nothing twice (rules, hosts, DNS for domains) | Done |
 | The App's model in controllers: rules, network, subscriptions, site tools, sign-in networks, own nodes, diagnosis, backup, connections | Done; the connection and steering wait for the device round |
 | Third-party notices: an overview of what KOne includes and under which license, and each full text, installed in `app\resources\licenses` and shown in Settings; the core's notice quoted word for word (test) | Done; the source route for the core is the owner's decision (RELEASE.md) |
+| The chosen node kept through subscription updates (NodeIdentity, shared): followed through renames, new orders and the tag shifts of the lists after a changed one; its delays and tests moved with it; when it is gone, Automatic, said in a line; a running core carries on under the names it started with, so none of this cuts a connection (tests: rename, namesakes trading places, removal, a shared server, an old name now another's) | Done; needs PR #3 |
 
 **Category rules (Option B, chosen by the owner).** A category is one more rule kind,
 `set`, in the person's ordered rule list: `geosite-netflix → Proxy`, `geoip-jp → Direct`.
