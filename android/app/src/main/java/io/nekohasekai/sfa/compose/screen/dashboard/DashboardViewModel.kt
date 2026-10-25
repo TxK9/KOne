@@ -68,6 +68,7 @@ data class DashboardUiState(
     val choosableGroupsCount: Int = 0,
     // The selector the dashboard URL-tests for the node in use, and that node's last result.
     val probeGroupTag: String? = null,
+    val udpSelections: Map<String, String> = emptyMap(),
     val probeDelay: Int = 0,
     val probeTime: Long = 0L,
     val latencyRefreshToken: Long = 0L,
@@ -336,6 +337,14 @@ class DashboardViewModel :
                 }
                 // Then delete from database
                 ProfileManager.delete(profile)
+                withContext(Dispatchers.Main) {
+                    NodeCategoryStore.forget(profile.id)
+                    NodeLatency.forget(profile.id)
+                }
+                if (Settings.selectedProfile == profile.id) {
+                    Settings.selectedProfile = -1L
+                    withContext(Dispatchers.Main) { updateState { copy(selectedProfileId = -1L, selectedProfileName = "") } }
+                }
             } catch (e: Exception) {
                 // Reload profiles if deletion fails
                 loadProfiles()
@@ -493,11 +502,14 @@ class DashboardViewModel :
                         groupsCount = 0,
                         choosableGroupsCount = 0,
                         probeGroupTag = null,
+                        udpSelections = emptyMap(),
                         probeDelay = 0,
                         probeTime = 0L,
                         connectionsCount = 0,
                         serviceStartTime = null,
                         clashModeVisible = false,
+                        clashModes = emptyList(),
+                        selectedClashMode = "",
                         systemProxyVisible = false,
                         trafficVisible = false,
                         memory = "",
@@ -578,7 +590,9 @@ class DashboardViewModel :
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 CommandTarget.standaloneClient().setClashMode(mode)
-                // Update UI state directly without reconnecting
+                // Existing direct/proxy sessions keep their original outbound after a mode
+                // change. Close them so the next request follows the newly selected mode.
+                CommandTarget.standaloneClient().closeConnections()
                 withContext(Dispatchers.Main) {
                     updateState {
                         copy(selectedClashMode = mode)
@@ -610,6 +624,9 @@ class DashboardViewModel :
                     memory = "",
                     goroutines = "",
                     isStatusVisible = false,
+                    clashModeVisible = false,
+                    clashModes = emptyList(),
+                    selectedClashMode = "",
                 )
             }
         }
@@ -680,6 +697,7 @@ class DashboardViewModel :
                     groupsCount = newGroups.size,
                     choosableGroupsCount = choosable,
                     probeGroupTag = probe?.tag,
+                    udpSelections = groups.associate { it.tag to it.selected },
                     probeDelay = inUse?.urlTestDelay ?: 0,
                     probeTime = inUse?.urlTestTime ?: 0L,
                 )

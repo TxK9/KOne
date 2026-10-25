@@ -21,14 +21,53 @@ internal object QRImageDecoder {
             pixels
         }
         val source = RGBLuminanceSource(width, height, opaquePixels)
+        decodeSource(source)?.let { return it }
+        // A photographed screen often places a small code among text and scenery.
+        // Local crops isolate its finder patterns; smaller copies smooth camera moire.
+        val luma = source.matrix
+        QRCodeSmartCrop.findCropArea(luma, width, height, 0)?.let { crop ->
+            decodeSource(source.crop(crop.left, crop.top, crop.right - crop.left, crop.bottom - crop.top))?.let { return it }
+        }
+        for (divisions in 2..3) {
+            val cropWidth = (width * 2 / (divisions + 1)).coerceAtLeast(1)
+            val cropHeight = (height * 2 / (divisions + 1)).coerceAtLeast(1)
+            for (row in 0 until divisions) for (column in 0 until divisions) {
+                val left = column * (width - cropWidth) / (divisions - 1)
+                val top = row * (height - cropHeight) / (divisions - 1)
+                decodeSource(source.crop(left, top, cropWidth, cropHeight))?.let { return it }
+            }
+        }
+        for (step in intArrayOf(2, 3)) {
+            if (minOf(width, height) / step < 160) continue
+            val scaledWidth = width / step
+            val scaledHeight = height / step
+            val scaled = IntArray(scaledWidth * scaledHeight) { index ->
+                val x = (index % scaledWidth) * step
+                val y = (index / scaledWidth) * step
+                var red = 0; var green = 0; var blue = 0
+                for (dy in 0 until step) for (dx in 0 until step) {
+                    val pixel = opaquePixels[(y + dy) * width + x + dx]
+                    red += pixel ushr 16 and 255
+                    green += pixel ushr 8 and 255
+                    blue += pixel and 255
+                }
+                val count = step * step
+                0xFF000000.toInt() or ((red / count) shl 16) or ((green / count) shl 8) or (blue / count)
+            }
+            decodeSource(RGBLuminanceSource(scaledWidth, scaledHeight, scaled))?.let { return it }
+        }
+        return null
+    }
+
+    private fun decodeSource(source: com.google.zxing.LuminanceSource): String? {
         val reader = QRCodeReader()
-        val hints = mapOf(DecodeHintType.TRY_HARDER to true)
+        val hints = mapOf(DecodeHintType.TRY_HARDER to true, DecodeHintType.CHARACTER_SET to "UTF-8")
         for (luminance in listOf(source, source.invert())) {
-            for (bitmap in listOf(BinaryBitmap(HybridBinarizer(luminance)), BinaryBitmap(GlobalHistogramBinarizer(luminance)))) {
+            for (binarizer in listOf(HybridBinarizer(luminance), GlobalHistogramBinarizer(luminance))) {
                 try {
-                    return reader.decode(bitmap, hints).text
+                    return reader.decode(BinaryBitmap(binarizer), hints).text
                 } catch (_: ReaderException) {
-                    // Try the alternate threshold / light-on-dark QR image.
+                    // Keep the original pixels; all threshold and crop attempts are local.
                 } finally {
                     reader.reset()
                 }

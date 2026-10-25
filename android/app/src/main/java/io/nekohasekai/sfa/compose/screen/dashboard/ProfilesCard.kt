@@ -884,15 +884,7 @@ private fun ProfileActionRow(
             )
         }
 
-        ShareButton(
-            profile = profile,
-            onShareFile = onShareFile,
-            onSaveFile = onSaveFile,
-            onSaveJson = onSaveJson,
-            onShareJson = onShareJson,
-            onShareURL = onShareURL,
-            onShareQRS = onShareQRS,
-        )
+
     }
 }
 

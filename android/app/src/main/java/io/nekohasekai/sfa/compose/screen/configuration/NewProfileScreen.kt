@@ -137,7 +137,7 @@ fun NewProfileScreen(
     if (showErrorDialog) {
         SelectableMessageDialog(
             title = stringResource(R.string.error_title),
-            message = uiState.errorMessage ?: "",
+            message = io.nekohasekai.sfa.compose.base.publicErrorMessage(uiState.errorMessage),
             onDismiss = {
                 showErrorDialog = false
                 viewModel.clearError()

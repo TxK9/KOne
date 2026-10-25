@@ -20,7 +20,7 @@ sealed class Screen(val route: String, @StringRes val titleRes: Int, val icon: I
 
     object Log : Screen(
         route = "log",
-        titleRes = R.string.title_log,
+        titleRes = R.string.knine_connection_status,
         icon = Icons.AutoMirrored.Default.TextSnippet,
     )
 
@@ -56,3 +56,13 @@ val bottomNavigationScreens =
         Screen.Tools,
         Screen.Settings,
     )
+
+internal object NetworkTestRoutes {
+    const val Main = "tools/network_test"
+    const val LegacySpeed = "tools/network_quality"
+    const val LegacyUdp = "tools/udp_test/{profileId}"
+}
+
+internal object DeviceRoutes {
+    const val Main = "tools/devices"
+}

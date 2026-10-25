@@ -66,6 +66,8 @@ import androidx.core.graphics.ColorUtils
 import org.json.JSONObject
 import org.json.JSONTokener
 import io.nekohasekai.sfa.BuildConfig
+import io.nekohasekai.sfa.update.OwnerUpdateAccess
+import io.nekohasekai.sfa.update.KoneUpdates
 import io.nekohasekai.sfa.compose.theme.Theme
 import io.nekohasekai.sfa.compose.theme.KninePalette
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
@@ -73,12 +75,9 @@ import io.nekohasekai.sfa.compose.screen.dashboard.WeatherSeal
 import java.net.URI
 
 /**
- * The private edition KOne console inside the App (Tools → Management console).
- *
- * The console listens only on its own machine and is published to the private edition tailnet alone, so
- * it opens while KOne is connected with Home on: KOne keeps its own traffic in its VPN, and Home
- * routes the tailnet. The address comes from the private edition build (`kone.admin` in local.properties,
- * never committed); nothing but the console is loaded here.
+ * Embedded management console reached through the private Tailscale connection.
+ * The console origin is provided through `kone.admin` in local build settings and is restricted
+ * by [ConsoleAddress]. Builds without a console origin close this activity immediately.
  */
 class ConsoleActivity : AppCompatActivity() {
     private var web: WebView? = null
@@ -95,7 +94,7 @@ class ConsoleActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val home = ConsoleAddress.parse(BuildConfig.KONE_ADMIN)
-        if (home == null) {
+        if (home == null || !BuildConfig.KNINE_OWNER) {
             finish()
             return
         }
@@ -189,6 +188,22 @@ class ConsoleActivity : AppCompatActivity() {
             WebViewCompat.addWebMessageListener(view, "koneAppearance", setOf(origin)) { _, message, _, mainFrame, _ ->
                 if (mainFrame) message.data?.let(::readAppearance)
             }
+            WebViewCompat.addWebMessageListener(view, "koneOwnerUpdates", setOf(origin)) { _, message, source, mainFrame, reply ->
+                if (mainFrame && ConsoleAddress.sameOrigin(source.toString(), home)) {
+                    runCatching {
+                        val payload = message.data ?: return@runCatching
+                        if (payload.length > 2048) return@runCatching
+                        if (JSONObject(payload).optString("action") == "check") {
+                            KoneUpdates.start(this)
+                            Toast.makeText(this, "Check App version for updates.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            OwnerUpdateAccess.accept(this, payload)
+                            KoneUpdates.start(this)
+                            reply.postMessage("ready")
+                        }
+                    }
+                }
+            }
         }
         view.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
@@ -199,6 +214,32 @@ class ConsoleActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView, url: String?) {
                 loading = false
                 if (!unreachable && ConsoleAddress.sameOrigin(url.orEmpty(), home)) {
+                    if (OwnerUpdateAccess.credential(this@ConsoleActivity) == null && BuildConfig.KONE_UPDATE_FEED.isNotBlank()) {
+                        val device = JSONObject.quote(OwnerUpdateAccess.deviceId(this@ConsoleActivity))
+                        val name = JSONObject.quote((android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL).take(80))
+                        view.evaluateJavascript("""
+                            (() => {
+                              if (!window.koneOwnerUpdates || window.koneOwnerEnrollment) return;
+                              window.koneOwnerEnrollment = true;
+                              let busy = false, done = false;
+                              async function enroll() {
+                                if (busy || done) return; busy = true;
+                                try {
+                                  const status = await fetch('/api/auth/status', {cache:'no-store'}).then(r=>r.json());
+                                  if (!status.authenticated) return;
+                                  const response = await fetch('/api/owner-update/enroll', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':status.csrfToken},body:JSON.stringify({deviceId:$device,name:$name})});
+                                  if (!response.ok) return;
+                                  const value = await response.json();
+                                  window.koneOwnerUpdates.onmessage = e => { if(e.data === 'ready') { done = true; observer.disconnect(); } };
+                                  window.koneOwnerUpdates.postMessage(JSON.stringify(value));
+                                } finally { busy = false; }
+                              }
+                              const observer = new MutationObserver(() => { enroll().catch(()=>{}); });
+                              observer.observe(document.getElementById('kone'), {childList:true});
+                              enroll().catch(()=>{});
+                            })()
+                        """.trimIndent(), null)
+                    }
                     view.evaluateJavascript("""
                         (function() {
                           function colours() {

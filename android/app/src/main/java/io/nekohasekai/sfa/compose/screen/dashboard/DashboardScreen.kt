@@ -222,6 +222,7 @@ fun DashboardScreen(
                         stop = { viewModel.toggleService() },
                         select = viewModel::selectProfile,
                         edit = viewModel::editProfile,
+                        delete = viewModel::deleteProfile,
                         selectMode = viewModel::selectClashMode,
                         toggleSystemProxy = viewModel::toggleSystemProxy,
                         import = viewModel::showAddProfileSheet,

@@ -96,6 +96,13 @@ object Vendor : VendorInterface {
     override val hasCustomUpdate = true
 
     override fun checkUpdateAsync(): UpdateInfo? {
+        if (io.nekohasekai.sfa.update.KoneUpdates.enabled) {
+            val release = io.nekohasekai.sfa.update.KoneUpdates.fetchRelease(Application.application)
+                ?.takeIf { it.versionCode > io.nekohasekai.sfa.BuildConfig.VERSION_CODE } ?: return null
+            return UpdateInfo(release.versionCode, release.versionName, release.downloadUrl,
+                io.nekohasekai.sfa.BuildConfig.KONE_UPDATE_FEED.substringBefore("/release.json"), release.notes, false, release.bytes)
+        }
+
         val track = UpdateTrack.fromString(Settings.updateTrack)
         return GitHubUpdateChecker().use { checker ->
             checker.checkUpdate(track, Settings.githubToken)
@@ -115,6 +122,11 @@ object Vendor : VendorInterface {
     }
 
     override suspend fun downloadAndInstall(context: android.content.Context, downloadUrl: String) {
+        if (io.nekohasekai.sfa.update.KoneUpdates.enabled) {
+            io.nekohasekai.sfa.update.KoneUpdates.updateNow(context)
+            return
+        }
+
         val cachedApk = UpdateState.cachedApkFile.value
         val apkFile = if (cachedApk != null && cachedApk.exists() && cachedApk.length() > 0) {
             cachedApk

@@ -7,10 +7,11 @@ import io.nekohasekai.sfa.constant.Status
 @Composable
 fun rememberApplyServiceChangeNotifier(
     serviceStatus: Status,
-): (UiEvent.ApplyServiceChange.Mode) -> Unit = remember(serviceStatus) {
+    automatic: Boolean = false,
+): (UiEvent.ApplyServiceChange.Mode) -> Unit = remember(serviceStatus, automatic) {
     { mode ->
         if (serviceStatus == Status.Started) {
-            GlobalEventBus.tryEmit(UiEvent.ApplyServiceChange(mode))
+            GlobalEventBus.tryEmit(UiEvent.ApplyServiceChange(mode, automatic))
         }
     }
 }

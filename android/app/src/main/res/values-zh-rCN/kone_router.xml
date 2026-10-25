@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kone_router_back">返回</string>
+    <string name="kone_router">软路由</string>
+    <string name="kone_router_address">路由器地址</string>
+    <string name="kone_router_pin">证书 SHA-256（可选）</string>
+    <string name="kone_router_pin_help">自签名证书需填写已在路由器管理页核实的指纹。进入后使用原路由器账号登录。</string>
+    <string name="kone_router_open">进入软路由</string>
+    <string name="kone_router_refresh">刷新</string>
+    <string name="kone_router_invalid">请填写 HTTPS 地址；证书指纹须为 64 位十六进制。</string>
+    <string name="kone_router_unreachable">无法连接路由器，请检查地址和局域网或回家连接。</string>
+    <string name="kone_router_certificate">证书未受信任或已变更，请先核实路由器证书。</string>
+    <string name="kone_router_download">下载文件请使用浏览器中的路由器管理页。</string>
+</resources>

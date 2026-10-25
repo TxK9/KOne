@@ -69,11 +69,6 @@ fun EditProfileRoute(profileId: Long, onNavigateBack: () -> Unit, modifier: Modi
                         launchSingleTop = true
                     }
                 },
-                onNavigateToEditContent = { isReadOnly ->
-                    navController.navigate("edit_content/$isReadOnly") {
-                        launchSingleTop = true
-                    }
-                },
                 viewModel = sharedViewModel,
             )
         }
@@ -161,16 +156,11 @@ fun EditProfileRoute(profileId: Long, onNavigateBack: () -> Unit, modifier: Modi
                     animationSpec = tween(300),
                 )
             },
-        ) { backStackEntry ->
-            val isReadOnly = backStackEntry.arguments?.getBoolean("isReadOnly") ?: false
-
-            EditProfileContentScreen(
-                profileId = profileId,
-                onNavigateBack = {
-                    navController.popBackStack("edit_profile", inclusive = false)
-                },
-                isReadOnly = isReadOnly,
-            )
+        ) {
+            // A restored back stack from an older install must not reopen raw configuration.
+            LaunchedEffect(Unit) {
+                navController.popBackStack("edit_profile", inclusive = false)
+            }
         }
     }
 }

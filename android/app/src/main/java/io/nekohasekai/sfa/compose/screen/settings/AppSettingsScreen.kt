@@ -106,6 +106,7 @@ import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.theme.KnineAppearance
+import io.nekohasekai.sfa.compose.theme.KnineInkStyle
 import io.nekohasekai.sfa.compose.theme.KnineSectionLabel
 import io.nekohasekai.sfa.compose.theme.KnineSwitcherStyle
 import io.nekohasekai.sfa.compose.theme.KnineThemeMode
@@ -135,6 +136,7 @@ import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.outlined.Landscape
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.DarkMode
 import io.nekohasekai.sfa.compose.theme.WallpaperCatalog
@@ -162,14 +164,49 @@ fun AppSettingsScreen(
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var systemVpnProtected by remember { mutableStateOf(io.nekohasekai.sfa.connection.SystemVpnProtection.enabled()) }
+    val vpnProtectionLifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(vpnProtectionLifecycle, serviceStatus) {
+        systemVpnProtected = io.nekohasekai.sfa.connection.SystemVpnProtection.enabled()
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                systemVpnProtected = io.nekohasekai.sfa.connection.SystemVpnProtection.enabled()
+            }
+        }
+        vpnProtectionLifecycle.lifecycle.addObserver(observer)
+        onDispose { vpnProtectionLifecycle.lifecycle.removeObserver(observer) }
+    }
     // Show the app version and KOne's core display label in the same entry.
     val appName = stringResource(R.string.app_name)
     val versionLine = remember {
-        "$appName ${BuildConfig.VERSION_NAME}\nCore KOne0.0.1"
+        "$appName ${BuildConfig.VERSION_NAME} · ${BuildConfig.VERSION_CODE}\nCore KOne0.0.1"
     }
     val hasUpdate by UpdateState.hasUpdate
     val updateInfo by UpdateState.updateInfo
     val isChecking by UpdateState.isChecking
+    val koneUpdate by io.nekohasekai.sfa.update.KoneUpdates.state.collectAsState()
+    var checkingKoneUpdate by remember { mutableStateOf(false) }
+    fun checkKoneUpdate() {
+        if (BuildConfig.KNINE_OWNER && io.nekohasekai.sfa.update.OwnerUpdateAccess.credential(context) == null) {
+            context.startActivity(android.content.Intent(context, io.nekohasekai.sfa.compose.screen.console.ConsoleActivity::class.java))
+            return
+        }
+        if (io.nekohasekai.sfa.update.KoneUpdates.state.value.release != null) {
+            io.nekohasekai.sfa.update.KoneUpdates.show()
+            return
+        }
+        if (checkingKoneUpdate) return
+        checkingKoneUpdate = true
+        scope.launch {
+            try {
+                val checked = io.nekohasekai.sfa.update.KoneUpdates.check(context.applicationContext)
+                io.nekohasekai.sfa.update.KoneUpdates.show()
+                if (io.nekohasekai.sfa.update.KoneUpdates.state.value.release == null) {
+                    Toast.makeText(context, if (checked) "Up to date" else "Cannot check for updates right now", Toast.LENGTH_SHORT).show()
+                }
+            } finally { checkingKoneUpdate = false }
+        }
+    }
     var showSourceDialog by remember { mutableStateOf(false) }
     var currentSource by remember { mutableStateOf(Settings.updateSource) }
     var showTrackDialog by remember { mutableStateOf(false) }
@@ -494,6 +531,25 @@ fun AppSettingsScreen(
             )
             .verticalScroll(rememberScrollState()),
     ) {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        ) {
+            ListItem(
+                headlineContent = { Text("Block connections without VPN") },
+                supportingContent = {
+                    Text(if (systemVpnProtected == true)
+                        "System protection is enabled. Managed exceptions can still connect directly."
+                    else "Enable Always-on VPN and Block connections without VPN in system settings.")
+                },
+                modifier = Modifier.clickable {
+                    runCatching { context.startActivity(Intent(AndroidSettings.ACTION_VPN_SETTINGS)) }
+                        .onFailure { Toast.makeText(context, "Search for VPN in system settings.", Toast.LENGTH_SHORT).show() }
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
         // Info Card
         Card(
             modifier =
@@ -528,13 +584,13 @@ fun AppSettingsScreen(
                             )
                         },
                         trailingContent = {
-
+                            if (koneUpdate.release != null) Badge(containerColor = MaterialTheme.colorScheme.primary)
                         },
                         modifier =
                         Modifier
                             .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                             .combinedClickable(
-                                onClick = {},
+                                onClick = { if (io.nekohasekai.sfa.update.KoneUpdates.enabled) checkKoneUpdate() },
                                 onLongClick = { showVersionMenu = true },
                             ),
                         colors =
@@ -568,6 +624,7 @@ fun AppSettingsScreen(
                         }
                     }
                 }
+
 
                 ListItem(
                     headlineContent = {
@@ -732,74 +789,6 @@ fun AppSettingsScreen(
                                     },
                                 )
                             }
-                        }
-                    }
-                }
-
-                // Backup: everything that makes this KOne, in one file to carry to another phone.
-                var showBackupMenu by remember { mutableStateOf(false) }
-                val exportBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-                    if (uri != null) {
-                        scope.launch {
-                            val message = try {
-                                "Backed up ${KoneBackup.write(context, uri)} nodes"
-                            } catch (failure: Exception) {
-                                (failure as? KoneBackup.BackupException)?.message ?: "Backup incomplete"
-                            }
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-                val importBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-                    if (uri != null) {
-                        scope.launch {
-                            val message = try {
-                                val restored = KoneBackup.read(context, uri)
-                                when {
-                                    restored.added == 0 && restored.existing > 0 -> "All ${restored.existing} backup nodes already exist"
-                                    restored.existing > 0 -> "Restored ${restored.added} nodes; ${restored.existing} already existed"
-                                    else -> "Restored ${restored.added} nodes"
-                                }
-                            } catch (failure: Exception) {
-                                (failure as? KoneBackup.BackupException)?.message ?: "This backup cannot be restored"
-                            }
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-                Box {
-                    ListItem(
-                        headlineContent = { Text("Backup", style = MaterialTheme.typography.bodyLarge) },
-                        supportingContent = { Text("Nodes, categories and settings", style = MaterialTheme.typography.bodyMedium) },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.Backup,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        modifier = Modifier.clickable { showBackupMenu = true },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    )
-                    Box(modifier = Modifier.align(Alignment.BottomEnd)) {
-                        DropdownMenu(
-                            expanded = showBackupMenu,
-                            onDismissRequest = { showBackupMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Export backup") },
-                                onClick = {
-                                    showBackupMenu = false
-                                    exportBackup.launch("KOne Backup ${java.time.LocalDate.now()}.json")
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Restore backup") },
-                                onClick = {
-                                    showBackupMenu = false
-                                    importBackup.launch(arrayOf("application/json", "application/octet-stream", "text/plain"))
-                                },
-                            )
                         }
                     }
                 }

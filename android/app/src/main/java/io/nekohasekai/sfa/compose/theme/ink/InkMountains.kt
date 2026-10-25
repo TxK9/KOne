@@ -33,7 +33,10 @@ internal class Range(
 )
 
 /** The buildings and works of people the scenes hold, each drawn by its own outline. */
-internal enum class Landmark { Liberty, GoldenGate, EmpireState, Skyline, Capitol, Rushmore, Niagara }
+internal enum class Landmark {
+    Liberty, GoldenGate, EmpireState, Skyline, Capitol, Rushmore, Niagara,
+    BrooklynBridge, WashingtonMonument, ElmRows, GatewayArch, ColoradoRiver, Geyser, Lodgepoles,
+}
 
 /**
  * A landmark placed in a scene: centred at x, standing on base (both in the painting's units),
@@ -64,13 +67,32 @@ internal class InkMountain(
     val water: Float? = null,
     /** Ground nearer than the landmarks, painted last: the hill the painter stands on. */
     val foreground: List<Range> = emptyList(),
+    /** An American scene; the others are China's mountains. */
+    val america: Boolean = false,
 )
 
 /**
  * The Five Great Mountains and three famous ones, each drawn by its own character, taking turns
- * with four American scenes painted the same way: Statue of Liberty, Golden Gate Bridge, Half Dome and Mount Rainier.
+ * with nine American scenes painted the same way: Statue of Liberty, Golden Gate Bridge, Half Dome, Mount Rainier,
+ * Brooklyn Bridge, Washington Monument, Gateway Arch, Grand Canyon and Old Faithful.
  */
 internal object InkMountains {
+    /** The paintings a style shows. Local scenes reads the time zone, as the sun and the moon do. */
+    fun shown(style: io.nekohasekai.sfa.compose.theme.KnineInkStyle, zone: java.util.TimeZone = java.util.TimeZone.getDefault()): List<InkMountain> {
+        val american = all.filter { it.america }
+        val chinese = all.filter { !it.america }
+        return when (style) {
+            io.nekohasekai.sfa.compose.theme.KnineInkStyle.All -> all
+            io.nekohasekai.sfa.compose.theme.KnineInkStyle.China -> chinese
+            io.nekohasekai.sfa.compose.theme.KnineInkStyle.America -> american
+            io.nekohasekai.sfa.compose.theme.KnineInkStyle.Local -> when {
+                zone.id.startsWith("America/") || zone.id.startsWith("US/") || zone.id.startsWith("Canada/") || zone.id == "Pacific/Honolulu" -> american
+                zone.id in setOf("Asia/Shanghai", "Asia/Chongqing", "Asia/Harbin", "Asia/Urumqi", "Asia/Hong_Kong", "Asia/Macau", "Asia/Taipei", "PRC", "ROC") -> chinese
+                else -> all
+            }
+        }
+    }
+
     val all: List<InkMountain> = listOf(
         InkMountain(
             name = "Mount Tai", motto = "Crown of the Five Peaks",
@@ -106,6 +128,7 @@ internal object InkMountains {
                 Placed(Landmark.Liberty, 0.68f, 0.865f, 0.62f, far = false, ink = 0.92f),
             ),
             water = 0.80f,
+            america = true,
         ),
         InkMountain(
             name = "Mount Hua", motto = "A mountain of striking heights",
@@ -147,6 +170,7 @@ internal object InkMountains {
             foreground = listOf(
                 Range(listOf(Peak(0.0f, 0.19f, 0.30f, 0.30f, 1.0f, 1.8f), Peak(0.28f, 0.09f, 0.14f, 0.20f, 1.1f, 1.8f)), 1.0f, 0.78f, 0.002f, 0.05f, 104, Texture.Hemp),
             ),
+            america = true,
         ),
         InkMountain(
             name = "Mount Huang", motto = "A landscape beyond compare",
@@ -199,6 +223,7 @@ internal object InkMountains {
             ),
             features = setOf(Feature.SheerFace),
             sealOnLeft = true,
+            america = true,
         ),
         InkMountain(
             name = "Mount Heng (South)", motto = "Grace of the Southern Peak",
@@ -239,6 +264,27 @@ internal object InkMountains {
                 Placed(Landmark.Rushmore, 0.13f, 0.68f, 0.07f, far = true, ink = 0.38f),
                 Placed(Landmark.Niagara, 0.50f, 0.875f, 0.035f, far = false, ink = 0.85f),
             ),
+            america = true,
+        ),
+        InkMountain(
+            name = "Brooklyn Bridge", motto = "An arch across the East River",
+            far = listOf(
+                // The Manhattan shore, low under the haze.
+                Range(listOf(Peak(0.30f, 0.025f, 0.40f, power = 0.8f, round = 2f), Peak(0.85f, 0.02f, 0.30f, power = 0.8f, round = 2f)), 0.735f, 0.14f, 0.010f, 0.02f, 131),
+            ),
+            near = emptyList(),
+            features = emptySet(),
+            sealOnLeft = true,
+            landmarks = listOf(
+                Placed(Landmark.Skyline, 0.30f, 0.735f, 0.17f, far = true, ink = 0.34f),
+                Placed(Landmark.BrooklynBridge, 0.72f, 0.58f, 0.20f, far = false, ink = 0.88f),
+            ),
+            water = 0.735f,
+            // The Brooklyn shore the painter stands on, under the bridge's own approach.
+            foreground = listOf(
+                Range(listOf(Peak(1.02f, 0.10f, 0.30f, 0.10f, 1.0f, 2f), Peak(0.80f, 0.045f, 0.18f, 0.20f, 0.9f, 2f)), 1.0f, 0.70f, 0.002f, 0.04f, 134, Texture.Dots),
+            ),
+            america = true,
         ),
         InkMountain(
             name = "Mount Heng (North)", motto = "Pillar of the North",
@@ -256,6 +302,22 @@ internal object InkMountains {
             sealOnLeft = false,
         ),
         InkMountain(
+            name = "Washington Monument", motto = "By the reflecting pool",
+            far = listOf(
+                // The trees along the Mall, far and pale behind the monument.
+                Range(listOf(Peak(0.18f, 0.035f, 0.30f, power = 0.8f, round = 2f), Peak(0.80f, 0.04f, 0.30f, power = 0.8f, round = 2f)), 0.625f, 0.16f, 0.010f, 0.03f, 141, Texture.Dots),
+            ),
+            near = emptyList(),
+            features = emptySet(),
+            sealOnLeft = false,
+            landmarks = listOf(
+                Placed(Landmark.WashingtonMonument, 0.50f, 0.615f, 0.44f, far = false, ink = 0.80f),
+                Placed(Landmark.ElmRows, 0.50f, 0.625f, 0.30f, far = false, ink = 0.62f),
+            ),
+            water = 0.64f,
+            america = true,
+        ),
+        InkMountain(
             name = "Mount Song", motto = "A summit rising high",
             far = listOf(
                 Range(listOf(Peak(0.25f, 0.22f, 0.30f), Peak(0.75f, 0.25f, 0.30f)), 0.70f, 0.15f, 0.012f, 0.025f, 51),
@@ -271,6 +333,25 @@ internal object InkMountains {
             sealOnLeft = true,
         ),
         InkMountain(
+            name = "Gateway to the West", motto = "Gateway Arch",
+            far = listOf(
+                Range(listOf(Peak(0.20f, 0.02f, 0.30f, power = 0.8f, round = 2f), Peak(0.78f, 0.025f, 0.30f, power = 0.8f, round = 2f)), 0.79f, 0.14f, 0.010f, 0.02f, 151),
+            ),
+            near = listOf(
+                // The park under the arch, its trees in dots along the levee.
+                Range(listOf(Peak(0.14f, 0.035f, 0.20f, power = 0.8f, round = 2f), Peak(0.86f, 0.035f, 0.20f, power = 0.8f, round = 2f)), 0.80f, 0.40f, 0.003f, 0.02f, 153, Texture.Dots),
+            ),
+            features = emptySet(),
+            sealOnLeft = true,
+            landmarks = listOf(
+                Placed(Landmark.Skyline, 0.50f, 0.79f, 0.07f, far = true, ink = 0.26f),
+                Placed(Landmark.Capitol, 0.50f, 0.79f, 0.05f, far = true, ink = 0.40f),
+                Placed(Landmark.GatewayArch, 0.50f, 0.795f, 0.50f, far = false, ink = 0.84f),
+            ),
+            water = 0.81f,
+            america = true,
+        ),
+        InkMountain(
             name = "Mount Lu", motto = "A waterfall from the heights",
             far = listOf(
                 Range(listOf(Peak(0.22f, 0.24f, 0.26f, power = 0.9f, round = 2f), Peak(0.76f, 0.27f, 0.28f, power = 0.9f, round = 2f)), 0.70f, 0.15f, 0.012f, 0.025f, 71),
@@ -284,6 +365,42 @@ internal object InkMountains {
             ),
             features = setOf(Feature.Waterfall, Feature.CloudSea),
             sealOnLeft = true,
+        ),
+        InkMountain(
+            name = "Grand Canyon", motto = "Carved by nature",
+            far = listOf(
+                // The North Rim, level and far.
+                Range(listOf(Peak(0.50f, 0.07f, 0.90f, 0.90f, 0.25f, 12f)), 0.48f, 0.12f, 0.010f, 0.012f, 161, Texture.Strata, shoulders = false, body = 1f),
+                // Its temples standing off it in tiers.
+                Range(
+                    listOf(
+                        Peak(0.24f, 0.09f, 0.13f, 0.12f, 0.3f, 10f), Peak(0.24f, 0.14f, 0.065f, 0.06f, 0.3f, 10f), Peak(0.235f, 0.18f, 0.025f, 0.025f, 0.35f, 8f),
+                        Peak(0.62f, 0.10f, 0.15f, 0.13f, 0.3f, 10f), Peak(0.63f, 0.16f, 0.07f, 0.075f, 0.3f, 10f), Peak(0.64f, 0.215f, 0.03f, 0.03f, 0.35f, 8f),
+                        Peak(0.92f, 0.08f, 0.12f, 0.12f, 0.3f, 10f), Peak(0.93f, 0.12f, 0.05f, 0.05f, 0.3f, 10f),
+                    ),
+                    0.66f, 0.30f, 0.005f, 0.012f, 162, Texture.Strata, shoulders = false, body = 0.7f,
+                ),
+            ),
+            near = listOf(
+                // The inner gorge's walls, open in the middle where the river runs.
+                Range(
+                    listOf(
+                        Peak(0.10f, 0.22f, 0.20f, 0.14f, 0.3f, 10f), Peak(0.06f, 0.28f, 0.10f, 0.10f, 0.3f, 10f), Peak(0.30f, 0.14f, 0.10f, 0.08f, 0.35f, 8f),
+                        Peak(0.86f, 0.24f, 0.16f, 0.20f, 0.3f, 10f), Peak(0.90f, 0.31f, 0.08f, 0.10f, 0.3f, 10f), Peak(0.68f, 0.12f, 0.08f, 0.10f, 0.35f, 8f),
+                    ),
+                    0.86f, 0.62f, 0.002f, 0.012f, 163, Texture.Strata, shoulders = false, body = 0.8f,
+                ),
+            ),
+            features = emptySet(),
+            sealOnLeft = false,
+            landmarks = listOf(
+                Placed(Landmark.ColoradoRiver, 0.50f, 0.735f, 0.03f, far = true, ink = 0.55f),
+            ),
+            // The South Rim's edge at our feet.
+            foreground = listOf(
+                Range(listOf(Peak(-0.02f, 0.30f, 0.30f, 0.26f, 0.5f, 6f), Peak(0.30f, 0.12f, 0.12f, 0.20f, 0.6f, 4f)), 1.0f, 0.80f, 0.002f, 0.02f, 164, Texture.Strata, shoulders = false, body = 1f),
+            ),
+            america = true,
         ),
         InkMountain(
             name = "Mount Yandang", motto = "A mountain by the sea",
@@ -303,6 +420,21 @@ internal object InkMountains {
             ),
             features = setOf(Feature.Pines),
             sealOnLeft = true,
+        ),
+        InkMountain(
+            name = "Old Faithful", motto = "Heart of Yellowstone",
+            far = listOf(
+                Range(listOf(Peak(0.22f, 0.15f, 0.28f, power = 0.9f, round = 2f), Peak(0.74f, 0.18f, 0.30f, power = 0.9f, round = 2f)), 0.64f, 0.14f, 0.012f, 0.025f, 171),
+                Range(listOf(Peak(0.10f, 0.08f, 0.30f, power = 0.8f, round = 2f), Peak(0.90f, 0.09f, 0.30f, power = 0.8f, round = 2f)), 0.72f, 0.28f, 0.005f, 0.02f, 172, Texture.Dots),
+            ),
+            near = emptyList(),
+            features = emptySet(),
+            sealOnLeft = true,
+            landmarks = listOf(
+                Placed(Landmark.Lodgepoles, 0.50f, 0.80f, 0.14f, far = false, ink = 0.80f),
+                Placed(Landmark.Geyser, 0.56f, 0.80f, 0.56f, far = false, ink = 0.70f),
+            ),
+            america = true,
         ),
     )
 }

@@ -19,7 +19,23 @@ enum class KnineSwitcherStyle(val id: String, val label: String) {
     }
 }
 
-/** Personal choices for the dashboard; Compose readers recompose when they change. */
+/**
+ * Which ink paintings take turns when there is no wallpaper: those of where the phone is (by its
+ * time zone, as the sun and the moon are), all of them, or one set.
+ */
+enum class KnineInkStyle(val id: String, val label: String) {
+    Local("local", "Local scenes"),
+    All("all", "All"),
+    China("china", "Mountain landscapes"),
+    America("america", "American landmarks"),
+    ;
+
+    companion object {
+        fun of(id: String): KnineInkStyle = entries.firstOrNull { it.id == id && it != Local } ?: All
+    }
+}
+
+/** Appearance preferences for the dashboard; Compose readers recompose when they change. */
 /** Light or dark: as the phone is set, or KOne's own choice. */
 enum class KnineThemeMode(val id: String, val label: String, val nightMode: Int) {
     System("system", "System default", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM),
@@ -48,6 +64,15 @@ object KnineAppearance {
 
     /** Applies the saved choice; called before the window is first drawn. */
     fun applyTheme() = AppCompatDelegate.setDefaultNightMode(theme.nightMode)
+
+    private val inkStyleState by lazy { mutableStateOf(KnineInkStyle.of(Settings.knineInkStyle)) }
+
+    var inkStyle: KnineInkStyle
+        get() = inkStyleState.value
+        set(value) {
+            inkStyleState.value = value
+            Settings.knineInkStyle = value.id
+        }
 
     private val switcherState by lazy { mutableStateOf(KnineSwitcherStyle.of(Settings.knineSwitcherStyle)) }
 

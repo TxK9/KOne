@@ -239,7 +239,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 trial?.let { (content, info) ->
                     io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, info, profile.name)
                     val file = File(profile.typed.path)
-                    if (!file.exists() || file.readText() != content) {
+                    if (!file.exists() || !cc.txwd.kone.shared.ConfigurationContent.same(file.readText(), content)) {
                         file.writeText(content)
                         reload = profile.id == Settings.selectedProfile
                     }
@@ -303,7 +303,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
 
                 // Check if content changed
                 val file = File(profile.typed.path)
-                if (!file.exists() || file.readText() != content) {
+                if (!file.exists() || !cc.txwd.kone.shared.ConfigurationContent.same(file.readText(), content)) {
                     file.writeText(content)
                     if (profile.id == Settings.selectedProfile) {
                         selectedProfileUpdated = true

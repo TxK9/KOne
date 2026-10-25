@@ -186,7 +186,7 @@ object ManagedSync {
     private suspend fun flushDiagnostics(api: ManagedApi, credential: String, context: Context) {
         if (!ManagedState.diagnosticsEnabled) return
         val events = ManagedState.pendingEvents()
-        runCatching { api.diagnostics(credential, BuildConfig.VERSION_NAME, networkType(context), events) }
+        runCatching { api.diagnostics(credential, "${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}", networkType(context), events) }
             .onSuccess { ManagedState.clearEvents() }
     }
 

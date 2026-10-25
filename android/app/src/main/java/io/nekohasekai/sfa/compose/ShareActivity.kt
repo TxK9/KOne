@@ -207,7 +207,7 @@ class ShareActivity :
         if (dialogErrorMessage != null) {
             SelectableMessageDialog(
                 title = stringResource(R.string.error_title),
-                message = dialogErrorMessage,
+                message = io.nekohasekai.sfa.compose.base.publicErrorMessage(dialogErrorMessage),
                 onDismiss = {
                     currentSend?.takeIf { it.errorMessage != null }?.let { TaildropSendManager.dismiss(it.id) }
                     finish()
@@ -287,11 +287,11 @@ class ShareActivity :
                                     .horizontalScroll(rememberScrollState()),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                for (candidate in endpoints) {
+                                for ((index, candidate) in endpoints.withIndex()) {
                                     FilterChip(
                                         selected = candidate.endpointTag == endpoint.endpointTag,
                                         onClick = { selectedEndpointTag = candidate.endpointTag },
-                                        label = { Text(candidate.endpointTag) },
+                                        label = { Text("Connection ${index + 1}") },
                                     )
                                 }
                             }

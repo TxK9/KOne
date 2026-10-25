@@ -25,6 +25,11 @@
                 <action android:name="io.nekohasekai.sfa.INSTALL_COMPLETE" />
             </intent-filter>
         </receiver>
+        <receiver android:name=".update.KoneUpdateReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

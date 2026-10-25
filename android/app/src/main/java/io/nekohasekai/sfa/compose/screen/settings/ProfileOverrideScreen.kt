@@ -101,18 +101,24 @@ fun ProfileOverrideScreen(
     var managedModeEnabled by remember { mutableStateOf(Settings.perAppProxyManagedMode) }
     var isScanning by remember { mutableStateOf(false) }
     val notifyApplyChange = rememberApplyServiceChangeNotifier(serviceStatus)
+    val applyManagedChange = rememberApplyServiceChangeNotifier(serviceStatus, automatic = true)
 
-    fun scanAndSaveManagedList(shouldNotify: Boolean = false) {
+    fun scanAndSaveManagedList(shouldNotify: Boolean = false, enableManaged: Boolean = false) {
         isScanning = true
         scope.launch {
-            val chinaApps = PerAppProxyScanner.scanAllChinaApps()
-            withContext(Dispatchers.IO) {
-                Settings.perAppProxyManagedList = chinaApps
-            }
-            isScanning = false
-            if (shouldNotify) {
-                notifyApplyChange(UiEvent.ApplyServiceChange.Mode.Reload)
-            }
+            try {
+                val chinaApps = PerAppProxyScanner.scanAllChinaApps()
+                withContext(Dispatchers.IO) {
+                    Settings.perAppProxyManagedList = chinaApps
+                    if (enableManaged) Settings.perAppProxyManagedMode = true
+                }
+                if (shouldNotify) applyManagedChange(UiEvent.ApplyServiceChange.Mode.Reload)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                managedModeEnabled = Settings.perAppProxyManagedMode
+                io.nekohasekai.sfa.compose.base.GlobalEventBus.tryEmit(UiEvent.ErrorMessage("Managed settings could not be applied. Try again."))
+            } finally { isScanning = false }
         }
     }
 
@@ -486,16 +492,13 @@ fun ProfileOverrideScreen(
                                     onCheckedChange = { checked ->
                                         if (checked) {
                                             managedModeEnabled = true
-                                            scope.launch(Dispatchers.IO) {
-                                                Settings.perAppProxyManagedMode = true
-                                            }
-                                            scanAndSaveManagedList(shouldNotify = true)
+                                            scanAndSaveManagedList(shouldNotify = true, enableManaged = true)
                                         } else {
                                             managedModeEnabled = false
                                             scope.launch(Dispatchers.IO) {
                                                 Settings.perAppProxyManagedMode = false
                                                 withContext(Dispatchers.Main) {
-                                                    notifyApplyChange(UiEvent.ApplyServiceChange.Mode.Reload)
+                                                    applyManagedChange(UiEvent.ApplyServiceChange.Mode.Reload)
                                                 }
                                             }
                                         }

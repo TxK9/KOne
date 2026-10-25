@@ -59,7 +59,7 @@ fun BackdropOutlinedTextField(
         CompositionLocalProvider(LocalBackdrop provides null) {
             NativeOutlinedTextField(
                 value = value, onValueChange = onValueChange, enabled = enabled, readOnly = readOnly,
-                textStyle = if (backdrop != null) textStyle.copy(shadow = androidx.compose.ui.graphics.Shadow.None) else textStyle,
+                textStyle = if (backdrop != null) textStyle.copy(color = if (enabled) ink else ink.copy(alpha = .62f), shadow = androidx.compose.ui.graphics.Shadow.None) else textStyle,
                 label = label, placeholder = placeholder, leadingIcon = leadingIcon, trailingIcon = trailingIcon,
                 prefix = prefix, suffix = suffix, supportingText = supportingText, isError = isError,
                 visualTransformation = visualTransformation, keyboardOptions = keyboardOptions, keyboardActions = keyboardActions,

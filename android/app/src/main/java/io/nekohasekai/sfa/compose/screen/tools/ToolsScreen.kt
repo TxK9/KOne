@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.outlined.Apartment
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.HealthAndSafety
@@ -61,6 +62,8 @@ import io.nekohasekai.sfa.bg.OOMReportManager
 import io.nekohasekai.sfa.bg.PowerReportManager
 import io.nekohasekai.sfa.compose.component.RemoteControlMenuItems
 import io.nekohasekai.sfa.compose.component.rememberRemoteServers
+import io.nekohasekai.sfa.compose.navigation.DeviceRoutes
+import io.nekohasekai.sfa.compose.navigation.NetworkTestRoutes
 import io.nekohasekai.sfa.compose.screen.console.ConsoleActivity
 import io.nekohasekai.sfa.compose.screen.usbip.USBIPStatusViewModel
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
@@ -69,6 +72,7 @@ import io.nekohasekai.sfa.selfuse.HomeSettings
 import io.nekohasekai.sfa.selfuse.PairedProfile
 import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.database.Settings
+import io.nekohasekai.sfa.devices.DeviceManagementGate
 import io.nekohasekai.sfa.terminal.DEFAULT_SSH_TERMINAL_TYPE
 import io.nekohasekai.sfa.terminal.TailscaleSSHPresentedSession
 import io.nekohasekai.sfa.utils.RemoteControlManager
@@ -169,7 +173,7 @@ fun ToolsScreen(
                                     if (tailscaleTags.size == 1) {
                                         stringResource(R.string.tailscale)
                                     } else {
-                                        stringResource(R.string.tailscale_with_tag, endpointTag)
+                                        stringResource(R.string.tailscale) + " ${index + 1}"
                                     },
                                     style = MaterialTheme.typography.bodyLarge,
                                 )
@@ -269,7 +273,7 @@ fun ToolsScreen(
                                 if (openConnectEndpoints.size == 1) {
                                     stringResource(R.string.openconnect)
                                 } else {
-                                    stringResource(R.string.openconnect_with_tag, endpoint.endpointTag)
+                                    stringResource(R.string.openconnect) + " ${index + 1}"
                                 },
                                 style = MaterialTheme.typography.bodyLarge,
                             )
@@ -296,7 +300,7 @@ fun ToolsScreen(
                                 if (openVPNEndpoints.size == 1) {
                                     stringResource(R.string.openvpn)
                                 } else {
-                                    stringResource(R.string.openvpn_with_tag, endpoint.endpointTag)
+                                    stringResource(R.string.openvpn) + " ${index + 1}"
                                 },
                                 style = MaterialTheme.typography.bodyLarge,
                             )
@@ -349,7 +353,7 @@ fun ToolsScreen(
                                 if (servers.size == 1) {
                                     stringResource(R.string.title_usbip)
                                 } else {
-                                    stringResource(R.string.usbip_with_tag, server.serverTag)
+                                    stringResource(R.string.title_usbip) + " ${index + 1}"
                                 },
                                 style = MaterialTheme.typography.bodyLarge,
                             )
@@ -372,7 +376,7 @@ fun ToolsScreen(
             }
         }
 
-        // The private edition console, reached over Home; only the private edition build carries its address.
+        // The private management console is available only in the self-use build.
         if (BuildConfig.KNINE_OWNER && BuildConfig.KONE_ADMIN.isNotBlank()) {
             val context = LocalContext.current
             io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = "Management")
@@ -402,6 +406,49 @@ fun ToolsScreen(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { context.startActivity(Intent(context, ConsoleActivity::class.java)) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+        }
+
+        // Devices and their engines; the edition for others gains it once the console grants it.
+        if (DeviceManagementGate.visible) {
+            val routerContext = LocalContext.current
+            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = "Devices")
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            ) {
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            "Device management",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Outlined.Devices,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { navController.navigate(DeviceRoutes.Main) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.kone_router)) },
+                    leadingContent = { Icon(Icons.Outlined.Hub, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable {
+                        routerContext.startActivity(Intent(routerContext, io.nekohasekai.sfa.compose.screen.router.RouterActivity::class.java))
+                    },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
             }
@@ -439,7 +486,7 @@ fun ToolsScreen(
             ListItem(
                 headlineContent = {
                     Text(
-                        "Speed test",
+                        "Network tests",
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 },
@@ -452,105 +499,12 @@ fun ToolsScreen(
                 },
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { navController.navigate("tools/network_quality") },
+                    .clickable { navController.navigate(NetworkTestRoutes.Main) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             )
         }
 
-        // Crash/OOM reports read local files, which the remote control API
-        // does not reach.
-        if (remoteServer == null) {
-            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.title_debug))
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            ) {
-                val debugRowCount = 3
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(R.string.crash_report),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Outlined.BugReport,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    trailingContent = {
-                        if (crashUnreadCount > 0) {
-                            Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                Text("$crashUnreadCount")
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        .clickable { navController.navigate("tools/crash_report") },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(R.string.oom_report),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Outlined.Memory,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    trailingContent = {
-                        if (oomUnreadCount > 0) {
-                            Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                Text("$oomUnreadCount")
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .clip(endpointRowShape(1, debugRowCount))
-                        .clickable { navController.navigate("tools/oom_report") },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(R.string.power_report),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Outlined.Bolt,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    trailingContent = {
-                        if (powerUnreadCount > 0) {
-                            Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                Text("$powerUnreadCount")
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .clip(endpointRowShape(2, debugRowCount))
-                        .clickable { navController.navigate("tools/power_report") },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-        }
     }
 }
 

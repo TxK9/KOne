@@ -19,6 +19,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -153,6 +154,7 @@ internal fun NodeDeck(
     onOpenDial: (Offset) -> Unit,
     modifier: Modifier = Modifier,
     onImport: ((Offset) -> Unit)? = null,
+    onDelete: ((Long) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -240,6 +242,7 @@ internal fun NodeDeck(
                 onToggleAll = if (floating) null else ({ expanded = !expanded }),
                 onSelect = onSelect,
                 onEdit = onEdit,
+                onDelete = onDelete,
                 onImport = onImport,
                 modifier = Modifier
                     .naturalHeight { if (heights[group.id] != it) heights[group.id] = it }
@@ -287,7 +290,7 @@ private fun CategoryTabs(
     Row(
         Modifier
             .fillMaxWidth()
-            .height(42.dp)
+            .heightIn(min = 42.dp)
             .onSizeChanged { viewport = it.width }
             // With many categories the row scrolls; the edge with more names beyond it fades out.
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
@@ -664,6 +667,7 @@ private fun NodePage(
     onToggleAll: (() -> Unit)?,
     onSelect: (Long) -> Unit,
     onEdit: (Long) -> Unit,
+    onDelete: ((Long) -> Unit)?,
     onImport: ((Offset) -> Unit)?,
     modifier: Modifier,
 ) {
@@ -684,7 +688,7 @@ private fun NodePage(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                BText("Import nodes", style = MaterialTheme.typography.labelLarge)
+                BText("Import nodes", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
             }
             return@Column
         }
@@ -700,6 +704,11 @@ private fun NodePage(
         }
         val shown = if (all) group.profiles else visibleNodes(group, selectedId)
         shown.forEachIndexed { i, profile ->
+            key(profile.id) {
+            SwipeNode(
+                deletable = onDelete != null && !io.nekohasekai.sfa.managed.ManagedState.isManaged(profile.id),
+                onDelete = { onDelete?.invoke(profile.id) },
+            ) {
             NodeRow(
                 profile = profile,
                 selected = profile.id == selectedId,
@@ -714,6 +723,8 @@ private fun NodePage(
                     translationY = (1f - p) * 18.dp.toPx()
                 },
             )
+            }
+            }
         }
         if (onToggleAll != null && group.profiles.size > SHOWN_NODES) {
             Row(

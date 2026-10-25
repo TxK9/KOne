@@ -41,6 +41,7 @@ object Settings {
     var selfUseWallpaperChangedAt by dataStore.long("selfuse_wallpaper_changed_at") { 0L }
     var knineSwitcherStyle by dataStore.string("knine_switcher_style") { "dial" }
     var knineWallpaperMode by dataStore.string("knine_wallpaper_mode") { "" }
+    var knineInkStyle by dataStore.string("knine_ink_style") { "all" }
     var kninePanelCollapsed by dataStore.boolean("knine_panel_collapsed") { false }
 
     // Tailscale Home defaults differ between private and managed editions.

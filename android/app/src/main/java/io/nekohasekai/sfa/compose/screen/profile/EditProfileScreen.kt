@@ -86,7 +86,6 @@ fun EditProfileScreen(
     profileId: Long,
     onNavigateBack: () -> Unit,
     onNavigateToIconSelection: (currentIconId: String?) -> Unit = {},
-    onNavigateToEditContent: (isReadOnly: Boolean) -> Unit = {},
     viewModel: EditProfileViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -123,7 +122,7 @@ fun EditProfileScreen(
     if (showErrorDialog) {
         SelectableMessageDialog(
             title = stringResource(R.string.error_title),
-            message = uiState.errorMessage ?: "",
+            message = "Action incomplete. Try again later.",
             onDismiss = {
                 showErrorDialog = false
                 viewModel.clearError()
@@ -216,8 +215,6 @@ fun EditProfileScreen(
                 onName = viewModel::updateName,
                 onIcon = viewModel::updateIcon,
                 onMoreIcons = { onNavigateToIconSelection(uiState.icon) },
-                onContent = { onNavigateToEditContent(uiState.profileType == TypedProfile.Type.Remote) },
-                onRemoteUrl = viewModel::updateRemoteUrl,
                 onAutoUpdate = viewModel::updateAutoUpdate,
                 onAutoUpdateInterval = viewModel::updateAutoUpdateInterval,
                 onLeaveOut = viewModel::updateLeaveOut,

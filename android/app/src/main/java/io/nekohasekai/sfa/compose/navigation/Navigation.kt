@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
@@ -271,6 +273,28 @@ fun NavHost(
         }
 
         // Tools subscreens with slide animations
+        listOf(NetworkTestRoutes.Main, NetworkTestRoutes.LegacySpeed).forEach { route ->
+            composable(
+                route = route,
+                enterTransition = slideInFromRight,
+                exitTransition = slideOutToLeft,
+                popEnterTransition = slideInFromLeft,
+                popExitTransition = slideOutToRight,
+            ) {
+                val dashboard = dashboardViewModel ?: viewModel<DashboardViewModel>()
+                val dashboardState by dashboard.uiState.collectAsState()
+                io.nekohasekai.sfa.compose.screen.tools.NetworkTestScreen(
+                    navController = navController,
+                    serviceStatus = serviceStatus,
+                    selections = dashboardState.udpSelections,
+                    currentMode = dashboardState.selectedClashMode,
+                    commandConnected = dashboardState.isStatusVisible,
+                    selectedProfileId = dashboardState.selectedProfileId,
+                )
+            }
+        }
+
+        // Device management: one page; its engines open in place under the orbit.
         composable(
             route = "tools/diagnose",
             enterTransition = slideInFromRight,
@@ -282,13 +306,32 @@ fun NavHost(
         }
 
         composable(
-            route = "tools/network_quality",
-            enterTransition = slideInFromRight,
-            exitTransition = slideOutToLeft,
-            popEnterTransition = slideInFromLeft,
-            popExitTransition = slideOutToRight,
+            route = DeviceRoutes.Main,
+            enterTransition = slideInFromRight, exitTransition = slideOutToLeft,
+            popEnterTransition = slideInFromLeft, popExitTransition = slideOutToRight,
         ) {
-            io.nekohasekai.sfa.compose.screen.tools.SpeedTestScreen(navController = navController, serviceStatus = serviceStatus)
+            io.nekohasekai.sfa.compose.screen.devices.DeviceManagementScreen(navController = navController, viewModel = viewModel())
+        }
+
+        composable(
+            route = NetworkTestRoutes.LegacyUdp,
+            arguments = listOf(navArgument("profileId") { type = NavType.LongType }),
+            enterTransition = slideInFromRight, exitTransition = slideOutToLeft,
+            popEnterTransition = slideInFromLeft, popExitTransition = slideOutToRight,
+        ) { entry ->
+            val targetProfile = entry.arguments?.getLong("profileId") ?: -1L
+            val dashboard = dashboardViewModel ?: androidx.lifecycle.viewmodel.compose.viewModel<io.nekohasekai.sfa.compose.screen.dashboard.DashboardViewModel>()
+            val dashboardState by dashboard.uiState.collectAsState()
+            io.nekohasekai.sfa.compose.screen.tools.NetworkTestScreen(
+                navController = navController,
+                serviceStatus = serviceStatus,
+                selections = dashboardState.udpSelections,
+                currentMode = dashboardState.selectedClashMode,
+                commandConnected = dashboardState.isStatusVisible,
+                selectedProfileId = dashboardState.selectedProfileId,
+                initialTab = io.nekohasekai.sfa.compose.screen.tools.NetworkTestTab.Udp,
+                requestedUdpProfileId = targetProfile,
+            )
         }
 
         composable(
@@ -298,7 +341,7 @@ fun NavHost(
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
         ) {
-            STUNTestScreen(navController = navController, serviceStatus = serviceStatus)
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -481,7 +524,7 @@ fun NavHost(
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
         ) {
-            CrashReportListScreen(navController = navController)
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -491,9 +534,8 @@ fun NavHost(
             exitTransition = slideOutToLeft,
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            CrashReportDetailScreen(navController = navController, reportId = reportId)
+        ) {
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -503,9 +545,8 @@ fun NavHost(
             exitTransition = slideOutToLeft,
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            CrashReportMetadataScreen(navController = navController, reportId = reportId)
+        ) {
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -518,10 +559,8 @@ fun NavHost(
             exitTransition = slideOutToLeft,
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            val fileKind = backStackEntry.arguments?.getString("fileKind") ?: return@composable
-            CrashReportFileContentScreen(navController = navController, reportId = reportId, fileKind = fileKind)
+        ) {
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -531,7 +570,7 @@ fun NavHost(
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
         ) {
-            OOMReportListScreen(navController = navController, serviceStatus = serviceStatus)
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -541,9 +580,8 @@ fun NavHost(
             exitTransition = slideOutToLeft,
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            OOMReportDetailScreen(navController = navController, reportId = reportId)
+        ) {
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -553,9 +591,8 @@ fun NavHost(
             exitTransition = slideOutToLeft,
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            OOMReportMetadataScreen(navController = navController, reportId = reportId)
+        ) {
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -568,10 +605,8 @@ fun NavHost(
             exitTransition = slideOutToLeft,
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            val fileKind = backStackEntry.arguments?.getString("fileKind") ?: return@composable
-            OOMReportFileContentScreen(navController = navController, reportId = reportId, fileKind = fileKind)
+        ) {
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -581,7 +616,7 @@ fun NavHost(
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
         ) {
-            PowerReportListScreen(navController = navController, serviceStatus = serviceStatus)
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -591,9 +626,8 @@ fun NavHost(
             exitTransition = slideOutToLeft,
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            PowerReportDetailScreen(navController = navController, reportId = reportId)
+        ) {
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -603,9 +637,8 @@ fun NavHost(
             exitTransition = slideOutToLeft,
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            PowerReportMetadataScreen(navController = navController, reportId = reportId)
+        ) {
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(
@@ -618,14 +651,16 @@ fun NavHost(
             exitTransition = slideOutToLeft,
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
-        ) { backStackEntry ->
-            val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
-            val fileKind = backStackEntry.arguments?.getString("fileKind") ?: return@composable
-            PowerReportFileContentScreen(navController = navController, reportId = reportId, fileKind = fileKind)
+        ) {
+            ReturnToPublicScreen(navController, Screen.Tools.route)
         }
 
         composable(Screen.Settings.route) {
             SettingsScreen(navController = navController)
+        }
+
+        composable("settings/feedback") {
+            io.nekohasekai.sfa.compose.screen.feedback.FeedbackScreen(navController)
         }
 
         // Settings subscreens with slide animations
@@ -812,7 +847,17 @@ fun NavHost(
             popEnterTransition = slideInFromLeft,
             popExitTransition = slideOutToRight,
         ) {
-            HookLogScreen(onBack = { navController.navigateUp() })
+            ReturnToPublicScreen(navController, "settings/privilege")
+        }
+    }
+}
+
+/** Older saved navigation entries must not reopen diagnostic files or exported configuration. */
+@Composable
+private fun ReturnToPublicScreen(navController: androidx.navigation.NavHostController, route: String) {
+    androidx.compose.runtime.LaunchedEffect(route) {
+        if (!navController.popBackStack(route, inclusive = false)) {
+            navController.navigate(route) { launchSingleTop = true }
         }
     }
 }
