@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -140,7 +141,7 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                     Choice("Straight out", state.unmatchedDirect) { actions.onUnmatched(true) }
                 }
             }
-            Line("Block ads") { Switch(state.blockAds) { actions.onBlockAds(!state.blockAds) } }
+            Line("Block ads") { Switch(state.blockAds, "Block ads") { actions.onBlockAds(!state.blockAds) } }
             Line("Direct apps") {
                 Chips(state.bypass, { actions.onBypass(it, false) }) {
                     Box(Modifier.height(30.dp).press(bleed = 8.dp, onClick = actions.onAddProgram), contentAlignment = Alignment.Center) {
@@ -242,9 +243,9 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                             }
                             // Fixed width, so every row's controls stand in line.
                             Row(Modifier.width(110.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                                Small("↑", enabled = index > 0) { actions.onMoveRule(index, true) }
-                                Small("↓", enabled = index < state.rules.lastIndex) { actions.onMoveRule(index, false) }
-                                Small("×") { actions.onRemoveRule(index) }
+                                Small("↑", "Move up", enabled = index > 0) { actions.onMoveRule(index, true) }
+                                Small("↓", "Move down", enabled = index < state.rules.lastIndex) { actions.onMoveRule(index, false) }
+                                Small("×", "Remove rule") { actions.onRemoveRule(index) }
                             }
                         }
                         if (changing == index) WayPicker(rule.action, state.countries) { way -> changing = null; if (way != rule.action) actions.onSetAction(index, way) }
@@ -370,7 +371,7 @@ private fun WayPicker(action: String, countries: List<String>, onPick: (String) 
 private fun Pill(title: String, flag: String?, on: Boolean, onClick: () -> Unit) {
     val ink = LocalInk.current
     Row(
-        Modifier.height(28.dp).clip(RoundedCornerShape(14.dp)).background(if (on) ink.ink else ink.press).press(onClick = onClick).padding(horizontal = 11.dp),
+        Modifier.height(28.dp).clip(RoundedCornerShape(14.dp)).background(if (on) ink.ink else ink.press).press(role = Role.Tab, selected = on, onClick = onClick).padding(horizontal = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
@@ -428,9 +429,9 @@ private fun Catalog(picked: String, onPick: (String) -> Unit) {
 
 
 @Composable
-private fun Small(text: String, enabled: Boolean = true, onClick: () -> Unit) {
+private fun Small(text: String, label: String, enabled: Boolean = true, onClick: () -> Unit) {
     val ink = LocalInk.current
-    Box(Modifier.height(28.dp).width(28.dp).press(enabled = enabled, bleed = 2.dp) { if (enabled) onClick() }, contentAlignment = Alignment.Center) {
+    Box(Modifier.height(28.dp).width(28.dp).press(enabled = enabled, bleed = 2.dp, label = label) { if (enabled) onClick() }, contentAlignment = Alignment.Center) {
         Label(text, 14.sp, if (enabled) ink.soft else ink.hair)
     }
 }
@@ -447,7 +448,7 @@ private fun Chips(names: List<String>, onRemove: (String) -> Unit, add: @Composa
     ) {
         names.forEach { name ->
             Row(
-                Modifier.height(30.dp).clip(RoundedCornerShape(15.dp)).background(ink.press).press { onRemove(name) }.padding(horizontal = 12.dp),
+                Modifier.height(30.dp).clip(RoundedCornerShape(15.dp)).background(ink.press).press(label = "Remove $name") { onRemove(name) }.padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -515,7 +516,7 @@ private fun Line(title: String, content: @Composable RowScope.() -> Unit) {
 private fun Choice(name: String, on: Boolean, onClick: () -> Unit) {
     val ink = LocalInk.current
     Box(
-        Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClick)
+        Modifier.height(34.dp).press(bleed = 8.dp, role = Role.Tab, selected = on, onClick = onClick)
             .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,

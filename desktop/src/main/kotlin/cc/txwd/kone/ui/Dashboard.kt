@@ -28,6 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -147,7 +150,7 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions, movi
             state.categories.forEach { tab ->
                 val on = tab == state.tab
                 Box(
-                    Modifier.height(34.dp).press(bleed = 8.dp) { actions.onTab(tab) }
+                    Modifier.height(34.dp).press(bleed = 8.dp, role = Role.Tab, selected = on) { actions.onTab(tab) }
                         .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
                         .padding(horizontal = 2.dp),
                     contentAlignment = Alignment.Center,
@@ -161,7 +164,7 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions, movi
                 val on = node.id == state.selected
                 val color = if (on) ink.ink else ink.soft
                 Row(
-                    Modifier.height(44.dp).press(bleed = 8.dp) { actions.onNode(node.id) },
+                    Modifier.height(44.dp).press(bleed = 8.dp, role = Role.RadioButton, selected = on) { actions.onNode(node.id) },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
                 ) {
@@ -171,7 +174,7 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions, movi
                     Label(delayText(node.delay), 14.sp, color, tabular = true)
                     if (on) Glyph(Glyphs.check, color, 18.dp, strokeWidth = 2.2f)
                     if (on && node.imported) {
-                        Box(Modifier.height(32.dp).press(bleed = 4.dp) { actions.onRemove(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.height(32.dp).press(bleed = 4.dp, label = "Remove ${node.name}") { actions.onRemove(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                             Label("×", 16.sp, ink.soft)
                         }
                     }
@@ -234,7 +237,9 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -
             }
         }
         Row(
-            Modifier.height(52.dp).press(bleed = 6.dp, onClick = onPower).padding(start = 2.dp, end = 6.dp),
+            Modifier.height(52.dp).press(bleed = 6.dp, onClick = onPower)
+                .semantics { stateDescription = when (state.connection) { Connection.Online -> "Connected"; Connection.Connecting -> "Connecting"; Connection.Idle -> "Disconnected" } }
+                .padding(start = 2.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -323,7 +328,7 @@ private fun BoxScope.More(open: Boolean, onOpen: (Boolean) -> Unit, onPick: (Men
     ) {
         Box(
             Modifier.size(44.dp).clip(CircleShape).then(if (backed) Modifier.background(ink.paper.copy(alpha = 0.72f)) else Modifier)
-                .press { if (open || System.currentTimeMillis() - closed[0] > 300) onOpen(!open) },
+                .press(label = "Import nodes") { if (open || System.currentTimeMillis() - closed[0] > 300) onOpen(!open) },
             contentAlignment = Alignment.Center,
         ) {
             MoreDots(ink.ink)

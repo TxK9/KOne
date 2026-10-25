@@ -29,6 +29,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusProperties
@@ -103,9 +106,9 @@ fun TitleBar(
                 }
             }
         }
-        Cap(Glyphs.minimize, onMinimize)
-        Cap(Glyphs.maximize, onMaximize)
-        Cap(Glyphs.close, onClose, closes = true)
+        Cap(Glyphs.minimize, "Minimize", onMinimize)
+        Cap(Glyphs.maximize, "Maximize", onMaximize)
+        Cap(Glyphs.close, "Close", onClose, closes = true)
     }
 }
 
@@ -114,7 +117,7 @@ fun TitleBar(
  * cross. Out of the Tab order, as Windows' own are; Alt+F4 and Win+Down still reach the window.
  */
 @Composable
-private fun Cap(glyph: List<String>, onClick: () -> Unit, closes: Boolean = false) {
+private fun Cap(glyph: List<String>, name: String, onClick: () -> Unit, closes: Boolean = false) {
     val ink = LocalInk.current
     val source = remember { MutableInteractionSource() }
     val hovered by source.collectIsHoveredAsState()
@@ -128,7 +131,7 @@ private fun Cap(glyph: List<String>, onClick: () -> Unit, closes: Boolean = fals
     }
     Box(
         Modifier.size(46.dp, 36.dp).background(fill).focusProperties { canFocus = false }
-            .clickable(interactionSource = source, indication = null, onClick = onClick),
+            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick).semantics { contentDescription = name },
         contentAlignment = Alignment.Center,
     ) {
         Glyph(glyph, if (closes && (hovered || pressed)) Color.White else ink.ink, 12.dp, strokeWidth = 1f, box = 12f)
@@ -172,7 +175,7 @@ fun Rail(current: Page, onPick: (Page) -> Unit, pages: List<Page> = Page.entries
             val on = page == current
             val color by animateColorAsState(if (on) ink.ink else ink.soft, Motion.spec(still, Motion.STANDARD), label = "rail-ink")
             Column(
-                Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(10.dp)).press(corner = 10.dp) { onPick(page) },
+                Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(10.dp)).press(corner = 10.dp, role = Role.Tab, selected = on) { onPick(page) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
