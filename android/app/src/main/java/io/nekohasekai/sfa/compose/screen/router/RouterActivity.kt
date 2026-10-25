@@ -124,13 +124,15 @@ class RouterActivity : AppCompatActivity() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                 if (RouterAddress.sameOrigin(request.url.toString(), home)) null
                 else WebResourceResponse("text/plain", "UTF-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(byteArrayOf()))
-            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) { loading = true }
+            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) { loading = true; problem = null }
             override fun onPageFinished(view: WebView, url: String?) { loading = false }
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (request.isForMainFrame) { loading = false; problem = R.string.kone_router_unreachable }
             }
             override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
-                if (request.isForMainFrame && errorResponse.statusCode >= 400) { loading = false; problem = R.string.kone_router_unreachable }
+                if (request.isForMainFrame && errorResponse.statusCode >= 400 && errorResponse.statusCode !in setOf(401, 403)) {
+                    loading = false; problem = R.string.kone_router_unreachable
+                }
             }
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                 // A self-signed device may be trusted only by an explicitly entered, host-bound fingerprint.
