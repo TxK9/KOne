@@ -1245,12 +1245,9 @@ class MainActivity :
             }
         }
 
-        val crashReportUnreadCount by CrashReportManager.unreadCount.collectAsState()
-        val oomReportUnreadCount by OOMReportManager.unreadCount.collectAsState()
-        val powerReportUnreadCount by PowerReportManager.unreadCount.collectAsState()
-        // The crash/OOM report entries are hidden in remote control mode.
-        val toolsUnreadCount =
-            (if (isRemote) 0 else crashReportUnreadCount + oomReportUnreadCount + powerReportUnreadCount) + taildropUnreadCount
+        // Only what Tools can open counts: received Taildrop files. Crash, OOM and power reports
+        // have no page in this App (their routes return to Tools), so a count of them could never clear.
+        val toolsUnreadCount = taildropUnreadCount
 
         LaunchedEffect(Unit) {
             withContext(Dispatchers.IO) {
@@ -1267,7 +1264,9 @@ class MainActivity :
                         NavigationRail(
                             modifier = Modifier.fillMaxHeight(),
                         ) {
-                            val hasUpdate by UpdateState.hasUpdate
+                            // KOne's own feed raises the dot as well as the upstream checker.
+                            val koneUpdate by io.nekohasekai.sfa.update.KoneUpdates.state.collectAsState()
+                            val hasUpdate = UpdateState.hasUpdate.value || koneUpdate.release != null
                             railScreens.forEach { screen ->
                                 val selected = currentRootRoute == screen.route
 
@@ -1327,7 +1326,9 @@ class MainActivity :
                     topBar = topBarContent,
                     bottomBar = {
                         if (!isSubScreen) {
-                            val hasUpdate by UpdateState.hasUpdate
+                            // KOne's own feed raises the dot as well as the upstream checker.
+                            val koneUpdate by io.nekohasekai.sfa.update.KoneUpdates.state.collectAsState()
+                            val hasUpdate = UpdateState.hasUpdate.value || koneUpdate.release != null
                             BackdropContrastScope {
                             NavigationBar(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,

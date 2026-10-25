@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.console
 
+import io.nekohasekai.sfa.R
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -55,6 +56,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontFamily
@@ -124,10 +126,10 @@ class ConsoleActivity : AppCompatActivity() {
                             IconButton(onClick = {
                                 val view = web
                                 if (!unreachable && view != null && view.canGoBack()) view.goBack() else finish()
-                            }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = ink) }
-                            Text("Management console", modifier = Modifier.weight(1f), fontFamily = FontFamily.Serif, fontSize = 22.sp, color = ink)
+                            }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.content_description_back), tint = ink) }
+                            Text(stringResource(R.string.kone_tools_console), modifier = Modifier.weight(1f), fontFamily = FontFamily.Serif, fontSize = 22.sp, color = ink)
                             IconButton(onClick = { retry(home) }, enabled = !loading) {
-                                Icon(Icons.Outlined.Refresh, contentDescription = "Refresh", tint = ink)
+                                Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.kone_console_refresh), tint = ink)
                             }
                         }
                         HorizontalDivider(color = ink.copy(alpha = .10f))
@@ -195,7 +197,7 @@ class ConsoleActivity : AppCompatActivity() {
                         if (payload.length > 2048) return@runCatching
                         if (JSONObject(payload).optString("action") == "check") {
                             KoneUpdates.start(this)
-                            Toast.makeText(this, "Check App version for updates.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, getString(R.string.kone_console_check_updates), Toast.LENGTH_SHORT).show()
                         } else {
                             OwnerUpdateAccess.accept(this, payload)
                             KoneUpdates.start(this)
@@ -298,7 +300,7 @@ class ConsoleActivity : AppCompatActivity() {
         }
         // The console saves files from inside the page, which a WebView cannot hand on.
         view.setDownloadListener { _, _, _, _, _ ->
-            Toast.makeText(this, "Download files on a computer.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.kone_console_no_downloads), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -340,9 +342,9 @@ private fun Unreachable(onRetry: () -> Unit) {
     ) {
         WeatherSeal(NodeWeather.Cut, size = 48.dp)
         Spacer(Modifier.height(24.dp))
-        Text("Cannot connect right now", fontFamily = FontFamily.Serif, fontSize = 26.sp, color = MaterialTheme.colorScheme.onSurface)
+        Text(stringResource(R.string.kone_console_unreachable), fontFamily = FontFamily.Serif, fontSize = 26.sp, color = MaterialTheme.colorScheme.onSurface)
         Text(
-            "Enable the connection and Home, then try again.",
+            stringResource(R.string.kone_console_unreachable_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
@@ -350,7 +352,7 @@ private fun Unreachable(onRetry: () -> Unit) {
         Button(onClick = onRetry, shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
             Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(17.dp))
-            Text("Retry", Modifier.padding(start = 8.dp))
+            Text(stringResource(R.string.kone_console_retry), Modifier.padding(start = 8.dp))
         }
     }
 }

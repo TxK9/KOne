@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The customer edition's account page: the binding to the service that issued the access key. -->
+    <string name="kone_account">Account</string>
+    <string name="kone_account_synced_ago">Synced %1$s</string>
+    <string name="kone_account_never_synced">Not synced yet</string>
+    <string name="kone_account_offline_hint">KOne keeps using the last configuration it received.</string>
+    <string name="kone_account_waiting_hint">The connection starts once the service assigns a route.</string>
+    <string name="kone_account_plan">Plan</string>
+    <string name="kone_account_route">Route</string>
+    <string name="kone_account_data">Data allowance</string>
+    <string name="kone_account_data_period">%1$s · %2$s</string>
+    <string name="kone_account_devices">Devices</string>
+    <string name="kone_account_expires">Expires</string>
+    <string name="kone_account_ended">Ended</string>
+    <string name="kone_account_ending_hint">Renew with the provider of your access key to keep connecting.</string>
+    <string name="kone_account_device">This device</string>
+    <string name="kone_account_sync_now">Sync now</string>
+    <string name="kone_account_syncing">Syncing</string>
+    <string name="kone_account_unlink">Unlink this device</string>
+    <string name="kone_account_unlink_title">Unlink this device?</string>
+    <string name="kone_account_unlink_message">The managed node is removed from this phone and the connection stops if it is using it. You will need a new access key to link again. Your own nodes and settings stay.</string>
+    <string name="kone_account_unlink_confirm">Unlink</string>
+    <string name="kone_account_unlinking">Unlinking</string>
+    <string name="kone_account_unlink_failed">Could not unlink. Try again.</string>
+</resources>

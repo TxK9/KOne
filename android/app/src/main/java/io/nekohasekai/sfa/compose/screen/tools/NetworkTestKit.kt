@@ -46,11 +46,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
 import io.nekohasekai.sfa.compose.screen.dashboard.weatherInk
@@ -211,14 +216,26 @@ internal fun TestRow(
         Row(
             Modifier
                 .fillMaxWidth()
-                .clickable(enabled = detail != null, onClick = onToggle)
+                .clickable(
+                    enabled = detail != null,
+                    onClickLabel = if (detail == null) null else stringResource(if (open) R.string.kone_row_hide_details else R.string.kone_row_show_details),
+                    onClick = onToggle,
+                )
                 .padding(horizontal = TestGutter, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, modifier = Modifier.weight(1f))
-            if (value != null) {
-                Text(value, style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.padding(start = 12.dp).graphicsLayer { alpha = 0.75f })
-            }
+            TitleAndValue(
+                title = { Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                value = value?.let {
+                    {
+                        Text(
+                            it, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.End, modifier = Modifier.graphicsLayer { alpha = 0.75f },
+                        )
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            )
             Box(Modifier.padding(start = 12.dp).size(20.dp), contentAlignment = Alignment.Center) {
                 if (weather != null) WeatherGlyph(weather, size = 20.dp, ink = ink)
             }
@@ -228,6 +245,31 @@ internal fun TestRow(
         }
     }
 }
+
+/**
+ * A row's title on the start and its value on the end, each on one line while both fit. When they
+ * do not (a long value, or large text), the title keeps up to [TitleShare] of the width and the
+ * value wraps under itself, instead of squeezing the title to a letter as a plain row would.
+ */
+@Composable
+private fun TitleAndValue(title: @Composable () -> Unit, value: (@Composable () -> Unit)?, modifier: Modifier = Modifier) {
+    Layout(contents = listOf<@Composable () -> Unit>(title, value ?: {}), modifier = modifier) { (titles, values), constraints ->
+        val width = constraints.maxWidth
+        val gap = 12.dp.roundToPx()
+        val titleNeed = titles.first().maxIntrinsicWidth(Constraints.Infinity)
+        val valueNeed = values.firstOrNull()?.maxIntrinsicWidth(Constraints.Infinity) ?: 0
+        val titleMax = if (values.isEmpty()) width else minOf(titleNeed, maxOf((width * TitleShare).toInt(), width - gap - valueNeed)).coerceIn(0, width)
+        val titlePlaced = titles.first().measure(Constraints(maxWidth = titleMax))
+        val valuePlaced = values.firstOrNull()?.measure(Constraints(maxWidth = (width - titlePlaced.width - gap).coerceAtLeast(0)))
+        val height = maxOf(titlePlaced.height, valuePlaced?.height ?: 0)
+        layout(width, height) {
+            titlePlaced.placeRelative(0, (height - titlePlaced.height) / 2)
+            valuePlaced?.placeRelative(width - valuePlaced.width, (height - valuePlaced.height) / 2)
+        }
+    }
+}
+
+private const val TitleShare = 0.6f
 
 /** A heading that opens what belongs under it, such as Wi-Fi Calling or the test's scope. */
 @Composable

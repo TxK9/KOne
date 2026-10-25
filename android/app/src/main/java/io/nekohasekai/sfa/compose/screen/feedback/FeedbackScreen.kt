@@ -35,10 +35,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.nekohasekai.sfa.BuildConfig
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.bg.DefaultNetworkMonitor
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.compose.screen.tools.TestGutter
@@ -98,7 +101,7 @@ fun FeedbackScreen(navController: NavController) {
                 2 -> pickTwo.launch(request)
                 else -> pickThree.launch(request)
             }
-        }.onFailure { problem = FeedbackProblem("Image not added", "No picture picker is available on this phone.") }
+        }.onFailure { problem = FeedbackProblem(context.getString(R.string.kone_feedback_image_not_added), context.getString(R.string.kone_feedback_no_picker)) }
     }
     LaunchedEffect(draft, pendingImages) {
         val saved = draft
@@ -124,12 +127,12 @@ fun FeedbackScreen(navController: NavController) {
                     }
                     problem = when (failed) {
                         0 -> null
-                        1 -> FeedbackProblem("Image not added", "The picture could not be read. Try again, or choose another one.")
-                        else -> FeedbackProblem("$failed images not added", "The pictures could not be read. Try again, or choose others.")
+                        1 -> FeedbackProblem(context.getString(R.string.kone_feedback_image_not_added), context.getString(R.string.kone_feedback_image_unreadable))
+                        else -> FeedbackProblem(context.getString(R.string.kone_feedback_images_not_added, failed), context.getString(R.string.kone_feedback_images_unreadable))
                     }
                 }
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { if (draft === saved) problem = FeedbackProblem("Image not added", "Could not add the image. Try again, or choose another one.") }
+            catch (e: Exception) { if (draft === saved) problem = FeedbackProblem(context.getString(R.string.kone_feedback_image_not_added), context.getString(R.string.kone_feedback_image_failed)) }
             finally { if (draft === saved) { pendingImages = emptyList(); busy = false } }
         }
     }
@@ -183,15 +186,15 @@ fun FeedbackScreen(navController: NavController) {
                     if (api === client) { receipt = result; description = ""; images = emptyList() }
                 } catch (e: CancellationException) { throw e }
                 catch (e: Exception) {
-                    if (api === client) problem = FeedbackProblem("Not sent",
-                        (e as? FeedbackFailure)?.message?.takeIf { it.isNotBlank() } ?: "Submission did not complete. Try again later.")
+                    if (api === client) problem = FeedbackProblem(context.getString(R.string.kone_feedback_not_sent),
+                        (e as? FeedbackFailure)?.message?.takeIf { it.isNotBlank() } ?: context.getString(R.string.kone_feedback_not_sent_reason))
                 }
                 finally { if (api === client) busy = false }
             }
     }
     OverrideTopBar {
-        TopAppBar(title = { Text("Feedback") }, navigationIcon = {
-            IconButton(onClick = { navController.navigateUp() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+        TopAppBar(title = { Text(stringResource(R.string.kone_feedback)) }, navigationIcon = {
+            IconButton(onClick = { navController.navigateUp() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_description_back)) }
         })
     }
     // The network tests' face: rows on the 24 dp gutter, a weather where something is wrong,
@@ -201,7 +204,10 @@ fun FeedbackScreen(navController: NavController) {
             // Reading the binding takes a moment; an empty page reads better than a flash of "Loading".
             if (!initialized) return@Column
             if (draft == null) {
-                TestRow("Needs an access key", NodeWeather.Rest, open = false, onToggle = {})
+                // Settings offers Feedback only to a linked copy; an older saved page can still land here.
+                var open by remember { mutableStateOf(false) }
+                TestRow(stringResource(R.string.kone_feedback_unlinked), NodeWeather.Rest,
+                    detail = stringResource(R.string.kone_feedback_unlinked_reason), open = open, onToggle = { open = !open })
                 return@Column
             }
             val submitted = receipt
@@ -222,6 +228,8 @@ fun FeedbackScreen(navController: NavController) {
 }
 
 private val TileSize = 72.dp
+/** The longest description the console takes. */
+private const val FeedbackLimit = 4000
 private val TileShape = RoundedCornerShape(12.dp)
 
 /**
@@ -235,9 +243,14 @@ internal fun FeedbackForm(
     adding: Boolean = false,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        OutlinedTextField(value = description, onValueChange = { if (!busy && it.length <= 4000) onDescription(it) },
+        OutlinedTextField(value = description, onValueChange = { if (!busy && it.length <= FeedbackLimit) onDescription(it) },
             modifier = Modifier.fillMaxWidth().padding(horizontal = TestGutter), enabled = true, readOnly = busy, minLines = 5,
-            label = { androidx.compose.material3.Text("Description", color = LocalContentColor.current) })
+            label = { androidx.compose.material3.Text(stringResource(R.string.kone_feedback_description), color = LocalContentColor.current) })
+        // The limit stays out of sight until it is near, then says why typing stops.
+        if (description.length >= FeedbackLimit * 9 / 10) {
+            Text(stringResource(R.string.kone_feedback_length, description.length, FeedbackLimit), style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth().padding(horizontal = TestGutter + 4.dp, vertical = 4.dp).graphicsLayer { alpha = 0.7f })
+        }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.padding(horizontal = TestGutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             images.forEachIndexed { index, picture -> FeedbackTile(picture, index, enabled = !busy, onRemove = { onRemoveImage(index) }) }
@@ -259,8 +272,8 @@ internal fun FeedbackReceipt(number: String, metadata: JSONObject, onMore: () ->
     val sentWith = "KOne ${metadata.optString("appVersion")} · ${metadata.optInt("versionCode")}\n" +
         "${metadata.optString("manufacturer")} ${metadata.optString("model")} · Android ${metadata.optString("androidVersion")}"
     Column(Modifier.fillMaxWidth()) {
-        TestRow("Sent", NodeWeather.Clear, value = number, detail = sentWith, open = open, onToggle = { open = !open })
-        TestLink("New feedback", onMore)
+        TestRow(stringResource(R.string.kone_feedback_sent), NodeWeather.Clear, value = number, detail = sentWith, open = open, onToggle = { open = !open })
+        TestLink(stringResource(R.string.kone_feedback_new), onMore)
     }
 }
 
@@ -274,12 +287,12 @@ private fun FeedbackTile(picture: JSONObject, index: Int, enabled: Boolean, onRe
     val ink = LocalContentColor.current
     Box(Modifier.size(TileSize)) {
         Box(Modifier.matchParentSize().clip(TileShape).background(ink.copy(alpha = 0.07f))) {
-            if (bitmap != null) Image(bitmap.asImageBitmap(), "Feedback image ${index + 1}", Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            if (bitmap != null) Image(bitmap.asImageBitmap(), stringResource(R.string.kone_feedback_image, index + 1), Modifier.matchParentSize(), contentScale = ContentScale.Crop)
         }
         // The cross sits on a disc of the page's paper over the tile's corner, so it reads on any picture.
         IconButton(enabled = enabled, onClick = onRemove, modifier = Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-8).dp).size(32.dp)) {
             Box(Modifier.size(22.dp).background(knineSurface().copy(alpha = 0.92f), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Close, "Remove image ${index + 1}", Modifier.size(14.dp))
+                Icon(Icons.Default.Close, stringResource(R.string.kone_feedback_remove_image, index + 1), Modifier.size(14.dp))
             }
         }
     }
@@ -289,13 +302,14 @@ private fun FeedbackTile(picture: JSONObject, index: Int, enabled: Boolean, onRe
 @Composable
 private fun AddImageTile(enabled: Boolean, adding: Boolean, onClick: () -> Unit) {
     val ink = LocalContentColor.current
+    val label = stringResource(R.string.kone_feedback_add_image)
     Box(
         Modifier
             .size(TileSize)
             .clip(TileShape)
             .border(1.dp, ink.copy(alpha = 0.28f), TileShape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = "Add image" }
+            .semantics { contentDescription = label }
             .graphicsLayer { alpha = if (enabled || adding) 1f else 0.45f },
         contentAlignment = Alignment.Center,
     ) {
@@ -315,7 +329,7 @@ private fun SendRow(enabled: Boolean, sending: Boolean, onClick: () -> Unit) {
             .graphicsLayer { alpha = if (enabled || sending) 1f else 0.45f },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(if (sending) "Sending" else "Send", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        Text(stringResource(if (sending) R.string.kone_feedback_sending else R.string.kone_feedback_send), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
         Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) {
             if (sending) CircularProgressIndicator(Modifier.size(16.dp), color = LocalContentColor.current, strokeWidth = 2.dp)
             else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(20.dp))
