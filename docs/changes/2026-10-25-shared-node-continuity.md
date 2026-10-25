@@ -34,17 +34,26 @@ tests. No platform UI, template or build configuration changed.
   credentials cannot be read from it. It is still for comparing, not publishing, because a
   guessed password could be checked against it.
 - `endpoint(outbound)`: the server and account, opaque in the same way, and public now. It is
-  the SHA-256 of `kone.node.endpoint.v1`, a NUL, and these fields joined by NUL:
+  the SHA-256 of `kone.node.endpoint.v1`, a NUL, and one compact JSON array holding, in order:
   - the protocol, in lowercase;
   - the address, trimmed, in lowercase and without IPv6 brackets;
-  - the port, or the port ranges in sorted order;
-  - `uuid`, `username`, `user`, `password`, `auth_str` and `auth`.
+  - the ports as an array: the one port, or the port ranges in sorted order;
+  - `uuid`, `username`, `user`, `password`, `auth_str` and `auth`, empty when absent.
+
+  For example: `["trojan","203.0.113.1",["443"],"","","","pw","",""]`. Every field is a JSON
+  string of its own, so no character in a field can stand for a boundary between fields.
+  Joining the fields with bare NULs, as an earlier revision of this branch did, let different
+  accounts share a form. For example, user `a` NUL with password `b`, and user `a` with
+  password NUL `b`, joined to the same bytes. A comma inside a port range could likewise pass
+  for two ranges.
 
   It returns null for an outbound without a server. TLS, transport and chain settings do not
   change it.
 - Both identifiers use only `MessageDigest` and a table of hex digits. Both exist on API 21, the
-  oldest Android KOne is built for, so neither relies on core-library desugaring. The labels
-  keep a key and an endpoint apart, and a changed canonical form would take a new label.
+  oldest Android KOne is built for, so neither relies on core-library desugaring.
+- A label holds no NUL, so the first NUL ends it. The labels keep a key and an endpoint apart.
+  The API is unreleased, so the endpoint form changed under its `v1` label; a form changed
+  after release takes a new label.
 - `distinct(nodes)`: keeps each tagged node once, the first occurrence. A chain through a dropped
   twin is redirected to the kept twin, and twins that only match once their chains are joined
   go too. `twins` maps each dropped tag to the kept one. Run it after `NodeFilter.apply`, so a
@@ -79,12 +88,16 @@ tests. No platform UI, template or build configuration changed.
 
 ## Evidence
 
-- `desktop/gradlew test --tests 'cc.txwd.kone.shared.*'` (Linux, JDK 21): 68 tests pass. That is
-  the 51 existing tests, 16 new `NodeIdentityTest` tests and 1 new Clash test.
+- `desktop/gradlew test --tests 'cc.txwd.kone.shared.*'` (Linux, JDK 21): 69 tests pass. That is
+  the 51 existing tests, 17 new `NodeIdentityTest` tests and 1 new Clash test.
+- With the previous NUL-joined endpoint form, the new boundary regression fails. Both accounts
+  get the same endpoint, `e2c14378…`, and `follow("Proxy A")` returns `Proxy B`, the other
+  account under another name. A temporary probe, not committed, showed the `follow` result.
 - With the new ambiguity check removed, the split regression test fails: `follow` picks
   `Osaka A`, the first of the two new nodes.
 - The expected `key` and `endpoint` values in the tests were computed separately with Python's
-  `hashlib` from the labelled canonical forms.
+  `hashlib` and `json` from the labelled canonical forms. That includes the two boundary
+  accounts, whose NULs JSON writes as `\u0000`.
 - Android API 21 signature check: animal-sniffer 1.24 with `android-api-level-21` 5.0.1_r2, run
   on the compiled `NodeIdentity` classes. It found no references outside API 21, with Kotlin's
   own libraries excluded. As a control, the same check flags `ShareLinks` for `java.util.Base64`
@@ -98,7 +111,7 @@ tests. No platform UI, template or build configuration changed.
     `decode public_key`, `invalid public_key` and `unknown uTLS fingerprint` (twice).
   - Every output of the new reader passes. The three proxies it refuses are counted with a
     reason in fixed words.
-- `desktop/gradlew test` (the full desktop JVM suite on Linux): 255 tests pass, 0 fail, and
+- `desktop/gradlew test` (the full desktop JVM suite on Linux): 256 tests pass, 0 fail, and
   14 are skipped. The skipped tests need Windows, the installed service, a real core or the
   network (for example `ServiceEndToEndTest` and `NetworkReachTest`).
 - Not run: the Android JVM tests, because this environment has no Android SDK. Android Clash

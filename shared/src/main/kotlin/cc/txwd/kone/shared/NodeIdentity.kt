@@ -24,16 +24,20 @@ object NodeIdentity {
     fun key(outbound: JsonObject): String = digest(KEY, sorted(JsonObject(outbound - "tag")).toString())
 
     /**
-     * The server and account [outbound] reaches, as opaque as its [key]: the SHA-256 of its
-     * protocol, address, port or port ranges, user and password, whatever its TLS, transport or
-     * chain. Null without a server.
+     * The server and account [outbound] reaches, as opaque as its [key], whatever its TLS,
+     * transport or chain: the SHA-256 of one JSON array holding, in order, its protocol, address,
+     * ports (an array of its one port, or of its port ranges sorted) and account fields. Each
+     * field is a JSON string of its own, so no two different accounts share a form, whatever
+     * characters they hold. Null without a server.
      */
     fun endpoint(outbound: JsonObject): String? {
         val server = outbound.text("server")?.trim()?.removeSurrounding("[", "]")?.lowercase()?.takeIf { it.isNotEmpty() } ?: return null
-        val port = (outbound["server_port"] as? JsonPrimitive)?.contentOrNull
-            ?: (outbound["server_ports"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.sorted()?.joinToString(",")
-        val account = CREDENTIALS.map { outbound.text(it).orEmpty() }
-        return digest(ENDPOINT, (listOf(outbound.text("type").orEmpty().lowercase(), server, port.orEmpty()) + account).joinToString("\u0000"))
+        val ports = (outbound["server_port"] as? JsonPrimitive)?.contentOrNull?.let(::listOf)
+            ?: (outbound["server_ports"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.sorted()
+            ?: emptyList()
+        val fields = listOf(JsonPrimitive(outbound.text("type").orEmpty().lowercase()), JsonPrimitive(server), JsonArray(ports.map(::JsonPrimitive))) +
+            CREDENTIALS.map { JsonPrimitive(outbound.text(it).orEmpty()) }
+        return digest(ENDPOINT, JsonArray(fields).toString())
     }
 
     /** The nodes kept, and for each tag left out, the tag of the twin kept in its place. */
@@ -155,10 +159,12 @@ object NodeIdentity {
     }
 
     /**
-     * The lowercase hex SHA-256 of [canonical] under [label], which names the form hashed and its
-     * version, so a key and an endpoint never coincide and a changed form takes a new label. Only
-     * MessageDigest and a table of digits: both are there on the oldest Android KOne is built for
-     * (API 21), where neither HexFormat nor Java 8's map calls can be counted on.
+     * The lowercase hex SHA-256 of [label], a NUL and [canonical]. The label names the form hashed
+     * and its version, so a key and an endpoint never coincide and a form changed after release
+     * takes a new label. It holds no NUL, so the first one ends it; the form after it is JSON,
+     * which writes every character of a field unambiguously. Only MessageDigest and a table of
+     * digits: both are there on the oldest Android KOne is built for (API 21), where neither
+     * HexFormat nor Java 8's map calls can be counted on.
      */
     private fun digest(label: String, canonical: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest("$label\u0000$canonical".toByteArray(Charsets.UTF_8))
