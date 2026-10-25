@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -266,7 +267,7 @@ private fun Header(section: NodeSection, open: Boolean, now: Long, onToggle: () 
         if (section.kind == SourceKind.Subscription) {
             Action("Update", enabled = !section.updating) { actions.onUpdate(section.id) }
             Action("Edit", onClick = onEdit)
-            Box(Modifier.height(32.dp).press(bleed = 6.dp) { actions.onRemoveSubscription(section.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.height(32.dp).press(bleed = 6.dp, label = "Remove subscription ${section.title}") { actions.onRemoveSubscription(section.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                 Label("×", 16.sp, ink.soft)
             }
         }
@@ -349,7 +350,7 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
         }
         Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
             if (removable) {
-                Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onRemoveNode(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.height(28.dp).press(bleed = 4.dp, label = "Remove ${node.name}") { actions.onRemoveNode(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                     Label("×", 15.sp, ink.soft)
                 }
             }
@@ -451,7 +452,7 @@ private fun Action(text: String, enabled: Boolean = true, soft: Boolean = false,
 private fun Choice(name: String, on: Boolean, onClick: () -> Unit) {
     val ink = LocalInk.current
     Box(
-        Modifier.height(32.dp).press(bleed = 6.dp, onClick = onClick)
+        Modifier.height(32.dp).press(bleed = 6.dp, role = Role.Tab, selected = on, onClick = onClick)
             .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,

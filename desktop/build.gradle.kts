@@ -66,6 +66,9 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
 
     testImplementation(kotlin("test"))
+    // Compose's own UI tests: what a screen reader is told (AccessibilityTest).
+    @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+    testImplementation(compose.uiTest)
 }
 
 tasks.test {

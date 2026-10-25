@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -143,16 +144,16 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
     Column(Modifier.verticalScroll(scroll).padding(horizontal = 40.dp, vertical = 26.dp).widthIn(max = 640.dp).fillMaxWidth()) {
         Line("Appearance") { Choices(Appearance.entries, state.appearance, Appearance::title, actions.onAppearance) }
         Line("Background") { Choices(Backdrop.entries, state.backdrop, Backdrop::title, actions.onBackdrop) }
-        if (state.backdrop == Backdrop.City) Line("Ambient sound") { Switch(state.sound) { actions.onSound(!state.sound) } }
+        if (state.backdrop == Backdrop.City) Line("Ambient sound") { Switch(state.sound, "Ambient sound") { actions.onSound(!state.sound) } }
         state.autostart?.let { on ->
-            Line("Start with Windows") { Switch(on) { actions.onAutostart(!on) } }
+            Line("Start with Windows") { Switch(on, "Start with Windows") { actions.onAutostart(!on) } }
         }
         state.hotkey?.let { on ->
             Line("Keyboard shortcut") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     if (state.hotkeyTaken) Label("${Hotkey.KEYS} is already in use", 14.sp, NodeWeather.Cut.ink(ink.dark))
                     else Label(Hotkey.KEYS, 14.sp, ink.soft)
-                    Switch(on) { actions.onHotkey(!on) }
+                    Switch(on, "Keyboard shortcut") { actions.onHotkey(!on) }
                 }
             }
         }
@@ -168,12 +169,12 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
         DnsLine("Direct DNS", directDns(network.region), network.directDns, "203.0.113.53", networkActions.onDirectDns)
         PairsLine("Hosts", network.hosts, { "${it.name}  ${it.address}" }, networkActions.onRemoveHost, networkActions.onAddHost, "nas.example.org 192.0.2.10")
         PairsLine("DNS for domains", network.nameServers, { "${it.domain}  ${it.server}" }, networkActions.onRemoveNameServer, networkActions.onAddNameServer, "corp.example.org 192.0.2.53")
-        Line("IPv6") { Switch(network.ipv6) { networkActions.onIpv6(!network.ipv6) } }
+        Line("IPv6") { Switch(network.ipv6, "IPv6") { networkActions.onIpv6(!network.ipv6) } }
         // Faster first connections and no lookups of proxied names on this network; a program that
         // keeps an address after KOne stops may need a moment to look it up again. Address-range
         // and country-address rules see names, not addresses, for the names it answers.
-        Line("Fake IP") { Switch(network.fakeIp) { networkActions.onFakeIp(!network.fakeIp) } }
-        Line("Fail over") { Switch(network.failover) { networkActions.onFailover(!network.failover) } }
+        Line("Fake IP") { Switch(network.fakeIp, "Fake IP") { networkActions.onFakeIp(!network.fakeIp) } }
+        Line("Fail over") { Switch(network.failover, "Fail over") { networkActions.onFailover(!network.failover) } }
         Line("Backup") {
             Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                 Action("Export", networkActions.onExport)
@@ -227,7 +228,7 @@ private fun <T> Choices(choices: List<T>, chosen: T, title: (T) -> String, onPic
         choices.forEach { choice ->
             val on = choice == chosen
             Box(
-                Modifier.height(34.dp).press(bleed = 8.dp) { onPick(choice) }
+                Modifier.height(34.dp).press(bleed = 8.dp, role = Role.Tab, selected = on) { onPick(choice) }
                     .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
                     .padding(horizontal = 2.dp),
                 contentAlignment = Alignment.Center,
@@ -311,7 +312,7 @@ private fun <T> PairsLine(title: String, items: List<T>, shown: (T) -> String, o
                 items.forEach { item ->
                     Row(
                         Modifier.height(30.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(15.dp)).background(ink.press)
-                            .press { onRemove(item) }.padding(horizontal = 12.dp),
+                            .press(label = "Remove ${shown(item)}") { onRemove(item) }.padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -350,7 +351,7 @@ private fun <T> PairsLine(title: String, items: List<T>, shown: (T) -> String, o
 private fun Choice(name: String, on: Boolean, onClick: () -> Unit) {
     val ink = LocalInk.current
     Box(
-        Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClick)
+        Modifier.height(34.dp).press(bleed = 8.dp, role = Role.Tab, selected = on, onClick = onClick)
             .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,
@@ -368,11 +369,11 @@ private fun Action(text: String, onClick: () -> Unit) {
 
 /** A switch drawn in ink: filled with the knob to the right when on, a hairline ring when off. */
 @Composable
-internal fun Switch(on: Boolean, onClick: () -> Unit) {
+internal fun Switch(on: Boolean, label: String? = null, onClick: () -> Unit) {
     val ink = LocalInk.current
     val track = RoundedCornerShape(11.dp)
     Box(
-        Modifier.size(40.dp, 22.dp).clip(track).press(onClick = onClick)
+        Modifier.size(40.dp, 22.dp).clip(track).press(role = Role.Switch, label = label, toggled = on, onClick = onClick)
             .then(if (on) Modifier.background(ink.ink, track) else Modifier.border(1.5.dp, ink.soft, track))
             .padding(horizontal = 4.dp),
         contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart,
