@@ -474,6 +474,17 @@ class ScreensTest {
         }
     }
 
+    /** Settings' third-party notices, opened below its last line: the overview, light and dark. */
+    @Test
+    fun notices() {
+        val state = SettingsState(Appearance.System, Backdrop.Ink, autostart = false, hotkey = true, version = "1.0.0", update = UpdateState.Latest)
+        for (dark in listOf(false, true)) {
+            shoot("settings-notices", dark) {
+                WithRail(Page.Settings, {}, marked = setOf(Page.Settings)) { SettingsView(state, SettingsActions(), noticesOpen = true) }
+            }
+        }
+    }
+
     /** The tray panel in each weather: S, M and ! while connected, Z when not. */
     @Test
     fun trayPanel() {
