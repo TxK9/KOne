@@ -1,7 +1,10 @@
 package cc.txwd.kone.app
 
+import com.sun.jna.Native
 import com.sun.jna.platform.win32.Advapi32Util
 import com.sun.jna.platform.win32.WinReg
+import com.sun.jna.ptr.IntByReference
+import com.sun.jna.win32.StdCallLibrary
 import java.io.File
 
 /**
@@ -18,6 +21,25 @@ object WindowsShell {
 
     /** Whether the taskbar is dark, which the tray icon is drawn for. */
     fun taskbarDark(): Boolean = personalize("SystemUsesLightTheme") != 1
+
+    /**
+     * Whether Windows shows animations (Settings → Accessibility → Visual effects → Animation
+     * effects): when someone turned them off, KOne keeps still too. True where it cannot tell.
+     */
+    fun animations(): Boolean = !Places.windows || runCatching {
+        val on = IntByReference(1)
+        !Spi.INSTANCE.SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, on, 0) || on.value != 0
+    }.getOrDefault(true)
+
+    private const val SPI_GETCLIENTAREAANIMATION = 0x1042
+
+    private interface Spi : StdCallLibrary {
+        fun SystemParametersInfoW(action: Int, param: Int, value: IntByReference, update: Int): Boolean
+
+        companion object {
+            val INSTANCE: Spi by lazy { Native.load("user32", Spi::class.java) }
+        }
+    }
 
     /**
      * Whether KOne starts, by the clock, when this person signs in: the Run entry of their own

@@ -1,5 +1,6 @@
 package cc.txwd.kone
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -64,6 +65,8 @@ import cc.txwd.kone.ui.KeyView
 import cc.txwd.kone.ui.KoneTheme
 import cc.txwd.kone.ui.LocalAmbient
 import cc.txwd.kone.ui.LocalSoftware
+import cc.txwd.kone.ui.LocalStill
+import cc.txwd.kone.ui.Motion
 import cc.txwd.kone.ui.LogView
 import cc.txwd.kone.ui.NodeWeather
 import cc.txwd.kone.ui.NetworkActions
@@ -202,6 +205,14 @@ fun main(args: Array<String>) {
             Appearance.Light -> false
             Appearance.Dark -> true
         }
+        // Windows' Animation effects, looked at again every few seconds as the theme is.
+        var still by remember { mutableStateOf(!WindowsShell.animations()) }
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(5000)
+                still = !WindowsShell.animations()
+            }
+        }
 
         LaunchedEffect(Unit) {
             for (message in inbox) {
@@ -279,10 +290,10 @@ fun main(args: Array<String>) {
                     onDispose {}
                 }
                 LaunchedEffect(Unit) { this@Window.window.minimumSize = java.awt.Dimension(MINIMUM.width.value.toInt(), MINIMUM.height.value.toInt()) }
-                KoneTheme(dark) {
+                KoneTheme(dark, still) {
                   // The cities are heard only when the person asked, on Dashboard, with the window in sight.
                   val heard = settings.state.sound && settings.state.backdrop == Backdrop.City && page == Page.Dashboard && inSight
-                  CompositionLocalProvider(LocalSoftware provides software, LocalAmbient provides ambient.takeIf { heard }) {
+                  CompositionLocalProvider(LocalSoftware provides software, LocalStill provides still, LocalAmbient provides ambient.takeIf { heard }) {
                     Box {
                       Frame({
                           TitleBar(
@@ -300,12 +311,14 @@ fun main(args: Array<String>) {
                                   onKey = model::typeKey,
                                   onPaste = { clipboardText()?.let(model::typeKey) },
                                   onStart = model::claim,
-                                  moving = inSight,
+                                  moving = inSight && !still,
                               )
                               Screen.Dashboard -> WithRail(
                                   page, { page = it }, RAIL,
                                   marked = if (settings.state.update is UpdateState.Available) setOf(Page.Settings) else emptySet(),
                               ) {
+                                  // Each page arrives as the last gives way (Motion.page); at once when Windows keeps still.
+                                  AnimatedContent(page, transitionSpec = { Motion.page(still) }, label = "page") { page ->
                                   when (page) {
                                       Page.Nodes -> NodesView(
                                           nodesPage,
@@ -412,9 +425,10 @@ fun main(args: Array<String>) {
                                               },
                                           ),
                                           menu, { menu = it },
-                                          moving = inSight,
+                                          moving = inSight && !still,
                                           cities = settings.state.backdrop == Backdrop.City,
                                       )
+                                  }
                                   }
                               }
                           }
@@ -446,7 +460,7 @@ fun main(args: Array<String>) {
                     this@Window.window.addWindowListener(listener)
                     onDispose { this@Window.window.removeWindowListener(listener) }
                 }
-                KoneTheme(dark) {
+                KoneTheme(dark, still) {
                     TrayPanel(
                         model.dashboard,
                         onPower = model::power,

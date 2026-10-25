@@ -1,5 +1,6 @@
 package cc.txwd.kone.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -46,7 +47,26 @@ data class Ink(
 
 val LocalInk = staticCompositionLocalOf { Ink.Light }
 
+/**
+ * The paper and ink for [dark] or light. A change of theme washes over the page in a moment
+ * rather than flashing; at once when [still].
+ */
 @Composable
-fun KoneTheme(dark: Boolean, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalInk provides if (dark) Ink.Dark else Ink.Light, content = content)
+fun KoneTheme(dark: Boolean, still: Boolean = false, content: @Composable () -> Unit) {
+    val target = if (dark) Ink.Dark else Ink.Light
+    val spec = Motion.spec<Color>(still, Motion.STANDARD + 180)
+    @Composable
+    fun Color.eased(label: String) = animateColorAsState(this, spec, label = label).value
+    val ink = Ink(
+        dark = dark,
+        paper = target.paper.eased("paper"),
+        panel = target.panel.eased("panel"),
+        menu = target.menu.eased("menu"),
+        ink = target.ink.eased("ink"),
+        soft = target.soft.eased("soft"),
+        hair = target.hair.eased("hair"),
+        press = target.press.eased("press"),
+        veil = target.veil.eased("veil"),
+    )
+    CompositionLocalProvider(LocalInk provides ink, content = content)
 }

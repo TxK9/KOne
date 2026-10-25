@@ -512,6 +512,52 @@ class ScreensTest {
         }
     }
 
+    /**
+     * The connection ring filmed: disconnected, connecting, and the moments after it connects
+     * (the closed stroke drawing itself, the bloom fading), cut from the status line and laid
+     * side by side in build/screens/ring-<theme>.png.
+     */
+    @Test
+    fun ring() {
+        for (dark in listOf(false, true)) {
+            runBlocking { InkGallery.paint(dark) }
+            val connection = androidx.compose.runtime.mutableStateOf(Connection.Idle)
+            val scene = ImageComposeScene(1280, 800, Density(1f)) {
+                KoneTheme(dark) {
+                    Frame({ TitleBar() }) {
+                        WithRail(Page.Dashboard, {}) {
+                            DashboardView(online.copy(connection = connection.value), DashboardActions(), false, {}, moving = false)
+                        }
+                    }
+                }
+            }
+            val frames = mutableListOf<org.jetbrains.skia.Image>()
+            fun frame(at: Long) { frames += scene.render(at) }
+            try {
+                var now = 0L
+                scene.render(now); frame(16_000_000)
+                connection.value = Connection.Connecting
+                now = 1_000_000_000; scene.render(now); frame(now + 16_000_000)
+                connection.value = Connection.Online
+                now = 2_000_000_000; scene.render(now)
+                for (after in listOf(100L, 300L, 650L, 1500L)) frame(now + after * 1_000_000)
+            } finally {
+                scene.close()
+            }
+            // The power button's corner of each frame, side by side.
+            val w = 360; val h = 120
+            val strip = java.awt.image.BufferedImage(w * frames.size, h, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            val g = strip.createGraphics()
+            frames.forEachIndexed { i, image ->
+                val png = checkNotNull(image.encodeToData(EncodedImageFormat.PNG)).bytes
+                val full = javax.imageio.ImageIO.read(java.io.ByteArrayInputStream(png))
+                g.drawImage(full.getSubimage(1280 - w, 800 - h, w, h), i * w, 0, null)
+            }
+            g.dispose()
+            javax.imageio.ImageIO.write(strip, "png", File(out, "ring-${if (dark) "dark" else "light"}.png"))
+        }
+    }
+
     /** The tray icon on a dark and a light taskbar, in all four weathers. */
     @Test
     fun trayIcons() {

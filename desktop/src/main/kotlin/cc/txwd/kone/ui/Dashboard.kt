@@ -1,5 +1,9 @@
 package cc.txwd.kone.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -125,14 +129,14 @@ fun DashboardView(state: DashboardState, actions: DashboardActions, menuOpen: Bo
                 Brush.verticalGradient(0f to ink.veil.copy(alpha = 0f), 0.55f to ink.veil.copy(alpha = 0.84f), 1f to ink.paper),
             ),
         )
-        Deck(state, actions)
+        Deck(state, actions, moving)
         if (state.canImport) More(menuOpen, onMenuOpen, actions.onMenu, backed = cities)
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions) {
+private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions, moving: Boolean) {
     val ink = LocalInk.current
     Column(
         Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 40.dp, end = 40.dp, bottom = 26.dp),
@@ -174,7 +178,7 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions) {
             }
         }
         state.signIn?.let { SignInLine(it, actions) }
-        StatusLine(state, actions.onPower, actions.onPause)
+        StatusLine(state, actions.onPower, actions.onPause, moving)
     }
 }
 
@@ -206,63 +210,21 @@ private fun SignInLine(signIn: SignInState, actions: DashboardActions) {
 }
 
 @Composable
-private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -> Unit = {}) {
+private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -> Unit = {}, moving: Boolean = true) {
     val ink = LocalInk.current
-    val node = state.current
+    val still = LocalStill.current
     Row(
         Modifier.fillMaxWidth().hairline(ink.hair, top = true).padding(top = 14.dp).heightIn(min = 52.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // What the connection is, in the room the buttons leave: a long exit or category ends in …
-        // rather than pushing Disconnect off the window.
+        // rather than pushing Disconnect off the window. Connected and not, the two give way softly.
         Box(Modifier.weight(1f)) {
-            if (node != null) {
-                val weather = node.weather
-                if (state.connection == Connection.Online) {
-                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Flag(node.country, 26.dp, 18.dp)
-                            Label("Exit ${state.exit ?: "—"}", 18.sp, weight = FontWeight.SemiBold, ellipsis = true)
-                            Label(node.category, 18.sp, ink.soft, modifier = Modifier.weight(1f, fill = false), ellipsis = true)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                WeatherTag(weather)
-                                Label(delayText(node.delay), 14.sp, ink.ink, tabular = true)
-                            }
-                            if (state.home) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Glyph(Glyphs.home, ink.soft, 16.dp, strokeWidth = 1.8f)
-                                    Label("Home", 14.sp, ink.soft)
-                                }
-                            }
-                            if (state.proxied) Label("System proxy", 14.sp, ink.soft)
-                            Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 14.sp, ink.soft, tabular = true)
-                            if (state.trail.size >= 2) Sparkline(state.trail)
-                            Label(clock(state.seconds), 14.sp, ink.soft, tabular = true)
-                            state.expiry?.let { Label(it, 14.sp, NodeWeather.Mist.ink(ink.dark)) }
-                            state.standIn?.let { Label("Using $it for now", 14.sp, NodeWeather.Mist.ink(ink.dark)) }
-                            state.hint?.let { Label(it, 14.sp, ink.soft) }
-                        }
-                    }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Flag(node.country, 26.dp, 18.dp)
-                            WeatherTag(weather)
-                            Label(delayText(node.delay), 18.sp, weight = FontWeight.SemiBold, tabular = true)
-                        }
-                        when {
-                            state.notice != null -> Label(state.notice, 14.sp, NodeWeather.Cut.ink(ink.dark), ellipsis = true)
-                            state.pausedUntil != null -> Label("Paused until ${state.pausedUntil}; Connect to come back now", 14.sp, ink.soft, ellipsis = true)
-                            state.hint != null -> Label(state.hint, 14.sp, ink.soft, ellipsis = true)
-                            state.expiry != null -> Label(state.expiry, 14.sp, NodeWeather.Mist.ink(ink.dark), ellipsis = true)
-                        }
-                    }
-                }
-            } else {
-                state.notice?.let { Label(it, 14.sp, NodeWeather.Cut.ink(ink.dark), ellipsis = true) }
-            }
+            AnimatedContent(
+                state, contentKey = { it.connection == Connection.Online },
+                transitionSpec = { fadeIn(Motion.spec(still, Motion.STANDARD)) togetherWith fadeOut(Motion.spec(still, Motion.QUICK)) },
+                label = "status",
+            ) { shown -> ConnectionInfo(shown) }
         }
         // A quarter of an hour without KOne (a bank's app, a sign-in elsewhere), then back by itself.
         if (state.connection == Connection.Online) {
@@ -271,20 +233,79 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -
             }
         }
         Row(
-            Modifier.height(48.dp).press(bleed = 6.dp, onClick = onPower).padding(horizontal = 6.dp),
+            Modifier.height(52.dp).press(bleed = 6.dp, onClick = onPower).padding(start = 2.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Glyph(Glyphs.power, ink.ink, 22.dp, strokeWidth = 2f)
-            Label(
+            // The ring says the connection's state at a glance; the word says what a press does.
+            Box(contentAlignment = Alignment.Center) {
+                ConnectionRing(state.connection, state.current?.weather ?: NodeWeather.Rest, 44.dp, moving)
+                Glyph(Glyphs.power, ink.ink, 18.dp, strokeWidth = 2f)
+            }
+            AnimatedContent(
                 when (state.connection) {
                     Connection.Online -> "Disconnect"
                     Connection.Connecting -> "Connecting"
                     Connection.Idle -> "Connect"
                 },
-                18.sp, weight = FontWeight.SemiBold,
-            )
+                transitionSpec = { fadeIn(Motion.spec(still, Motion.STANDARD)) togetherWith fadeOut(Motion.spec(still, Motion.QUICK)) },
+                label = "power",
+            ) { word -> Label(word, 18.sp, weight = FontWeight.SemiBold) }
         }
+    }
+}
+
+/** The node, its exit and its figures while connected; otherwise its weather and the last word on what happened. */
+@Composable
+private fun ConnectionInfo(state: DashboardState) {
+    val ink = LocalInk.current
+    val node = state.current
+    if (node != null) {
+        val weather = node.weather
+        if (state.connection == Connection.Online) {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Flag(node.country, 26.dp, 18.dp)
+                    Label("Exit ${state.exit ?: "—"}", 18.sp, weight = FontWeight.SemiBold, ellipsis = true)
+                    Label(node.category, 18.sp, ink.soft, modifier = Modifier.weight(1f, fill = false), ellipsis = true)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        WeatherTag(weather)
+                        Label(delayText(node.delay), 14.sp, ink.ink, tabular = true)
+                    }
+                    if (state.home) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Glyph(Glyphs.home, ink.soft, 16.dp, strokeWidth = 1.8f)
+                            Label("Home", 14.sp, ink.soft)
+                        }
+                    }
+                    if (state.proxied) Label("System proxy", 14.sp, ink.soft)
+                    Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 14.sp, ink.soft, tabular = true)
+                    if (state.trail.size >= 2) Sparkline(state.trail)
+                    Label(clock(state.seconds), 14.sp, ink.soft, tabular = true)
+                    state.expiry?.let { Label(it, 14.sp, NodeWeather.Mist.ink(ink.dark)) }
+                    state.standIn?.let { Label("Using $it for now", 14.sp, NodeWeather.Mist.ink(ink.dark)) }
+                    state.hint?.let { Label(it, 14.sp, ink.soft) }
+                }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Flag(node.country, 26.dp, 18.dp)
+                    WeatherTag(weather)
+                    Label(delayText(node.delay), 18.sp, weight = FontWeight.SemiBold, tabular = true)
+                }
+                when {
+                    state.notice != null -> Label(state.notice, 14.sp, NodeWeather.Cut.ink(ink.dark), ellipsis = true)
+                    state.pausedUntil != null -> Label("Paused until ${state.pausedUntil}; Connect to come back now", 14.sp, ink.soft, ellipsis = true)
+                    state.hint != null -> Label(state.hint, 14.sp, ink.soft, ellipsis = true)
+                    state.expiry != null -> Label(state.expiry, 14.sp, NodeWeather.Mist.ink(ink.dark), ellipsis = true)
+                }
+            }
+        }
+    } else {
+        state.notice?.let { Label(it, 14.sp, NodeWeather.Cut.ink(ink.dark), ellipsis = true) }
     }
 }
 

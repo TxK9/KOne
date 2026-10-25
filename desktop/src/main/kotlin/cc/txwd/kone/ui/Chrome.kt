@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -30,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -148,16 +151,28 @@ enum class Page(val title: String, val glyph: List<String>) {
 @Composable
 fun Rail(current: Page, onPick: (Page) -> Unit, pages: List<Page> = Page.entries, marked: Set<Page> = emptySet()) {
     val ink = LocalInk.current
+    val still = LocalStill.current
+    // The page's mark glides to the page chosen rather than jumping there.
+    val index = pages.indexOf(current)
+    val at by animateFloatAsState(index.toFloat(), Motion.spec(still, Motion.STANDARD + 60), label = "rail")
     Column(
-        Modifier.width(84.dp).fillMaxHeight().hairline(ink.hair, end = true).padding(horizontal = 8.dp, vertical = 14.dp),
+        Modifier.width(84.dp).fillMaxHeight().hairline(ink.hair, end = true)
+            .drawBehind {
+                if (index < 0) return@drawBehind
+                val inset = 8.dp.toPx()
+                drawRoundRect(
+                    ink.press, topLeft = Offset(inset, 14.dp.toPx() + at * (64 + 6).dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(size.width - 2 * inset, 64.dp.toPx()), cornerRadius = CornerRadius(10.dp.toPx()),
+                )
+            }
+            .padding(horizontal = 8.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         pages.forEach { page ->
             val on = page == current
-            val color = if (on) ink.ink else ink.soft
+            val color by animateColorAsState(if (on) ink.ink else ink.soft, Motion.spec(still, Motion.STANDARD), label = "rail-ink")
             Column(
-                Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(10.dp))
-                    .background(if (on) ink.press else Color.Transparent).press(corner = 10.dp) { onPick(page) },
+                Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(10.dp)).press(corner = 10.dp) { onPick(page) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
