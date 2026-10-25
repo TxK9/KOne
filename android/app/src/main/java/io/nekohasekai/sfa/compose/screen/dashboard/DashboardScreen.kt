@@ -102,7 +102,7 @@ fun DashboardScreen(
                     ) {
                         if (kninePanel) {
                             DropdownMenuItem(
-                                text = { Text("Import") },
+                                text = { Text(stringResource(R.string.kone_dashboard_import)) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.ContentPaste,
@@ -116,7 +116,7 @@ fun DashboardScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Add category") },
+                                text = { Text(stringResource(R.string.kone_dashboard_add_category)) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.Add,

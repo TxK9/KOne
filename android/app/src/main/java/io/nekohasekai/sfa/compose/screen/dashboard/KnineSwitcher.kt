@@ -1,5 +1,11 @@
 package io.nekohasekai.sfa.compose.screen.dashboard
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import io.nekohasekai.sfa.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -434,10 +440,12 @@ internal fun KnineSwitcher(
                                         alpha = p.coerceIn(0f, 1f) * (if (focused) 1f else 0.62f)
                                         translationY = (1f - p) * 16.dp.toPx()
                                     }
+                                    .semantics { selected = focused }
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
                                         enabled = !closing,
+                                        role = Role.Button,
                                     ) {
                                         chosen = i
                                         close(i)
@@ -540,7 +548,7 @@ private fun SwitcherFooter(base: Float, hint: String, alpha: Float, halo: TextSt
             },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (onManage != null) FooterAction(Icons.Default.Edit, "Organize", halo, onManage) else Spacer(Modifier.width(64.dp))
+        if (onManage != null) FooterAction(Icons.Default.Edit, stringResource(R.string.kone_dashboard_organize), halo, onManage) else Spacer(Modifier.width(64.dp))
         Text(
             hint,
             color = ink.copy(alpha = 0.82f),
@@ -561,7 +569,7 @@ private fun FooterAction(icon: ImageVector, label: String, halo: TextStyle, onCl
     Row(
         Modifier
             .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -586,7 +594,8 @@ private fun SwitcherLabel(
     Row(
         modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { selected = focused }
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = DIAL_LABEL_PAD, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -654,14 +663,14 @@ private fun CardsSwitcher(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, color = ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.width(8.dp))
-                Text("${items.size} items", color = ink.copy(alpha = 0.75f), fontSize = 12.sp, modifier = Modifier.weight(1f))
+                Text(pluralStringResource(R.plurals.kone_dashboard_item_count, items.size, items.size), color = ink.copy(alpha = 0.75f), fontSize = 12.sp, modifier = Modifier.weight(1f))
                 if (onManage != null) {
                     Text(
-                        "Organize",
+                        stringResource(R.string.kone_dashboard_organize),
                         color = ink,
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onManage).padding(6.dp),
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onManage).padding(6.dp),
                     )
                 }
             }
@@ -685,7 +694,7 @@ private fun CardsSwitcher(
                         cursorBrush = SolidColor(ink),
                         modifier = Modifier.weight(1f),
                         decorationBox = { field ->
-                            if (query.isEmpty()) Text("Search categories", color = ink.copy(alpha = 0.55f), fontSize = 14.5.sp)
+                            if (query.isEmpty()) Text(stringResource(R.string.kone_dashboard_search_categories), color = ink.copy(alpha = 0.55f), fontSize = 14.5.sp)
                             field()
                         },
                     )
@@ -722,7 +731,8 @@ private fun CardsSwitcher(
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(if (selected) ink else ink.copy(alpha = if (isAdd) 0f else 0.06f))
                                     .border(if (isAdd) 1.dp else 0.7.dp, ink.copy(alpha = if (isAdd) 0.3f else 0.1f), RoundedCornerShape(18.dp))
-                                    .clickable(enabled = enabled) { if (isAdd) onAdd?.invoke() else onPick(index) }
+                                    .semantics { this.selected = selected }
+                                    .clickable(enabled = enabled, role = Role.Button) { if (isAdd) onAdd?.invoke() else onPick(index) }
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalArrangement = Arrangement.Center,
                             ) {
@@ -730,7 +740,7 @@ private fun CardsSwitcher(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.Add, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text("New category", color = fg, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
+                                        Text(stringResource(R.string.kone_dashboard_new_category), color = fg, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
                                     }
                                 } else {
                                     val item = items[index]
@@ -743,7 +753,7 @@ private fun CardsSwitcher(
                                     }
                                     val count = item.count
                                     Text(
-                                        if (count == null) "" else if (count == 0) "Empty" else "$count nodes",
+                                        if (count == null) "" else if (count == 0) stringResource(R.string.kone_dashboard_empty) else pluralStringResource(R.plurals.kone_dashboard_node_count, count, count),
                                         color = fg.copy(alpha = 0.78f),
                                         fontSize = 12.sp,
                                     )

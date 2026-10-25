@@ -249,22 +249,23 @@ fun ProfilesCard(
                 } catch (failure: ShareLinkException) {
                     refusal = failure.message
                 } catch (_: Exception) {
-                    refusal = refusal ?: "Could not import this link. Check it and try again."
+                    refusal = refusal ?: context.getString(R.string.kone_import_failed)
                 }
             }
             imported.firstOrNull()?.let { onProfileSelected(it.profile.id) }
             val added = imported.count { it.isNew }
             val kept = imported.size - added
             val failed = count - imported.size + refused
+            val res = context.resources
             val message = when {
-                imported.isEmpty() -> refusal ?: "Could not import this link. Check it and try again."
-                count == 1 && failed == 0 && added == 1 -> "Imported and selected ${imported[0].profile.name}"
-                count == 1 && failed == 0 -> "${imported[0].profile.name} already exists and is selected."
-                else -> buildString {
-                    append("Imported $added nodes")
-                    if (kept > 0) append(", $kept already existed")
-                    if (failed > 0) append(", $failed could not be imported")
-                }
+                imported.isEmpty() -> refusal ?: context.getString(R.string.kone_import_failed)
+                count == 1 && failed == 0 && added == 1 -> context.getString(R.string.kone_import_selected, imported[0].profile.name)
+                count == 1 && failed == 0 -> context.getString(R.string.kone_import_existing, imported[0].profile.name)
+                else -> listOfNotNull(
+                    res.getQuantityString(R.plurals.kone_import_added, added, added),
+                    if (kept > 0) res.getQuantityString(R.plurals.kone_import_kept, kept, kept) else null,
+                    if (failed > 0) res.getQuantityString(R.plurals.kone_import_refused, failed, failed) else null,
+                ).joinToString(", ")
             }
             Toast.makeText(context, message, if (failed > 0) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
         }
@@ -278,7 +279,7 @@ fun ProfilesCard(
     fun importClash(text: String) {
         val read = clashNodes(text)
         if (read.nodes.isEmpty()) {
-            Toast.makeText(context, read.refusal ?: "No nodes found in the profile", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, read.refusal ?: context.getString(R.string.kone_import_no_nodes), Toast.LENGTH_LONG).show()
             return
         }
         importNodes(read.nodes.size, read.refused) { node -> createPairedProfile(context, read.nodes[node]) }
@@ -300,11 +301,11 @@ fun ProfilesCard(
                 when (val parsed = importHandler.parseQRCode(remote)) {
                     is ProfileImportHandler.QRCodeParseResult.RemoteProfile ->
                         onOpenNewProfile(NewProfileArgs(importName = parsed.name, importUrl = parsed.url))
-                    else -> Toast.makeText(context, "The clipboard contains an unrecognized remote configuration link.", Toast.LENGTH_SHORT).show()
+                    else -> Toast.makeText(context, context.getString(R.string.kone_import_unrecognized_remote), Toast.LENGTH_SHORT).show()
                 }
             }
             subscription != null -> onOpenNewProfile(NewProfileArgs(importName = SubscriptionContent.name(subscription, null), importUrl = subscription))
-            else -> Toast.makeText(context, "No recognized links in the clipboard", Toast.LENGTH_SHORT).show()
+            else -> Toast.makeText(context, context.getString(R.string.kone_import_clipboard_empty), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -513,8 +514,8 @@ fun ProfilesCard(
                         importFromClipboard()
                     },
                     leadingContent = { Icon(Icons.Default.ContentPaste, contentDescription = null) },
-                    headlineContent = { Text("Import from clipboard") },
-                    supportingContent = { Text("Read copied node links") },
+                    headlineContent = { Text(stringResource(R.string.kone_import_clipboard)) },
+                    supportingContent = { Text(stringResource(R.string.kone_import_clipboard_hint)) },
                 )
 
                 ListItem(
@@ -684,7 +685,7 @@ fun ProfilesCard(
                 showQRScanSheet = false
                 when (result) {
                     // A KOne key belongs on the start page, not among the nodes.
-                    is QRScanResult.ClaimLink -> Toast.makeText(context, "This is a KOne access key, not a node.", Toast.LENGTH_SHORT).show()
+                    is QRScanResult.ClaimLink -> Toast.makeText(context, context.getString(R.string.kone_import_access_key), Toast.LENGTH_SHORT).show()
                     is QRScanResult.NodeLink -> {
                         // The dashboard panel imports a scanned node like a copied one; the
                         // plain card shows the link in its dialog first.

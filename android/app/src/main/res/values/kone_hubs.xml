@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings and Tools hubs. -->
+    <string name="kone_settings_connection">Connection</string>
+    <string name="kone_settings_advanced">Advanced</string>
+    <string name="kone_settings_help">Help</string>
+    <string name="kone_settings_app_version">%1$s %2$s</string>
+    <string name="kone_update_available_badge">Update available</string>
+    <string name="kone_privilege_update_badge">Module update pending</string>
+    <string name="kone_tools_management">Management</string>
+    <string name="kone_tools_console">Management console</string>
+    <string name="kone_tools_devices">Device management</string>
+    <string name="kone_tools_network_tests">Network tests</string>
+
+    <!-- Rows whose details open underneath, as screen readers announce the tap. -->
+    <string name="kone_row_show_details">Show details</string>
+    <string name="kone_row_hide_details">Hide details</string>
+
+    <!-- The owner's management console page. -->
+    <string name="kone_console_refresh">Refresh</string>
+    <string name="kone_console_check_updates">Check for updates in Settings › App.</string>
+    <string name="kone_console_no_downloads">Download files on a computer.</string>
+    <string name="kone_console_unreachable">Cannot connect right now</string>
+    <string name="kone_console_unreachable_hint">Enable the connection and Home, then try again.</string>
+    <string name="kone_console_retry">Retry</string>
+
+    <!-- App updates, checked from App settings. -->
+    <string name="kone_update_check">Check for updates</string>
+    <string name="kone_update_checking">Checking…</string>
+    <string name="kone_update_up_to_date">Up to date</string>
+    <string name="kone_update_check_failed">Cannot check for updates right now</string>
+    <string name="kone_update_ready">%1$s %2$s · %3$s</string>
+    <string name="kone_update_sign_in">Sign in to the management console to check</string>
+
+    <!-- App settings. -->
+    <string name="kone_app_block_without_vpn">Block connections without VPN</string>
+    <string name="kone_app_block_without_vpn_on">System protection is enabled. Managed exceptions can still connect directly.</string>
+    <string name="kone_app_block_without_vpn_off">Enable Always-on VPN and Block connections without VPN in system settings.</string>
+    <string name="kone_app_vpn_settings_missing">Search for VPN in system settings.</string>
+    <string name="kone_app_category_navigation">Category navigation</string>
+    <string name="kone_app_wallpaper">Wallpaper</string>
+    <string name="kone_app_photo_unusable">This photo cannot be used.</string>
+    <string name="kone_app_appearance">Appearance</string>
+    <string name="kone_app_cache">Cache</string>
+    <string name="kone_app_cache_clear">Clear</string>
+
+    <!-- Dashboard menu. -->
+    <string name="kone_dashboard_import">Import</string>
+    <string name="kone_dashboard_add_category">Add category</string>
+    <string name="kone_dashboard_connected">Connected</string>
+    <string name="kone_dashboard_connected_for">Connected · %1$s</string>
+    <string name="kone_dashboard_connecting">Connecting</string>
+    <string name="kone_dashboard_disconnecting">Disconnecting</string>
+    <string name="kone_dashboard_disconnected">Disconnected</string>
+    <string name="kone_dashboard_no_node">No node selected</string>
+    <string name="kone_dashboard_choose_node">Choose node</string>
+    <string name="kone_dashboard_show_selected">Show selected node</string>
+    <string name="kone_dashboard_fold">Fold or unfold the panel</string>
+    <string name="kone_dashboard_expanded">Expanded</string>
+    <string name="kone_dashboard_collapsed">Collapsed</string>
+    <string name="kone_dashboard_home_status">Tailscale status</string>
+    <string name="kone_dashboard_edit_category">Edit category</string>
+    <string name="kone_dashboard_done">Done</string>
+    <string name="kone_dashboard_more_icons">More icons</string>
+    <string name="kone_dashboard_no_flag">No flag</string>
+    <string name="kone_dashboard_collapse">Collapse</string>
+    <plurals name="kone_dashboard_all_nodes">
+        <item quantity="one">All %d node</item>
+        <item quantity="other">All %d nodes</item>
+    </plurals>
+    <string name="kone_dashboard_new_category">New category</string>
+    <string name="kone_dashboard_empty">Empty</string>
+    <plurals name="kone_dashboard_node_count">
+        <item quantity="one">%d node</item>
+        <item quantity="other">%d nodes</item>
+    </plurals>
+    <plurals name="kone_dashboard_item_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <string name="kone_dashboard_search_categories">Search categories</string>
+    <string name="kone_dashboard_organize">Organize</string>
+
+    <!-- Node import from the dashboard. -->
+    <string name="kone_import_clipboard">Import from clipboard</string>
+    <string name="kone_import_clipboard_hint">Read copied node links</string>
+    <string name="kone_import_failed">Could not import this link. Check it and try again.</string>
+    <string name="kone_import_selected">Imported and selected %1$s</string>
+    <string name="kone_import_existing">%1$s already exists and is selected.</string>
+    <plurals name="kone_import_added">
+        <item quantity="one">Imported %d node</item>
+        <item quantity="other">Imported %d nodes</item>
+    </plurals>
+    <plurals name="kone_import_kept">
+        <item quantity="one">%d already existed</item>
+        <item quantity="other">%d already existed</item>
+    </plurals>
+    <plurals name="kone_import_refused">
+        <item quantity="one">%d could not be imported</item>
+        <item quantity="other">%d could not be imported</item>
+    </plurals>
+    <string name="kone_import_no_nodes">No nodes found in the profile</string>
+    <string name="kone_import_unrecognized_remote">The clipboard contains an unrecognized remote configuration link.</string>
+    <string name="kone_import_clipboard_empty">No node links in the clipboard. Copy a link first, or scan its QR code.</string>
+    <string name="kone_import_access_key">This is a KOne access key, not a node.</string>
+
+    <!-- Feedback, sent to the service that issued the access key. -->
+    <string name="kone_feedback">Feedback</string>
+    <string name="kone_feedback_description">Description</string>
+    <string name="kone_feedback_length">%1$d / %2$d</string>
+    <string name="kone_feedback_send">Send</string>
+    <string name="kone_feedback_sending">Sending</string>
+    <string name="kone_feedback_sent">Sent</string>
+    <string name="kone_feedback_new">New feedback</string>
+    <string name="kone_feedback_add_image">Add image</string>
+    <string name="kone_feedback_image">Feedback image %1$d</string>
+    <string name="kone_feedback_remove_image">Remove image %1$d</string>
+    <string name="kone_feedback_unlinked">Not linked to a service</string>
+    <string name="kone_feedback_unlinked_reason">Feedback goes to the service that issued your access key. This copy of KOne is not linked to one.</string>
+    <string name="kone_feedback_image_not_added">Image not added</string>
+    <string name="kone_feedback_images_not_added">%1$d images not added</string>
+    <string name="kone_feedback_no_picker">No picture picker is available on this phone.</string>
+    <string name="kone_feedback_image_unreadable">The picture could not be read. Try again, or choose another one.</string>
+    <string name="kone_feedback_images_unreadable">The pictures could not be read. Try again, or choose others.</string>
+    <string name="kone_feedback_image_failed">Could not add the image. Try again, or choose another one.</string>
+    <string name="kone_feedback_not_sent">Not sent</string>
+    <string name="kone_feedback_not_sent_reason">Submission did not complete. Try again later.</string>
+</resources>

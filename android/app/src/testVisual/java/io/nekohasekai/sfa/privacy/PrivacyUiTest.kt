@@ -70,7 +70,7 @@ class PrivacyUiTest {
                         isLoading = false,
                     ),
                     onName = {}, onIcon = {}, onMoreIcons = {}, onAutoUpdate = {},
-                    onAutoUpdateInterval = {}, onUpdateNow = {}, onDeleted = {},
+                    onAutoUpdateInterval = {}, onUpdateNow = {}, onDeleted = {}, onLeaveOut = {},
                 )
             }
         }

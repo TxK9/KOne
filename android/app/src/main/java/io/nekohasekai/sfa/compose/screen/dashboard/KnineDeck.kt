@@ -1,5 +1,11 @@
 package io.nekohasekai.sfa.compose.screen.dashboard
 
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import io.nekohasekai.sfa.R
 import cc.txwd.kone.shared.Countries
 import android.os.SystemClock
 import android.widget.Toast
@@ -278,6 +284,7 @@ private fun CategoryTabs(
     val ink = LocalContentColor.current
     val haptic = LocalHapticFeedback.current
     val scroll = rememberScrollState()
+    val editLabel = stringResource(R.string.kone_dashboard_edit_category)
     // Where each name sits in the row, start to end, without its touch padding.
     val spans = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
     // Only read when tapped, so a plain map: the dial flies out of the tapped name.
@@ -339,7 +346,10 @@ private fun CategoryTabs(
                     .clip(tabShape)
                     .background(ink.copy(alpha = 0.1f * ring), tabShape)
                     .border(1.dp, ink.copy(alpha = 0.4f * ring), tabShape)
+                    .semantics { selected = index == pagerState.currentPage }
                     .combinedClickable(
+                        role = Role.Tab,
+                        onLongClickLabel = editLabel,
                         onClick = {
                             if (editing == null && index == pagerState.currentPage && !pagerState.isScrollInProgress) {
                                 onOpenDial(centers[index] ?: Offset.Zero)
@@ -481,10 +491,10 @@ private fun CategoryEditor(group: NodeGroup, onDone: () -> Unit) {
                     .size(34.dp)
                     .clip(CircleShape)
                     .background(ink)
-                    .clickable(onClick = ::finish),
+                    .clickable(role = Role.Button, onClick = ::finish),
                 contentAlignment = Alignment.Center,
             ) {
-                androidx.compose.material3.Icon(Icons.Default.Check, contentDescription = "Done", tint = surface, modifier = Modifier.size(18.dp))
+                androidx.compose.material3.Icon(Icons.Default.Check, contentDescription = stringResource(R.string.kone_dashboard_done), tint = surface, modifier = Modifier.size(18.dp))
             }
         }
         FlagStrip(
@@ -551,7 +561,7 @@ private fun EditorAction(icon: ImageVector, label: String, onClick: () -> Unit) 
         Modifier
             .size(34.dp)
             .clip(CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = label, modifier = Modifier.size(19.dp))
@@ -618,10 +628,10 @@ internal fun FlagStrip(
                         .size(42.dp)
                         .clip(CircleShape)
                         .border(0.8.dp, ink.copy(alpha = 0.3f), CircleShape)
-                        .clickable(onClick = onMore),
+                        .clickable(role = Role.Button, onClick = onMore),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.MoreHoriz, contentDescription = "More icons", modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.MoreHoriz, contentDescription = stringResource(R.string.kone_dashboard_more_icons), modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -631,6 +641,7 @@ internal fun FlagStrip(
 @Composable
 private fun FlagChoice(code: String?, selected: Boolean, appear: () -> Float, onTap: () -> Unit) {
     val ink = LocalContentColor.current
+    val name = if (code == null) stringResource(R.string.kone_dashboard_no_flag) else flagName(code)
     val chosen by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = 0.55f, stiffness = 600f), label = "flagChosen")
     Box(
         Modifier
@@ -645,13 +656,14 @@ private fun FlagChoice(code: String?, selected: Boolean, appear: () -> Float, on
             .clip(CircleShape)
             .background(ink.copy(alpha = 0.1f * chosen.coerceIn(0f, 1f)))
             .border(1.3.dp, ink.copy(alpha = 0.8f * chosen.coerceIn(0f, 1f)), CircleShape)
-            .clickable(onClick = onTap),
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onTap)
+            .semantics { contentDescription = name },
         contentAlignment = Alignment.Center,
     ) {
         if (code != null) {
             FlagGlyph(code, size = 22.dp)
         } else {
-            Icon(Icons.Default.Close, contentDescription = "No flag", modifier = Modifier.size(16.dp).graphicsLayer { alpha = 0.6f })
+            Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp).graphicsLayer { alpha = 0.6f })
         }
     }
 }
@@ -732,13 +744,18 @@ private fun NodePage(
                     .fillMaxWidth()
                     .height(38.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClick = onToggleAll)
+                    .clickable(role = Role.Button, onClick = onToggleAll)
                     .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                BText(if (all) "Collapse" else "All ${group.profiles.size} nodes", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                BText(if (all) stringResource(R.string.kone_dashboard_collapse) else pluralStringResource(R.plurals.kone_dashboard_all_nodes, group.profiles.size, group.profiles.size), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                 Icon(if (all) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         }
     }
 }
+
+/** A flag's country in the phone's language, for screen readers; the code when Android has no name for it. */
+private fun flagName(code: String): String =
+    java.util.Locale("", code).displayCountry.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
+        ?: Countries.byCode(code)?.en ?: code

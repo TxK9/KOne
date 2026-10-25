@@ -31,7 +31,10 @@ import io.nekohasekai.sfa.compose.screen.log.LogViewModel
 import io.nekohasekai.sfa.compose.screen.privilegesettings.PrivilegeSettingsManageScreen
 import io.nekohasekai.sfa.compose.screen.profile.EditProfileRoute
 import io.nekohasekai.sfa.compose.screen.profileoverride.PerAppProxyScreen
+import io.nekohasekai.sfa.compose.screen.account.ManagedAccountScreen
+import io.nekohasekai.sfa.compose.screen.settings.AccountRoutes
 import io.nekohasekai.sfa.compose.screen.settings.AppSettingsScreen
+import io.nekohasekai.sfa.compose.screen.settings.accountAvailable
 import io.nekohasekai.sfa.compose.screen.settings.CoreSettingsScreen
 import io.nekohasekai.sfa.compose.screen.settings.EditRemoteServerScreen
 import io.nekohasekai.sfa.compose.screen.settings.FDroidMirrorScreen
@@ -659,8 +662,29 @@ fun NavHost(
             SettingsScreen(navController = navController)
         }
 
-        composable("settings/feedback") {
+        composable(
+            route = AccountRoutes.Feedback,
+            enterTransition = slideInFromRight,
+            exitTransition = slideOutToLeft,
+            popEnterTransition = slideInFromLeft,
+            popExitTransition = slideOutToRight,
+        ) {
             io.nekohasekai.sfa.compose.screen.feedback.FeedbackScreen(navController)
+        }
+
+        // The customer edition's account; a saved entry in any other copy returns to Settings.
+        composable(
+            route = AccountRoutes.Main,
+            enterTransition = slideInFromRight,
+            exitTransition = slideOutToLeft,
+            popEnterTransition = slideInFromLeft,
+            popExitTransition = slideOutToRight,
+        ) {
+            if (accountAvailable) {
+                ManagedAccountScreen(navController)
+            } else {
+                ReturnToPublicScreen(navController, Screen.Settings.route)
+            }
         }
 
         // Settings subscreens with slide animations
