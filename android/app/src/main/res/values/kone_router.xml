@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="kone_devices">Devices</string>
     <string name="kone_router_back">Back</string>
     <string name="kone_router">Router</string>
     <string name="kone_router_address">Router address</string>

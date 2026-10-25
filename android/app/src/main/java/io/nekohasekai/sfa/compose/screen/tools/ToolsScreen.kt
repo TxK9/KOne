@@ -414,7 +414,8 @@ fun ToolsScreen(
         // Devices and their engines; the edition for others gains it once the console grants it.
         if (DeviceManagementGate.visible) {
             val routerContext = LocalContext.current
-            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = "Devices")
+            val integrations by io.nekohasekai.sfa.devices.DeviceIntegrations.registry.integrations.collectAsState()
+            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.kone_devices))
 
             Card(
                 modifier = Modifier
@@ -424,7 +425,7 @@ fun ToolsScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
             ) {
-                ListItem(
+                if (integrations.isNotEmpty()) ListItem(
                     headlineContent = {
                         Text(
                             "Device management",

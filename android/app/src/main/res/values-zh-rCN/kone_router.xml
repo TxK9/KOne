@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="kone_devices">设备</string>
     <string name="kone_router_back">返回</string>
     <string name="kone_router">软路由</string>
     <string name="kone_router_address">路由器地址</string>
