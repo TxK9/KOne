@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -100,7 +101,10 @@ fun TitleBar(
     }
 }
 
-/** A caption button: a wash of ink under the pointer, and for close, Windows' own red with a white cross. */
+/**
+ * A caption button: a wash of ink under the pointer, and for close, Windows' own red with a white
+ * cross. Out of the Tab order, as Windows' own are; Alt+F4 and Win+Down still reach the window.
+ */
 @Composable
 private fun Cap(glyph: List<String>, onClick: () -> Unit, closes: Boolean = false) {
     val ink = LocalInk.current
@@ -115,7 +119,8 @@ private fun Cap(glyph: List<String>, onClick: () -> Unit, closes: Boolean = fals
         else -> Color.Transparent
     }
     Box(
-        Modifier.size(46.dp, 36.dp).background(fill).clickable(interactionSource = source, indication = null, onClick = onClick),
+        Modifier.size(46.dp, 36.dp).background(fill).focusProperties { canFocus = false }
+            .clickable(interactionSource = source, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Glyph(glyph, if (closes && (hovered || pressed)) Color.White else ink.ink, 12.dp, strokeWidth = 1f, box = 12f)
@@ -147,7 +152,7 @@ fun Rail(current: Page, onPick: (Page) -> Unit, pages: List<Page> = Page.entries
             val color = if (on) ink.ink else ink.soft
             Column(
                 Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(10.dp))
-                    .background(if (on) ink.press else Color.Transparent).press { onPick(page) },
+                    .background(if (on) ink.press else Color.Transparent).press(corner = 10.dp) { onPick(page) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
