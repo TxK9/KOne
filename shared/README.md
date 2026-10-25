@@ -19,6 +19,9 @@ no platform code, JVM 17.
   list is checked and kept (each App supplies the download and its own sing-box check).
 - `ClashProxies.kt`, `NodeFilter.kt`: a Clash profile's proxies as sing-box outbounds, and the
   provider notices left out among them.
+- `NodeIdentity.kt`: which node an outbound is, whatever it is called: a node listed twice used
+  once, and a choice (or anything kept per node) followed through an update that renames or
+  reorders nodes.
 - `Region.kt`: where the person is, and the DNS presets and test sites that follow from it.
 - `Checks.kt`: diagnosis checks, the clock verdict and the plain-text report.
 - `Countries.kt`: countries, cities and flags, for reading a node's country from its name.
