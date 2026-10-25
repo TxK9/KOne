@@ -117,7 +117,7 @@ object PairedProfile {
         }
         require(privateIndex != null) { "Configuration has no Tailscale private-network rule" }
         for (index in 0 until privateIndex) {
-            val earlier = routes.getJSONObject(index)
+            val earlier = routes.optJSONObject(index) ?: throw IllegalArgumentException("A rule before the private-network rule would override Home traffic.")
             val action = earlier.optString("action", "route")
             val dnsOnly = earlier.optString("protocol") == "dns"
             require(action in setOf("sniff", "resolve") || (action == "hijack-dns" && dnsOnly)) { "A rule before the private-network rule would override Home traffic." }

@@ -103,6 +103,7 @@ object Vendor : VendorInterface {
                 io.nekohasekai.sfa.BuildConfig.KONE_UPDATE_FEED.substringBefore("/release.json"), release.notes, false, release.bytes)
         }
 
+        GitHubUpdateChecker.requireUpstreamPackage(Application.application.packageName)
         val track = UpdateTrack.fromString(Settings.updateTrack)
         return GitHubUpdateChecker().use { checker ->
             checker.checkUpdate(track, Settings.githubToken)
@@ -127,6 +128,7 @@ object Vendor : VendorInterface {
             return
         }
 
+        GitHubUpdateChecker.requireUpstreamPackage(context.packageName)
         val cachedApk = UpdateState.cachedApkFile.value
         val apkFile = if (cachedApk != null && cachedApk.exists() && cachedApk.length() > 0) {
             cachedApk

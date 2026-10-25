@@ -106,7 +106,8 @@ internal fun flagEmoji(code: String): String {
 
 /** ASCII words need letter boundaries so "RUSSELL" is not Russia; other scripts match as written. */
 internal fun aliasRegex(word: String): Regex = if (word.all { it.code < 128 }) {
-    Regex("(?<![A-Za-z])${Regex.escape(word)}(?![A-Za-z])", RegexOption.IGNORE_CASE)
+    val shortCode = word.length <= 3 && word.all { it in 'A'..'Z' }
+    Regex("(?<![A-Za-z])${Regex.escape(word)}(?![A-Za-z])", if (shortCode) emptySet() else setOf(RegexOption.IGNORE_CASE))
 } else {
     Regex(Regex.escape(word))
 }

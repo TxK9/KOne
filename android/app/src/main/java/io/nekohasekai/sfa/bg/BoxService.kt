@@ -123,8 +123,10 @@ class BoxService(private val service: Service, private val platformInterface: Pl
     private var lastProfileName = ""
 
     private fun runtimeContent(profile: io.nekohasekai.sfa.database.Profile): String {
+        val content = File(profile.typed.path).readText()
+        if (content.isBlank()) return content
         return RuntimeConnectionConfig.prepare(
-            HomeSettings.prepare(File(profile.typed.path).readText()),
+            HomeSettings.prepare(content),
             io.nekohasekai.sfa.connection.CallingPreferences(service).read(profile.id),
             AppPolicySnapshot.current(service.applicationContext.packageName),
         )
@@ -154,7 +156,12 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 return
             }
 
-            val content = runtimeContent(profile)
+            val content = try {
+                runtimeContent(profile)
+            } catch (e: IllegalArgumentException) {
+                stopAndAlert(Alert.CreateService, e.message)
+                return
+            }
             if (content.isBlank()) {
                 stopAndAlert(Alert.EmptyConfiguration)
                 return

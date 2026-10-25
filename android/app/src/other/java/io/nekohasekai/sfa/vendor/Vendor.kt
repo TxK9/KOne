@@ -107,9 +107,7 @@ object Vendor : VendorInterface {
                 io.nekohasekai.sfa.BuildConfig.KONE_UPDATE_FEED.substringBefore("/release.json"), release.notes, false, release.bytes)
         }
 
-        if (Application.application.packageName == "cc.txwd.tianxiawudi.proxy") {
-            throw IllegalStateException("Update the private edition using its signed package. The upstream SFA package is not downloaded.")
-        }
+        GitHubUpdateChecker.requireUpstreamPackage(Application.application.packageName)
         return when (UpdateSource.fromString(Settings.updateSource)) {
             UpdateSource.FDROID -> checkFDroidUpdate(Application.application)
             UpdateSource.GITHUB -> {
@@ -149,6 +147,7 @@ object Vendor : VendorInterface {
             return
         }
 
+        GitHubUpdateChecker.requireUpstreamPackage(context.packageName)
         val cachedApk = UpdateState.cachedApkFile.value
         val apkFile = if (cachedApk != null && cachedApk.exists() && cachedApk.length() > 0) {
             cachedApk

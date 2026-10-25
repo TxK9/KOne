@@ -5,6 +5,21 @@ The integration starts from `ee2c320c0680b3f2ff9914dc50b205aeff09b195` on
 feedback, connection-check and runtime routing code while taking the shared
 subscription, routing and diagnostic implementation from this branch.
 
+The separate Android branches through October 24 were also reviewed, including
+their unique ancestors. Their retained changes are mapped below; the shared
+multi-protocol parser replaces the older VLESS-only implementations.
+
+| Source commits | Integration |
+| --- | --- |
+| `180ac16`, `1419a40` | Language packs and restored core sources already present; retain current branding. |
+| `066d0cd`, `94afc03`, `7a4b754`, `8a48c37` | Bare IPv6 hosts, blank-fingerprint default, names with spaces, controlled malformed-route errors and consistent service validation. |
+| `a960977` | Normalize Reality keys, preserve literal plus, validate supported flow/fingerprint/TCP camouflage in the shared parser. |
+| `21a3a82`, `9816355` | Case-sensitive short country codes in shared and Android grouping; full names ignore case. |
+| `35ea180` | Bounded exit-IP retries on the same VPN network, cancelled with a connection change; preserve country metadata. |
+| `58ec795` | Decoded, bounded display names without controls; debug bootstrap uses the same parser name. |
+| `4bb3d83` | Localized import UI, keeping all seven supported protocols. |
+| `43324a4` | Upstream SFA checks/downloads and background work only serve the upstream package; both KOne editions retain their own signed feed. |
+
 Android build 10040 uses the existing separate application IDs and signing
 identity. It does not enable silent installation. Publish the verified APK and
 matching source archive before changing the existing update manifest.
@@ -34,7 +49,7 @@ tests, install/upgrade, service and uninstall checks are saved in a private draf
 release. It does not update the public website. Candidate installers are unsigned;
 the existing download disclosure must remain until a signed release is supplied.
 
-Validation at integration: 303 Android JVM tests and 46 shared JVM tests pass.
+Validation at integration: 312 Android JVM tests and 51 shared JVM tests pass.
 These checks do not establish physical-device playback, native router operation,
 Windows installer acceptance or publication. Use the corresponding build/run and
 deployment receipts for those results.

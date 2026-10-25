@@ -11,6 +11,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import io.nekohasekai.sfa.database.Settings
+import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.update.UpdateSource
 import io.nekohasekai.sfa.update.UpdateState
 import io.nekohasekai.sfa.update.UpdateTrack
@@ -24,7 +25,7 @@ class UpdateWorker(private val appContext: Context, params: WorkerParameters) : 
         private const val TAG = "UpdateWorker"
 
         fun schedule(context: Context) {
-            if (!Settings.autoUpdateEnabled) {
+            if (!GitHubUpdateChecker.servesPackage(BuildConfig.APPLICATION_ID) || !Settings.autoUpdateEnabled) {
                 WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
                 Log.d(TAG, "Auto update disabled, cancelled scheduled work")
                 return
@@ -53,6 +54,7 @@ class UpdateWorker(private val appContext: Context, params: WorkerParameters) : 
     }
 
     override suspend fun doWork(): Result {
+        if (!GitHubUpdateChecker.servesPackage(BuildConfig.APPLICATION_ID)) return Result.success()
         if (!Settings.autoUpdateEnabled) {
             Log.d(TAG, "Auto update disabled, skipping")
             return Result.success()

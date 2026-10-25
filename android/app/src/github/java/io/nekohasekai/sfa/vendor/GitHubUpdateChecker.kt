@@ -14,6 +14,11 @@ import java.io.Closeable
 
 class GitHubUpdateChecker : Closeable {
     companion object {
+        private const val UPSTREAM_PACKAGE = "io.nekohasekai.sfa"
+        internal fun servesPackage(packageName: String): Boolean = packageName == UPSTREAM_PACKAGE
+        internal fun requireUpstreamPackage(packageName: String) {
+            require(servesPackage(packageName)) { "Use this edition's signed update channel." }
+        }
         private const val RELEASES_URL = "https://api.github.com/repos/SagerNet/sing-box/releases"
         private const val METADATA_FILENAME = "SFA-version-metadata.json"
     }
@@ -26,6 +31,7 @@ class GitHubUpdateChecker : Closeable {
     private val json = Json { ignoreUnknownKeys = true }
 
     fun checkUpdate(track: UpdateTrack, githubToken: String): UpdateInfo? {
+        requireUpstreamPackage(BuildConfig.APPLICATION_ID)
         val request = client.newRequest()
         request.setURL(
             when (track) {
