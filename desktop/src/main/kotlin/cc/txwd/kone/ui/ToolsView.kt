@@ -3,6 +3,7 @@ package cc.txwd.kone.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
@@ -137,7 +139,9 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
     // While connected the settings above keep at most three fifths of the page, scrolling within it, so the connections always show.
     val top = if (state.carried != null) maxHeight * 0.6f else maxHeight
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(max = top).verticalScroll(rememberScrollState())) {
+        val upper = rememberScrollState()
+        Box(Modifier.widthIn(max = 640.dp + ROOM).fillMaxWidth().heightIn(max = top).fadingEdges(upper, ink.paper)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(upper).padding(end = ROOM)) {
             state.siteAdvice.forEach { Advised(it, actions) }
             Line("Mode") {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
@@ -178,6 +182,8 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
             if (state.checks.isNotEmpty()) Checks(state.checks, state.advice)
             Lookup(state.lookup, actions)
             SiteLine(state.site, actions)
+        }
+        InkScrollbar(upper, Modifier.align(Alignment.TopEnd))
         }
         state.carried?.let { carried -> Connections(carried, state.bypass, actions) }
     }
@@ -405,8 +411,9 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
                 Order.Up -> list.sortedByDescending { it.up }
             }
         }
-    Row(Modifier.fillMaxWidth().padding(top = 22.dp).height(40.dp), verticalAlignment = Alignment.CenterVertically) {
-        Label("Connection", 15.sp)
+    // Its right edge in line with the rows below, which leave the scrollbar its room.
+    Row(Modifier.fillMaxWidth().padding(top = 22.dp, end = ROOM).height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+        Label("Connections", 15.sp)
         Spacer(Modifier.width(14.dp))
         Label(if (needle.isEmpty()) "${carried.connections.size}" else "${shown.size} / ${carried.connections.size}", 15.sp, ink.soft, tabular = true)
         Spacer(Modifier.width(22.dp))
@@ -436,46 +443,54 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
             }
         }
     }
-    LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
-        items(shown, key = { it.id }) { connection ->
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 40.dp).hairline(ink.hair, bottom = true).padding(vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Box(Modifier.width(170.dp)) { Wrapped(connection.program ?: "—", 13.sp, ink.ink) }
-                // The site, and the one press that sends it the other way from now on (Rules' site lists).
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.weight(1f, fill = false)) { Wrapped(connection.target, 13.sp, ink.ink) }
-                    val site = cc.txwd.kone.core.KoneConfig.site(connection.target)?.removePrefix("www.")
-                    if (site != null) {
-                        val straight = connection.via != "direct"
-                        Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onSendSite(site, straight) }, contentAlignment = Alignment.Center) {
-                            Label(if (straight) "Straight out" else "Via node", 11.sp, ink.soft)
+    val list = rememberLazyListState()
+    Box(Modifier.fillMaxWidth().weight(1f).fadingEdges(list, LocalInk.current.paper)) {
+        LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(end = ROOM)) {
+            items(shown, key = { it.id }) { connection ->
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 40.dp).hairline(ink.hair, bottom = true).padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Box(Modifier.width(170.dp)) { Wrapped(connection.program ?: "—", 13.sp, ink.ink) }
+                    // The site, and the one press that sends it the other way from now on (Rules' site lists).
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.weight(1f, fill = false)) { Wrapped(connection.target, 13.sp, ink.ink) }
+                        val site = cc.txwd.kone.core.KoneConfig.site(connection.target)?.removePrefix("www.")
+                        if (site != null) {
+                            val straight = connection.via != "direct"
+                            Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onSendSite(site, straight) }, contentAlignment = Alignment.Center) {
+                                Label(if (straight) "Straight out" else "Via node", 11.sp, ink.soft)
+                            }
                         }
                     }
-                }
-                // The way it went, and beneath it why: which list, rule, category or mode sent it there.
-                Column(Modifier.width(150.dp)) {
-                    Wrapped(if (connection.via == "direct") "Direct" else connection.via, 13.sp, ink.soft)
-                    connection.why?.let { Wrapped(it, 11.sp, ink.soft.copy(alpha = 0.75f)) }
-                }
-                // Fixed widths from here, so every row's columns stand in line.
-                Row(Modifier.width(96.dp), horizontalArrangement = Arrangement.End) { Label("↓ ${size(connection.down)}", 12.sp, ink.soft, tabular = true) }
-                Row(Modifier.width(90.dp), horizontalArrangement = Arrangement.End) { Label("↑ ${size(connection.up)}", 12.sp, ink.soft, tabular = true) }
-                Row(Modifier.width(96.dp), horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                    val program = connection.program
-                    if (program != null && program.endsWith(".exe", ignoreCase = true) && bypass.none { it.equals(program, ignoreCase = true) }) {
-                        Box(Modifier.height(28.dp).press(bleed = 6.dp) { actions.onBypass(program, true) }, contentAlignment = Alignment.Center) {
-                            Label("Connect directly", 12.sp, ink.soft)
-                        }
+                    // The way it went, and beneath it why: which list, rule, category or mode sent it there.
+                    Column(Modifier.width(150.dp)) {
+                        Wrapped(if (connection.via == "direct") "Direct" else connection.via, 13.sp, ink.soft)
+                        connection.why?.let { Wrapped(it, 11.sp, ink.soft.copy(alpha = 0.75f)) }
                     }
-                    Box(Modifier.height(28.dp).press(bleed = 6.dp) { actions.onClose(connection.id) }, contentAlignment = Alignment.Center) {
-                        Label("×", 15.sp, ink.soft)
+                    // Fixed widths from here, so every row's columns stand in line.
+                    Row(Modifier.width(96.dp), horizontalArrangement = Arrangement.End) { Label("↓ ${size(connection.down)}", 12.sp, ink.soft, tabular = true) }
+                    Row(Modifier.width(90.dp), horizontalArrangement = Arrangement.End) { Label("↑ ${size(connection.up)}", 12.sp, ink.soft, tabular = true) }
+                    Row(Modifier.width(96.dp), horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                        val program = connection.program
+                        if (program != null && program.endsWith(".exe", ignoreCase = true) && bypass.none { it.equals(program, ignoreCase = true) }) {
+                            Box(Modifier.height(28.dp).press(bleed = 6.dp) { actions.onBypass(program, true) }, contentAlignment = Alignment.Center) {
+                                Label("Connect directly", 12.sp, ink.soft)
+                            }
+                        }
+                        Box(Modifier.height(28.dp).press(bleed = 6.dp) { actions.onClose(connection.id) }, contentAlignment = Alignment.Center) {
+                            Label("×", 15.sp, ink.soft)
+                        }
                     }
                 }
             }
         }
+        if (shown.isEmpty()) {
+            if (carried.connections.isEmpty()) EmptyState("No connections right now", "Programs' connections through KOne appear here as they open.")
+            else EmptyState("Nothing matches", "Try a program's name, an address or a node.")
+        }
+        InkScrollbar(list, Modifier.align(Alignment.TopEnd))
     }
 }
 

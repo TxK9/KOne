@@ -2,6 +2,7 @@ package cc.txwd.kone.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -155,7 +157,8 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
     var order by remember { mutableStateOf(NodeOrder.Listed) }
     var hideFailing by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+        // Its right edge in line with the rows below, which leave the scrollbar its room.
+        Row(Modifier.fillMaxWidth().padding(end = ROOM).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             state.notice?.let { Label(it, 13.sp, if (state.noticeIsError) NodeWeather.Cut.ink(ink.dark) else ink.soft) }
             Spacer(Modifier.weight(1f))
             Action(if (state.testing) "Testing" else "Test all", enabled = !state.testing, onClick = actions.onTest)
@@ -182,37 +185,44 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
                 modifier = Modifier.padding(bottom = 8.dp),
             )
         }
-        LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
-            // The form scrolls with the list, so a long one is never cut off.
-            state.qr?.let { shown ->
-                item(key = "qr") { QrPanel(shown) { actions.onQr(null) } }
-            }
-            state.editing?.let { open ->
-                item(key = "editor") {
-                    NodeEditor(open.draft, editing = open.tag != null, error = open.error, saving = open.saving, onSave = actions.onSaveNode, onCancel = actions.onCancelNode)
+        val list = rememberLazyListState()
+        Box(Modifier.fillMaxWidth().weight(1f).fadingEdges(list, LocalInk.current.paper)) {
+            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(end = ROOM)) {
+                // The form scrolls with the list, so a long one is never cut off.
+                state.qr?.let { shown ->
+                    item(key = "qr") { QrPanel(shown) { actions.onQr(null) } }
                 }
-            }
-            for (section in state.sections) {
-                val open = collapsed[section.id] != true
-                item(key = "head:" + section.id) {
-                    Header(section, open, now, onToggle = { collapsed[section.id] = open }, actions = actions) {
-                        editing = if (editing == section.id) null else section.id
+                state.editing?.let { open ->
+                    item(key = "editor") {
+                        NodeEditor(open.draft, editing = open.tag != null, error = open.error, saving = open.saving, onSave = actions.onSaveNode, onCancel = actions.onCancelNode)
                     }
                 }
-                if (editing == section.id && section.kind == SourceKind.Subscription) {
-                    item(key = "edit:" + section.id) {
-                        Editor(section, onSave = { name, url, hours, leaveOut -> actions.onEdit(section.id, name, url, hours, leaveOut).also { if (it) editing = null } }, onCancel = { editing = null })
+                for (section in state.sections) {
+                    val open = collapsed[section.id] != true
+                    item(key = "head:" + section.id) {
+                        Header(section, open, now, onToggle = { collapsed[section.id] = open }, actions = actions) {
+                            editing = if (editing == section.id) null else section.id
+                        }
                     }
-                }
-                if (open) {
-                    items(section.nodes.shown(query, order, hideFailing), key = { section.id + ":" + it.id }) { node ->
-                        NodeRow(
-                            node, node.id == state.selected, removable = section.kind == SourceKind.Imported, copyable = section.kind != SourceKind.Managed,
-                            speedTesting = state.speedTesting, actions = actions,
-                        )
+                    if (editing == section.id && section.kind == SourceKind.Subscription) {
+                        item(key = "edit:" + section.id) {
+                            Editor(section, onSave = { name, url, hours, leaveOut -> actions.onEdit(section.id, name, url, hours, leaveOut).also { if (it) editing = null } }, onCancel = { editing = null })
+                        }
+                    }
+                    if (open) {
+                        items(section.nodes.shown(query, order, hideFailing), key = { section.id + ":" + it.id }) { node ->
+                            NodeRow(
+                                node, node.id == state.selected, removable = section.kind == SourceKind.Imported, copyable = section.kind != SourceKind.Managed,
+                                speedTesting = state.speedTesting, actions = actions,
+                            )
+                        }
                     }
                 }
             }
+            if (state.sections.all { it.nodes.isEmpty() } && state.editing == null && state.qr == null && !adding) {
+                EmptyState("No nodes yet", "Add a subscription, import share links or a Clash profile, or scan a QR code, with the buttons above.", Glyphs.nodes)
+            }
+            InkScrollbar(list, Modifier.align(Alignment.TopEnd))
         }
     }
 }

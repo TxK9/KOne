@@ -3,6 +3,7 @@ package cc.txwd.kone.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -153,7 +155,8 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                 Chips(state.proxied, actions.onRemoveSite) { AddSite { actions.onAddSite(it, false) } }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = 22.dp).height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Its right edge in line with the rows below, which leave the scrollbar its room.
+        Row(Modifier.fillMaxWidth().padding(top = 22.dp, end = ROOM).height(40.dp), verticalAlignment = Alignment.CenterVertically) {
             Label("Rules", 15.sp)
             Spacer(Modifier.width(14.dp))
             Label("${state.rules.size}", 15.sp, ink.soft, tabular = true)
@@ -198,56 +201,67 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
         if (adding) NewRule(openWith ?: "suffix", state.countries, openThrough, onAdd = { rule -> actions.onAddRule(rule).also { if (it) adding = false } }, onCancel = { adding = false })
         val shown = state.rules.withIndex().filter { (_, rule) -> matches(rule, query) }
         if (shown.isEmpty() && query.isNotEmpty()) Label("No rule matches", 13.sp, ink.soft, modifier = Modifier.padding(vertical = 10.dp))
-        LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
-            items(shown, key = { it.index }) { (index, rule) ->
-                Column {
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(min = 40.dp).hairline(ink.hair, bottom = true),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Box(Modifier.width(90.dp)) { Label(KINDS.firstOrNull { it.first == rule.kind }?.second ?: rule.kind, 13.sp, ink.soft) }
-                        if (rule.kind == "set") {
-                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Label(Categories.title(rule.value) ?: rule.value, 13.sp)
-                                if (Categories.title(rule.value) != null) Label(rule.value, 12.sp, ink.soft)
-                                val status = state.lists[rule.value]
-                                when {
-                                    status == null || (!status.kept && status.error == null) ->
-                                        Label(if (state.listsBusy) "Downloading" else "Not downloaded yet", 12.sp, NodeWeather.Mist.ink(ink.dark))
-                                    !status.kept -> Label("Not in use: ${status.error}", 12.sp, NodeWeather.Cut.ink(ink.dark))
-                                    status.error != null -> Label("Update failed, using the last copy", 12.sp, NodeWeather.Mist.ink(ink.dark))
-                                }
-                            }
-                        } else {
-                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Label(rule.value, 13.sp)
-                                // Through a country no node says now: the node in use carries it until one does.
-                                if (Rules.via(rule.action)?.let { it !in state.countries } == true) {
-                                    Label("No node there now; through the node in use", 12.sp, NodeWeather.Mist.ink(ink.dark))
-                                }
-                            }
-                        }
-                        // Where it goes; a click changes that where the rule stands.
+        val list = rememberLazyListState()
+        Box(Modifier.fillMaxWidth().weight(1f).fadingEdges(list, LocalInk.current.paper)) {
+            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(end = ROOM)) {
+                items(shown, key = { it.index }) { (index, rule) ->
+                    Column {
                         Row(
-                            Modifier.width(150.dp).height(32.dp).press(bleed = 6.dp) { changing = if (changing == index) null else index },
+                            Modifier.fillMaxWidth().heightIn(min = 40.dp).hairline(ink.hair, bottom = true),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            val color = if (rule.action == "block") NodeWeather.Cut.ink(ink.dark) else ink.ink
-                            Rules.via(rule.action)?.let { Flag(it, 18.dp, 12.dp) }
-                            Label(actionTitle(rule.action), 13.sp, color, FontWeight.SemiBold)
+                            Box(Modifier.width(90.dp)) { Label(KINDS.firstOrNull { it.first == rule.kind }?.second ?: rule.kind, 13.sp, ink.soft) }
+                            if (rule.kind == "set") {
+                                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Label(Categories.title(rule.value) ?: rule.value, 13.sp)
+                                    if (Categories.title(rule.value) != null) Label(rule.value, 12.sp, ink.soft)
+                                    val status = state.lists[rule.value]
+                                    when {
+                                        status == null || (!status.kept && status.error == null) ->
+                                            Label(if (state.listsBusy) "Downloading" else "Not downloaded yet", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                        !status.kept -> Label("Not in use: ${status.error}", 12.sp, NodeWeather.Cut.ink(ink.dark))
+                                        status.error != null -> Label("Update failed, using the last copy", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                    }
+                                }
+                            } else {
+                                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Label(rule.value, 13.sp)
+                                    // Through a country no node says now: the node in use carries it until one does.
+                                    if (Rules.via(rule.action)?.let { it !in state.countries } == true) {
+                                        Label("No node there now; through the node in use", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                    }
+                                }
+                            }
+                            // Where it goes; a click changes that where the rule stands.
+                            Row(
+                                Modifier.width(150.dp).height(32.dp).press(bleed = 6.dp) { changing = if (changing == index) null else index },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                            ) {
+                                val color = if (rule.action == "block") NodeWeather.Cut.ink(ink.dark) else ink.ink
+                                Rules.via(rule.action)?.let { Flag(it, 18.dp, 12.dp) }
+                                Label(actionTitle(rule.action), 13.sp, color, FontWeight.SemiBold)
+                            }
+                            // Fixed width, so every row's controls stand in line.
+                            Row(Modifier.width(110.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                                Small("↑", enabled = index > 0) { actions.onMoveRule(index, true) }
+                                Small("↓", enabled = index < state.rules.lastIndex) { actions.onMoveRule(index, false) }
+                                Small("×") { actions.onRemoveRule(index) }
+                            }
                         }
-                        // Fixed width, so every row's controls stand in line.
-                        Row(Modifier.width(110.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                            Small("↑", enabled = index > 0) { actions.onMoveRule(index, true) }
-                            Small("↓", enabled = index < state.rules.lastIndex) { actions.onMoveRule(index, false) }
-                            Small("×") { actions.onRemoveRule(index) }
-                        }
+                        if (changing == index) WayPicker(rule.action, state.countries) { way -> changing = null; if (way != rule.action) actions.onSetAction(index, way) }
                     }
-                    if (changing == index) WayPicker(rule.action, state.countries) { way -> changing = null; if (way != rule.action) actions.onSetAction(index, way) }
                 }
             }
+            if (state.rules.isEmpty() && !adding) {
+                EmptyState(
+                    "No rules of your own yet",
+                    "A rule sends a site, address, app, port or category through the node, straight out, blocked or through a country, in the order you set. Add one, or import rules from Clash or v2rayN.",
+                    Glyphs.rules,
+                )
+            }
+            InkScrollbar(list, Modifier.align(Alignment.TopEnd))
         }
     }
 }

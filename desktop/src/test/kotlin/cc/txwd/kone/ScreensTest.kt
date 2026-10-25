@@ -114,11 +114,15 @@ class ScreensTest {
             KoneTheme(dark) { if (framed) Frame({ TitleBar() }) { content() } else content() }
         }
         try {
-            // Twice: the first frame lays out, the second has the paintings in place.
+            // The first frame lays out; a second later the paintings are in place and anything
+            // arriving with a fade (an empty page's words) has arrived, as a person would see it.
             scene.render(0)
             // Where the mouse rests, for the hover wash.
             pointer?.let { scene.sendPointerEvent(PointerEventType.Move, it * scale) }
-            val image = scene.render(16_000_000)
+            // A few frames between, as the screen would draw them: content laid out during
+            // measurement (Tools) starts its fade a frame later than the rest.
+            for (at in listOf(16L, 200L, 500L)) scene.render(at * 1_000_000)
+            val image = scene.render(1_000_000_000)
             val png = checkNotNull(image.encodeToData(EncodedImageFormat.PNG)) { "could not encode $name" }
             val file = File(into, "$name-${if (dark) "dark" else "light"}.png")
             file.writeBytes(png.bytes)
@@ -555,6 +559,17 @@ class ScreensTest {
             }
             g.dispose()
             javax.imageio.ImageIO.write(strip, "png", File(out, "ring-${if (dark) "dark" else "light"}.png"))
+        }
+    }
+
+    /** Each page with nothing in it yet: logs, nodes, rules, and connections while connected. */
+    @Test
+    fun empty() {
+        shoot("empty-logs", dark = false) { WithRail(Page.Log, {}) { LogView(emptyList()) } }
+        shoot("empty-nodes", dark = true) { WithRail(Page.Nodes, {}) { NodesView(NodesState(), NodesActions()) } }
+        shoot("empty-rules", dark = false) { WithRail(Page.Rules, {}) { RulesView(RulesState(), RulesActions()) } }
+        shoot("empty-connections", dark = true) {
+            WithRail(Page.Tools, {}) { ToolsView(ToolsState("Rule", emptyList(), carried = Carried(0, 0, emptyList())), ToolsActions()) }
         }
     }
 

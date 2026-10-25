@@ -2,6 +2,7 @@ package cc.txwd.kone.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -89,14 +90,23 @@ fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: (
                 }
             }
         }
-        LazyColumn(Modifier.fillMaxSize(), state = list) {
-            items(shown) { line ->
-                val color = when (severity(line)) {
-                    2 -> NodeWeather.Cut.ink(ink.dark)
-                    1 -> NodeWeather.Mist.ink(ink.dark)
-                    else -> ink.soft
+        when {
+            lines.isEmpty() && held == null -> EmptyState(
+                "Nothing logged yet", "What KOne and the connection do appears here as it happens: warnings in amber, errors in red.", Glyphs.log,
+            )
+            shown.isEmpty() -> EmptyState("No lines match", if (level == LogLevel.All) "Try fewer words." else "Try fewer words, or All.")
+            else -> Box(Modifier.fillMaxSize().fadingEdges(list, ink.paper)) {
+                LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(end = ROOM)) {
+                    items(shown) { line ->
+                        val color = when (severity(line)) {
+                            2 -> NodeWeather.Cut.ink(ink.dark)
+                            1 -> NodeWeather.Mist.ink(ink.dark)
+                            else -> ink.soft
+                        }
+                        BasicText(line, Modifier.padding(vertical = 2.dp), style = TextStyle(color = color, fontFamily = Fonts.mono, fontSize = 13.sp))
+                    }
                 }
-                BasicText(line, Modifier.padding(vertical = 2.dp), style = TextStyle(color = color, fontFamily = Fonts.mono, fontSize = 13.sp))
+                InkScrollbar(list, Modifier.align(Alignment.TopEnd))
             }
         }
     }

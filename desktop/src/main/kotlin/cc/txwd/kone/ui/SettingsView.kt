@@ -137,8 +137,10 @@ private fun directDns(region: String) =
 @Composable
 fun SettingsView(state: SettingsState, actions: SettingsActions, network: NetworkState = NetworkState(), networkActions: NetworkActions = NetworkActions()) {
     val ink = LocalInk.current
-    // Scrolls when the window is too short for every line.
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 40.dp, vertical = 26.dp).widthIn(max = 640.dp).fillMaxWidth()) {
+    // Scrolls when the window is too short for every line, with the scrollbar at the page's edge.
+    val scroll = rememberScrollState()
+    Box(Modifier.fillMaxSize().fadingEdges(scroll, ink.paper)) {
+    Column(Modifier.verticalScroll(scroll).padding(horizontal = 40.dp, vertical = 26.dp).widthIn(max = 640.dp).fillMaxWidth()) {
         Line("Appearance") { Choices(Appearance.entries, state.appearance, Appearance::title, actions.onAppearance) }
         Line("Background") { Choices(Backdrop.entries, state.backdrop, Backdrop::title, actions.onBackdrop) }
         if (state.backdrop == Backdrop.City) Line("Ambient sound") { Switch(state.sound) { actions.onSound(!state.sound) } }
@@ -202,6 +204,8 @@ fun SettingsView(state: SettingsState, actions: SettingsActions, network: Networ
         if (state.backdrop == Backdrop.City) {
             Label("Weather data: Open-Meteo.com", 12.sp, ink.soft, modifier = Modifier.padding(top = 14.dp))
         }
+    }
+    InkScrollbar(scroll, Modifier.align(Alignment.TopEnd).padding(vertical = 26.dp), gutter = (-12).dp)
     }
 }
 
