@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -108,6 +109,35 @@ class ClashSubscriptionTest {
         assertEquals("chrome", byTag.getValue("NL anytls").obj("tls").obj("utls").text("fingerprint"))
         assertEquals("socks", byTag.getValue("socks").text("type"))
         assertEquals("p.invalid", byTag.getValue("http tls").obj("tls").text("server_name"))
+    }
+
+    @Test
+    fun realityKeysFlowsAndFingerprintsAreHeldToWhatSingBoxTakes() {
+        val bytes = ByteArray(32) { 0xfb.toByte() }
+        val standard = Base64.getEncoder().encodeToString(bytes)
+        val read = SubscriptionContent.read(
+            """
+            proxies:
+              - {name: padded key, type: vless, server: 203.0.113.20, port: 443, uuid: $id, tls: true, servername: www.example.com, reality-opts: {public-key: "$standard", short-id: ab}}
+              - {name: unknown fingerprint, type: trojan, server: 203.0.113.21, port: 443, password: pw, sni: t.invalid, client-fingerprint: private-invalid-fingerprint}
+              - {name: reality unknown fingerprint, type: vless, server: 203.0.113.22, port: 443, uuid: $id, tls: true, client-fingerprint: private-invalid-fingerprint, reality-opts: {public-key: $realityKey}}
+              - {name: old flow, type: vless, server: 203.0.113.23, port: 443, uuid: $id, tls: true, flow: xtls-rprx-direct}
+              - {name: short key, type: vless, server: 203.0.113.24, port: 443, uuid: $id, tls: true, reality-opts: {public-key: AAAA}}
+            """.trimIndent(),
+        )
+        assertEquals(listOf("padded key", "unknown fingerprint"), read.nodes.map { it.text("tag") })
+        // The key in sing-box's alphabet, as a share link's is written.
+        val reality = read.nodes[0].obj("tls")
+        assertEquals(Base64.getUrlEncoder().withoutPadding().encodeToString(bytes), reality.obj("reality").text("public_key"))
+        assertEquals("chrome", reality.obj("utls").text("fingerprint"))
+        // A fingerprint sing-box does not know is left out over plain TLS, as mihomo leaves it out.
+        assertNull(read.nodes[1].obj("tls")["utls"])
+        // Reality needs one it knows; Vision is the only flow; a key is 32 bytes.
+        assertEquals(3, read.refused)
+        assertEquals("Unsupported TLS fingerprint", read.refusal)
+        assertFalse(read.refusal!!.contains("private-invalid"))
+        assertEquals("Unsupported VLESS flow", runCatching { ClashProxies.convert(mapOf("type" to "vless", "server" to "203.0.113.23", "port" to 443, "uuid" to id, "tls" to true, "flow" to "xtls-rprx-direct")) }.exceptionOrNull()?.message)
+        assertEquals("Invalid Reality public key format", runCatching { ClashProxies.convert(mapOf("type" to "vless", "server" to "203.0.113.24", "port" to 443, "uuid" to id, "reality-opts" to mapOf("public-key" to "AAAA"))) }.exceptionOrNull()?.message)
     }
 
     @Test

@@ -219,16 +219,10 @@ object ShareLinks {
         if (query.flag("allowInsecure", "insecure", "allow_insecure")) tls.put("insecure", true)
         alpn(query)?.let { tls.put("alpn", it) }
         val fingerprint = query["fp"]?.trim()?.lowercase()?.takeIf { it.isNotEmpty() && it != "none" }
-        if (fingerprint != null && fingerprint !in fingerprints) fail("Unsupported TLS fingerprint")
+        if (fingerprint != null && fingerprint !in FINGERPRINTS) fail("Unsupported TLS fingerprint")
         if (security == "reality") {
-            val key = query["pbk"]?.trim()?.takeIf { it.isNotEmpty() }
-                ?.replace('+', '-')?.replace('/', '_')?.trimEnd('=') ?: fail("The Reality link has no public key.")
-            val bytes = try {
-                Base64.getUrlDecoder().decode(key)
-            } catch (_: Exception) {
-                ByteArray(0)
-            }
-            if (bytes.size != 32) fail("Invalid Reality public key format")
+            val written = query["pbk"]?.trim()?.takeIf { it.isNotEmpty() } ?: fail("The Reality link has no public key.")
+            val key = realityKey(written) ?: fail("Invalid Reality public key format")
             val shortId = query["sid"]?.trim().orEmpty()
             if (shortId.length > 16 || shortId.length % 2 != 0 || !shortId.all { it in "0123456789abcdefABCDEF" }) fail("Invalid Reality short ID format")
             tls.put("reality", JSONObject().put("enabled", true).put("public_key", key).put("short_id", shortId))
@@ -237,6 +231,20 @@ object ShareLinks {
             tls.put("utls", JSONObject().put("enabled", true).put("fingerprint", fingerprint ?: "chrome"))
         }
         return tls
+    }
+
+    /**
+     * A Reality public key as sing-box reads it (URL-safe base64 without padding), from either
+     * alphabet, padded or not; null unless it holds the 32 bytes of a key.
+     */
+    internal fun realityKey(text: String): String? {
+        val key = text.trim().replace('+', '-').replace('/', '_').trimEnd('=')
+        val bytes = try {
+            Base64.getUrlDecoder().decode(key)
+        } catch (_: Exception) {
+            return null
+        }
+        return key.takeIf { bytes.size == 32 }
     }
 
     /** TLS inside QUIC (Hysteria2, TUIC): no uTLS. */
@@ -381,7 +389,8 @@ object ShareLinks {
         return tidy(decoded)
     }
 
-    private val fingerprints = setOf("chrome", "chrome_psk", "chrome_psk_shuffle", "chrome_padding_psk_shuffle", "chrome_pq", "chrome_pq_psk",
+    /** The uTLS fingerprints sing-box knows; it refuses a configuration naming any other. */
+    internal val FINGERPRINTS = setOf("chrome", "chrome_psk", "chrome_psk_shuffle", "chrome_padding_psk_shuffle", "chrome_pq", "chrome_pq_psk",
         "firefox", "edge", "safari", "360", "qq", "ios", "android", "random", "randomized")
 
     private fun tidy(name: String): String? = name.replace(Regex("[\\t\\r\\n]+"), " ").filterNot { it.isISOControl() }.trim().take(64)
