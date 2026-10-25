@@ -21,10 +21,13 @@ class Health(private val keep: Int = 10) {
         history.keys.retainAll(keepOnly)
     }
 
-    /** Each node's tests moved from its old tag to its new one ([moves]), two namesakes trading tags included. */
+    /**
+     * Only the tests of nodes still exactly what was tested, each under its tag now ([carry]: each
+     * tag now to its tag before), namesakes that traded tags included.
+     */
     @Synchronized
-    fun rename(moves: Map<String, String>) {
-        history.rekey(moves)
+    fun carry(carry: Map<String, String>) {
+        history.carry(carry)
     }
 
     /** The recent tests of [tag], oldest first: a delay, or null for no answer. */

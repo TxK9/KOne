@@ -10,13 +10,13 @@ class HealthTest {
     private fun Health.tests(tag: String, vararg delays: Int?) = delays.forEach { record(tag, it) }
 
     @Test
-    fun testsMoveWithTheirNodesThoughNamesakesTradeTags() {
+    fun testsStayOnlyWithNodesExactlyAsTheyWereThoughNamesakesTradeTags() {
         val health = Health()
         health.tests("Tokyo", 100, 110)
         health.tests("Tokyo 2", null)
         health.tests("Rome", 300)
-        // Tokyo and Tokyo 2 trade tags; Paris takes Rome's, Rome being gone.
-        health.rename(mapOf("Tokyo" to "Tokyo 2", "Tokyo 2" to "Tokyo", "Paris" to "Rome"))
+        // Tokyo and Tokyo 2 traded tags; Rome changed, and is not carried.
+        health.carry(mapOf("Tokyo" to "Tokyo 2", "Tokyo 2" to "Tokyo"))
         assertEquals(listOf<Int?>(null), health.samples("Tokyo"))
         assertEquals(listOf<Int?>(100, 110), health.samples("Tokyo 2"))
         assertEquals(emptyList(), health.samples("Rome"))
