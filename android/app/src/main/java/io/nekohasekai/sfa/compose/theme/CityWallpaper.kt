@@ -36,6 +36,8 @@ import androidx.compose.runtime.snapshotFlow
 import org.json.JSONArray
 import java.io.ByteArrayInputStream
 
+internal const val CITY_WALLPAPER_VEIL_ALPHA = 0.66f
+
 internal data class CityWallpaperChoice(val id: String, val city: String, val country: String, val title: String)
 
 internal object CityWallpapers {

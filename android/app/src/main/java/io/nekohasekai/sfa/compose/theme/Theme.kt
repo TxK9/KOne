@@ -267,7 +267,7 @@ fun Theme(
                     if (cityWallpaper) {
                         CityWallpaper(Modifier.matchParentSize())
                         // A stable reading veil keeps native controls readable through day/night changes.
-                        Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.46f)))
+                        Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = CITY_WALLPAPER_VEIL_ALPHA)))
                     } else if (customBackdropPath == null && (backdropRes == R.drawable.knine_plain_light || backdropRes == R.drawable.knine_plain_dark)) {
                         PlainBackdropMark(dark = backdropRes == R.drawable.knine_plain_dark, modifier = Modifier.matchParentSize())
                     }
