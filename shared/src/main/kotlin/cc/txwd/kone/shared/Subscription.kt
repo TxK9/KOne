@@ -160,10 +160,10 @@ object SubscriptionContent {
      */
     fun name(url: String, disposition: String?): String {
         val fromHeader = disposition?.let { header ->
-            Regex("""filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)""").find(header)?.groupValues?.get(1)?.let { runCatching { URLDecoder.decode(it, Charsets.UTF_8) }.getOrNull() }
+            Regex("""filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)""").find(header)?.groupValues?.get(1)?.let { runCatching { URLDecoder.decode(it, Charsets.UTF_8.name()) }.getOrNull() }
                 ?: Regex("""filename\s*=\s*"?([^";]+)"?""").find(header)?.groupValues?.get(1)
         }?.trim()?.removeSuffix(".yaml")?.removeSuffix(".yml")?.removeSuffix(".json")?.removeSuffix(".txt")?.takeIf { it.isNotBlank() }
-        val fragment = url.substringAfter('#', "").takeIf { it.isNotBlank() }?.let { runCatching { URLDecoder.decode(it, Charsets.UTF_8) }.getOrNull() }
+        val fragment = url.substringAfter('#', "").takeIf { it.isNotBlank() }?.let { runCatching { URLDecoder.decode(it, Charsets.UTF_8.name()) }.getOrNull() }
         val host = runCatching { URI(url).host }.getOrNull()
         return (fromHeader ?: fragment ?: host ?: "Subscription").take(32)
     }
@@ -191,7 +191,7 @@ object SubscriptionContent {
             scheme == "hiddify" -> trimmed.substringAfter("://").takeIf { it.startsWith("import/", ignoreCase = true) }?.substring(7)?.substringBefore('#')
             scheme in IMPORT_LINKS -> trimmed.substringAfter('?', "").substringBefore('#').split('&')
                 .firstOrNull { it.startsWith("url=", ignoreCase = true) }?.substring(4)
-                ?.let { runCatching { URLDecoder.decode(it, Charsets.UTF_8) }.getOrNull() }
+                ?.let { runCatching { URLDecoder.decode(it, Charsets.UTF_8.name()) }.getOrNull() }
             else -> null
         }
         return inner?.trim()?.takeIf(::acceptable)

@@ -3,13 +3,6 @@
 name: Windows candidate
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/sync-clients-router-20261025]
-    paths:
-      - .github/workflows/windows-candidate.yml
-      - desktop/**
-      - shared/**
-      - core/**
 permissions:
   contents: write
 concurrency:
