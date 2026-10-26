@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.compose.screen.usbip
 
+import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
+import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
 import android.content.Context
 import android.hardware.usb.UsbManager
 import android.net.Uri
@@ -18,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -43,11 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -230,19 +228,14 @@ private fun DeviceItem(row: UsbDeviceRow, onOpen: () -> Unit, onDetach: (String)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(toneColor(tone)),
-            )
+            WeatherGlyph(tone.weather, size = 16.dp)
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
-                Text(row.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(row.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                 Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 row.vidPid?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 if (row.error != null) {
@@ -286,13 +279,14 @@ private fun stateInfo(row: UsbDeviceRow): Pair<String, Tone> {
     }
 }
 
-@Composable
-private fun toneColor(tone: Tone): Color = when (tone) {
-    Tone.GOOD -> Color(0xFF4CAF50)
-    Tone.MEDIUM -> MaterialTheme.colorScheme.primary
-    Tone.BAD -> MaterialTheme.colorScheme.error
-    Tone.NEUTRAL -> Color.Gray
-}
+/** A device's state as the app's weather rather than a stock green or grey dot. */
+private val Tone.weather: NodeWeather
+    get() = when (this) {
+        Tone.GOOD -> NodeWeather.Clear
+        Tone.MEDIUM -> NodeWeather.Mist
+        Tone.BAD -> NodeWeather.Cut
+        Tone.NEUTRAL -> NodeWeather.Rest
+    }
 
 private fun mergeRows(server: UsbipServerData, provided: List<ProvidedDevice>): List<UsbDeviceRow> {
     val providedByBusId =

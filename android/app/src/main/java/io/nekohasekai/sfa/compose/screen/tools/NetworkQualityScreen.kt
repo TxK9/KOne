@@ -324,13 +324,13 @@ fun NetworkQualityScreen(
         }
 
         if (state.phase >= 0) {
-            val phaseDownload = Libbox.NetworkQualityPhaseDownload.toInt()
-            val phaseUpload = Libbox.NetworkQualityPhaseUpload.toInt()
+            val phaseDownload = Libbox.NetworkQualityPhaseDownload
+            val phaseUpload = Libbox.NetworkQualityPhaseUpload
             val downloadActive =
                 (state.isRunning && !state.serial && state.phase in phaseDownload..phaseUpload) || state.phase == phaseDownload
             val uploadActive =
                 (state.isRunning && !state.serial && state.phase in phaseDownload..phaseUpload) || state.phase == phaseUpload
-            val done = state.phase == Libbox.NetworkQualityPhaseDone.toInt()
+            val done = state.phase == Libbox.NetworkQualityPhaseDone
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -353,7 +353,7 @@ fun NetworkQualityScreen(
                     ResultItem(
                         label = stringResource(R.string.network_quality_idle_latency),
                         value = if (state.idleLatencyMs > 0) "${state.idleLatencyMs} ms" else null,
-                        isActive = state.phase == Libbox.NetworkQualityPhaseIdle.toInt(),
+                        isActive = state.phase == Libbox.NetworkQualityPhaseIdle,
                         isRunning = state.isRunning,
                     )
                     HorizontalDivider(

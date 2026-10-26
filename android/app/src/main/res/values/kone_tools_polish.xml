@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tools pages: the router's page when it cannot be opened (the reason follows under it). -->
+    <string name="kone_router_problem">Cannot open the router</string>
+</resources>

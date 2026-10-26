@@ -1,15 +1,14 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.layout.size
 import android.graphics.Typeface
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,7 +27,6 @@ import androidx.compose.material3.HorizontalDivider
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TopAppBar
@@ -140,7 +138,8 @@ fun TailscaleSSHTerminalScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            // A deep path keeps its end, the folder actually in use.
+                            overflow = TextOverflow.StartEllipsis,
                         )
                     }
                 }
@@ -257,11 +256,11 @@ fun TailscaleSSHTerminalScreen(
                                         showSessionMenu = false
                                         sessionStore.switchSession(session.id)
                                     },
+                                    // The open session ticked, in ink, rather than a stock radio dot.
                                     leadingIcon = {
-                                        RadioButton(
-                                            selected = isActive,
-                                            onClick = null,
-                                        )
+                                        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                                            if (isActive) Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        }
                                     },
                                 )
                             }

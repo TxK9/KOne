@@ -11,13 +11,13 @@ import androidx.compose.material.icons.filled.Close
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.nekohasekai.libbox.Libbox
@@ -51,15 +51,11 @@ fun TaildropTransferItem(
                     name,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     transferSubtitle(peerLabel, transferredBytes, totalBytes, finished),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
             if (onCancel != null) {
@@ -90,14 +86,18 @@ fun TaildropTransferItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            // The bar in the page's ink on a faint ink track, not a stock tonal track over the wallpaper.
+            val ink = LocalContentColor.current
             if (totalBytes < 0) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = ink, trackColor = ink.copy(alpha = 0.12f))
             } else {
                 LinearProgressIndicator(
                     progress = {
                         if (totalBytes == 0L) 1f else (transferredBytes.toFloat() / totalBytes).coerceIn(0f, 1f)
                     },
                     modifier = Modifier.fillMaxWidth(),
+                    color = ink,
+                    trackColor = ink.copy(alpha = 0.12f),
                     drawStopIndicator = {},
                 )
             }

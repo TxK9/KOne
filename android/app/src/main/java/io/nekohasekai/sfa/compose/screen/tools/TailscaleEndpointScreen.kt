@@ -1,5 +1,10 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import io.nekohasekai.sfa.compose.screen.dashboard.weatherInk
+import androidx.compose.material3.LocalContentColor
+import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
+import io.nekohasekai.sfa.compose.component.KnineChevron
+import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
 import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
@@ -19,14 +24,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Inbox
@@ -145,7 +147,6 @@ fun TailscaleEndpointScreen(
                 ),
             ) {
                 Column {
-                    val stateIsLast = !hasThisDevice && !hasExitNode && !hasTaildrop && !hasAuth
                     if (!managed) ListItem(
                         headlineContent = {
                             Text(
@@ -165,12 +166,7 @@ fun TailscaleEndpointScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(stateColor(endpoint.backendState)),
-                                )
+                                WeatherGlyph(endpointWeather(endpoint.backendState), size = 14.dp)
                                 Text(
                                     endpoint.stateText,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -178,17 +174,10 @@ fun TailscaleEndpointScreen(
                                 )
                             }
                         },
-                        modifier = Modifier.clip(
-                            if (stateIsLast) {
-                                RoundedCornerShape(12.dp)
-                            } else {
-                                RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-                            },
-                        ),
+                        modifier = Modifier,
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     )
                     if (endpoint.backendState == "Running" && endpoint.selfPeer != null) {
-                        val thisDeviceIsLast = !hasExitNode && !hasTaildrop && !hasAuth
                         ListItem(
                             headlineContent = {
                                 Text(
@@ -208,25 +197,12 @@ fun TailscaleEndpointScreen(
                                     if (managed) "View device information" else endpoint.selfPeer.displayName,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
                                 )
                             },
                             trailingContent = {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                KnineChevron()
                             },
                             modifier = Modifier
-                                .clip(
-                                    if (thisDeviceIsLast) {
-                                        RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                                    } else {
-                                        RoundedCornerShape(0.dp)
-                                    },
-                                )
                                 .clickable {
                                     navController.navigate(
                                         "tools/tailscale/${Uri.encode(endpointTag)}/peer/${Uri.encode(endpoint.selfPeer.id)}",
@@ -236,7 +212,6 @@ fun TailscaleEndpointScreen(
                         )
                     }
                     if (hasExitNode) {
-                        val exitNodeIsLast = !hasTaildrop && !hasAuth
                         ListItem(
                             headlineContent = {
                                 Text(
@@ -256,25 +231,12 @@ fun TailscaleEndpointScreen(
                                     endpoint.exitNode?.displayName ?: stringResource(R.string.disabled),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
                                 )
                             },
                             trailingContent = {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                KnineChevron()
                             },
                             modifier = Modifier
-                                .clip(
-                                    if (exitNodeIsLast) {
-                                        RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                                    } else {
-                                        RoundedCornerShape(0.dp)
-                                    },
-                                )
                                 .clickable {
                                     navController.navigate(
                                         "tools/tailscale/${Uri.encode(endpointTag)}/exit_node",
@@ -339,22 +301,10 @@ fun TailscaleEndpointScreen(
                                             Text("!")
                                         }
                                     }
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
+                                    KnineChevron()
                                 }
                             },
                             modifier = Modifier
-                                .clip(
-                                    if (!hasAuth) {
-                                        RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                                    } else {
-                                        RoundedCornerShape(0.dp)
-                                    },
-                                )
                                 .clickable {
                                     navController.navigate(
                                         "tools/tailscale/${Uri.encode(endpointTag)}/taildrop",
@@ -398,7 +348,6 @@ fun TailscaleEndpointScreen(
                                 )
                             },
                             modifier = Modifier
-                                .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
                                 .clickable { showAuthQRCode = true },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         )
@@ -444,13 +393,7 @@ fun TailscaleEndpointScreen(
                                 } else {
                                     null
                                 },
-                                modifier = when {
-                                    group.peers.size == 1 -> Modifier.clip(RoundedCornerShape(12.dp))
-                                    index == 0 -> Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                                    index == group.peers.lastIndex -> Modifier.clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                                    else -> Modifier
-                                },
-                            )
+                                                            )
                             DropdownMenu(
                                 expanded = showSSHMenu,
                                 onDismissRequest = { showSSHMenu = false },
@@ -544,12 +487,7 @@ private fun PeerItem(
             modifier = Modifier.height(24.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(if (peer.online) Color(0xFF4CAF50) else Color.Gray),
-            )
+            WeatherGlyph(if (peer.online) NodeWeather.Clear else NodeWeather.Rest, size = 14.dp)
         }
         Column(
             modifier = Modifier.weight(1f),
@@ -582,12 +520,7 @@ private fun PeerItem(
             modifier = Modifier.height(24.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            KnineChevron()
         }
     }
     }
@@ -598,16 +531,18 @@ private data class PeerBadge(val text: String, val color: Color)
 @Composable
 private fun peerBadges(peer: TailscalePeerData): List<PeerBadge> {
     if (!peer.online) return emptyList()
+    // Tints from the weather's pigments and the page's ink, readable on light and dark wallpapers alike.
+    val ink = LocalContentColor.current
     val badges = mutableListOf<PeerBadge>()
     if (peer.shareeNode) {
-        badges += PeerBadge(stringResource(R.string.tailscale_shared_in), Color(0xFFF44336))
+        badges += PeerBadge(stringResource(R.string.tailscale_shared_in), ink)
     }
     if (peer.exitNodeOption) {
-        badges += PeerBadge(stringResource(R.string.tailscale_exit_node), Color(0xFF2196F3))
+        badges += PeerBadge(stringResource(R.string.tailscale_exit_node), ink)
     }
     when {
         peer.expired -> {
-            badges += PeerBadge(stringResource(R.string.tailscale_expired), Color(0xFFF44336))
+            badges += PeerBadge(stringResource(R.string.tailscale_expired), weatherInk(NodeWeather.Cut, ink))
         }
         peer.keyExpiry > 0 -> {
             val expiryMs = peer.keyExpiry * 1000
@@ -620,15 +555,15 @@ private fun peerBadges(peer: TailscalePeerData): List<PeerBadge> {
                     DateUtils.MINUTE_IN_MILLIS,
                     DateUtils.FORMAT_ABBREV_RELATIVE,
                 ).toString()
-                badges += PeerBadge(stringResource(R.string.tailscale_expires_relative, rel), Color.Gray)
+                badges += PeerBadge(stringResource(R.string.tailscale_expires_relative, rel), ink.copy(alpha = 0.6f))
             }
         }
         else -> {
-            badges += PeerBadge(stringResource(R.string.tailscale_key_expiry_disabled), Color.Gray)
+            badges += PeerBadge(stringResource(R.string.tailscale_key_expiry_disabled), ink.copy(alpha = 0.6f))
         }
     }
     if (peer.sshHostKeys.isNotEmpty()) {
-        badges += PeerBadge(stringResource(R.string.tailscale_ssh), Color(0xFF4CAF50))
+        badges += PeerBadge(stringResource(R.string.tailscale_ssh), weatherInk(NodeWeather.Clear, ink))
     }
     return badges
 }
@@ -647,9 +582,3 @@ private fun PeerBadgeView(badge: PeerBadge) {
     )
 }
 
-private fun stateColor(state: String): Color = when (state) {
-    "Running" -> Color(0xFF4CAF50)
-    "NeedsLogin", "NeedsMachineAuth" -> Color(0xFFFF9800)
-    "Starting" -> Color(0xFFFFEB3B)
-    else -> Color.Gray
-}

@@ -1,22 +1,21 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,7 +32,11 @@ import androidx.navigation.NavController
 import cc.txwd.kone.shared.Check
 import cc.txwd.kone.shared.Checks
 import cc.txwd.kone.shared.Outcome
+import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
+import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
+import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.constant.Status
@@ -41,14 +44,14 @@ import io.nekohasekai.sfa.selfuse.PhoneDiagnosis
 import io.nekohasekai.sfa.selfuse.PhoneProbe
 import io.nekohasekai.sfa.selfuse.RoutingSettings
 import kotlinx.coroutines.launch
-import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 
 /**
  * Tools → Diagnose: the phone's own causes first (network, clock, another VPN, Private DNS,
  * battery, Data Saver), then names and sites the way apps reach them, each shown as it finishes,
- * and the one thing to do.
+ * and the one thing to do. It wears the network tests' face: the ring to tap, the verdict under
+ * it, then one row per check with its weather.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,81 +84,81 @@ fun DiagnosisScreen(navController: NavController, serviceStatus: Status = Status
         }
     }
 
-    val scaffoldPadding = LocalScaffoldPadding.current
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .verticalScroll(rememberScrollState())
-            .padding(top = scaffoldPadding.calculateTopPadding() + 8.dp, bottom = scaffoldPadding.calculateBottomPadding() + 8.dp),
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    // The result as plain text for whoever helps, as on Windows: no key, no node addresses.
+    fun copyReport() {
+        val report = Checks.report(
+            checks, PhoneDiagnosis.advice(checks),
+            listOf(
+                "Version" to BuildConfig.VERSION_NAME,
+                "Android" to Build.VERSION.RELEASE,
+                "Region" to RoutingSettings.current().region,
+                "Connected" to (serviceStatus == Status.Started).toString(),
+            ),
+        )
+        context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("KOne diagnosis", report))
+        Toast.makeText(context, context.getString(R.string.knine_diagnose_copied), Toast.LENGTH_SHORT).show()
+    }
+
+    val verdict = if (done) checks.weather() else null
+    BackdropContrastScope(Modifier.fillMaxSize().padding(LocalScaffoldPadding.current)) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                checks.forEach { check -> CheckRow(check) }
-                if (running) Text(stringResource(R.string.knine_diagnose_running), style = MaterialTheme.typography.bodyMedium)
-                if (done) {
-                    val advice = PhoneDiagnosis.advice(checks)
-                    Text(
-                        advice ?: stringResource(R.string.knine_diagnose_fine),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = if (advice != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-                // Before the first run the page is the one action; afterwards copy and again sit at the end.
-                val fresh = !running && !done && checks.isEmpty()
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = if (fresh) Arrangement.Center else Arrangement.End) {
-                    // The result as plain text for whoever helps, as on Windows: no key, no node addresses.
-                    if (done) TextButton(onClick = {
-                        val report = Checks.report(
-                            checks, PhoneDiagnosis.advice(checks),
-                            listOf(
-                                "Version" to io.nekohasekai.sfa.BuildConfig.VERSION_NAME,
-                                "Android" to android.os.Build.VERSION.RELEASE,
-                                "Region" to RoutingSettings.current().region,
-                                "Connected" to (serviceStatus == Status.Started).toString(),
-                            ),
-                        )
-                        val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
-                        clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("KOne diagnosis", report))
-                        android.widget.Toast.makeText(context, context.getString(R.string.knine_diagnose_copied), android.widget.Toast.LENGTH_SHORT).show()
-                    }) {
-                        Text(stringResource(R.string.knine_diagnose_copy))
+            TestRing(
+                phase = when {
+                    running -> RingPhase.Running
+                    verdict != null -> RingPhase.Done
+                    else -> RingPhase.Idle
+                },
+                onTap = ::start,
+                enabled = !running,
+                accent = verdict?.let { ringAccent(it) },
+            ) {
+                when {
+                    running -> {
+                        RingNumber("…")
+                        RingCaption(stringResource(R.string.knine_diagnose_running))
                     }
-                    if (fresh) {
-                        androidx.compose.material3.OutlinedButton(
-                            onClick = ::start,
-                            // The dashboard's Import pill: an ink hairline, visible on any wallpaper.
-                            border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.45f)),
-                        ) { Text(stringResource(R.string.knine_diagnose_run)) }
-                    } else {
-                        TextButton(onClick = ::start, enabled = !running) {
-                            Text(stringResource(if (done) R.string.knine_diagnose_again else R.string.knine_diagnose_run))
-                        }
+                    verdict != null -> {
+                        WeatherGlyph(verdict, size = 44.dp, modifier = Modifier.padding(bottom = 10.dp))
+                        RingCaption(stringResource(R.string.knine_diagnose_again))
                     }
+                    else -> RingWord(stringResource(R.string.knine_diagnose_run))
                 }
+            }
+            Spacer(Modifier.height(18.dp))
+            if (done) RingLine(PhoneDiagnosis.advice(checks) ?: stringResource(R.string.knine_diagnose_fine))
+            Spacer(Modifier.height(24.dp))
+            // Each check as it finishes: its name, its few words, its weather.
+            checks.forEach { check ->
+                TestRow(
+                    title = check.title,
+                    weather = check.outcome.weather(),
+                    value = check.detail.ifBlank { if (check.outcome == Outcome.Running) "…" else null },
+                    open = false,
+                    onToggle = {},
+                )
+            }
+            if (done) {
+                Spacer(Modifier.height(12.dp))
+                TestLink(stringResource(R.string.knine_diagnose_copy), ::copyReport, icon = Icons.Outlined.ContentCopy)
             }
         }
     }
 }
 
-@Composable
-private fun CheckRow(check: Check) {
-    val mark = when (check.outcome) {
-        Outcome.Pass -> "✓"
-        Outcome.Warn -> "!"
-        Outcome.Fail -> "✕"
-        Outcome.Running -> "…"
-    }
-    val color = when (check.outcome) {
-        Outcome.Fail -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        Text(check.title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(110.dp))
-        Text(mark, style = MaterialTheme.typography.bodyLarge, color = color, modifier = Modifier.width(24.dp))
-        Text(check.detail, style = MaterialTheme.typography.bodyMedium, color = color, modifier = Modifier.weight(1f))
-    }
+/** A check's weather: passed is clear, worth a look is mist, failed is the storm; one still running has none. */
+private fun Outcome.weather(): NodeWeather? = when (this) {
+    Outcome.Pass -> NodeWeather.Clear
+    Outcome.Warn -> NodeWeather.Mist
+    Outcome.Fail -> NodeWeather.Cut
+    Outcome.Running -> null
+}
+
+/** The whole diagnosis in one weather: the worst of its checks. */
+private fun List<Check>.weather(): NodeWeather = when {
+    any { it.outcome == Outcome.Fail } -> NodeWeather.Cut
+    any { it.outcome == Outcome.Warn } -> NodeWeather.Mist
+    else -> NodeWeather.Clear
 }

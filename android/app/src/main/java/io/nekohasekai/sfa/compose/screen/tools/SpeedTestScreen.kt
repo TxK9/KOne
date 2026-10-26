@@ -100,13 +100,13 @@ internal fun SpeedTestScreen(
     }
 }
 
-private enum class Stage(val label: String) { Ready("Start"), Latency("Test latency"), Download("Downloading"), Upload("Uploading"), Done("Test again") }
+private enum class Stage(val label: String) { Ready("Start"), Latency("Measuring latency"), Download("Downloading"), Upload("Uploading"), Done("Test again") }
 
 private fun stageOf(state: NetworkQualityState): Stage = when {
-    !state.isRunning && state.phase == Libbox.NetworkQualityPhaseDone.toInt() -> Stage.Done
+    !state.isRunning && state.phase == Libbox.NetworkQualityPhaseDone -> Stage.Done
     !state.isRunning -> Stage.Ready
-    state.phase == Libbox.NetworkQualityPhaseDownload.toInt() -> Stage.Download
-    state.phase == Libbox.NetworkQualityPhaseUpload.toInt() -> Stage.Upload
+    state.phase == Libbox.NetworkQualityPhaseDownload -> Stage.Download
+    state.phase == Libbox.NetworkQualityPhaseUpload -> Stage.Upload
     else -> Stage.Latency
 }
 
@@ -141,7 +141,7 @@ private fun Gauge(state: NetworkQualityState, enabled: Boolean, onTap: () -> Uni
         sweep = stage == Stage.Latency,
         fill = fill,
     ) {
-        AnimatedContent(targetState = stage, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) }, label = "stage") { shown ->
+        AnimatedContent(targetState = stage, transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(140)) }, contentAlignment = Alignment.Center, label = "stage") { shown ->
             when (shown) {
                 Stage.Download, Stage.Upload -> RingNumber(mbps(live), "Mbps")
                 Stage.Latency -> RingNumber(if (state.idleLatencyMs > 0) "${state.idleLatencyMs}" else "…")
