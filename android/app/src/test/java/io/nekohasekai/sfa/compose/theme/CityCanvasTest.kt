@@ -15,7 +15,41 @@ class CityCanvasTest {
     private val sky = 0xFFE8ECF0.toInt()
     private val water = 0xFF0C1626.toInt()
 
-    private fun profile(vararg lines: CityScrim.Line) = CityScrim.profile(lines.toList(), cells = 200, cell = 4f, bridge = 56f, soften = 12f, feather = 40f)
+    private fun profile(vararg lines: CityScrim.Line) = CityScrim.profile(lines.toList(), cells = 200, cell = 4f, bridge = 56f, open = 200f, soften = 12f, feather = 40f)
+
+    @Test fun theInkTurnsOnceAtDuskAndDawnAndNeverFlickers() {
+        // Light ink holds through the middle of dawn and turns dark only in clear day.
+        assertTrue(CityInk.next(light = true, daylight = 0.55f))
+        assertFalse(CityInk.next(light = true, daylight = 0.65f))
+        // Dark ink holds through the middle of dusk and turns light only in clear night.
+        assertFalse(CityInk.next(light = false, daylight = 0.45f))
+        assertTrue(CityInk.next(light = false, daylight = 0.35f))
+        // Small swings around the middle never change it.
+        var light = true
+        for (d in listOf(0.5f, 0.58f, 0.42f, 0.55f, 0.45f)) light = CityInk.next(light, d)
+        assertTrue(light)
+    }
+
+    @Test fun aDaySceneNeedsOnlyAThinPaperWashUnderDarkInk() {
+        val area = Rect(0f, 0f, 1f, 1f)
+        val canvas = Size(1f, 1f)
+        val paper = CityShade.measure(1, 1, intArrayOf(sky), intArrayOf(water), 1f, lightInk = false).need(area, canvas, false)
+        val night = CityShade.measure(1, 1, intArrayOf(sky), intArrayOf(water), 1f, lightInk = true).need(area, canvas, false)
+        // Over a bright sky, dark ink reads almost as it is; light ink would need a deep slab.
+        assertTrue("paper $paper night $night", paper < 0.2f && night > 0.5f)
+        // At night the paper would have to be thick, which is why night keeps light ink.
+        val dark = CityShade.measure(1, 1, intArrayOf(sky), intArrayOf(water), 0f, lightInk = false).need(area, canvas, false)
+        assertTrue("dark $dark", dark > paper)
+    }
+
+    @Test fun aGapBetweenGroupsDipsWithoutFlashingTheBareCity() {
+        // 100 px apart: longer than a bridge, shorter than open city. The middle eases, never clears.
+        val shade = profile(CityScrim.Line(100f, 120f, 0.6f), CityScrim.Line(220f, 240f, 0.6f))
+        val middle = shade[170 / 4]
+        assertTrue("middle $middle", middle in 0.2f..0.59f)
+        // And it falls smoothly toward the middle, without steps.
+        for (i in (124 / 4)..(168 / 4)) assertTrue("cell $i", shade[i] >= shade[i + 1] - 0.001f)
+    }
 
     @Test fun aListReadsAsOneBandWithoutStripes() {
         // Rows 48 px apart with 20 px of text each: the gaps never dip below the lighter row's need.

@@ -46,7 +46,9 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.exp
 import kotlin.math.max
+import kotlin.math.PI
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /*
  * The city is the canvas of every page. Nothing veils it whole: each label and icon says where it
@@ -58,6 +60,12 @@ import kotlin.math.roundToInt
 
 /** Night-blue black: a bright day scene recedes to dusk under it rather than to grey. */
 internal const val CITY_SHADE = 0xFF0A0D12.toInt()
+
+/** The day scene's shade: the paper the dark ink is written on, washed thinly over the city. */
+internal const val CITY_PAPER = KninePalette.LIGHT_READING_SURFACE
+
+/** One tone for everything laid over the city, from the shade behind lines to the halo round a letter. */
+internal fun cityTone(lightInk: Boolean): Int = if (lightInk) CITY_SHADE else CITY_PAPER
 
 /** The deepest shade a line ever gets; any more and the city behind it would be gone. */
 internal const val CITY_SHADE_MAX = 0.8f
@@ -71,8 +79,10 @@ internal const val CITY_FOCUS_VEIL = 1f - (1f - CITY_WALLPAPER_VEIL_ALPHA) / (1f
 private val CELL = 4.dp
 private val LINE_MARGIN = 6.dp
 private val BRIDGE = 56.dp
+private val OPEN = 200.dp
 private val SOFTEN = 12.dp
-private val FEATHER = 40.dp
+// Long enough that a band's end reads as the sky darkening, not as the edge of a bar.
+private val FEATHER = 80.dp
 private val DEPTH_BLUR = 2.dp
 private val FOCUS_BLUR = 4.dp
 
@@ -90,7 +100,46 @@ internal object CityLight {
     fun read(scene: String, result: String?): Boolean {
         val level = result?.trim()?.removeSurrounding("\"")?.trim()?.toFloatOrNull()?.takeIf { it.isFinite() } ?: return false
         shown = Reading(scene, level.coerceIn(0f, 1f))
+        CityInk.follow(scene, level.coerceIn(0f, 1f))
         return true
+    }
+}
+
+/**
+ * The ink the city's pages wear: light over a night scene, dark over a day one, each with its own
+ * shade behind the lines (night blue or paper). It follows the scene's daylight with a margin either
+ * side, so dusk eases over once and never flips back and forth between pages.
+ */
+internal object CityInk {
+    /** Daylight past this turns a light ink dark; below [NIGHT] a dark ink turns light again. */
+    private const val DAY = 0.6f
+    private const val NIGHT = 0.4f
+
+    private var decided by mutableStateOf<Pair<String, Boolean>?>(null)
+    private var guessed: Pair<String, Boolean>? = null
+
+    /** True for light ink over [scene]: as its daylight decided, or until then, as its sun says. */
+    fun light(context: Context, scene: String): Boolean =
+        decided?.takeIf { it.first == scene }?.second ?: guess(context, scene)
+
+    fun follow(scene: String, daylight: Float) {
+        val now = decided?.takeIf { it.first == scene }?.second ?: guessed?.takeIf { it.first == scene }?.second ?: (daylight < 0.5f)
+        val next = next(now, daylight)
+        if (decided != scene to next) decided = scene to next
+    }
+
+    /** The ink after [light] meets [daylight]: it turns only once the light is clearly past the middle. */
+    fun next(light: Boolean, daylight: Float): Boolean = if (light && daylight > DAY) false else if (!light && daylight < NIGHT) true else light
+
+    /** Before the page reports its light: the sun over the scene's own city, well up meaning day. */
+    private fun guess(context: Context, scene: String): Boolean {
+        guessed?.takeIf { it.first == scene }?.let { return it.second }
+        val zone = CityWallpapers.choices(context).firstOrNull { it.id == scene }?.zone ?: "UTC"
+        val sun = io.nekohasekai.sfa.compose.theme.ink.SkyClock.sun(System.currentTimeMillis(), java.util.TimeZone.getTimeZone(zone))
+        // Height is a share of the sun's noon arc: past an eighth of it, the scene is in full day.
+        val light = !(sun.up && sun.height > 0.12f)
+        guessed = scene to light
+        return light
     }
 }
 
@@ -124,19 +173,20 @@ internal class CityShade(private val width: Int, private val height: Int, privat
          * Measures the day image at [daylight] over the night image, as the stage blends them. Without a
          * reading yet, each cell takes the brighter of the two, so the first frame is never too light.
          */
-        fun measure(width: Int, height: Int, day: IntArray, night: IntArray, daylight: Float?): CityShade {
+        fun measure(width: Int, height: Int, day: IntArray, night: IntArray, daylight: Float?, lightInk: Boolean = true): CityShade {
             val text = FloatArray(width * height)
             val large = FloatArray(width * height)
-            val shade = CITY_SHADE
+            val shade = cityTone(lightInk)
+            // The accent is the dimmer of each pair of inks over its own shade; meeting it meets both.
+            val accent = if (lightInk) KninePalette.LIGHT_ACCENT else KninePalette.DARK_ACCENT
             for (i in 0 until width * height) {
                 val seen = if (daylight != null) KninePalette.composite(day[i], night[i], daylight)
                 else if (KninePalette.luminance(day[i]) >= KninePalette.luminance(night[i])) day[i] else night[i]
                 val lifted = KninePalette.composite(0xFFFFFFFF.toInt(), seen, SCENE_LIFT)
                 // Every page keeps the dashboard's faint veil under the shade.
                 val under = KninePalette.composite(shade, lifted, CITY_WALLPAPER_LIVELY_VEIL)
-                // The accent is the dimmer of the two light inks; meeting it meets both.
-                text[i] = KninePalette.minimumSupportAlpha(KninePalette.LIGHT_ACCENT, under, shade, 4.5f)
-                large[i] = KninePalette.minimumSupportAlpha(KninePalette.LIGHT_ACCENT, under, shade, 3f)
+                text[i] = KninePalette.minimumSupportAlpha(accent, under, shade, 4.5f)
+                large[i] = KninePalette.minimumSupportAlpha(accent, under, shade, 3f)
             }
             return CityShade(width, height, text, large)
         }
@@ -145,10 +195,10 @@ internal class CityShade(private val width: Int, private val height: Int, privat
 
         @Volatile private var artwork: Artwork? = null
 
-        fun load(context: Context, scene: String, daylight: Float?): CityShade? {
+        fun load(context: Context, scene: String, daylight: Float?, lightInk: Boolean): CityShade? {
             val id = scene.takeIf { it.matches(Regex("[a-z0-9-]+")) } ?: return null
             val art = artwork?.takeIf { it.scene == id } ?: decode(context, id)?.also { artwork = it } ?: return null
-            return measure(art.width, art.height, art.day, art.night, daylight)
+            return measure(art.width, art.height, art.day, art.night, daylight, lightInk)
         }
 
         private fun decode(context: Context, id: String): Artwork? = runCatching {
@@ -173,10 +223,11 @@ internal object CityScrim {
 
     /**
      * One value per [cell] px down the canvas. Lines closer than [bridge] join, so a list reads as one
-     * band rather than stripes; steps between lines soften over [soften] without any line getting
-     * less than it needs; the band's ends fade into the open city over [feather].
+     * band rather than stripes; a longer gap, up to [open], dips softly toward its middle instead of
+     * flashing the bright city between two groups; steps between lines soften over [soften] without
+     * any line getting less than it needs; the band's ends fade into the open city over [feather].
      */
-    fun profile(lines: List<Line>, cells: Int, cell: Float, bridge: Float, soften: Float, feather: Float): FloatArray {
+    fun profile(lines: List<Line>, cells: Int, cell: Float, bridge: Float, open: Float, soften: Float, feather: Float): FloatArray {
         val core = FloatArray(cells)
         val height = cells * cell
         for (line in lines) {
@@ -185,13 +236,21 @@ internal object CityScrim {
             val to = ((line.bottom / cell).toInt()).coerceIn(0, cells - 1)
             for (i in from..to) core[i] = max(core[i], line.alpha)
         }
-        // Bridge the gaps between rows and groups.
+        // Bridge the gaps between rows and groups: a short one fills, a longer one dips the more the
+        // longer it is, and one as long as [open] reaches the bare city only at its very middle.
         var last = -1
         val span = (bridge / cell).toInt()
+        val openSpan = max(span + 1, (open / cell).toInt())
         for (i in 0 until cells) {
             if (core[i] <= 0f) continue
-            if (last >= 0 && i - last > 1 && i - last - 1 <= span) {
-                for (j in last + 1 until i) core[j] = core[last] + (core[i] - core[last]) * (j - last) / (i - last)
+            val gap = i - last - 1
+            if (last >= 0 && gap in 1..openSpan) {
+                val t = ((gap - span).toFloat() / (openSpan - span)).coerceIn(0f, 1f)
+                val dip = t * t * (3f - 2f * t)
+                for (j in last + 1 until i) {
+                    val f = (j - last).toFloat() / (i - last)
+                    core[j] = (core[last] + (core[i] - core[last]) * f) * (1f - dip * sin(PI.toFloat() * f))
+                }
             }
             last = i
         }
@@ -323,16 +382,18 @@ internal fun rememberCityBlur(state: CityCanvasState, overlay: WallpaperOverlayS
  * below, the shade behind the page's lines, and the focus veil behind a see-through popup.
  */
 @Composable
-internal fun CityCanvas(state: CityCanvasState, overlay: WallpaperOverlayState, modifier: Modifier = Modifier) {
+internal fun CityCanvas(state: CityCanvasState, overlay: WallpaperOverlayState, lightInk: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    // Night blue under light ink, paper under dark: one tone for the veil, the shade and the scrims.
+    val tone by androidx.compose.animation.animateColorAsState(Color(cityTone(lightInk)), tween(600, easing = FastOutSlowInEasing), label = "cityTone")
     val lively by animateFloatAsState(if (CityWallpapers.lively) 1f else 0f, tween(700, easing = FastOutSlowInEasing), label = "cityVeil")
     val focus by animateFloatAsState(if (overlay.windows.intValue > 0) 1f else 0f, tween(420, easing = FastOutSlowInEasing), label = "cityFocus")
     val scene = CityWallpapers.selected
     // Day in twentieths: a slow dusk remeasures the scene every few minutes, not at every reading.
     val daylight = CityLight.shown?.takeIf { it.scene == scene }?.let { (it.daylight * 20f).roundToInt() / 20f }
-    val shade by produceState<CityShade?>(null, scene, daylight) {
-        withContext(Dispatchers.Default) { CityShade.load(context, scene, daylight) }?.let { value = it }
+    val shade by produceState<CityShade?>(null, scene, daylight, lightInk) {
+        withContext(Dispatchers.Default) { CityShade.load(context, scene, daylight, lightInk) }?.let { value = it }
     }
     var area by remember { mutableStateOf(Rect.Zero) }
     val statusBar = WindowInsets.statusBars.getTop(density).toFloat()
@@ -344,7 +405,7 @@ internal fun CityCanvas(state: CityCanvasState, overlay: WallpaperOverlayState, 
         val cells = ceil(bounds.height / cell).toInt()
         if (state.shown.size != cells) state.shown = FloatArray(cells)
         val profile = with(density) {
-            { lines: List<CityScrim.Line> -> CityScrim.profile(lines, cells, cell, BRIDGE.toPx(), SOFTEN.toPx(), FEATHER.toPx()) }
+            { lines: List<CityScrim.Line> -> CityScrim.profile(lines, cells, cell, BRIDGE.toPx(), OPEN.toPx(), SOFTEN.toPx(), FEATHER.toPx()) }
         }
         val margin = with(density) { LINE_MARGIN.toPx() }
         // The system's own icons above and below count as lines too.
@@ -382,22 +443,21 @@ internal fun CityCanvas(state: CityCanvasState, overlay: WallpaperOverlayState, 
     }
     Canvas(modifier.onGloballyPositioned { area = it.boundsInWindow() }) {
         state.frame
-        val night = Color(CITY_SHADE)
-        // The faint veil every page shares with the dashboard: the city as painted, a touch towards night.
-        drawRect(night.copy(alpha = CITY_WALLPAPER_LIVELY_VEIL))
+        // The faint veil every page shares with the dashboard: the city as painted, a touch towards its tone.
+        drawRect(tone.copy(alpha = CITY_WALLPAPER_LIVELY_VEIL))
         if (lively > 0f) {
-            // The dashboard: shade behind the title above and the controls below.
+            // The dashboard: shade behind the title above and the controls below, in the same tone.
             val top = 172.dp.toPx()
             drawRect(
-                Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.44f * lively), 1f to Color.Transparent, endY = top),
+                Brush.verticalGradient(0f to tone.copy(alpha = 0.44f * lively), 1f to tone.copy(alpha = 0f), endY = top),
                 size = Size(size.width, top),
             )
             val bottom = size.height * 0.4f
             drawRect(
                 Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    0.5f to Color.Black.copy(alpha = 0.3f * lively),
-                    1f to Color.Black.copy(alpha = 0.72f * lively),
+                    0f to tone.copy(alpha = 0f),
+                    0.5f to tone.copy(alpha = 0.3f * lively),
+                    1f to tone.copy(alpha = 0.72f * lively),
                     startY = size.height - bottom,
                     endY = size.height,
                 ),
@@ -409,9 +469,9 @@ internal fun CityCanvas(state: CityCanvasState, overlay: WallpaperOverlayState, 
         val reading = (1f - lively) * (1f - focus)
         if (reading > 0f && shown.any { it > 0f }) {
             val cell = CELL.toPx()
-            val stops = Array(shown.size) { i -> ((i + 0.5f) * cell / size.height).coerceIn(0f, 1f) to night.copy(alpha = shown[i]) }
+            val stops = Array(shown.size) { i -> ((i + 0.5f) * cell / size.height).coerceIn(0f, 1f) to tone.copy(alpha = shown[i]) }
             drawRect(Brush.verticalGradient(*stops), alpha = reading)
         }
-        if (focus > 0f) drawRect(night.copy(alpha = CITY_FOCUS_VEIL * focus))
+        if (focus > 0f) drawRect(tone.copy(alpha = CITY_FOCUS_VEIL * focus))
     }
 }

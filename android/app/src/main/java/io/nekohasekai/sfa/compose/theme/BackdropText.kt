@@ -136,8 +136,10 @@ private fun AdaptiveLabel(
         placed,
         ink,
         style.copy(
+            // Over the open picture each letter keeps a faint halo, in the tone behind it: night blue
+            // round light ink, paper round dark ink, never a black edge.
             shadow = LocalBackdropHalo.current?.let { Shadow(it, Offset.Zero, 22f) }
-                ?: if (LocalTransparentUi.current) Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, 1f), 3f) else Shadow.None,
+                ?: if (LocalTransparentUi.current) Shadow(Color(cityTone(backdrop.theme.lightInk)).copy(alpha = 0.6f), Offset(0f, 1f), 3f) else Shadow.None,
         ),
         onTextLayout,
     )

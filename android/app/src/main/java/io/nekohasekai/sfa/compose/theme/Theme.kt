@@ -117,8 +117,11 @@ fun Theme(
     }
     var currentBackdrop by remember { mutableStateOf<ReadyBackdrop?>(null) }
     var leavingBackdrop by remember { mutableStateOf<ReadyBackdrop?>(null) }
-    var settledTheme by remember { mutableStateOf(WallpaperCatalog.initialThemeFor(backdropRes)) }
-    var displayedTheme by remember { mutableStateOf(WallpaperCatalog.initialThemeFor(backdropRes)) }
+    // The living city wears light ink at night and dark ink by day (CityInk), from its first frame.
+    val cityLight = !cityWallpaper || CityInk.light(context, CityWallpapers.selected)
+    val initialTheme = if (cityWallpaper) WallpaperTheme(cityLight) else WallpaperCatalog.initialThemeFor(backdropRes)
+    var settledTheme by remember { mutableStateOf(initialTheme) }
+    var displayedTheme by remember { mutableStateOf(initialTheme) }
     var leavingTheme by remember { mutableStateOf(WallpaperTheme(true)) }
     var readingTopWindow by remember { mutableStateOf<Float?>(null) }
     var leavingReadingTop by remember { mutableStateOf<Float?>(null) }
@@ -129,7 +132,7 @@ fun Theme(
         label = "photoBoundary",
     )
     data class IncomingTheme(val frame: ReadyBackdrop, val theme: WallpaperTheme, val size: Size)
-    val incomingTheme by produceState<IncomingTheme?>(null, ready, backdropBounds.size) {
+    val incomingTheme by produceState<IncomingTheme?>(null, ready, backdropBounds.size, cityLight) {
         val incoming = ready
         val viewport = backdropBounds
         value = if (incoming?.pixels != null && viewport.width > 0 && viewport.height > 0) {
@@ -137,7 +140,7 @@ fun Theme(
                 IncomingTheme(incoming, KninePalette.wallpaperTheme(sampledBackdropColors(incoming.pixels, viewport, viewport, incoming.focus)), viewport.size)
             }
         } else if (incoming != null && viewport.width > 0 && viewport.height > 0) {
-            IncomingTheme(incoming, WallpaperTheme(true), viewport.size)
+            IncomingTheme(incoming, WallpaperTheme(cityLight), viewport.size)
         } else null
     }
     val transition = remember { Animatable(1f) }
@@ -173,9 +176,14 @@ fun Theme(
             leavingBackdrop = null
             foregroundTransition.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
         } else {
+            // The same picture turning to the other ink (a city at dawn or dusk): the page fades
+            // through it rather than flipping its colours in place.
+            val turning = settledTheme.lightInk != nextTheme.lightInk
+            if (turning) foregroundTransition.animateTo(0f, tween(220, easing = FastOutSlowInEasing))
             displayedTheme = nextTheme
             settledTheme = nextTheme
-            if (foregroundTransition.value < 1f) foregroundTransition.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
+            if (turning) withFrameNanos { }
+            if (foregroundTransition.value < 1f) foregroundTransition.animateTo(1f, tween(if (turning) 360 else 260, easing = FastOutSlowInEasing))
         }
     }
     val activeBitmap = currentBackdrop?.bitmap
@@ -270,7 +278,7 @@ fun Theme(
                         // The city is every page's canvas: shade gathers only behind the page's lines (CityCanvas).
                         val blur = rememberCityBlur(city, overlayState)
                         CityWallpaper(Modifier.matchParentSize(), blur = { blur.value })
-                        CityCanvas(city, overlayState, Modifier.matchParentSize())
+                        CityCanvas(city, overlayState, settledTheme.lightInk, Modifier.matchParentSize())
                     } else if (customBackdropPath == null && (backdropRes == R.drawable.knine_plain_light || backdropRes == R.drawable.knine_plain_dark)) {
                         PlainBackdropMark(dark = backdropRes == R.drawable.knine_plain_dark, modifier = Modifier.matchParentSize())
                     }

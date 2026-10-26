@@ -382,10 +382,11 @@ internal fun KnineDashboard(
 
     BackdropContrastScope(Modifier.fillMaxSize()) {
         val ink = LocalContentColor.current
-        // The ink paintings shade with their own green-black; a city at night shades with night.
+        // The ink paintings shade with their own green-black; a city shades with its own tone, night
+        // blue under light ink and paper under dark (CityCanvas).
         val city = io.nekohasekai.sfa.compose.theme.WallpaperCatalog.mode == io.nekohasekai.sfa.compose.theme.WallpaperMode.City
-        val surface = if (city) Color(0xFF0B0E12) else knineSurface()
         val backdrop = LocalBackdrop.current
+        val surface = if (city) Color(io.nekohasekai.sfa.compose.theme.cityTone(backdrop?.theme?.lightInk ?: true)) else knineSurface()
         // Bright photos keep a glass card; dark photos drop it, like the rest of the app.
         val clear = LocalTransparentUi.current
         var panelBounds by remember { mutableStateOf(Rect.Zero) }

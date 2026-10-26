@@ -19,7 +19,6 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -75,7 +74,7 @@ internal fun WebToolTheme(paper: Color, ink: Color, content: @Composable () -> U
     MaterialTheme(colorScheme = scheme, content = content)
 }
 
-/** Back, the serif title stepping down rather than wrapping, the [actions]; then a hairline. */
+/** Back, the serif title stepping down rather than wrapping, and the [actions]; no line beneath. */
 @Composable
 internal fun WebToolBar(title: String, onBack: () -> Unit, actions: @Composable RowScope.() -> Unit = {}) {
     val ink = MaterialTheme.colorScheme.onSurface
@@ -96,7 +95,6 @@ internal fun WebToolBar(title: String, onBack: () -> Unit, actions: @Composable 
         }
         actions()
     }
-    HorizontalDivider(color = ink.copy(alpha = .10f))
 }
 
 /** The thin ink line while a page loads. */

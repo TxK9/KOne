@@ -47,7 +47,7 @@ internal const val CITY_WALLPAPER_VEIL_ALPHA = 0.66f
 /** The veil every page shares: the city shows nearly as painted, with shade only where text sits. */
 internal const val CITY_WALLPAPER_LIVELY_VEIL = 0.1f
 
-internal data class CityWallpaperChoice(val id: String, val city: String, val country: String, val title: String)
+internal data class CityWallpaperChoice(val id: String, val city: String, val country: String, val title: String, val zone: String = "UTC")
 
 internal object CityWallpapers {
     private var cached: List<CityWallpaperChoice>? = null
@@ -55,7 +55,7 @@ internal object CityWallpapers {
         val items = JSONArray(context.assets.open("wallpaper/catalog.json").bufferedReader().use { it.readText() })
         (0 until items.length()).map { index ->
             val item = items.getJSONObject(index)
-            CityWallpaperChoice(item.getString("id"), item.getString("cityLabel"), item.getString("countryLabel"), item.getString("title"))
+            CityWallpaperChoice(item.getString("id"), item.getString("cityLabel"), item.getString("countryLabel"), item.getString("title"), item.optString("cityZone", "UTC"))
         }
     }.getOrDefault(emptyList()).also { cached = it }
 

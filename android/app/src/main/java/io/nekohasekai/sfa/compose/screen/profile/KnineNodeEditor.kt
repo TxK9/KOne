@@ -3,6 +3,7 @@ package io.nekohasekai.sfa.compose.screen.profile
 import android.widget.Toast
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import io.nekohasekai.sfa.compose.theme.cityLine
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.QrCode2
@@ -233,8 +234,6 @@ private fun NodeBadge(icon: String?, open: Boolean, onClick: () -> Unit, modifie
 @Composable
 private fun NameField(name: String, onName: (String) -> Unit, modifier: Modifier) {
     val ink = LocalContentColor.current
-    val surface = knineSurface()
-    val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
     val underline by animateFloatAsState(if (focused) 1f else 0f, tween(220), label = "nameUnderline")
@@ -246,13 +245,14 @@ private fun NameField(name: String, onName: (String) -> Unit, modifier: Modifier
             color = ink,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
-            shadow = Shadow(surface.copy(alpha = 0.85f), Offset.Zero, with(density) { 12.dp.toPx() }),
         ),
         cursorBrush = SolidColor(ink),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+        // The city's shade gathers behind the name, as behind every label (CityCanvas).
         modifier = modifier
             .fillMaxWidth(0.82f)
+            .cityLine(large = true)
             .onFocusChanged { focused = it.isFocused }
             .drawBehind {
                 if (underline > 0f) {
