@@ -65,6 +65,8 @@ data class Node(
     val history: List<Int?> = emptyList(),
 ) {
     val weather: NodeWeather get() = if (tested) NodeWeather.of(delay) else NodeWeather.Rest
+    val caption: String get() = if ((id == cc.txwd.kone.core.KoneConfig.AUTO_TAG || id.startsWith("auto@")) &&
+        (name == "Automatic" || name.startsWith("Automatic · "))) tr("Automatic") + name.removePrefix("Automatic") else name
 }
 
 enum class Connection { Idle, Connecting, Online }
@@ -176,7 +178,7 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions, movi
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
                 ) {
                     Flag(node.country)
-                    Label(node.name, 15.sp, color, if (on) FontWeight.SemiBold else FontWeight.Normal)
+                    Label(node.caption, 15.sp, color, if (on) FontWeight.SemiBold else FontWeight.Normal)
                     WeatherGlyph(node.weather)
                     Label(delayText(node.delay), 14.sp, color, tabular = true)
                     if (on) Glyph(Glyphs.check, color, 18.dp, strokeWidth = 2.2f)

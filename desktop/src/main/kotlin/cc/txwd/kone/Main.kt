@@ -531,6 +531,7 @@ private fun Tray(model: AppModel, windowInSight: () -> Boolean, onOpen: () -> Un
     val mode = model.tools.mode
     LaunchedEffect(state.nodes.map { it.id to it.name }, state.selected, state.connection, mode, Strings.language) {
         tray.popupMenu = PopupMenu().apply {
+            font = java.awt.Font(if (Strings.chinese) "Microsoft YaHei UI" else "Segoe UI", java.awt.Font.PLAIN, 12)
             add(MenuItem(when (state.connection) {
                 Connection.Online -> tr("Close")
                 Connection.Connecting -> tr("Connecting")
@@ -543,7 +544,7 @@ private fun Tray(model: AppModel, windowInSight: () -> Boolean, onOpen: () -> Un
             if (state.nodes.size > 1) {
                 add(Menu(tr("Node")).apply {
                     state.nodes.forEach { node ->
-                        add(CheckboxMenuItem(node.name, node.id == state.selected).apply { addItemListener { model.pickNode(node.id) } })
+                        add(CheckboxMenuItem(node.caption, node.id == state.selected).apply { addItemListener { model.pickNode(node.id) } })
                     }
                 })
             }

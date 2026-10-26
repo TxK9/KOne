@@ -303,7 +303,7 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Flag(node.country)
-        Box(Modifier.weight(1f)) { Label(node.name, 14.sp, ink.ink, if (on) FontWeight.SemiBold else FontWeight.Normal) }
+        Box(Modifier.weight(1f)) { Label(node.caption, 14.sp, ink.ink, if (on) FontWeight.SemiBold else FontWeight.Normal) }
         // Fixed widths from here, so every row's columns stand in line.
         Box(Modifier.width(96.dp)) { Label(node.protocol.orEmpty(), 13.sp, ink.soft) }
         // How often it has not answered lately, once it has missed at all.

@@ -10,6 +10,7 @@ import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.ui.Appearance
 import cc.txwd.kone.ui.Page
 import cc.txwd.kone.ui.NodeWeather
+import cc.txwd.kone.ui.Node
 import java.nio.file.Files
 import java.util.Locale
 import kotlin.test.*
@@ -45,6 +46,8 @@ class LocalizationTest {
             assertEquals("晴", NodeWeather.Clear.char)
             assertEquals("开通密钥无效、已使用或已过期", ConsoleFailure.InviteInvalid.message)
             assertTrue("Rule" in KoneConfig.MODES)
+            assertEquals("自动选择 · Global", Node(KoneConfig.AUTO_TAG, "Automatic · Global", null, "Automatic", 1).caption)
+            assertEquals("Automatic", Node("provider-node", "Automatic", null, "Global", 1).caption)
             val link = "kone://claim?server=https%3A%2F%2Fconsole.example.com&code=example_code"
             assertEquals("example_code", ClaimLink.parse(link)?.code)
             Strings.language = Language.English

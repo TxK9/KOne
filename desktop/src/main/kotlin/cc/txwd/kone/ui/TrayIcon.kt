@@ -47,5 +47,5 @@ object TrayIcon {
 
     /** The tip on hover: "KOne · United States S 245 ms", or "KOne · Z" while not connected. */
     fun tip(node: Node?, online: Boolean): String =
-        if (!online || node == null) "KOne · ${NodeWeather.Rest.char}" else "KOne · ${node.name} ${node.weather.char} ${delayText(node.delay)}"
+        if (!online || node == null) "KOne · ${NodeWeather.Rest.char}" else "KOne · ${node.caption} ${node.weather.char} ${delayText(node.delay)}"
 }
