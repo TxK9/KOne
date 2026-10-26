@@ -14,10 +14,10 @@ and an installed CJK fallback during development. The installer uses WiX zh-CN
 resources, language 2052 and the corresponding UI font/codepage.
 
 The version row now displays the actual installer version. Production builds
-also receive the existing customer API address, an architecture-specific update
-manifest URL and the public update-signing key in
+also receive an architecture-specific update manifest URL and the public update-signing key in
 `desktop/packaging/update-public-key.txt`. The private half remains with the
 release operator. Development builds retain their explicit opt-in update setup.
+Activation links retain their existing management service address.
 The existing updater verifies Ed25519 manifest signatures and the complete MSI
 hash before installation. MSI Authenticode signing is independent of the update
 manifest signature.
