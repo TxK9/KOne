@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.settings
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,6 +49,7 @@ import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.RemoteConnectionOptions
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.theme.KnineLoadingState
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import io.nekohasekai.sfa.compose.theme.ServiceError
 import io.nekohasekai.sfa.compose.theme.ServiceRunning
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
@@ -226,12 +228,17 @@ fun EditRemoteServerScreen(navController: NavController, serverId: Long = -1L) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
         )
 
-        if (probeState != ProbeState.Idle) {
+        // Whether the server answers, said under the fields once the address is whole. The last
+        // answer stays on the line while it folds away, rather than flicking to another word.
+        val lastProbe = remember { arrayOf(ProbeState.Checking) }
+        if (probeState != ProbeState.Idle) lastProbe[0] = probeState
+        val shownProbe = lastProbe[0]
+        AnimatedVisibility(probeState != ProbeState.Idle, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (probeState == ProbeState.Checking) {
+                if (shownProbe == ProbeState.Checking) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
@@ -242,26 +249,20 @@ fun EditRemoteServerScreen(navController: NavController, serverId: Long = -1L) {
                         Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (probeState == ProbeState.Available) {
-                                    ServiceRunning
-                                } else {
-                                    ServiceError
-                                },
-                            ),
+                            .background(if (shownProbe == ProbeState.Available) ServiceRunning else ServiceError),
                     )
                 }
                 Text(
                     text =
                     stringResource(
-                        when (probeState) {
+                        when (shownProbe) {
                             ProbeState.Available -> R.string.remote_available
-                            ProbeState.Checking -> R.string.remote_checking
-                            else -> R.string.remote_unavailable
+                            ProbeState.Unavailable -> R.string.remote_unavailable
+                            else -> R.string.remote_checking
                         },
                     ),
                     color =
-                    when (probeState) {
+                    when (shownProbe) {
                         ProbeState.Available -> ServiceRunning
                         ProbeState.Unavailable -> ServiceError
                         else -> MaterialTheme.colorScheme.onSurfaceVariant

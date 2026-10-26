@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings → App -->
+    <string name="kone_settings_notifications">Notifications</string>
+    <string name="kone_settings_speed_in_notification">Speed in notification</string>
+
+    <!-- Settings → Service -->
+    <string name="kone_settings_background">Allow running in background</string>
+    <string name="kone_settings_allow_bypass">Allow apps to bypass</string>
+
+    <!-- Settings → Routing -->
+    <string name="kone_settings_routing_automatic">Pick the fastest node</string>
+    <string name="kone_settings_routing_private_dns">Android\'s Private DNS (%1$s) answers apps before these servers</string>
+    <string name="kone_settings_routing_private_dns_provider">a provider</string>
+    <string name="kone_settings_rule_up">Move up</string>
+    <string name="kone_settings_rule_remove">Remove rule</string>
+
+    <!-- Settings → Profile override, and its app lists -->
+    <string name="kone_settings_exclude_china_apps">Exclude China apps</string>
+    <string name="kone_settings_managed_exceptions">Managed exceptions</string>
+    <string name="kone_settings_managed_exceptions_mode">Selected apps always use the VPN</string>
+    <string name="kone_settings_china_app">China app</string>
+    <string name="kone_settings_managed_failed">Could not scan the apps. Try again.</string>
+
+    <!-- Settings → Privileged enhancement -->
+    <string name="kone_settings_detected">Detected</string>
+</resources>

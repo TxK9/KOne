@@ -31,7 +31,7 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.Sort
 import io.nekohasekai.sfa.compose.theme.KnineDropdownMenu as DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -478,20 +478,12 @@ fun PrivilegeSettingsManageScreen(
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
 
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.privilege_settings_hide_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = stringResource(R.string.selected_count, selectedUids.size),
-                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-            )
-        }
+        // The page's title says what the chosen apps get; the count is all that needs saying.
+        Text(
+            text = stringResource(R.string.selected_count, selectedUids.size),
+            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
 
         AnimatedVisibility(
             visible = isSearchActive,
@@ -620,7 +612,7 @@ private fun PrivilegeSettingsMenus(
             onClick = { showSortMenu = !showSortMenu },
             leadingIcon = {
                 Icon(
-                    imageVector = Icons.Default.Sort,
+                    imageVector = Icons.AutoMirrored.Filled.Sort,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )

@@ -61,17 +61,26 @@ fun TailscaleGhosttyConfigEditorScreen(navController: NavController, isDark: Boo
     }
     editor.onTextChanged = { content = editor.getText() }
 
-    LaunchedEffect(content) {
-        delay(300)
+    fun save(text: String) {
         if (isDark) {
-            Settings.tailscaleSSHDarkConfig = content
+            Settings.tailscaleSSHDarkConfig = text
         } else {
-            Settings.tailscaleSSHLightConfig = content
+            Settings.tailscaleSSHLightConfig = text
         }
     }
 
+    // Saved after a pause in typing, and once more on leaving, so an edit made within the pause
+    // is not lost when the page closes.
+    LaunchedEffect(content) {
+        delay(300)
+        save(content)
+    }
+
     DisposableEffect(Unit) {
-        onDispose { editor.release() }
+        onDispose {
+            save(content)
+            editor.release()
+        }
     }
 
     val importLauncher = rememberLauncherForActivityResult(

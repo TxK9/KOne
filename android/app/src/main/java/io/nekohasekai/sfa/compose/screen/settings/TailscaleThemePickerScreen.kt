@@ -18,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SearchBarDefaults
@@ -30,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
@@ -72,10 +74,8 @@ fun TailscaleThemePickerScreen(
         }
     }
 
-    val filteredThemes = if (searchQuery.isBlank()) {
-        themes
-    } else {
-        themes.filter { it.contains(searchQuery, ignoreCase = true) }
+    val filteredThemes = remember(themes, searchQuery) {
+        if (searchQuery.isBlank()) themes else themes.filter { it.contains(searchQuery, ignoreCase = true) }
     }
 
     OverrideTopBar {
@@ -159,6 +159,7 @@ fun TailscaleThemePickerScreen(
                             Settings.tailscaleSSHLightTheme = theme
                         }
                     },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
             }
         }
