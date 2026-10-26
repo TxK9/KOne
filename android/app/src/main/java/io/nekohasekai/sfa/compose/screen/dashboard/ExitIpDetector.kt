@@ -7,8 +7,10 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
 import android.os.Process
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.runInterruptible
@@ -72,6 +74,30 @@ internal class ExitIpDetector(context: Context) {
             connection.disconnect()
         }
     }
+}
+
+/** Pauses before each retry: the VPN network can appear before the tunnel carries traffic. */
+internal val EXIT_IP_RETRY_DELAYS_MS = longArrayOf(1_500, 4_000)
+
+/** Runs [attempt] until it yields an address, once more after each delay; failures count as no address. */
+internal suspend fun detectWithRetry(
+    delays: LongArray = EXIT_IP_RETRY_DELAYS_MS,
+    pause: suspend (Long) -> Unit = { delay(it) },
+    attempt: suspend () -> String?,
+): String? {
+    suspend fun once() = try {
+        attempt()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    }
+    once()?.let { return it }
+    for (wait in delays) {
+        pause(wait)
+        once()?.let { return it }
+    }
+    return null
 }
 
 internal fun parseExitIp(response: String): String? {

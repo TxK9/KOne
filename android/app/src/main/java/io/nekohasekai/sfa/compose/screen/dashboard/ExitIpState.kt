@@ -44,14 +44,8 @@ internal fun rememberExitIp(profileId: Long, status: Status, routeMode: String, 
                     Log.i("KnineExitIp", "IP hidden: this app's VPN network is unavailable")
                     return@collectLatest
                 }
-                try {
-                    state.value = detector.detect(network)
-                    if (state.value == null) Log.i("KnineExitIp", "IP hidden: no verified response")
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    Log.i("KnineExitIp", "IP hidden: detection failed")
-                }
+                state.value = detectWithRetry { detector.detect(network) }
+                if (state.value == null) Log.i("KnineExitIp", "IP hidden: no verified response")
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
