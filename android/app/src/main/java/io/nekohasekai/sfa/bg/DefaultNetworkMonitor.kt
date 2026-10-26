@@ -8,7 +8,11 @@ import java.net.NetworkInterface
 
 object DefaultNetworkMonitor {
 
+    // Written on the network callback thread, read by the core's threads and the VPN service.
+    @Volatile
     var defaultNetwork: Network? = null
+
+    @Volatile
     private var listener: InterfaceUpdateListener? = null
 
     /** Told of every new network under the tunnel, so the VPN can declare it (see [VPNService.declareUnderlying]). */

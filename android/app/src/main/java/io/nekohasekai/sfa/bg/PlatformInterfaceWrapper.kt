@@ -84,8 +84,9 @@ interface PlatformInterfaceWrapper : PlatformInterface {
             owner.setAndroidPackageNames(StringArray(packages?.toList()?.iterator() ?: emptyList<String>().iterator()))
             return owner
         } catch (e: Exception) {
+            // Once, with its stack: a second copy to System.err doubled every failed lookup's
+            // lines against logcat's small per-app quota.
             Log.e("PlatformInterface", "getConnectionOwnerUid", e)
-            e.printStackTrace(System.err)
             throw e
         }
     }

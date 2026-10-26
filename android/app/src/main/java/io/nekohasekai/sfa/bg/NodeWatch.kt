@@ -25,8 +25,10 @@ import java.util.concurrent.CopyOnWriteArrayList
  * core's URL test through the proxy, judged by the same rules as the dashboard's dot, so the two
  * agree. It only runs while the screen is on, since nobody can look otherwise. A test is one small
  * HTTPS request through the node: when the screen comes on (unless a result is under a minute
- * old), then once a minute on Wi-Fi and once every three minutes on mobile data. Results of the
- * dashboard's own tests arrive here too, so while it is open this asks for none of its own.
+ * old), then once a minute on Wi-Fi and once every three minutes on mobile data. It names the
+ * node itself ([probeTarget]), never its group: the core tests every member of a group it is
+ * given. Results of the dashboard's own tests arrive here too, so while it is open this asks for
+ * none of its own.
  */
 internal object NodeWatch : CommandClient.Handler {
     private const val WIFI_GAP_S = 60L
@@ -48,6 +50,7 @@ internal object NodeWatch : CommandClient.Handler {
     private var loop: Job? = null
     private var groupTag: String? = null
     private var nodeTag: String? = null
+    private var probeTag: String? = null
     private var history = emptyList<LatencySample>()
     private var lastResult = 0L
     private var askedAt = 0L
@@ -89,6 +92,7 @@ internal object NodeWatch : CommandClient.Handler {
         pause()
         groupTag = null
         nodeTag = null
+        probeTag = null
         reset()
     }
 
@@ -101,7 +105,7 @@ internal object NodeWatch : CommandClient.Handler {
     }
 
     private suspend fun check() {
-        val tag = groupTag ?: return
+        val tag = probeTag ?: groupTag ?: return
         val now = System.currentTimeMillis() / 1_000
         if (askedAt > 0L && now - askedAt >= ANSWER_S) {
             askedAt = 0L
@@ -127,12 +131,16 @@ internal object NodeWatch : CommandClient.Handler {
         // A paired profile routes through its "proxy" selector; otherwise use the first selector.
         val probe = groups.firstOrNull { it.selectable && it.tag == "proxy" } ?: groups.firstOrNull { it.selectable }
         val inUse = probe?.items?.firstOrNull { it.tag == probe.selected }
+        val target = probe?.let { probeTarget(groups, it) }
         main.post {
+            // Paused or stopped since this was sent: a late answer must not revive an old verdict.
+            if (client == null) return@post
             if (probe?.tag != groupTag || inUse?.tag != nodeTag) {
                 groupTag = probe?.tag
                 nodeTag = inUse?.tag
                 reset()
             }
+            probeTag = target
             val time = inUse?.urlTestTime?.let { if (it > 100_000_000_000L) it / 1_000 else it } ?: 0L
             val delay = inUse?.urlTestDelay ?: 0
             if (delay > 0 && time > 0L && (time > lastResult || askedAt > 0L && time >= askedAt - 1)) {
@@ -151,5 +159,21 @@ internal object NodeWatch : CommandClient.Handler {
     private fun publish() {
         reading = NodeHealthRules.judge(history, NodeHealthRules.PROXY_SLOW_MS, NodeHealthRules.PROXY_JITTER_MS)
         listeners.forEach { it() }
+    }
+}
+
+/**
+ * The outbound that carries [group]'s traffic: its selection, followed through nested groups (an
+ * Automatic choice is a group of its own). Null when that cannot be told, and the caller falls
+ * back to the group. Testing this costs one request; a group's tag has the core test every member.
+ */
+internal fun probeTarget(groups: List<Group>, group: Group): String? {
+    val byTag = groups.associateBy { it.tag }
+    val seen = hashSetOf(group.tag)
+    var tag = group.selected
+    while (true) {
+        if (tag.isEmpty() || !seen.add(tag)) return null
+        val nested = byTag[tag] ?: return tag
+        tag = nested.selected
     }
 }
