@@ -11,8 +11,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
 fun BackdropIcon(imageVector: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, tint: Color = LocalContentColor.current, emphasized: Boolean = false) {
+    // Icons are graphics: 3:1 over the city, like large text.
+    val placed = modifier.cityLine(large = true)
     if (LocalBackdrop.current == null) {
-        NativeIcon(imageVector = imageVector, contentDescription = contentDescription, modifier = modifier, tint = tint)
+        NativeIcon(imageVector = imageVector, contentDescription = contentDescription, modifier = placed, tint = tint)
         return
     }
     val backdrop = LocalBackdrop.current ?: return
@@ -22,7 +24,7 @@ fun BackdropIcon(imageVector: ImageVector, contentDescription: String?, modifier
     NativeIcon(
         imageVector = imageVector,
         contentDescription = contentDescription,
-        modifier = modifier,
+        modifier = placed,
         tint = ink,
     )
 }

@@ -31,7 +31,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Refresh
@@ -52,6 +51,9 @@ import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.update.OwnerUpdateAccess
 import io.nekohasekai.sfa.update.KoneUpdates
 import io.nekohasekai.sfa.compose.theme.Theme
+import io.nekohasekai.sfa.compose.theme.WallpaperCatalog
+import io.nekohasekai.sfa.compose.theme.WallpaperMode
+import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import java.net.URI
 
 /**
@@ -82,7 +84,9 @@ class ConsoleActivity : AppCompatActivity() {
         setContent {
             val appDark = isSystemInDarkTheme()
             val dark = pagePaper?.let { ColorUtils.calculateLuminance(it) < .5 } ?: appDark
-            Theme(darkTheme = dark, plainKnine = true) {
+            // The living city behind the frame, as on every KOne page; the console itself keeps its own paper.
+            val city = WallpaperCatalog.mode == WallpaperMode.City
+            Theme(darkTheme = dark, plainKnine = !city, portraitBackdrop = city, cityWallpaper = city, backdropRes = WallpaperCatalog.backdropResource(appDark)) {
                 val ink = pageInk?.let { androidx.compose.ui.graphics.Color(it) } ?: webToolInk(dark)
                 val paper = pagePaper?.let { androidx.compose.ui.graphics.Color(it) } ?: webToolPaper(dark)
                 WebToolTheme(paper, ink) {
@@ -105,10 +109,11 @@ class ConsoleActivity : AppCompatActivity() {
                             },
                         ) {
                             IconButton(onClick = { retry(home) }, enabled = !loading) {
-                                Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.kone_console_refresh), tint = ink)
+                                Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.kone_console_refresh), tint = MaterialTheme.colorScheme.onSurface)
                             }
                         }
-                        Box(Modifier.weight(1f)) {
+                        // While the console loads, and when it cannot be had, the city shows through.
+                        Box(Modifier.weight(1f).then(if (city && !loading && !unreachable) Modifier.background(paper) else Modifier)) {
                             AndroidView(
                                 modifier = Modifier.fillMaxSize(),
                                 factory = { context ->
@@ -120,6 +125,7 @@ class ConsoleActivity : AppCompatActivity() {
                                         }
                                     }
                                 },
+                                update = { view -> view.visibility = if (unreachable) android.view.View.INVISIBLE else android.view.View.VISIBLE },
                             )
                             if (unreachable) {
                                 WebToolProblem(

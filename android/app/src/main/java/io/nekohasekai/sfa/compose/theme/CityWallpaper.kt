@@ -2,7 +2,10 @@ package io.nekohasekai.sfa.compose.theme
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.net.Uri
+import android.os.Build
 import android.view.MotionEvent
 import android.view.View
 import android.webkit.WebResourceRequest
@@ -29,16 +32,19 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.nekohasekai.sfa.database.Settings
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.snapshotFlow
 import org.json.JSONArray
 import java.io.ByteArrayInputStream
+import kotlin.math.roundToInt
 
+/** The whole city's veil behind a see-through popup, where the page's own lines are hidden (CityCanvas). */
 internal const val CITY_WALLPAPER_VEIL_ALPHA = 0.66f
 
-/** The dashboard's veil: the city shows nearly as painted, with shade only where text sits. */
+/** The veil every page shares: the city shows nearly as painted, with shade only where text sits. */
 internal const val CITY_WALLPAPER_LIVELY_VEIL = 0.1f
 
 internal data class CityWallpaperChoice(val id: String, val city: String, val country: String, val title: String)
@@ -148,7 +154,7 @@ internal class WallpaperAssetClient(private val context: Context, private val re
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-internal fun CityWallpaper(modifier: Modifier = Modifier) {
+internal fun CityWallpaper(modifier: Modifier = Modifier, blur: () -> Float = { 0f }) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var resumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -217,6 +223,23 @@ internal fun CityWallpaper(modifier: Modifier = Modifier) {
         if (resumed) web.onResume()
         web.evaluateJavascript("window.KOneWallpaper && window.KOneWallpaper.active($resumed)", null)
         if (!resumed) web.onPause()
+    }
+    // How far day has come in the scene, so the shade over it knows how bright it is (CityLight).
+    LaunchedEffect(web, url, resumed) {
+        if (!resumed) return@LaunchedEffect
+        val scene = CityWallpapers.selected
+        while (true) {
+            web.evaluateJavascript(CityLight.QUERY) { CityLight.read(scene, it) }
+            delay(if (CityLight.shown?.scene == scene) 60_000L else 2_000L)
+        }
+    }
+    // The page's depth of field (rememberCityBlur), in whole pixels.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        LaunchedEffect(web) {
+            snapshotFlow { blur().roundToInt() }.collect { radius ->
+                web.setRenderEffect(if (radius > 0) RenderEffect.createBlurEffect(radius.toFloat(), radius.toFloat(), Shader.TileMode.CLAMP) else null)
+            }
+        }
     }
     DisposableEffect(web) { onDispose { web.stopLoading(); web.onPause(); web.removeAllViews(); web.destroy() } }
     AndroidView(factory = { web }, modifier = modifier)

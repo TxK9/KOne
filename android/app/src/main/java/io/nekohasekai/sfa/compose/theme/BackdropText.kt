@@ -118,9 +118,11 @@ private fun AdaptiveLabel(
     onTextLayout: ((TextLayoutResult) -> Unit)?,
     content: @Composable (Modifier, Color, TextStyle, ((TextLayoutResult) -> Unit)?) -> Unit,
 ) {
+    // The city's shade gathers behind every label (CityCanvas).
+    val placed = modifier.cityLine(large = largeText(style))
     val backdrop = LocalBackdrop.current
     if (backdrop == null || !adaptive) {
-        content(modifier, color, style, onTextLayout)
+        content(placed, color, style, onTextLayout)
         return
     }
     val parentInk = LocalContentColor.current
@@ -131,7 +133,7 @@ private fun AdaptiveLabel(
     // One committed wallpaper palette; no label bounds or pixel sampling can
     // change it when a list scrolls, a counter updates or a line wraps.
     content(
-        modifier,
+        placed,
         ink,
         style.copy(
             shadow = LocalBackdropHalo.current?.let { Shadow(it, Offset.Zero, 22f) }

@@ -19,6 +19,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -36,12 +37,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +61,11 @@ import io.nekohasekai.sfa.compose.screen.console.WebToolTheme
 import io.nekohasekai.sfa.compose.screen.console.webToolInk
 import io.nekohasekai.sfa.compose.screen.console.webToolPaper
 import io.nekohasekai.sfa.compose.theme.Theme
+import io.nekohasekai.sfa.compose.theme.WallpaperCatalog
+import io.nekohasekai.sfa.compose.theme.WallpaperMode
+import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
+import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
+import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import java.io.ByteArrayInputStream
 import java.net.URI
 import java.security.cert.CertificateFactory
@@ -83,8 +86,10 @@ class RouterActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContent {
             val dark = isSystemInDarkTheme()
-            // The console's paper and ink, so the owner's two web tools look like one family.
-            Theme(darkTheme = dark, plainKnine = true) {
+            // The living city behind the frame and the address form, as on every KOne page; otherwise
+            // the console's paper and ink, so the owner's two web tools look like one family.
+            val city = WallpaperCatalog.mode == WallpaperMode.City
+            Theme(darkTheme = dark, plainKnine = !city, portraitBackdrop = city, cityWallpaper = city, backdropRes = WallpaperCatalog.backdropResource(dark)) {
                 WebToolTheme(webToolPaper(dark), webToolInk(dark)) {
                     var address by remember { mutableStateOf(store.getString("address", "").orEmpty()) }
                     var fingerprint by remember { mutableStateOf(store.getString("pin", "").orEmpty()) }
@@ -141,18 +146,22 @@ class RouterActivity : AppCompatActivity() {
                                 )
                                 problem?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
                                 // An outlined pill like the rest of KOne's actions, not a filled block of colour.
-                                OutlinedButton(onClick = ::open) { Text(stringResource(R.string.kone_router_open)) }
+                                OutlinedButton(onClick = ::open, border = BorderStroke(1.dp, ink.copy(alpha = .38f))) { Text(stringResource(R.string.kone_router_open)) }
                             }
                         } else {
                             val home = RouterAddress.parse(store.getString("address", "").orEmpty())!!
                             val pin = store.getString("pin", "").orEmpty()
-                            Box(Modifier.weight(1f).fillMaxWidth()) {
+                            // LuCI keeps its own paper over the city; its problem page gives the city back.
+                            val paper = if (city && problem == null) Modifier.background(webToolPaper(dark)) else Modifier
+                            Box(Modifier.weight(1f).fillMaxWidth().then(paper)) {
                                 AndroidView(modifier = Modifier.fillMaxSize(), factory = { context ->
                                     WebView(context).also { view ->
                                         web = view
                                         prepare(view, home, pin)
                                         view.loadUrl(home.toString())
                                     }
+                                }, update = { view ->
+                                    view.visibility = if (problem != null) android.view.View.INVISIBLE else android.view.View.VISIBLE
                                 }, onRelease = { view ->
                                     if (web === view) web = null
                                     view.stopLoading(); view.destroy()

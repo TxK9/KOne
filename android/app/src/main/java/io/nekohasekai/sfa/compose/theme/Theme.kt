@@ -228,10 +228,12 @@ fun Theme(
         shapes = Shapes,
     ) {
         if (portraitBackdrop) {
+            val city = if (cityWallpaper) rememberCityCanvas() else null
             CompositionLocalProvider(
                 LocalBackdrop provides backdrop,
                 LocalTransparentUi provides !settledTheme.brightComposition,
                 LocalWallpaperOverlay provides overlayState,
+                LocalCityCanvas provides city,
             ) {
                 Box(modifier = Modifier.fillMaxSize().onGloballyPositioned { backdropBounds = it.boundsInWindow() }) {
                     @Composable
@@ -264,38 +266,11 @@ fun Theme(
                         leavingBackdrop?.let { drawBackdrop(it, 1f, leavingTheme, leavingReadingTop) }
                         currentBackdrop?.let { drawBackdrop(it, if (leavingBackdrop == null) 1f else transition.value, displayedTheme, if (displayedTheme.brightComposition) photoBoundary else null) }
                     }
-                    if (cityWallpaper) {
-                        CityWallpaper(Modifier.matchParentSize())
-                        // Reading pages keep a steady veil through day and night. The dashboard lets the
-                        // city through, shaded only behind the title above and the controls below.
-                        val lively by animateFloatAsState(
-                            if (CityWallpapers.lively) 1f else 0f,
-                            tween(700, easing = FastOutSlowInEasing),
-                            label = "cityVeil",
-                        )
-                        Canvas(Modifier.matchParentSize()) {
-                            // A night-blue black, so a bright day scene recedes to dusk rather than to grey.
-                            drawRect(Color(0xFF0A0D12).copy(alpha = CITY_WALLPAPER_VEIL_ALPHA + (CITY_WALLPAPER_LIVELY_VEIL - CITY_WALLPAPER_VEIL_ALPHA) * lively))
-                            if (lively > 0f) {
-                                val top = 172.dp.toPx()
-                                drawRect(
-                                    Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.44f * lively), 1f to Color.Transparent, endY = top),
-                                    size = Size(size.width, top),
-                                )
-                                val bottom = size.height * 0.4f
-                                drawRect(
-                                    Brush.verticalGradient(
-                                        0f to Color.Transparent,
-                                        0.5f to Color.Black.copy(alpha = 0.3f * lively),
-                                        1f to Color.Black.copy(alpha = 0.72f * lively),
-                                        startY = size.height - bottom,
-                                        endY = size.height,
-                                    ),
-                                    topLeft = Offset(0f, size.height - bottom),
-                                    size = Size(size.width, bottom),
-                                )
-                            }
-                        }
+                    if (city != null) {
+                        // The city is every page's canvas: shade gathers only behind the page's lines (CityCanvas).
+                        val blur = rememberCityBlur(city, overlayState)
+                        CityWallpaper(Modifier.matchParentSize(), blur = { blur.value })
+                        CityCanvas(city, overlayState, Modifier.matchParentSize())
                     } else if (customBackdropPath == null && (backdropRes == R.drawable.knine_plain_light || backdropRes == R.drawable.knine_plain_dark)) {
                         PlainBackdropMark(dark = backdropRes == R.drawable.knine_plain_dark, modifier = Modifier.matchParentSize())
                     }

@@ -55,7 +55,8 @@ fun BackdropOutlinedTextField(
     val ink = if (backdrop != null) Color(backdrop.theme.ink) else MaterialTheme.colorScheme.onSurface
     val accent = if (backdrop != null) Color(backdrop.theme.accent) else MaterialTheme.colorScheme.primary
     // Inputs share the page material and keep one palette while editing or scrolling.
-    WallpaperGlass(modifier = modifier, shape = shape) {
+    // The whole field, typed text and hairline included, sits in the city's shade.
+    WallpaperGlass(modifier = modifier.cityLine(), shape = shape) {
         CompositionLocalProvider(LocalBackdrop provides null) {
             NativeOutlinedTextField(
                 value = value, onValueChange = onValueChange, enabled = enabled, readOnly = readOnly,

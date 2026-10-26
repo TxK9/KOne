@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.console
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,11 +20,10 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -40,11 +40,15 @@ import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.compose.screen.dashboard.WeatherSeal
 import io.nekohasekai.sfa.compose.theme.KninePalette
+import io.nekohasekai.sfa.compose.theme.LocalBackdrop
+import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
+import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 
 /*
  * The owner's web tools (the console, the router) share one frame: paper and ink, a back arrow and
  * a serif title on one line, a hairline, a thin ink line while a page loads, and, when the page
- * cannot be had, a seal with the reason and one way to try again in its place.
+ * cannot be had, a seal with the reason and one way to try again in its place. With the living
+ * city chosen, the frame sits on the city in the app's own ink, and only the page keeps its paper.
  */
 
 /** The paper a web tool sits on before its page says otherwise. */
@@ -56,6 +60,10 @@ internal fun webToolInk(dark: Boolean): Color = Color(if (dark) KninePalette.LIG
 /** The theme's colours remapped to one [paper] and one [ink], so every native control matches the page. */
 @Composable
 internal fun WebToolTheme(paper: Color, ink: Color, content: @Composable () -> Unit) {
+    if (LocalBackdrop.current != null) {
+        content()
+        return
+    }
     val base = MaterialTheme.colorScheme
     val scheme = remember(base, paper, ink) {
         base.copy(
@@ -125,13 +133,27 @@ internal fun WebToolProblem(title: String, hint: String?, onRetry: () -> Unit, m
             )
         }
         Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = onRetry,
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface),
-        ) {
+        val retry: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {
             Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(17.dp))
             Text(stringResource(R.string.kone_console_retry), Modifier.padding(start = 8.dp))
+        }
+        if (LocalBackdrop.current != null) {
+            // Over the city there is no paper to cut a filled button out of: an ink outline, like KOne's other actions.
+            val ink = MaterialTheme.colorScheme.onSurface
+            OutlinedButton(
+                onClick = onRetry,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, ink.copy(alpha = .5f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = ink),
+                content = retry,
+            )
+        } else {
+            Button(
+                onClick = onRetry,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface),
+                content = retry,
+            )
         }
         secondary?.invoke()
     }
