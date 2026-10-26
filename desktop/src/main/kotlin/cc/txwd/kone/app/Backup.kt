@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import cc.txwd.kone.core.UserRule
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -100,7 +102,7 @@ data class Backup(
                 subscriptions = (json["subscriptions"] as? JsonArray)?.mapNotNull { item ->
                     val entry = item as? JsonObject ?: return@mapNotNull null
                     val url = entry.text("url") ?: return@mapNotNull null
-                    Entry(entry.text("name") ?: "Subscription", url, (entry["hours"] as? JsonPrimitive)?.intOrNull ?: Subscription.DEFAULT_HOURS, entry.text("leaveOut").orEmpty())
+                    Entry(entry.text("name") ?: tr("Subscription"), url, (entry["hours"] as? JsonPrimitive)?.intOrNull ?: Subscription.DEFAULT_HOURS, entry.text("leaveOut").orEmpty())
                 }.orEmpty(),
                 imported = (json["imported"] as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty(),
             )

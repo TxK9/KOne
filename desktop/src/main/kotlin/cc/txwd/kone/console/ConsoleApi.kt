@@ -1,5 +1,6 @@
 package cc.txwd.kone.console
 
+import cc.txwd.kone.i18n.tr
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -19,7 +20,7 @@ import java.time.Duration
 import javax.net.ssl.SSLContext
 
 /** Why talking to the console did not give what was asked; each has a fixed message for the screen. */
-enum class ConsoleFailure(val message: String) {
+enum class ConsoleFailure(private val englishMessage: String) {
     Offline("Unable to reach the service"),
     Server("Service temporarily unavailable"),
     InviteInvalid("Invitation code is invalid or expired"),
@@ -28,7 +29,8 @@ enum class ConsoleFailure(val message: String) {
     Refused("Service suspended"),
     Waiting("No route has been assigned"),
     ConfigInvalid("The received configuration is invalid"),
-    Stale("Configuration updated"),
+    Stale("Configuration updated");
+    val message: String get() = tr(englishMessage)
 }
 
 /** A failure, with the console's own wording when it gave one (it never echoes secrets). */

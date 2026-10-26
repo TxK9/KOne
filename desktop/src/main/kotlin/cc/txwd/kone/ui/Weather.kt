@@ -1,5 +1,6 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -25,8 +26,8 @@ import androidx.compose.ui.unit.sp
  * connected. The ink shades are for glyphs and text: deeper on a light page, brighter on a dark one.
  */
 enum class NodeWeather(
-    val char: String,
-    val word: String,
+    private val englishChar: String,
+    private val englishWord: String,
     val pigment: Long,
     val onPigment: Long,
     val inkOnLight: Long,
@@ -48,6 +49,8 @@ enum class NodeWeather(
             else -> Clear
         }
     }
+    val char: String get() = if (cc.txwd.kone.i18n.Strings.chinese) when (this) { Clear -> "晴"; Mist -> "缓"; Cut -> "断"; Rest -> "歇" } else englishChar
+    val word: String get() = tr(englishWord)
 }
 
 /** The glyphs on a 24-unit square, as SVG path data: the same paths as the phone's WeatherGlyphs. */

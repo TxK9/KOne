@@ -1,5 +1,10 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+import cc.txwd.kone.i18n.countryTitle
+
+
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -104,19 +109,19 @@ class RulesActions(
 )
 
 /** The kinds and actions as the page names them. */
-private val KINDS = listOf(
-    "set" to "Category", "suffix" to "Suffix", "domain" to "Domain", "keyword" to "Keyword", "cidr" to "IP range", "program" to "App", "port" to "Port",
+private val KINDS get() = listOf(
+    "set" to tr("Category"), "suffix" to tr("Suffix"), "domain" to tr("Domain"), "keyword" to tr("Keyword"), "cidr" to tr("IP range"), "program" to tr("App"), "port" to tr("Port"),
 )
-private val ACTIONS = listOf("proxy" to "Proxy", "direct" to "Direct", "block" to "Block", VIA to "Country")
+private val ACTIONS get() = listOf("proxy" to tr("Proxy"), "direct" to tr("Direct"), "block" to tr("Block"), VIA to tr("Country"))
 
 /** The new rule's choice of going through a country, which [Rules.through] writes with the country picked. */
 private const val VIA = "via"
 
 /** How a rule's [action] reads in its row: "Proxy", or the country it goes through. */
 private fun actionTitle(action: String): String =
-    Rules.via(action)?.let { code -> Countries.byCode(code)?.en ?: code } ?: ACTIONS.firstOrNull { it.first == action }?.second ?: action
-private val HINTS = mapOf(
-    "set" to "Pick one below, or geosite-… / geoip-…", "suffix" to "example.com", "domain" to "www.example.com", "keyword" to "example", "cidr" to "203.0.113.0/24", "program" to "Example.exe", "port" to "443 or 8000-9000",
+    Rules.via(action)?.let { code -> countryTitle(Countries.byCode(code)?.en ?: code) } ?: ACTIONS.firstOrNull { it.first == action }?.second ?: action
+private val HINTS get() = mapOf(
+    "set" to tr("Pick one below, or geosite-… / geoip-…"), "suffix" to "example.com", "domain" to "www.example.com", "keyword" to "example", "cidr" to "203.0.113.0/24", "program" to "Example.exe", "port" to "443 or 8000-9000",
 )
 
 /**
@@ -135,34 +140,34 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
             // What everything below leaves over: the node by default, or straight out, so only what is chosen goes through.
-            Line("When nothing matches") {
+            Line(tr("When nothing matches")) {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                    Choice("Through the node", !state.unmatchedDirect) { actions.onUnmatched(false) }
-                    Choice("Straight out", state.unmatchedDirect) { actions.onUnmatched(true) }
+                    Choice(tr("Through the node"), !state.unmatchedDirect) { actions.onUnmatched(false) }
+                    Choice(tr("Straight out"), state.unmatchedDirect) { actions.onUnmatched(true) }
                 }
             }
-            Line("Block ads") { Switch(state.blockAds, "Block ads") { actions.onBlockAds(!state.blockAds) } }
-            Line("Direct apps") {
+            Line(tr("Block ads")) { Switch(state.blockAds, tr("Block ads")) { actions.onBlockAds(!state.blockAds) } }
+            Line(tr("Direct apps")) {
                 Chips(state.bypass, { actions.onBypass(it, false) }) {
                     Box(Modifier.height(30.dp).press(bleed = 8.dp, onClick = actions.onAddProgram), contentAlignment = Alignment.Center) {
-                        Label("Add", 14.sp, weight = FontWeight.SemiBold)
+                        Label(tr("Add"), 14.sp, weight = FontWeight.SemiBold)
                     }
                 }
             }
-            Line("Direct sites") {
+            Line(tr("Direct sites")) {
                 Chips(state.direct, actions.onRemoveSite) { AddSite { actions.onAddSite(it, true) } }
             }
-            Line("Proxied sites") {
+            Line(tr("Proxied sites")) {
                 Chips(state.proxied, actions.onRemoveSite) { AddSite { actions.onAddSite(it, false) } }
             }
         }
         // Its right edge in line with the rows below, which leave the scrollbar its room.
         Row(Modifier.fillMaxWidth().padding(top = 22.dp, end = ROOM).height(40.dp), verticalAlignment = Alignment.CenterVertically) {
-            Label("Rules", 15.sp)
+            Label(tr("Rules"), 15.sp)
             Spacer(Modifier.width(14.dp))
             Label("${state.rules.size}", 15.sp, ink.soft, tabular = true)
             Spacer(Modifier.width(22.dp))
-            if (state.rules.isNotEmpty()) Label("First match wins", 13.sp, ink.soft)
+            if (state.rules.isNotEmpty()) Label(tr("First match wins"), 13.sp, ink.soft)
             if (state.rules.size > SEARCHED || query.isNotEmpty()) {
                 Spacer(Modifier.width(22.dp))
                 Search(query) { query = it }
@@ -171,34 +176,34 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
             if (state.lists.isNotEmpty()) {
                 val oldest = state.lists.values.mapNotNull { it.checked }.minOrNull()
                 if (state.listsBusy) {
-                    Busy("Updating category lists", 13.sp)
+                    Busy(tr("Updating category lists"), 13.sp)
                 } else {
-                    Label(if (oldest == null) "Category lists not downloaded yet" else "Category lists checked ${ago(state.now - oldest)}", 13.sp, ink.soft)
+                    Label(if (oldest == null) tr("Category lists not downloaded yet") else "Category lists checked ${ago(state.now - oldest)}", 13.sp, ink.soft)
                 }
                 Spacer(Modifier.width(18.dp))
                 Box(Modifier.height(34.dp).press(enabled = !state.listsBusy, bleed = 8.dp) { if (!state.listsBusy) actions.onUpdateLists() }, contentAlignment = Alignment.Center) {
-                    Label("Update", 14.sp, if (state.listsBusy) ink.soft else ink.ink, FontWeight.SemiBold)
+                    Label(tr("Update"), 14.sp, if (state.listsBusy) ink.soft else ink.ink, FontWeight.SemiBold)
                 }
                 Spacer(Modifier.width(22.dp))
             }
             Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onImportRules), contentAlignment = Alignment.Center) {
-                Label("Import", 14.sp, ink.soft)
+                Label(tr("Import"), 14.sp, ink.soft)
             }
             Spacer(Modifier.width(22.dp))
             if (state.rules.isNotEmpty()) {
                 Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onCopyRules), contentAlignment = Alignment.Center) {
-                    Label("Copy", 14.sp, ink.soft)
+                    Label(tr("Copy"), 14.sp, ink.soft)
                 }
                 Spacer(Modifier.width(22.dp))
             }
             Box(Modifier.height(34.dp).press(bleed = 8.dp) { adding = !adding }, contentAlignment = Alignment.Center) {
-                Label("Add rule", 14.sp, weight = FontWeight.SemiBold)
+                Label(tr("Add rule"), 14.sp, weight = FontWeight.SemiBold)
             }
         }
         state.notice?.let { Label(it, 13.sp, ink.soft, modifier = Modifier.padding(bottom = 6.dp)) }
         if (adding) NewRule(openWith ?: "suffix", state.countries, openThrough, onAdd = { rule -> actions.onAddRule(rule).also { if (it) adding = false } }, onCancel = { adding = false })
         val shown = state.rules.withIndex().filter { (_, rule) -> matches(rule, query) }
-        if (shown.isEmpty() && query.isNotEmpty()) Label("No rule matches", 13.sp, ink.soft, modifier = Modifier.padding(vertical = 10.dp))
+        if (shown.isEmpty() && query.isNotEmpty()) Label(tr("No rule matches"), 13.sp, ink.soft, modifier = Modifier.padding(vertical = 10.dp))
         val list = rememberLazyListState()
         Box(Modifier.fillMaxWidth().weight(1f).fadingEdges(list, LocalInk.current.paper)) {
             LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(end = ROOM)) {
@@ -217,9 +222,9 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                                     val status = state.lists[rule.value]
                                     when {
                                         status == null || (!status.kept && status.error == null) ->
-                                            if (state.listsBusy) Busy("Downloading", 12.sp, NodeWeather.Mist.ink(ink.dark)) else Label("Not downloaded yet", 12.sp, NodeWeather.Mist.ink(ink.dark))
-                                        !status.kept -> Label("Not in use: ${status.error}", 12.sp, NodeWeather.Cut.ink(ink.dark))
-                                        status.error != null -> Label("Update failed, using the last copy", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                            if (state.listsBusy) Busy(tr("Downloading"), 12.sp, NodeWeather.Mist.ink(ink.dark)) else Label(tr("Not downloaded yet"), 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                        !status.kept -> Label(tr("Not in use: {0}" , status.error), 12.sp, NodeWeather.Cut.ink(ink.dark))
+                                        status.error != null -> Label(tr("Update failed, using the last copy"), 12.sp, NodeWeather.Mist.ink(ink.dark))
                                     }
                                 }
                             } else {
@@ -227,7 +232,7 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                                     Label(rule.value, 13.sp)
                                     // Through a country no node says now: the node in use carries it until one does.
                                     if (Rules.via(rule.action)?.let { it !in state.countries } == true) {
-                                        Label("No node there now; through the node in use", 12.sp, NodeWeather.Mist.ink(ink.dark))
+                                        Label(tr("No node there now; through the node in use"), 12.sp, NodeWeather.Mist.ink(ink.dark))
                                     }
                                 }
                             }
@@ -243,9 +248,9 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
                             }
                             // Fixed width, so every row's controls stand in line.
                             Row(Modifier.width(110.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                                Small("↑", "Move up", enabled = index > 0) { actions.onMoveRule(index, true) }
-                                Small("↓", "Move down", enabled = index < state.rules.lastIndex) { actions.onMoveRule(index, false) }
-                                Small("×", "Remove rule") { actions.onRemoveRule(index) }
+                                Small("↑", tr("Move up"), enabled = index > 0) { actions.onMoveRule(index, true) }
+                                Small("↓", tr("Move down"), enabled = index < state.rules.lastIndex) { actions.onMoveRule(index, false) }
+                                Small("×", tr("Remove rule")) { actions.onRemoveRule(index) }
                             }
                         }
                         if (changing == index) WayPicker(rule.action, state.countries) { way -> changing = null; if (way != rule.action) actions.onSetAction(index, way) }
@@ -254,8 +259,8 @@ fun RulesView(state: RulesState, actions: RulesActions, openWith: String? = null
             }
             if (state.rules.isEmpty() && !adding) {
                 EmptyState(
-                    "No rules of your own yet",
-                    "A rule sends a site, address, app, port or category through the node, straight out, blocked or through a country, in the order you set. Add one, or import rules from Clash or v2rayN.",
+                    tr("No rules of your own yet"),
+                    tr("A rule sends a site, address, app, port or category through the node, straight out, blocked or through a country, in the order you set. Add one, or import rules from Clash or v2rayN."),
                     Glyphs.rules,
                 )
             }
@@ -306,7 +311,7 @@ private fun NewRule(startKind: String, countries: List<String>, through: Boolean
             )
             ACTIONS.forEach { (value, title) -> Choice(title, value == action) { action = value } }
             Box(Modifier.height(34.dp).press(bleed = 8.dp) { add() }, contentAlignment = Alignment.Center) {
-                Label("Add", 14.sp, weight = FontWeight.SemiBold)
+                Label(tr("Add"), 14.sp, weight = FontWeight.SemiBold)
             }
         }
         if (action == VIA) CountryPicker(countries, country) { country = it; wrong = false }
@@ -338,7 +343,7 @@ private fun Search(query: String, onChange: (String) -> Unit) {
         cursorBrush = SolidColor(ink.ink),
         decorationBox = { field ->
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-                if (query.isEmpty()) Label("Search rules", 13.sp, ink.soft)
+                if (query.isEmpty()) Label(tr("Search rules"), 13.sp, ink.soft)
                 field()
             }
         },
@@ -358,10 +363,10 @@ private fun WayPicker(action: String, countries: List<String>, onPick: (String) 
     val ink = LocalInk.current
     val now = Rules.via(action)
     Row(Modifier.fillMaxWidth().hairline(ink.hair, bottom = true).padding(vertical = 8.dp)) {
-        Box(Modifier.width(90.dp).padding(top = 6.dp)) { Label("Goes", 13.sp, ink.soft) }
+        Box(Modifier.width(90.dp).padding(top = 6.dp)) { Label(tr("Goes"), 13.sp, ink.soft) }
         FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             ACTIONS.filter { it.first != VIA }.forEach { (value, title) -> Pill(title, null, value == action) { onPick(value) } }
-            (countries + listOfNotNull(now)).distinct().forEach { code -> Pill(Countries.byCode(code)?.en ?: code, code, code == now) { onPick(Rules.through(code)) } }
+            (countries + listOfNotNull(now)).distinct().forEach { code -> Pill(countryTitle(Countries.byCode(code)?.en ?: code), code, code == now) { onPick(Rules.through(code)) } }
         }
     }
 }
@@ -386,16 +391,16 @@ private fun Pill(title: String, flag: String?, on: Boolean, onClick: () -> Unit)
 private fun CountryPicker(countries: List<String>, picked: String?, onPick: (String) -> Unit) {
     val ink = LocalInk.current
     Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-        Box(Modifier.width(90.dp).padding(top = 6.dp)) { Label("Through", 13.sp, ink.soft) }
+        Box(Modifier.width(90.dp).padding(top = 6.dp)) { Label(tr("Through"), 13.sp, ink.soft) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (countries.isEmpty()) {
-                Label("No node's name says a country yet.", 12.sp, ink.soft, modifier = Modifier.padding(top = 6.dp))
+                Label(tr("No node's name says a country yet."), 12.sp, ink.soft, modifier = Modifier.padding(top = 6.dp))
                 return@Column
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                countries.forEach { code -> Pill(Countries.byCode(code)?.en ?: code, code, code == picked) { onPick(code) } }
+                countries.forEach { code -> Pill(countryTitle(Countries.byCode(code)?.en ?: code), code, code == picked) { onPick(code) } }
             }
-            Label("The fastest of that country's nodes carries it, in Rule mode; its names are looked up there too.", 12.sp, ink.soft)
+            Label(tr("The fastest of that country's nodes carries it, in Rule mode; its names are looked up there too."), 12.sp, ink.soft)
         }
     }
 }
@@ -423,7 +428,7 @@ private fun Catalog(picked: String, onPick: (String) -> Unit) {
                 }
             }
         }
-        Label("Region lists match addresses; the others match names. A list is downloaded once and checked daily.", 12.sp, ink.soft)
+        Label(tr("Region lists match addresses; the others match names. A list is downloaded once and checked daily."), 12.sp, ink.soft)
     }
 }
 
@@ -448,7 +453,7 @@ private fun Chips(names: List<String>, onRemove: (String) -> Unit, add: @Composa
     ) {
         names.forEach { name ->
             Row(
-                Modifier.height(30.dp).clip(RoundedCornerShape(15.dp)).background(ink.press).press(label = "Remove $name") { onRemove(name) }.padding(horizontal = 12.dp),
+                Modifier.height(30.dp).clip(RoundedCornerShape(15.dp)).background(ink.press).press(label = tr("Remove {0}" , name)) { onRemove(name) }.padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -469,7 +474,7 @@ private fun AddSite(onAdd: (String) -> Boolean) {
     var wrong by remember { mutableStateOf(false) }
     if (!open) {
         Box(Modifier.height(30.dp).press(bleed = 8.dp) { open = true }, contentAlignment = Alignment.Center) {
-            Label("Add", 14.sp, weight = FontWeight.SemiBold)
+            Label(tr("Add"), 14.sp, weight = FontWeight.SemiBold)
         }
         return
     }

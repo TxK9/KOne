@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -58,7 +60,7 @@ class Updater(
     fun check(): Release? {
         val body = fetch(manifest, MANIFEST_LIMIT)
         val signature = fetch(manifest.resolve(manifest.path.substringAfterLast('/') + ".sig"), 1024)
-        val release = Manifest.read(body, signature.decodeToString(), key) ?: throw UpdateException("Invalid signature")
+        val release = Manifest.read(body, signature.decodeToString(), key) ?: throw UpdateException(tr("Invalid signature"))
         return release.takeIf { newer(it.version, current) }
     }
 
@@ -72,7 +74,7 @@ class Updater(
         val response = http.send(HttpRequest.newBuilder(release.msi).timeout(Duration.ofMinutes(10)).GET().build(), HttpResponse.BodyHandlers.ofInputStream())
         if (response.statusCode() != 200 || response.uri().scheme != "https") {
             response.body().close()
-            throw UpdateException("Download failed")
+            throw UpdateException(tr("Download failed"))
         }
         val digest = MessageDigest.getInstance("SHA-256")
         var total = 0L
@@ -84,32 +86,32 @@ class Updater(
                         val read = input.read(buffer)
                         if (read < 0) break
                         total += read
-                        if (total > release.size) throw UpdateException("Invalid update package")
+                        if (total > release.size) throw UpdateException(tr("Invalid update package"))
                         digest.update(buffer, 0, read)
                         output.write(buffer, 0, read)
                         progress(total.toFloat() / release.size)
                     }
                 }
             }
-            if (total != release.size || HexFormat.of().formatHex(digest.digest()) != release.sha256) throw UpdateException("Invalid update package")
+            if (total != release.size || HexFormat.of().formatHex(digest.digest()) != release.sha256) throw UpdateException(tr("Invalid update package"))
         } catch (failure: IOException) {
             // Nothing that did not check out stays behind to be installed.
             partial.delete()
             throw failure
         }
         target.delete()
-        if (!partial.renameTo(target)) throw UpdateException("Download failed")
+        if (!partial.renameTo(target)) throw UpdateException(tr("Download failed"))
         return target
     }
 
     private fun fetch(uri: URI, limit: Int): ByteArray {
         val response = runCatching {
             http.send(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).GET().build(), HttpResponse.BodyHandlers.ofInputStream())
-        }.getOrElse { throw UpdateException("Unable to connect") }
+        }.getOrElse { throw UpdateException(tr("Unable to connect")) }
         response.body().use { input ->
-            if (response.statusCode() != 200 || response.uri().scheme != "https") throw UpdateException("Unable to connect")
+            if (response.statusCode() != 200 || response.uri().scheme != "https") throw UpdateException(tr("Unable to connect"))
             val bytes = input.readNBytes(limit + 1)
-            if (bytes.size > limit) throw UpdateException("Invalid signature")
+            if (bytes.size > limit) throw UpdateException(tr("Invalid signature"))
             return bytes
         }
     }

@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -177,9 +179,9 @@ class RuleBook(
         if (read.rules.isEmpty()) {
             if (ads) changed()
             return when {
-                ads -> "Block ads turned on" + if (read.left > 0) "; ${read.left} left out" else ""
-                read.left > 0 -> "None of these ${read.left} rules is one KOne takes"
-                else -> "No rules in the clipboard"
+                ads -> tr("Block ads turned on") + if (read.left > 0) "; ${read.left} left out" else ""
+                read.left > 0 -> tr("None of these {0} rules is one KOne takes" , read.left)
+                else -> tr("No rules in the clipboard")
             }
         }
         val before = preferences.rules

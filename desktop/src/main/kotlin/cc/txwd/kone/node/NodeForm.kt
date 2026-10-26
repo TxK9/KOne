@@ -1,5 +1,7 @@
 package cc.txwd.kone.node
 
+import cc.txwd.kone.i18n.tr
+
 import cc.txwd.kone.shared.ShareLinkException
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -258,12 +260,12 @@ object NodeForm {
 
     private fun mbps(text: String, what: String): Int? {
         val value = text.trim().takeIf { it.isNotEmpty() } ?: return null
-        return value.toIntOrNull()?.takeIf { it > 0 } ?: fail("The $what speed is not a whole number of Mbps")
+        return value.toIntOrNull()?.takeIf { it > 0 } ?: throw ShareLinkException(tr("The {0} speed is not a whole number of Mbps", tr(if (what == "up") "Upload" else "Download")))
     }
 
     private fun JsonObject.text(key: String) = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
 
     private fun JsonObject.bool(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull?.toBooleanStrictOrNull()
 
-    private fun fail(message: String): Nothing = throw ShareLinkException(message)
+    private fun fail(message: String): Nothing = throw ShareLinkException(tr(message))
 }

@@ -1,5 +1,8 @@
 package cc.txwd.kone
 
+import cc.txwd.kone.i18n.tr
+import cc.txwd.kone.i18n.Strings
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
@@ -123,6 +126,8 @@ private val NUMBERS = listOf(Key.One, Key.Two, Key.Three, Key.Four, Key.Five, Ke
 
 @OptIn(FlowPreview::class)
 fun main(args: Array<String>) {
+    val initialPreferences = Preferences(Places.data)
+    Strings.language = initialPreferences.language
     // An error KOne did not expect is kept on this computer (Crashes). One that ends the App, on
     // the main thread, is also said in words, in place of the launcher's "Failed to launch JVM".
     Thread.setDefaultUncaughtExceptionHandler { thread, failure ->
@@ -151,7 +156,7 @@ fun main(args: Array<String>) {
 
     application {
         val scope = rememberCoroutineScope()
-        val preferences = remember { Preferences(Places.data) }
+        val preferences = remember { initialPreferences }
         val model = remember { AppModel(scope, preferences) }
         // Where the person left it, if that is still on a screen; else 1280 by 800 in the middle.
         val window = remember {
@@ -301,6 +306,7 @@ fun main(args: Array<String>) {
                     Box {
                       Frame({
                           TitleBar(
+                              onLanguage = settings::pickLanguage,
                               onMinimize = { window.isMinimized = true },
                               onMaximize = {
                                   window.placement = if (window.placement == WindowPlacement.Maximized) WindowPlacement.Floating else WindowPlacement.Maximized
@@ -345,7 +351,7 @@ fun main(args: Array<String>) {
                                               onCancelNode = model::cancelNode,
                                               onExport = {
                                                   val links = model.exportLinks()
-                                                  if (links.isEmpty()) model.onNotice("No nodes of yours to export") else saveText(this@Window.window, "kone-nodes.txt", links)
+                                                  if (links.isEmpty()) model.onNotice(tr("No nodes of yours to export")) else saveText(this@Window.window, "kone-nodes.txt", links)
                                               },
                                           ),
                                       )
@@ -394,6 +400,7 @@ fun main(args: Array<String>) {
                                       Page.Settings -> SettingsView(
                                           settings.state,
                                           SettingsActions(
+                                              onLanguage = settings::pickLanguage,
                                               onAppearance = settings::pickAppearance,
                                               onBackdrop = settings::pickBackdrop,
                                               onSound = settings::setSound,
@@ -410,9 +417,9 @@ fun main(args: Array<String>) {
                                               onRegion = model::setRegion,
                                               onExport = {
                                                   // It holds subscription links and node passwords: the person is told so.
-                                                  if (saveText(this@Window.window, "kone-backup.json", model.backup())) model.onNotice("Backup saved. It holds your subscription links; keep it private.")
+                                                  if (saveText(this@Window.window, "kone-backup.json", model.backup())) model.onNotice(tr("Backup saved. It holds your subscription links; keep it private."))
                                               },
-                                              onImport = { pickText(this@Window.window)?.let { model.onNotice(model.restore(it) ?: "That is not a KOne backup") } },
+                                              onImport = { pickText(this@Window.window)?.let { model.onNotice(model.restore(it) ?: tr("That is not a KOne backup")) } },
                                           ),
                                       )
                                       else -> DashboardView(
@@ -518,36 +525,37 @@ private fun Tray(model: AppModel, windowInSight: () -> Boolean, onOpen: () -> Un
     val online = state.connection == Connection.Online
     val weather = if (online) state.current?.weather ?: NodeWeather.Rest else NodeWeather.Rest
     LaunchedEffect(weather, darkTaskbar) { tray.image = TrayIcon.image(weather, darkTaskbar) }
-    LaunchedEffect(state.current, online, state.current?.delay) { tray.toolTip = TrayIcon.tip(state.current, online) }
+    LaunchedEffect(state.current, online, state.current?.delay, Strings.language) { tray.toolTip = TrayIcon.tip(state.current, online) }
     // The right button: Connect or Close, Node to switch to another (when there is more than one),
     // Mode, Open KOne, Quit.
     val mode = model.tools.mode
-    LaunchedEffect(state.nodes.map { it.id to it.name }, state.selected, state.connection, mode) {
+    LaunchedEffect(state.nodes.map { it.id to it.name }, state.selected, state.connection, mode, Strings.language) {
         tray.popupMenu = PopupMenu().apply {
+            font = java.awt.Font(if (Strings.chinese) "Microsoft YaHei UI" else "Segoe UI", java.awt.Font.PLAIN, 12)
             add(MenuItem(when (state.connection) {
-                Connection.Online -> "Close"
-                Connection.Connecting -> "Connecting"
-                Connection.Idle -> "Connect"
+                Connection.Online -> tr("Close")
+                Connection.Connecting -> tr("Connecting")
+                Connection.Idle -> tr("Connect")
             }).apply {
                 isEnabled = state.connection != Connection.Connecting && state.nodes.isNotEmpty()
                 addActionListener { model.power() }
             })
             addSeparator()
             if (state.nodes.size > 1) {
-                add(Menu("Node").apply {
+                add(Menu(tr("Node")).apply {
                     state.nodes.forEach { node ->
-                        add(CheckboxMenuItem(node.name, node.id == state.selected).apply { addItemListener { model.pickNode(node.id) } })
+                        add(CheckboxMenuItem(node.caption, node.id == state.selected).apply { addItemListener { model.pickNode(node.id) } })
                     }
                 })
             }
-            add(Menu("Mode").apply {
+            add(Menu(tr("Mode")).apply {
                 for ((value, name) in listOf("Rule" to "Rule", "Global" to "Global", "Direct" to "Direct")) {
-                    add(CheckboxMenuItem(name, value == mode).apply { addItemListener { model.pickMode(value) } })
+                    add(CheckboxMenuItem(tr(name), value == mode).apply { addItemListener { model.pickMode(value) } })
                 }
             })
             addSeparator()
-            add(MenuItem("Open KOne").apply { addActionListener { onOpen() } })
-            add(MenuItem("Quit").apply { addActionListener { onQuit() } })
+            add(MenuItem(tr("Open KOne")).apply { addActionListener { onOpen() } })
+            add(MenuItem(tr("Quit")).apply { addActionListener { onQuit() } })
         }
     }
 }
@@ -633,26 +641,26 @@ internal fun clipboardText(): String? = runCatching {
 private fun commands(model: AppModel, query: String, scan: (() -> Unit)? = null, go: (Page) -> Unit): List<cc.txwd.kone.ui.Command> = buildList {
     val state = model.dashboard
     cc.txwd.kone.app.DnsLookup.clean(query)?.takeIf { '.' in query }?.let { site ->
-        add(cc.txwd.kone.ui.Command("Check $site", "Straight out and through nodes") { go(Page.Tools); model.checkSite(site) })
-        add(cc.txwd.kone.ui.Command("Look up $site", "DNS, every way") { go(Page.Tools); model.lookUp(site) })
+        add(cc.txwd.kone.ui.Command("Check $site", tr("Straight out and through nodes")) { go(Page.Tools); model.checkSite(site) })
+        add(cc.txwd.kone.ui.Command("Look up $site", tr("DNS, every way")) { go(Page.Tools); model.lookUp(site) })
     }
-    add(cc.txwd.kone.ui.Command(if (state.connection == Connection.Idle) "Connect" else "Disconnect", state.current?.name.orEmpty()) { model.power() })
+    add(cc.txwd.kone.ui.Command(if (state.connection == Connection.Idle) tr("Connect") else tr("Disconnect"), state.current?.name.orEmpty()) { model.power() })
     if (state.connection == Connection.Online) {
-        add(cc.txwd.kone.ui.Command("Pause for 15 minutes", "Back on by itself") { model.pause(15) })
-        add(cc.txwd.kone.ui.Command("Pause for an hour", "Back on by itself") { model.pause(60) })
+        add(cc.txwd.kone.ui.Command(tr("Pause for 15 minutes"), tr("Back on by itself")) { model.pause(15) })
+        add(cc.txwd.kone.ui.Command(tr("Pause for an hour"), tr("Back on by itself")) { model.pause(60) })
     }
     state.nodes.forEach { node ->
         add(cc.txwd.kone.ui.Command("Use ${node.name}", listOfNotNull(node.category, node.delay?.let { "$it ms" }).joinToString(" · ")) { go(Page.Dashboard); model.pickNode(node.id) })
     }
-    for (mode in listOf("Rule", "Global", "Direct")) add(cc.txwd.kone.ui.Command("Mode: $mode", "Tools") { model.pickMode(mode) })
-    add(cc.txwd.kone.ui.Command("Connect with the virtual adapter", "Tools") { model.pickWay("Adapter") })
-    add(cc.txwd.kone.ui.Command("Connect as the system proxy", "Tools") { model.pickWay("Proxy") })
-    add(cc.txwd.kone.ui.Command("Run diagnosis", "Tools") { go(Page.Tools); model.diagnose() })
-    add(cc.txwd.kone.ui.Command("Test all nodes", "Nodes") { go(Page.Nodes); model.testAll() })
-    add(cc.txwd.kone.ui.Command("Update category lists", "Rules") { go(Page.Rules); model.updateLists(force = true) })
-    add(cc.txwd.kone.ui.Command("Import from clipboard", "Nodes: links, Clash, sing-box or a QR picture") { importClipboard(model) })
-    scan?.let { add(cc.txwd.kone.ui.Command("Scan a QR code on screen", "Nodes or a subscription, from a page or a phone's screen") { it() }) }
-    add(cc.txwd.kone.ui.Command("Import rules from clipboard", "Rules: Clash or v2rayN") { go(Page.Rules); model.importRulesFrom(clipboardText().orEmpty()) })
+    for (mode in listOf("Rule", "Global", "Direct")) add(cc.txwd.kone.ui.Command("Mode: $mode", tr("Tools")) { model.pickMode(mode) })
+    add(cc.txwd.kone.ui.Command(tr("Connect with the virtual adapter"), tr("Tools")) { model.pickWay("Adapter") })
+    add(cc.txwd.kone.ui.Command(tr("Connect as the system proxy"), tr("Tools")) { model.pickWay("Proxy") })
+    add(cc.txwd.kone.ui.Command(tr("Run diagnosis"), tr("Tools")) { go(Page.Tools); model.diagnose() })
+    add(cc.txwd.kone.ui.Command(tr("Test all nodes"), tr("Nodes")) { go(Page.Nodes); model.testAll() })
+    add(cc.txwd.kone.ui.Command(tr("Update category lists"), tr("Rules")) { go(Page.Rules); model.updateLists(force = true) })
+    add(cc.txwd.kone.ui.Command(tr("Import from clipboard"), tr("Nodes: links, Clash, sing-box or a QR picture")) { importClipboard(model) })
+    scan?.let { add(cc.txwd.kone.ui.Command(tr("Scan a QR code on screen"), tr("Nodes or a subscription, from a page or a phone's screen")) { it() }) }
+    add(cc.txwd.kone.ui.Command(tr("Import rules from clipboard"), tr("Rules: Clash or v2rayN")) { go(Page.Rules); model.importRulesFrom(clipboardText().orEmpty()) })
     RAIL.forEachIndexed { index, target ->
         add(cc.txwd.kone.ui.Command("Go to ${target.title}", "Page · Ctrl+${index + 1}") { go(target) })
     }

@@ -1,5 +1,9 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+import cc.txwd.kone.i18n.Language
+import cc.txwd.kone.i18n.Strings
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -33,12 +37,13 @@ class SettingsModel(
     var state by mutableStateOf(
         SettingsState(
             appearance = preferences.appearance,
+            language = preferences.language,
             backdrop = preferences.backdrop,
             sound = preferences.sound,
             autostart = Places.launcher?.let(WindowsShell::startsWithWindows),
             hotkey = preferences.hotkey.takeIf { Places.windows },
-            // Shown as on the phone (the private edition choice); the build's own 1.0.<n> still tells updates apart.
-            version = "1.0.0",
+            // Show the same version Windows Installer and the update manifest compare.
+            version = Places.version,
             update = if (updater == null) UpdateState.Off else UpdateState.Idle,
         ),
     )
@@ -60,6 +65,12 @@ class SettingsModel(
     fun pickAppearance(appearance: Appearance) {
         preferences.appearance = appearance
         state = state.copy(appearance = appearance)
+    }
+
+    fun pickLanguage(language: Language) {
+        preferences.language = language
+        Strings.language = language
+        state = state.copy(language = language)
     }
 
     fun pickBackdrop(backdrop: Backdrop) {
@@ -100,7 +111,7 @@ class SettingsModel(
                 release = newer
                 state = state.copy(update = if (newer != null) UpdateState.Available(newer.version) else UpdateState.Latest)
             }.onFailure { failure ->
-                if (!quiet) state = state.copy(update = UpdateState.Failed((failure as? UpdateException)?.message ?: "Check failed"))
+                if (!quiet) state = state.copy(update = UpdateState.Failed((failure as? UpdateException)?.message ?: tr("Check failed")))
             }
         }
     }
@@ -127,9 +138,9 @@ class SettingsModel(
             msi.onSuccess { file ->
                 state = state.copy(update = UpdateState.Installing)
                 val started = withContext(Dispatchers.IO) { runCatching { Updater.install(file, launcher) }.isSuccess }
-                if (started) onQuit() else state = state.copy(update = UpdateState.Failed("Cannot install"))
+                if (started) onQuit() else state = state.copy(update = UpdateState.Failed(tr("Cannot install")))
             }.onFailure { failure ->
-                state = state.copy(update = UpdateState.Failed((failure as? UpdateException)?.message ?: "Download failed"))
+                state = state.copy(update = UpdateState.Failed((failure as? UpdateException)?.message ?: tr("Download failed")))
             }
         }
     }

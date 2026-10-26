@@ -1,5 +1,7 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,11 +63,11 @@ fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onSta
             Column {
                 Label("KOne", 48.sp, weight = FontWeight.Bold, letterSpacing = 0.48.sp, lineHeight = 1.05.em)
                 Spacer(Modifier.height(10.dp))
-                Label("Enter an invitation code to begin", 16.sp, ink.soft)
+                Label(tr("Enter an invitation code to begin"), 16.sp, ink.soft)
             }
             Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
                 Column {
-                    Label("Invitation code", 13.sp, ink.soft)
+                    Label(tr("Invitation code"), 13.sp, ink.soft)
                     Row(
                         Modifier.padding(top = 6.dp).fillMaxWidth().hairline(ink.ink, bottom = true, width = 1.5.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -74,7 +76,7 @@ fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onSta
                         BasicTextField(
                             state.key,
                             onKey,
-                            Modifier.weight(1f).height(46.dp).semantics { contentDescription = "Invitation code" },
+                            Modifier.weight(1f).height(46.dp).semantics { contentDescription = tr("Invitation code") },
                             enabled = !state.busy,
                             singleLine = true,
                             textStyle = TextStyle(color = ink.ink, fontFamily = Fonts.mono, fontSize = 17.sp, letterSpacing = 0.04.em),
@@ -83,7 +85,7 @@ fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onSta
                             keyboardActions = KeyboardActions(onGo = { if (state.ready) onStart() }),
                             decorationBox = { field -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) { field() } },
                         )
-                        Box(Modifier.size(44.dp).clip(CircleShape).press(enabled = !state.busy, label = "Paste the invitation code", onClick = onPaste), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).clip(CircleShape).press(enabled = !state.busy, label = tr("Paste the invitation code"), onClick = onPaste), contentAlignment = Alignment.Center) {
                             Glyph(Glyphs.paste, ink.ink, 20.dp, strokeWidth = 1.7f)
                         }
                     }
@@ -98,9 +100,9 @@ fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onSta
                     contentAlignment = Alignment.Center,
                 ) {
                     if (state.busy) {
-                        Busy("Activating", 16.sp)
+                        Busy(tr("Activating"), 16.sp)
                     } else {
-                        Label("Get started", 16.sp, if (state.ready) ink.paper else ink.soft, FontWeight.SemiBold, letterSpacing = 1.28.sp)
+                        Label(tr("Get started"), 16.sp, if (state.ready) ink.paper else ink.soft, FontWeight.SemiBold, letterSpacing = 1.28.sp)
                     }
                 }
             }

@@ -40,6 +40,7 @@ val buildInfo = tasks.register("buildInfo") {
         "console" to providers.gradleProperty("kone.console").orElse(""),
         "updates" to providers.gradleProperty("kone.updates").orElse(""),
         "updateKey" to providers.gradleProperty("kone.updateKey").orElse(""),
+        "language" to providers.gradleProperty("kone.language").orElse("system"),
     )
     val out = layout.buildDirectory.dir("generated/kone")
     fields.forEach { (name, value) -> inputs.property(name, value) }
@@ -97,7 +98,7 @@ tasks.test {
     providers.gradleProperty("kone.live").orNull?.let { systemProperty("kone.live", it) }
     // -Pkone.dpi=true: ScreensTest also renders the main screens at 150 and 200 % into build/screens/dpi.
     providers.gradleProperty("kone.dpi").orNull?.let { systemProperty("kone.dpi", it) }
-    jvmArgs("-Dfile.encoding=UTF-8")
+    jvmArgs("-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US", "-Duser.language.display=en", "-Duser.country.display=US")
 }
 
 // The rule sets beside the core in the installer (build/core/rules), for the service.

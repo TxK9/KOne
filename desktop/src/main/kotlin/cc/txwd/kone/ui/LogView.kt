@@ -1,5 +1,8 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,7 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /** Which lines Logs shows: all, warnings and errors, or errors only. */
-enum class LogLevel(val title: String) { All("All"), Warnings("Warnings"), Errors("Errors") }
+enum class LogLevel(private val englishTitle: String) { All("All"), Warnings("Warnings"), Errors("Errors");
+    val title: String get() = tr(englishTitle)
+}
 
 /** How serious a line of the core's is, by the level it names: 2 an error, 1 a warning, 0 anything else. */
 fun severity(line: String): Int = when {
@@ -76,7 +81,7 @@ fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: (
                     cursorBrush = SolidColor(ink.ink),
                     decorationBox = { field ->
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-                            if (query.isEmpty()) Label("Search", 13.sp, ink.soft)
+                            if (query.isEmpty()) Label(tr("Search"), 13.sp, ink.soft)
                             field()
                         }
                     },
@@ -84,8 +89,8 @@ fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: (
                 LogLevel.entries.forEach { choice -> Choice(choice.title, choice == level) { level = choice } }
                 Box(Modifier.weight(1f))
                 Action(if (held == null) "Pause" else "Resume", ink.soft) { held = if (held == null) lines.toList() else null }
-                Action("Copy") { onCopy(shown) }
-                Action("Clear", ink.soft) {
+                Action(tr("Copy")) { onCopy(shown) }
+                Action(tr("Clear"), ink.soft) {
                     held = null
                     onClear()
                 }
@@ -93,9 +98,9 @@ fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: (
         }
         when {
             lines.isEmpty() && held == null -> EmptyState(
-                "Nothing logged yet", "What KOne and the connection do appears here as it happens: warnings in amber, errors in red.", Glyphs.log,
+                tr("Nothing logged yet"), "What KOne and the connection do appears here as it happens: warnings in amber, errors in red.", Glyphs.log,
             )
-            shown.isEmpty() -> EmptyState("No lines match", if (level == LogLevel.All) "Try fewer words." else "Try fewer words, or All.")
+            shown.isEmpty() -> EmptyState(tr("No lines match"), if (level == LogLevel.All) "Try fewer words." else "Try fewer words, or All.")
             else -> Box(Modifier.fillMaxSize().fadingEdges(list, ink.paper)) {
                 LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(end = ROOM)) {
                     items(shown) { line ->

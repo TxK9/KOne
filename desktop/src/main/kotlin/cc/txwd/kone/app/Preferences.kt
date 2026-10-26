@@ -15,11 +15,19 @@ import cc.txwd.kone.ui.Appearance
 import cc.txwd.kone.ui.Backdrop
 import java.io.File
 import java.util.Properties
+import cc.txwd.kone.i18n.Language
 
 /** The person's choices that are KOne's own to keep, in settings.properties in the App's folder. */
 class Preferences(folder: File) {
     private val file = File(folder, "settings.properties")
     private val values = Properties().apply { runCatching { file.inputStream().use(::load) } }
+
+    var language: Language
+        get() = Language.of(values.getProperty("language", Places.defaultLanguage))
+        set(value) {
+            values.setProperty("language", value.id)
+            save()
+        }
 
     var appearance: Appearance
         get() = Appearance.entries.firstOrNull { it.name == values.getProperty("appearance") } ?: Appearance.System

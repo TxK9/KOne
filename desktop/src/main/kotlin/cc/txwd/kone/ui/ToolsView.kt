@@ -1,5 +1,8 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -129,8 +132,8 @@ class ToolsActions(
     val onDismissAdvice: (String) -> Unit = {},
 )
 
-private val MODE_NAMES = listOf("Rule" to "Rule", "Global" to "Global", "Direct" to "Direct")
-private val WAY_NAMES = listOf("Adapter" to "Virtual adapter", "Proxy" to "System proxy")
+private val MODE_NAMES get() = listOf("Rule" to tr("Rule"), "Global" to tr("Global"), "Direct" to tr("Direct"))
+private val WAY_NAMES get() = listOf("Adapter" to tr("Virtual adapter"), "Proxy" to tr("System proxy"))
 
 /** Tools: Mode, Connection method, Usage, and while connected each connection, with the program behind it. */
 @Composable
@@ -144,39 +147,39 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
         Box(Modifier.widthIn(max = 640.dp + ROOM).fillMaxWidth().heightIn(max = top).fadingEdges(upper, ink.paper)) {
         Column(Modifier.fillMaxWidth().verticalScroll(upper).padding(end = ROOM)) {
             state.siteAdvice.forEach { Advised(it, actions) }
-            Line("Mode") {
+            Line(tr("Mode")) {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                    MODE_NAMES.forEach { (mode, name) -> Choice(name, mode == state.mode) { actions.onMode(mode) } }
+                    MODE_NAMES.forEach { (mode, name) -> Choice(tr(name), mode == state.mode) { actions.onMode(mode) } }
                 }
             }
-            Line("Connection method") {
+            Line(tr("Connection method")) {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                    WAY_NAMES.forEach { (way, name) -> Choice(name, way == state.way) { actions.onWay(way) } }
+                    WAY_NAMES.forEach { (way, name) -> Choice(tr(name), way == state.way) { actions.onWay(way) } }
                 }
             }
             if (state.month.total > 0) {
-                Line("Usage") {
-                    Label("Today ${size(state.today.total)} · This month ${size(state.month.total)}", 14.sp, ink.soft, tabular = true)
+                Line(tr("Usage")) {
+                    Label(tr("Today {0} · This month {1}" , size(state.today.total), size(state.month.total)), 14.sp, ink.soft, tabular = true)
                     Spacer(Modifier.width(22.dp))
                     val open = state.details != null
                     Box(Modifier.height(34.dp).press(bleed = 8.dp) { actions.onUsage(if (open) null else 1) }, contentAlignment = Alignment.Center) {
-                        Label(if (open) "Hide" else "Details", 14.sp, weight = FontWeight.SemiBold)
+                        Label(if (open) tr("Hide") else tr("Details"), 14.sp, weight = FontWeight.SemiBold)
                     }
                 }
                 state.details?.let { UsagePanel(it, actions.onUsage) }
             }
-            Line("Diagnose") {
+            Line(tr("Diagnose")) {
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                     if (state.checks.isNotEmpty() && !state.checking) {
                         Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onCopyReport), contentAlignment = Alignment.Center) {
-                            Label("Copy report", 14.sp, ink.soft)
+                            Label(tr("Copy report"), 14.sp, ink.soft)
                         }
                         Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onClearChecks), contentAlignment = Alignment.Center) {
-                            Label("Clear", 14.sp, ink.soft)
+                            Label(tr("Clear"), 14.sp, ink.soft)
                         }
                     }
                     Box(Modifier.height(34.dp).press(enabled = !state.checking, bleed = 8.dp) { if (!state.checking) actions.onDiagnose() }, contentAlignment = Alignment.Center) {
-                        if (state.checking) Busy("Checking") else Label("Run", 14.sp, ink.ink, FontWeight.SemiBold)
+                        if (state.checking) Busy(tr("Checking")) else Label(tr("Run"), 14.sp, ink.ink, FontWeight.SemiBold)
                     }
                 }
             }
@@ -191,7 +194,7 @@ fun ToolsView(state: ToolsState, actions: ToolsActions) {
     }
 }
 
-private val SPANS = listOf(1 to "Today", 7 to "7 days", 30 to "30 days")
+private val SPANS = listOf(1 to tr("Today"), 7 to tr("7 days"), 30 to tr("30 days"))
 
 /** Usage in detail: the span, each day's total as a bar, then by node and by program side by side. */
 @Composable
@@ -199,16 +202,16 @@ private fun UsagePanel(details: UsageDetails, onSpan: (Int?) -> Unit) {
     val ink = LocalInk.current
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).hairline(ink.hair, bottom = true).padding(bottom = 10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-            SPANS.forEach { (span, name) -> Choice(name, span == details.span) { onSpan(span) } }
+            SPANS.forEach { (span, name) -> Choice(tr(name), span == details.span) { onSpan(span) } }
         }
         if (details.span > 1) Days(details.daily)
         if (details.nodes.isEmpty()) {
-            Label("Counted by node and program while KOne is connected", 13.sp, ink.soft, modifier = Modifier.padding(top = 10.dp))
+            Label(tr("Counted by node and program while KOne is connected"), 13.sp, ink.soft, modifier = Modifier.padding(top = 10.dp))
             return@Column
         }
         Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(36.dp)) {
-            Shares("By node", details.nodes, Modifier.weight(1f))
-            Shares("By program", details.apps, Modifier.weight(1f))
+            Shares(tr("By node"), details.nodes, Modifier.weight(1f))
+            Shares(tr("By program"), details.apps, Modifier.weight(1f))
         }
     }
 }
@@ -237,9 +240,9 @@ private fun Days(daily: List<Pair<java.time.LocalDate, Used>>) {
         Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
             Label(daily.first().first.toString().substring(5), 11.sp, ink.soft, tabular = true)
             Spacer(Modifier.weight(1f))
-            Label("Most ${size(most)} a day", 11.sp, ink.soft, tabular = true)
+            Label(tr("Most {0} a day" , size(most)), 11.sp, ink.soft, tabular = true)
             Spacer(Modifier.weight(1f))
-            Label("Today", 11.sp, ink.soft)
+            Label(tr("Today"), 11.sp, ink.soft)
         }
     }
 }
@@ -273,7 +276,7 @@ private fun Shares(title: String, list: List<Pair<String, Used>>, modifier: Modi
         }
         if (list.size > SHOWN) {
             val rest = list.drop(SHOWN).sumOf { it.second.total }
-            Label("${list.size - SHOWN} more · ${size(rest)}", 12.sp, ink.soft, tabular = true, modifier = Modifier.padding(top = 4.dp))
+            Label(tr("{0} more · {1}" , list.size - SHOWN, size(rest)), 12.sp, ink.soft, tabular = true, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
@@ -290,14 +293,14 @@ private fun Advised(advice: ConnectionWatch.Advice, actions: ToolsActions) {
         horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Label("${advice.site} does not answer straight out", 14.sp, NodeWeather.Mist.ink(ink.dark), FontWeight.SemiBold)
-            Label("${advice.failures} tries in the last minutes got nothing back", 12.sp, ink.soft)
+            Label(tr("{0} does not answer straight out" , advice.site), 14.sp, NodeWeather.Mist.ink(ink.dark), FontWeight.SemiBold)
+            Label(tr("{0} tries in the last minutes got nothing back" , advice.failures), 12.sp, ink.soft)
         }
         Box(Modifier.height(34.dp).press(bleed = 8.dp) { actions.onDismissAdvice(advice.site) }, contentAlignment = Alignment.Center) {
-            Label("Not now", 14.sp, ink.soft)
+            Label(tr("Not now"), 14.sp, ink.soft)
         }
         Box(Modifier.height(34.dp).press(bleed = 8.dp) { actions.onTakeAdvice(advice.site) }, contentAlignment = Alignment.Center) {
-            Label("Send through the node", 14.sp, weight = FontWeight.SemiBold)
+            Label(tr("Send through the node"), 14.sp, weight = FontWeight.SemiBold)
         }
     }
 }
@@ -305,14 +308,14 @@ private fun Advised(advice: ConnectionWatch.Advice, actions: ToolsActions) {
 /** DNS lookup: a name, then one row for each way it was asked, and a sentence on what they add up to. */
 @Composable
 private fun Lookup(lookup: DnsLookupState?, actions: ToolsActions) {
-    Ask("DNS lookup", "Look up", "Looking up", lookup?.name, lookup?.running == true, lookup != null, actions.onLookUp, actions.onClearLookup)
+    Ask(tr("DNS lookup"), tr("Look up"), tr("Looking up"), lookup?.name, lookup?.running == true, lookup != null, actions.onLookUp, actions.onClearLookup)
     if (lookup != null && lookup.checks.isNotEmpty()) Checks(lookup.checks, lookup.verdict, verdict = true)
 }
 
 /** Site check: a site tried each way, a sentence on which serves it best, and the one press that keeps it. */
 @Composable
 private fun SiteLine(site: SiteCheckState?, actions: ToolsActions) {
-    Ask("Site check", "Check", "Checking", site?.site, site?.running == true, site != null, actions.onCheckSite, actions.onClearSite)
+    Ask(tr("Site check"), tr("Check"), tr("Checking"), site?.site, site?.running == true, site != null, actions.onCheckSite, actions.onClearSite)
     if (site == null || (site.checks.isEmpty() && site.verdict == null)) return
     if (site.checks.isNotEmpty()) Checks(site.checks, site.verdict, verdict = true) else Label(site.verdict.orEmpty(), 13.sp, weight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 8.dp))
     val keep = when (site.way) {
@@ -360,7 +363,7 @@ private fun Ask(title: String, action: String, busy: String, asked: String?, run
         Spacer(Modifier.width(22.dp))
         if (answered && !running) {
             Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClear), contentAlignment = Alignment.Center) {
-                Label("Clear", 14.sp, ink.soft)
+                Label(tr("Clear"), 14.sp, ink.soft)
             }
             Spacer(Modifier.width(22.dp))
         }
@@ -368,7 +371,7 @@ private fun Ask(title: String, action: String, busy: String, asked: String?, run
             if (running) Busy(busy) else Label(action, 14.sp, ink.ink, FontWeight.SemiBold)
         }
     }
-    if (wrong) Label("Enter a domain name, such as example.com", 13.sp, NodeWeather.Cut.ink(ink.dark), modifier = Modifier.padding(top = 6.dp))
+    if (wrong) Label(tr("Enter a domain name, such as example.com"), 13.sp, NodeWeather.Cut.ink(ink.dark), modifier = Modifier.padding(top = 6.dp))
 }
 
 /** A diagnosis, one row per check: what, how it went, and a few words; then the suggestion (or, for a lookup, the verdict). */
@@ -395,7 +398,10 @@ private fun Checks(checks: List<Check>, advice: String?, verdict: Boolean = fals
 }
 
 /** How the connection list is ordered: newest first, or by bytes down or up. */
-private enum class Order(val title: String, val spoken: String) { Recent("Recent", "Most recent"), Down("↓", "Most downloaded"), Up("↑", "Most uploaded") }
+private enum class Order(private val englishTitle: String, private val englishSpoken: String) { Recent("Recent", "Most recent"), Down("↓", "Most downloaded"), Up("↑", "Most uploaded");
+    val title: String get() = tr(englishTitle)
+    val spoken: String get() = tr(englishSpoken)
+}
 
 @Composable
 private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, actions: ToolsActions) {
@@ -414,7 +420,7 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
         }
     // Its right edge in line with the rows below, which leave the scrollbar its room.
     Row(Modifier.fillMaxWidth().padding(top = 22.dp, end = ROOM).height(40.dp), verticalAlignment = Alignment.CenterVertically) {
-        Label("Connections", 15.sp)
+        Label(tr("Connections"), 15.sp)
         Spacer(Modifier.width(14.dp))
         Label(if (needle.isEmpty()) "${carried.connections.size}" else "${shown.size} / ${carried.connections.size}", 15.sp, ink.soft, tabular = true)
         Spacer(Modifier.width(22.dp))
@@ -428,7 +434,7 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
             cursorBrush = SolidColor(ink.ink),
             decorationBox = { field ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-                    if (query.isEmpty()) Label("App, address or node", 13.sp, ink.soft)
+                    if (query.isEmpty()) Label(tr("App, address or node"), 13.sp, ink.soft)
                     field()
                 }
             },
@@ -440,7 +446,7 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
         Spacer(Modifier.weight(1f))
         if (carried.connections.isNotEmpty()) {
             Box(Modifier.height(34.dp).press(bleed = 8.dp) { actions.onClose(null) }, contentAlignment = Alignment.Center) {
-                Label("Disconnect all", 14.sp, weight = FontWeight.SemiBold)
+                Label(tr("Disconnect all"), 14.sp, weight = FontWeight.SemiBold)
             }
         }
     }
@@ -461,13 +467,13 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
                         if (site != null) {
                             val straight = connection.via != "direct"
                             Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onSendSite(site, straight) }, contentAlignment = Alignment.Center) {
-                                Label(if (straight) "Straight out" else "Via node", 11.sp, ink.soft)
+                                Label(if (straight) tr("Straight out") else tr("Via node"), 11.sp, ink.soft)
                             }
                         }
                     }
                     // The way it went, and beneath it why: which list, rule, category or mode sent it there.
                     Column(Modifier.width(150.dp)) {
-                        Wrapped(if (connection.via == "direct") "Direct" else connection.via, 13.sp, ink.soft)
+                        Wrapped(if (connection.via == "direct") tr("Direct") else connection.via, 13.sp, ink.soft)
                         connection.why?.let { Wrapped(it, 11.sp, ink.soft.copy(alpha = 0.75f)) }
                     }
                     // Fixed widths from here, so every row's columns stand in line.
@@ -477,10 +483,10 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
                         val program = connection.program
                         if (program != null && program.endsWith(".exe", ignoreCase = true) && bypass.none { it.equals(program, ignoreCase = true) }) {
                             Box(Modifier.height(28.dp).press(bleed = 6.dp) { actions.onBypass(program, true) }, contentAlignment = Alignment.Center) {
-                                Label("Connect directly", 12.sp, ink.soft)
+                                Label(tr("Connect directly"), 12.sp, ink.soft)
                             }
                         }
-                        Box(Modifier.height(28.dp).press(bleed = 6.dp, label = "Close this connection") { actions.onClose(connection.id) }, contentAlignment = Alignment.Center) {
+                        Box(Modifier.height(28.dp).press(bleed = 6.dp, label = tr("Close this connection")) { actions.onClose(connection.id) }, contentAlignment = Alignment.Center) {
                             Label("×", 15.sp, ink.soft)
                         }
                     }
@@ -488,8 +494,8 @@ private fun ColumnScope.Connections(carried: Carried, bypass: List<String>, acti
             }
         }
         if (shown.isEmpty()) {
-            if (carried.connections.isEmpty()) EmptyState("No connections right now", "Programs' connections through KOne appear here as they open.")
-            else EmptyState("Nothing matches", "Try a program's name, an address or a node.")
+            if (carried.connections.isEmpty()) EmptyState(tr("No connections right now"), tr("Programs' connections through KOne appear here as they open."))
+            else EmptyState(tr("Nothing matches"), tr("Try a program's name, an address or a node."))
         }
         InkScrollbar(list, Modifier.align(Alignment.TopEnd))
     }

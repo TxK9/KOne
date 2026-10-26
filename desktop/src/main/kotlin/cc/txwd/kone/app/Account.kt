@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import cc.txwd.kone.console.ClaimLink
 import cc.txwd.kone.console.ConsoleApi
 import cc.txwd.kone.console.ConsoleEndpoint
@@ -80,7 +82,7 @@ class BindingStore(private val folder: File, private val vault: Vault) {
         next.writeText(json.toString())
         if (!next.renameTo(file)) {
             file.delete()
-            check(next.renameTo(file)) { "Unable to save" }
+            check(next.renameTo(file)) { tr("Unable to save") }
         }
     }
 
@@ -194,13 +196,13 @@ class Account(
 object Expiry {
     fun hint(expiresAt: String?, now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): String? {
         val end = expiresAt?.let { runCatching { OffsetDateTime.parse(it).toInstant() }.getOrNull() } ?: return null
-        if (!end.isAfter(now)) return "Expired"
+        if (!end.isAfter(now)) return tr("Expired")
         val days = ChronoUnit.DAYS.between(now.atZone(zone).toLocalDate(), end.atZone(zone).toLocalDate())
         return when {
             days > 7 -> null
-            days <= 0L -> "Expires today"
-            days == 1L -> "Expires tomorrow"
-            else -> "$days days remaining"
+            days <= 0L -> tr("Expires today")
+            days == 1L -> tr("Expires tomorrow")
+            else -> tr("{0} days remaining", days)
         }
     }
 }

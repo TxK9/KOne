@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.node.NodeForm
 import cc.txwd.kone.node.QrReader
@@ -81,18 +83,18 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
                 val single = read.nodes.filter { it["detour"] == null }.take(100)
                 if (single.isEmpty()) {
                     return@withContext when {
-                        read.nodes.isNotEmpty() -> "Chained nodes can be added as a subscription" to false
-                        read.refused > 0 -> (read.refusal ?: "No usable nodes") to false
-                        else -> "No nodes found" to false
+                        read.nodes.isNotEmpty() -> tr("Chained nodes can be added as a subscription") to false
+                        read.refused > 0 -> (read.refusal ?: tr("No usable nodes")) to false
+                        else -> tr("No nodes found") to false
                     }
                 }
                 val fitting = host.accepted(source, single)
-                val refusal = read.refusal ?: if (fitting.size < single.size) "sing-box does not accept some nodes" else null
+                val refusal = read.refusal ?: if (fitting.size < single.size) tr("sing-box does not accept some nodes") else null
                 val added = imports.addOutbounds(fitting.map { it to tagOf(it) })
                 when {
-                    added > 0 -> (if (added == 1) "Imported 1 node" else "Imported $added nodes") to true
-                    fitting.isNotEmpty() -> "These nodes are already here" to true
-                    else -> (refusal ?: "No usable nodes") to false
+                    added > 0 -> (if (added == 1) tr("Imported 1 node") else tr("Imported {0} nodes" , added)) to true
+                    fitting.isNotEmpty() -> tr("These nodes are already here") to true
+                    else -> (refusal ?: tr("No usable nodes")) to false
                 }
             }
             host.nodesChanged()
@@ -120,11 +122,11 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
                 host.imported(message, good)
             }
             when {
-                texts.isEmpty() -> say("No QR code found $where", good = false)
+                texts.isEmpty() -> say(tr("No QR code found {0}" , where), good = false)
                 nodes.isNotEmpty() -> importText(nodes.joinToString("\n"))
-                added > 0 -> say(if (added == 1) "Subscription added from the QR code" else "$added subscriptions added from the QR codes", good = true)
+                added > 0 -> say(if (added == 1) tr("Subscription added from the QR code") else tr("{0} subscriptions added from the QR codes" , added), good = true)
                 refused.isNotEmpty() -> say(refused.first(), good = false)
-                else -> say("This QR code is a KOne key, not a node: enter it where KOne asks for a key", good = false)
+                else -> say(tr("This QR code is a KOne key, not a node: enter it where KOne asks for a key"), good = false)
             }
         }
     }
@@ -145,11 +147,11 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
         if (tag !in own.theirs) return
         val link = link(own, tag)
         if (link == null) {
-            host.tell("This node cannot be written as a link", error = true)
+            host.tell(tr("This node cannot be written as a link"), error = true)
             return
         }
         copy(link)
-        host.tell("Link copied", error = false)
+        host.tell(tr("Link copied"), error = false)
     }
 
     /** Shows an imported or subscribed node as a QR code (null closes it). */
@@ -163,7 +165,7 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
         if (tag !in own.theirs) return
         val link = link(own, tag)
         if (link == null || qrModules(link) == null) {
-            host.tell("This node cannot be shown as a QR code", error = true)
+            host.tell(tr("This node cannot be shown as a QR code"), error = true)
             return
         }
         qr = NodeQr(host.nameOf(tag), link)
@@ -181,7 +183,7 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
         val outbound = imports.all.getOrNull(host.imported.indexOf(tag)) ?: return
         val draft = NodeForm.read(JsonObject(outbound - "tag"), host.nameOf(tag))
         if (draft == null) {
-            host.tell("This node has settings the form cannot show", error = true)
+            host.tell(tr("This node has settings the form cannot show"), error = true)
             return
         }
         editing = NodeEditing(tag, draft)
@@ -201,12 +203,12 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
     fun save(draft: NodeDraft) {
         val open = editing ?: return
         val outbound = NodeForm.build(draft).getOrElse { failure ->
-            editing = open.copy(draft = draft, error = failure.message ?: "The node is not complete")
+            editing = open.copy(draft = draft, error = failure.message ?: tr("The node is not complete"))
             host.refresh()
             return
         }
         val managed = host.managed ?: run {
-            editing = open.copy(draft = draft, error = "Waiting for the console's nodes")
+            editing = open.copy(draft = draft, error = tr("Waiting for the console's nodes"))
             host.refresh()
             return
         }
@@ -220,13 +222,13 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
                 if (open.tag == null) imports.addOutbounds(listOf(clean to name)) > 0 else imports.replace(host.imported.indexOf(open.tag), clean, name)
             }
             if (!saved) {
-                editing = editing?.copy(saving = false, error = if (accepted) "This node is already here" else "sing-box does not accept this node")
+                editing = editing?.copy(saving = false, error = if (accepted) tr("This node is already here") else tr("sing-box does not accept this node"))
                 host.refresh()
                 return@launch
             }
             editing = null
             host.nodesChanged()
-            host.tell(if (open.tag == null) "Node added" else "Node saved", error = false)
+            host.tell(if (open.tag == null) tr("Node added") else tr("Node saved"), error = false)
             if (open.tag != null && (host.selected == open.tag || host.inUse() == open.tag)) host.restart()
         }
     }

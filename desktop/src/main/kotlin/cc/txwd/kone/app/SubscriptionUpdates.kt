@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import cc.txwd.kone.shared.NodeFilter
 import cc.txwd.kone.shared.SubscriptionContent
 import kotlinx.coroutines.CoroutineScope
@@ -55,7 +57,7 @@ class SubscriptionUpdates(private val scope: CoroutineScope, private val subscri
     /** [url], a link KOne fetches, kept and fetched at once; null when it was, else why not. */
     fun keep(url: String): String? {
         val added = subscriptions.add(url, SubscriptionContent.name(url, null))
-            ?: return if (subscriptions.all.size >= Subscriptions.MOST) "No more subscriptions can be added" else "This subscription is already here"
+            ?: return if (subscriptions.all.size >= Subscriptions.MOST) tr("No more subscriptions can be added") else tr("This subscription is already here")
         host.refresh()
         update(added.id, first = true)
         return null
@@ -95,7 +97,7 @@ class SubscriptionUpdates(private val scope: CoroutineScope, private val subscri
         val read = SubscriptionContent.read(fetched.body)
         val kept = host.accepted(managed, read.nodes)
         if (kept.isEmpty()) {
-            subscriptions.change(id) { it.copy(tried = now, info = fetched.info ?: it.info, error = read.refusal ?: "No usable nodes") }
+            subscriptions.change(id) { it.copy(tried = now, info = fetched.info ?: it.info, error = read.refusal ?: tr("No usable nodes")) }
             return null
         }
         // A name KOne made up gives way to the provider's own.

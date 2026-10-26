@@ -1,5 +1,8 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
+
 import cc.txwd.kone.shared.Why
 import cc.txwd.kone.core.ClashApi
 import cc.txwd.kone.core.CoreApi
@@ -74,10 +77,10 @@ class SiteTools(private val scope: CoroutineScope, private val preferences: Pref
         val adapterOn = host.adapterOn
         val viaPort = host.proxied
         val ways = buildList<Pair<String, () -> Check>> {
-            add("Apps" to { DnsLookup.system(name) })
+            add(tr("Apps") to { DnsLookup.system(name) })
             if (api != null) add("KOne" to { DnsLookup.core(api, name, ipv6) })
             if (!adapterOn) add("Direct" to { DnsLookup.direct(DnsLookup.directServer(preferences.directDns, preferences.region), name) })
-            add("Remote" to { DnsLookup.remote(DnsLookup.remoteUrl(preferences.remoteDns), name, viaPort) })
+            add(tr("Remote") to { DnsLookup.remote(DnsLookup.remoteUrl(preferences.remoteDns), name, viaPort) })
         }
         if (refused) {
             host.update { it.copy(lookup = DnsLookupState(name, emptyList(), running = false, verdict = DnsLookup.verdict(emptyList(), refused = true, ipv6 = ipv6))) }
@@ -116,25 +119,25 @@ class SiteTools(private val scope: CoroutineScope, private val preferences: Pref
             host.update { it.copy(site = SiteCheckState(site, emptyList(), running = false, verdict = verdict)) }
         }
         if (DnsLookup.refused(site, host.console)) {
-            settle("Your provider blocks $site")
+            settle(tr("Your provider blocks {0}" , site))
             return true
         }
         val core = host.core
         val source = host.merged
         if (core == null || source == null) {
-            settle(if (core == null) "Site checks need KOne installed" else "Waiting for the console's nodes")
+            settle(if (core == null) tr("Site checks need KOne installed") else tr("Waiting for the console's nodes"))
             return true
         }
         val nodes = host.nodes
         val current = host.inUse()?.takeIf { it != KoneConfig.AUTO_TAG && nodes.any { node -> node.tag == it } }
         val others = nodes.map { it.tag }.filter { it != current }.sortedBy { host.delay(it) ?: Int.MAX_VALUE }
         val picked = (listOfNotNull(current) + others).take(4)
-        val ways = listOf("direct" to "Straight out") + picked.map { it to host.nameOf(it) }
+        val ways = listOf("direct" to tr("Straight out")) + picked.map { it to host.nameOf(it) }
         val live = host.live
         val viaPort = host.proxied
         val lists = Why.Lists(preferences.bypass, preferences.direct, preferences.proxied)
         val rules = host.rules
-        val first = listOfNotNull(live?.let { Check("Now", Outcome.Running) })
+        val first = listOfNotNull(live?.let { Check(tr("Now"), Outcome.Running) })
         host.update { it.copy(site = SiteCheckState(site, first + ways.map { (_, title) -> Check(title, Outcome.Running) }, running = true)) }
         scope.launch {
             val now = live?.let { api -> async(Dispatchers.IO) { SiteCheck.now(RouteProbe.find(site, viaPort, api), lists, host::nameOf) } }

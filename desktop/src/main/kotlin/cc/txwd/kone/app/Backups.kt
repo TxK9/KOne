@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.shared.NodeFilter
 import cc.txwd.kone.shared.SubscriptionContent
@@ -100,6 +102,6 @@ class Backups(
             }
         }
         host.restart()
-        return "Backup restored"
+        return tr("Backup restored")
     }
 }

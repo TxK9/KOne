@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import java.net.NetworkInterface
 
 /**
@@ -59,8 +61,8 @@ object Conflicts {
     fun check(adapters: List<Adapter>, proxy: SystemProxy.Setting?, own: Int?): Check {
         val vpns = vpns(adapters)
         val elsewhere = proxyElsewhere(proxy, own)
-        val found = vpns + listOfNotNull(elsewhere?.let { "Windows' proxy at $it" })
-        return if (found.isEmpty()) Check(TITLE, Outcome.Pass, "No other VPN or proxy") else Check(TITLE, Outcome.Warn, found.joinToString(", "))
+        val found = vpns + listOfNotNull(elsewhere?.let { tr("Windows' proxy at {0}" , it) })
+        return if (found.isEmpty()) Check(TITLE, Outcome.Pass, tr("No other VPN or proxy")) else Check(TITLE, Outcome.Warn, found.joinToString(", "))
     }
 
     const val TITLE = "Others"

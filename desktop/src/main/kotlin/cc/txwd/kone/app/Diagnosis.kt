@@ -1,5 +1,8 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -47,8 +50,8 @@ object Diagnosis {
         }.awaitAll()
         val count = answered.count { it }
         when (count) {
-            names.size -> Check("DNS", Outcome.Pass, "Names resolve at home and abroad")
-            0 -> Check("DNS", Outcome.Fail, "No name resolves")
+            names.size -> Check("DNS", Outcome.Pass, tr("Names resolve at home and abroad"))
+            0 -> Check("DNS", Outcome.Fail, tr("No name resolves"))
             else -> Check("DNS", Outcome.Warn, "Not resolved: " + names.filterIndexed { i, _ -> !answered[i] }.joinToString())
         }
     }
@@ -66,7 +69,7 @@ object Diagnosis {
                 }.getOrDefault(false)
                 val millis = (System.nanoTime() - started) / 1_000_000
                 when {
-                    !answered -> Check(name, Outcome.Fail, "No answer")
+                    !answered -> Check(name, Outcome.Fail, tr("No answer"))
                     millis >= 3_000 -> Check(name, Outcome.Warn, "$millis ms")
                     else -> Check(name, Outcome.Pass, "$millis ms")
                 }
@@ -77,21 +80,21 @@ object Diagnosis {
     /** One plain suggestion for the first check that failed, or null when nothing did. */
     fun advice(checks: List<Check>): String? {
         // The network, the key and the service come first; after them, other VPNs or proxies are the likeliest reason anything else fails.
-        val basic = checks.firstOrNull { it.outcome == Outcome.Fail && it.title in setOf("Network", CLOCK, "Key", "Service") }
+        val basic = checks.firstOrNull { it.outcome == Outcome.Fail && it.title in setOf(tr("Network"), CLOCK, tr("Key"), tr("Service")) }
         val others = checks.firstOrNull { it.title == Conflicts.TITLE && it.outcome == Outcome.Warn }
-        if (basic == null && others != null) return "Turn off ${others.detail} while KOne is on: they can take traffic before it"
+        if (basic == null && others != null) return tr("Turn off {0} while KOne is on: they can take traffic before it" , others.detail)
         val failed = basic ?: checks.firstOrNull { it.outcome == Outcome.Fail } ?: return null
         val sites = checks.filter { it.title in (SITES + GLOBAL_SITES).map { site -> site.first } }
         return when {
-            failed.title == "Network" && failed.detail == SIGN_IN -> "Sign in to this network: Sign in on the dashboard opens its page"
-            failed.title == "Network" -> "This computer is offline: check Wi-Fi or the cable"
-            failed.title == CLOCK -> "Windows' clock is ${failed.detail}: turn on Set time automatically (Settings → Time & language), then connect again"
-            failed.title == "Key" -> "Enter a key, or wait for the console to send nodes"
-            failed.title == "Service" -> "Reinstall KOne, or choose System proxy in Tools"
-            failed.title == "Node" -> "Try another node, or Test all on Nodes"
-            failed.title == "DNS" -> "Try another DNS server in Settings"
-            sites.isNotEmpty() && sites.all { it.outcome == Outcome.Fail } -> "Nothing answers: check the node and the mode in Tools"
-            failed.title in (SITES + GLOBAL_SITES).map { it.first } -> "Some sites do not answer: check your Rules"
+            failed.title == tr("Network") && failed.detail == SIGN_IN -> tr("Sign in to this network: Sign in on the dashboard opens its page")
+            failed.title == tr("Network") -> tr("This computer is offline: check Wi-Fi or the cable")
+            failed.title == CLOCK -> tr("Windows' clock is {0}: turn on Set time automatically (Settings → Time & language), then connect again" , failed.detail)
+            failed.title == tr("Key") -> tr("Enter a key, or wait for the console to send nodes")
+            failed.title == tr("Service") -> tr("Reinstall KOne, or choose System proxy in Tools")
+            failed.title == "Node" -> tr("Try another node, or Test all on Nodes")
+            failed.title == "DNS" -> tr("Try another DNS server in Settings")
+            sites.isNotEmpty() && sites.all { it.outcome == Outcome.Fail } -> tr("Nothing answers: check the node and the mode in Tools")
+            failed.title in (SITES + GLOBAL_SITES).map { it.first } -> tr("Some sites do not answer: check your Rules")
             else -> null
         }
     }
@@ -102,9 +105,9 @@ object Diagnosis {
 
     /** The network itself, before any node: open, holding traffic for a sign-in page, or offline. */
     fun network(check: cc.txwd.kone.core.ReachCheck): Check = when (check.reach) {
-        cc.txwd.kone.core.Reach.Open -> Check("Network", Outcome.Pass, "Open")
-        cc.txwd.kone.core.Reach.SignIn -> Check("Network", Outcome.Fail, SIGN_IN)
-        cc.txwd.kone.core.Reach.Offline -> Check("Network", Outcome.Fail, "Nothing answers")
+        cc.txwd.kone.core.Reach.Open -> Check(tr("Network"), Outcome.Pass, tr("Open"))
+        cc.txwd.kone.core.Reach.SignIn -> Check(tr("Network"), Outcome.Fail, SIGN_IN)
+        cc.txwd.kone.core.Reach.Offline -> Check(tr("Network"), Outcome.Fail, tr("Nothing answers"))
     }
 
     const val SIGN_IN = "Wants you to sign in"

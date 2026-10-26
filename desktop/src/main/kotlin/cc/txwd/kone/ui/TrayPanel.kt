@@ -1,5 +1,8 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -93,7 +96,7 @@ fun TrayPanel(
             if (online) {
                 // Where the traffic leaves, for how long, and its last minute drawn across the panel.
                 Label(
-                    listOfNotNull(state.exit?.let { "Exit $it" }, clock(state.seconds), "Home".takeIf { state.home }).joinToString("  ·  "),
+                    listOfNotNull(state.exit?.let { tr("Exit {0}" , it) }, clock(state.seconds), tr("Home").takeIf { state.home }).joinToString("  ·  "),
                     12.sp, ink.soft, tabular = true, ellipsis = true,
                 )
                 if (state.trail.size >= 2) Sparkline(state.trail, Modifier.fillMaxWidth().height(26.dp))
@@ -102,7 +105,7 @@ fun TrayPanel(
             mode?.let { now ->
                 // The mode in one click, as Tools has it.
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Label("Mode", 13.sp, ink.soft)
+                    Label(tr("Mode"), 13.sp, ink.soft)
                     Spacer(Modifier.weight(1f))
                     for (choice in listOf("Rule", "Global", "Direct")) {
                         val on = choice == now
@@ -111,7 +114,7 @@ fun TrayPanel(
                                 .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), Size(size.width, 2.dp.toPx())) }
                                 .padding(horizontal = 2.dp),
                             contentAlignment = Alignment.Center,
-                        ) { Label(choice, 13.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal) }
+                        ) { Label(tr(choice), 13.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal) }
                     }
                 }
             }
@@ -130,19 +133,19 @@ fun TrayPanel(
                     }
                     Label(
                         when (state.connection) {
-                            Connection.Online -> "Disconnect"
-                            Connection.Connecting -> "Connecting"
-                            Connection.Idle -> "Connect"
+                            Connection.Online -> tr("Disconnect")
+                            Connection.Connecting -> tr("Connecting")
+                            Connection.Idle -> tr("Connect")
                         },
                         15.sp, ink.panel, FontWeight.SemiBold,
                     )
                 }
                 Box(Modifier.height(44.dp).press(onClick = onOpen).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
-                    Label("Open KOne", 14.sp, weight = FontWeight.SemiBold)
+                    Label(tr("Open KOne"), 14.sp, weight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.weight(1f))
                 Box(Modifier.height(44.dp).press(onClick = onQuit).padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
-                    Label("Quit", 13.sp, ink.soft)
+                    Label(tr("Quit"), 13.sp, ink.soft)
                 }
             }
         }

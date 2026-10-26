@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import cc.txwd.kone.shared.CategoryLists
 import cc.txwd.kone.shared.ListDownload
 import java.io.ByteArrayOutputStream
@@ -22,7 +24,7 @@ object CategoryDownload {
      * most [MOST_BYTES]: an answer larger than that is refused, not cut short.
      */
     fun download(url: String, etag: String?, viaPort: Int?): ListDownload {
-        require(url.startsWith("https://")) { "HTTPS only" }
+        require(url.startsWith("https://")) { tr("HTTPS only") }
         val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NORMAL)
             .proxy(if (viaPort != null) ProxySelector.of(InetSocketAddress("127.0.0.1", viaPort)) else HttpClient.Builder.NO_PROXY).build()
         val request = HttpRequest.newBuilder(URI(url)).timeout(Duration.ofSeconds(30)).header("User-Agent", "KOne").GET()
@@ -30,19 +32,19 @@ object CategoryDownload {
         val response = try {
             client.send(request, HttpResponse.BodyHandlers.ofInputStream())
         } catch (failure: IOException) {
-            throw IOException("Could not reach the list's server")
+            throw IOException(tr("Could not reach the list's server"))
         }
         response.body().use { body ->
             if (response.statusCode() == 304) return ListDownload.Same
-            if (response.statusCode() == 404) throw IOException("No such list")
-            if (response.statusCode() != 200 || !response.uri().scheme.equals("https", ignoreCase = true)) throw IOException("The server answered ${response.statusCode()}")
+            if (response.statusCode() == 404) throw IOException(tr("No such list"))
+            if (response.statusCode() != 200 || !response.uri().scheme.equals("https", ignoreCase = true)) throw IOException(tr("The server answered {0}" , response.statusCode()))
             val out = ByteArrayOutputStream()
             val buffer = ByteArray(64 * 1024)
             while (true) {
                 val read = body.read(buffer)
                 if (read < 0) break
                 out.write(buffer, 0, read)
-                if (out.size() > MOST_BYTES) throw IOException("The list is too large")
+                if (out.size() > MOST_BYTES) throw IOException(tr("The list is too large"))
             }
             return ListDownload.Got(out.toByteArray(), response.headers().firstValue("ETag").orElse(null))
         }

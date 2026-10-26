@@ -1,5 +1,8 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
+
 import cc.txwd.kone.shared.Why
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -268,7 +271,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun claim() {
         val link = ClaimLink.read(key.key, Places.console)
         if (link == null) {
-            key = key.copy(error = "Invalid access key")
+            key = key.copy(error = tr("Invalid access key"))
             return
         }
         key = key.copy(busy = true, error = null)
@@ -279,7 +282,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 screen = Screen.Dashboard
                 afterSync(sync)
             }.onFailure { failure ->
-                key = key.copy(busy = false, error = (failure as? ConsoleException)?.shown ?: "Activation failed")
+                key = key.copy(busy = false, error = (failure as? ConsoleException)?.shown ?: tr("Activation failed"))
             }
         }
     }
@@ -364,7 +367,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             if (pausedUntil != until) return@launch
             pausedUntil = null
             if (connection == Connection.Idle) {
-                onNotice("KOne is on again after the pause")
+                onNotice(tr("KOne is on again after the pause"))
                 power()
             } else {
                 refresh()
@@ -438,7 +441,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 if (status.state == "running" && clash == null && status.api != null) {
                     ran = true
                     follow(ClashApi(status.api))
-                    if (told) onNotice("Reconnected")
+                    if (told) onNotice(tr("Reconnected"))
                     attempts = 0
                     held = true
                     told = false
@@ -523,10 +526,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 // Another VPN holding the network is the likeliest reason; said by name when there is one.
                 val others = withContext(Dispatchers.IO) { Conflicts.vpns(Conflicts.adapters()) }
                 val why = if (others.isEmpty()) "" else " (${others.joinToString()} is on)"
-                log("The adapter is unavailable$why; switching to the system proxy")
-                onNotice("The adapter is unavailable$why; using the system proxy")
+                log(tr("The adapter is unavailable{0}; switching to the system proxy" , why))
+                onNotice(tr("The adapter is unavailable{0}; using the system proxy" , why))
             }
-            if (told) onNotice("Reconnected")
+            if (told) onNotice(tr("Reconnected"))
             follow(running)
             attempts = 0
             held = true
@@ -570,7 +573,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             if (attempts == 0) signIns.look()
             attempts++
             if (attempts == 1 && end != "restart") {
-                onNotice("Connection interrupted; reconnecting")
+                onNotice(tr("Connection interrupted; reconnecting"))
                 told = true
             }
             connection = Connection.Connecting
@@ -582,12 +585,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             }
             return
         }
-        if (wanted && end != "stopped") onNotice(Ends.message(end) ?: "Disconnected")
+        if (wanted && end != "stopped") onNotice(Ends.message(end)?.let { tr(it) } ?: tr("Disconnected"))
         if (wanted) preferences.connected = false
         wanted = false
         attempts = 0
         connection = Connection.Idle
-        notice = Ends.message(end)
+        notice = Ends.message(end)?.let { tr(it) }
         refresh()
         startProbe()
     }
@@ -635,7 +638,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun testSpeed(tag: String) {
         val core = Places.core
         if (core == null) {
-            tell("Speed tests need KOne installed", error = true)
+            tell(tr("Speed tests need KOne installed"), error = true)
             return
         }
         val source = source() ?: return
@@ -660,7 +663,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 }
             }
             speedTesting = null
-            if (result == null || (result.down == null && result.up == null)) tell("${nameOf(tag)} did not carry the test", error = true) else speeds[tag] = result
+            if (result == null || (result.down == null && result.up == null)) tell(tr("{0} did not carry the test" , nameOf(tag)), error = true) else speeds[tag] = result
             refresh()
         }
     }
@@ -949,7 +952,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         override fun nameOf(tag: String) = this@AppModel.nameOf(tag)
         override fun stalling(tag: String) {
             health.record(tag, null)
-            log("Connections through ${nameOf(tag)} are stalling; testing it now")
+            log(tr("Connections through {0} are stalling; testing it now" , nameOf(tag)))
             nudges.trySend(Unit)
         }
         override fun addSite(site: String, direct: Boolean) = this@AppModel.addSite(site, direct)
@@ -999,9 +1002,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun networkChanged(change: NetworkChanges.Change) {
         log(
             when {
-                change.gained.isEmpty() -> "The network went away"
-                change.lost.isEmpty() -> "Another network joined"
-                else -> "The network changed"
+                change.gained.isEmpty() -> tr("The network went away")
+                change.lost.isEmpty() -> tr("Another network joined")
+                else -> tr("The network changed")
             },
         )
         val api = clash
@@ -1130,7 +1133,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         if (next != null && withContext(Dispatchers.IO) { api.select(next) }) {
             if (current != null && health.failing(current) >= Health.FAILED) closeVia(api, current)
             drivenPick = next
-            log("Automatic: ${nameOf(next)}")
+            log(tr("Automatic: {0}" , nameOf(next)))
         }
         autoNow = drivenPick ?: current
         refresh()
@@ -1148,7 +1151,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         if (next != null && withContext(Dispatchers.IO) { api.select(next) }) {
             if (current != null && health.failing(current) >= Health.FAILED) closeVia(api, current)
             drivenPick = next
-            log("Automatic in $region: ${nameOf(next)}")
+            log(tr("Automatic in {0}: {1}" , region, nameOf(next)))
         } else if (current == null) {
             drivenPick = null
         } else {
@@ -1195,7 +1198,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             if (withContext(Dispatchers.IO) { api.select(chosen) }) {
                 standIn = null
                 closeVia(api, stand)
-                tellConnection("Back on ${nameOf(chosen)}")
+                tellConnection(tr("Back on {0}" , nameOf(chosen)))
             }
             return
         }

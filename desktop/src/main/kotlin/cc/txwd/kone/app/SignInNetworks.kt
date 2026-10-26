@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import cc.txwd.kone.core.NetworkReach
 import cc.txwd.kone.core.Probe
 import cc.txwd.kone.core.Reach
@@ -86,7 +88,7 @@ class SignInNetworks(private val scope: CoroutineScope, private val host: Host) 
             val check = reach() ?: return@launch
             if (check.reach == Reach.SignIn) {
                 if (state == null) {
-                    host.log("The network is holding traffic for its sign-in page")
+                    host.log(tr("The network is holding traffic for its sign-in page"))
                     host.notify("This network needs you to sign in")
                 }
                 state = SignInState(check.page ?: NetworkReach.ANY_PAGE, waiting = false)
@@ -96,8 +98,8 @@ class SignInNetworks(private val scope: CoroutineScope, private val host: Host) 
             val clock = Diagnosis.clock(check.skew)
             if (clock?.outcome == Outcome.Fail && !clockSaid) {
                 clockSaid = true
-                host.log("This computer's clock is ${clock.detail}")
-                host.notice("Windows' clock is ${clock.detail}: nodes may turn KOne away. Turn on Set time automatically")
+                host.log(tr("This computer's clock is {0}" , clock.detail))
+                host.notice(tr("Windows' clock is {0}: nodes may turn KOne away. Turn on Set time automatically" , clock.detail))
             }
             host.refresh()
         }
@@ -121,7 +123,7 @@ class SignInNetworks(private val scope: CoroutineScope, private val host: Host) 
             while (System.currentTimeMillis() < until) {
                 if (withContext(Dispatchers.IO) { NetworkReach.check() }.reach == Reach.Open) {
                     state = null
-                    host.hint("Signed in to the network")
+                    host.hint(tr("Signed in to the network"))
                     host.refresh()
                     if (reconnect && host.idle) host.power()
                     return@launch
@@ -129,7 +131,7 @@ class SignInNetworks(private val scope: CoroutineScope, private val host: Host) 
                 delay(5_000)
             }
             state = null
-            host.notice("The network is still waiting for a sign-in")
+            host.notice(tr("The network is still waiting for a sign-in"))
             host.refresh()
         }
     }
