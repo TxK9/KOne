@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -48,12 +49,15 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.nekohasekai.sfa.compose.theme.knineSurface
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -136,7 +140,9 @@ internal fun ImportBloom(anchorInRoot: Offset, actions: KnineImportActions, onCl
             val center = if (rising) Offset(anchor.x, anchor.y - 40.dp.toPx()) else Offset(anchor.x - 10.dp.toPx(), anchor.y + 62.dp.toPx())
             // Five items need a wider arc to keep their circles apart.
             val radius = (if (items.size > 4) 150 else 130).dp.toPx()
-            val reach = radius + 52.dp.toPx()
+            // Labels start just past their circle's rim, whatever their length or the text size.
+            val rim = radius + 27.dp.toPx() + 10.dp.toPx()
+            val margin = 8.dp.toPx()
             val t = open.value
             val chrome = ((t - 0.2f) / 0.5f).coerceIn(0f, 1f)
             Canvas(Modifier.fillMaxSize()) {
@@ -172,7 +178,7 @@ internal fun ImportBloom(anchorInRoot: Offset, actions: KnineImportActions, onCl
                 val at = anchor + (target - anchor) * p
                 Box(
                     Modifier
-                        .centeredAt(at) {
+                        .placedAt(margin, { _, _ -> at }) {
                             val s = 0.3f + 0.7f * p
                             scaleX = s
                             scaleY = s
@@ -183,12 +189,13 @@ internal fun ImportBloom(anchorInRoot: Offset, actions: KnineImportActions, onCl
                         .clip(CircleShape)
                         .background(if (item.lead) ink else surface.copy(alpha = 0.55f))
                         .border(0.8.dp, ink.copy(alpha = if (item.lead) 0f else 0.22f), CircleShape)
-                        .clickable(enabled = !closing && p > 0.5f) { close(item.action) },
+                        .clickable(enabled = !closing && p > 0.5f, role = Role.Button) { close(item.action) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(item.icon, contentDescription = item.label, tint = if (item.lead) surface else ink, modifier = Modifier.size(23.dp))
                 }
                 val q = ((t - 0.32f - i * 0.06f) / 0.4f).coerceIn(0f, 1f)
+                val edge = center + direction * (rim - (1f - q) * 10.dp.toPx())
                 Text(
                     item.label,
                     color = ink,
@@ -196,17 +203,43 @@ internal fun ImportBloom(anchorInRoot: Offset, actions: KnineImportActions, onCl
                     fontWeight = if (item.lead) FontWeight.SemiBold else FontWeight.Medium,
                     style = halo,
                     maxLines = 1,
-                    modifier = Modifier.centeredAt(center + direction * (reach - (1f - q) * 10.dp.toPx())) { alpha = q },
+                    modifier = Modifier
+                        .placedAt(margin, { width, height -> edge + direction * labelReach(direction, width, height) }) { alpha = q }
+                        // A tap on the words is a tap on their circle, which already says them to TalkBack.
+                        .clearAndSetSemantics {}
+                        .clickable(remember { MutableInteractionSource() }, indication = null, enabled = !closing && q > 0.5f) { close(item.action) },
                 )
             }
         }
     }
 }
 
-/** Lays the content out at its natural size, centred on [at] of a parent-sized box. */
-private fun Modifier.centeredAt(at: Offset, layer: GraphicsLayerScope.() -> Unit): Modifier = layout { measurable, constraints ->
+/**
+ * How far a label of [width] by [height] sits from its circle's rim, along [direction], to its
+ * centre: half its extent that way, so its nearest edge is on the rim whichever way it points.
+ */
+internal fun labelReach(direction: Offset, width: Int, height: Int): Float =
+    abs(direction.x) * width / 2f + abs(direction.y) * height / 2f
+
+/** Where a [size] item centred on [at] starts on one axis, kept [margin] inside [bound] when it fits. */
+internal fun keptInside(at: Float, size: Int, bound: Int, margin: Float): Int {
+    val start = at - size / 2f
+    val last = bound - size - margin
+    return (if (last < margin) start else start.coerceIn(margin, last)).roundToInt()
+}
+
+/**
+ * Lays the content out at its natural size, centred on what [at] gives for that size in a
+ * parent-sized box, and kept [margin] inside it so nothing opens off a narrow screen.
+ */
+private fun Modifier.placedAt(margin: Float, at: (width: Int, height: Int) -> Offset, layer: GraphicsLayerScope.() -> Unit): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+    val centre = at(placeable.width, placeable.height)
     layout(constraints.maxWidth, constraints.maxHeight) {
-        placeable.placeWithLayer((at.x - placeable.width / 2f).roundToInt(), (at.y - placeable.height / 2f).roundToInt(), layerBlock = layer)
+        placeable.placeWithLayer(
+            keptInside(centre.x, placeable.width, constraints.maxWidth, margin),
+            keptInside(centre.y, placeable.height, constraints.maxHeight, margin),
+            layerBlock = layer,
+        )
     }
 }

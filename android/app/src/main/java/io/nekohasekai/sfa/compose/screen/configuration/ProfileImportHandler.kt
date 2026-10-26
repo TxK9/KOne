@@ -3,16 +3,35 @@ package io.nekohasekai.sfa.compose.screen.configuration
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import cc.txwd.kone.shared.ClashProxies
+import cc.txwd.kone.shared.ShareLinks
+import cc.txwd.kone.shared.SubscriptionContent
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.ProfileContent
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.TypedProfile
+import io.nekohasekai.sfa.selfuse.clashNodes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Date
+
+/** An import refused in fixed words, safe to show: it never repeats what was being imported. */
+class ImportRefusal(message: String) : Exception(message)
+
+/** Text that lists nodes (share links, a base64 block of them, or a Clash profile) instead of being a profile. */
+internal object NodeText {
+    /** How many nodes [text] lists, counting those sing-box may refuse; 0 when it is not a list of nodes. */
+    fun count(text: String): Int {
+        val trimmed = text.trimStart().removePrefix("\uFEFF")
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) return 0
+        if (ClashProxies.looksLikeClash(trimmed)) return clashNodes(trimmed).let { it.nodes.size + it.refused }
+        return ShareLinks.findAll(trimmed).size
+    }
+}
 
 class ProfileImportHandler(private val context: Context) {
     sealed class ImportResult {
@@ -43,61 +62,34 @@ class ProfileImportHandler(private val context: Context) {
 
     suspend fun importFromUri(uri: Uri): ImportResult = withContext(Dispatchers.IO) {
         try {
-            val data =
-                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    ?: return@withContext ImportResult.Error(context.getString(R.string.error_empty_file))
-
-            // Get the filename from the URI
-            val filename = getFileNameFromUri(uri)
-
-            // Try to detect if it's a JSON configuration file
-            val dataString = String(data)
-            if (isJsonConfiguration(dataString)) {
-                // It's a JSON configuration, import it directly as a local profile
-                return@withContext importJsonConfiguration(dataString, filename)
+            val data = readFile(uri)
+            val text = String(data).removePrefix("\uFEFF")
+            if (isJsonConfiguration(text)) {
+                // A sing-box configuration is imported as it is, as a local profile.
+                return@withContext importJsonConfiguration(text, getFileNameFromUri(uri))
             }
-
-            // Try to decode as ProfileContent (the old way)
-            val content =
-                try {
-                    Libbox.decodeProfileContent(data)
-                } catch (e: Exception) {
-                    return@withContext ImportResult.Error(
-                        context.getString(R.string.error_decode_profile, e.message),
-                    )
-                }
-
-            importProfile(content)
-        } catch (e: Exception) {
-            ImportResult.Error(e.message ?: "Unknown error")
+            refuseNodeList(text)
+            importProfile(decode(data))
+        } catch (refusal: ImportRefusal) {
+            ImportResult.Error(refusal.message.orEmpty())
+        } catch (_: Exception) {
+            ImportResult.Error(context.getString(R.string.kone_import_file_unopened))
         }
     }
 
     suspend fun parseUri(uri: Uri): UriParseResult = withContext(Dispatchers.IO) {
         try {
-            val data =
-                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    ?: return@withContext UriParseResult.Error(context.getString(R.string.error_empty_file))
-
-            val filename = getFileNameFromUri(uri)
-            val dataString = String(data)
-
-            if (isJsonConfiguration(dataString)) {
-                return@withContext UriParseResult.Success(name = filename)
+            val data = readFile(uri)
+            val text = String(data).removePrefix("\uFEFF")
+            if (isJsonConfiguration(text)) {
+                return@withContext UriParseResult.Success(name = getFileNameFromUri(uri))
             }
-
-            val content =
-                try {
-                    Libbox.decodeProfileContent(data)
-                } catch (e: Exception) {
-                    return@withContext UriParseResult.Error(
-                        context.getString(R.string.error_decode_profile, e.message),
-                    )
-                }
-
-            UriParseResult.Success(name = content.name)
-        } catch (e: Exception) {
-            UriParseResult.Error(e.message ?: "Unknown error")
+            refuseNodeList(text)
+            UriParseResult.Success(name = decode(data).name)
+        } catch (refusal: ImportRefusal) {
+            UriParseResult.Error(refusal.message.orEmpty())
+        } catch (_: Exception) {
+            UriParseResult.Error(context.getString(R.string.kone_import_file_unopened))
         }
     }
 
@@ -113,109 +105,98 @@ class ProfileImportHandler(private val context: Context) {
                         url = profileInfo.url,
                     )
                 } catch (e: Exception) {
-                    return@withContext QRCodeParseResult.Error(
-                        context.getString(R.string.error_decode_profile, e.message),
-                    )
+                    return@withContext QRCodeParseResult.Error(context.getString(R.string.kone_import_remote_link_unreadable))
                 }
             }
 
             // Check if it's a direct URL
             if (data.startsWith("http://") || data.startsWith("https://")) {
-                val profileName = extractProfileNameFromUrl(data)
+                // Named by its #fragment or host, never its path: a subscription's path often holds its token.
                 return@withContext QRCodeParseResult.RemoteProfile(
-                    name = profileName,
+                    name = SubscriptionContent.name(data, null),
                     host = extractHostFromUrl(data),
                     url = data,
                 )
             }
 
-            // Try to decode as profile content
-            val content =
-                try {
-                    Libbox.decodeProfileContent(data.toByteArray())
-                } catch (e: Exception) {
-                    return@withContext QRCodeParseResult.Error(
-                        context.getString(R.string.error_decode_profile, e.message),
-                    )
-                }
-
-            return@withContext QRCodeParseResult.LocalProfile(name = content.name)
-        } catch (e: Exception) {
-            QRCodeParseResult.Error(e.message ?: "Unknown error")
+            QRCodeParseResult.LocalProfile(name = decode(data.toByteArray()).name)
+        } catch (refusal: ImportRefusal) {
+            QRCodeParseResult.Error(refusal.message.orEmpty())
+        } catch (_: Exception) {
+            QRCodeParseResult.Error(context.getString(R.string.kone_import_file_unreadable))
         }
     }
 
+    /**
+     * Imports a profile carried whole in a QR code. A remote profile's link is not imported here:
+     * [parseQRCode] sends it to New profile, which fetches it before keeping it.
+     */
     suspend fun importFromQRCode(data: String): ImportResult = withContext(Dispatchers.IO) {
         try {
-            // Check if it's a sing-box remote profile import link
-            if (data.startsWith("sing-box://import-remote-profile")) {
-                try {
-                    val profileInfo = Libbox.parseRemoteProfileImportLink(data)
-                    return@withContext importRemoteProfile(profileInfo.name, profileInfo.url)
-                } catch (e: Exception) {
-                    return@withContext ImportResult.Error(
-                        context.getString(R.string.error_decode_profile, e.message),
-                    )
-                }
-            }
-
-            // Check if it's a URL or direct profile content
-            if (data.startsWith("http://") || data.startsWith("https://")) {
-                // Handle remote profile URL
-                val profileName = extractProfileNameFromUrl(data)
-                importRemoteProfile(profileName, data)
-            } else {
-                // Try to decode as profile content
-                val content =
-                    try {
-                        Libbox.decodeProfileContent(data.toByteArray())
-                    } catch (e: Exception) {
-                        return@withContext ImportResult.Error(
-                            context.getString(R.string.error_decode_profile, e.message),
-                        )
-                    }
-                importProfile(content)
-            }
-        } catch (e: Exception) {
-            ImportResult.Error(e.message ?: "Unknown error")
+            importProfile(decode(data.toByteArray()))
+        } catch (refusal: ImportRefusal) {
+            ImportResult.Error(refusal.message.orEmpty())
+        } catch (_: Exception) {
+            ImportResult.Error(context.getString(R.string.kone_import_file_unreadable))
         }
     }
 
     suspend fun parseQRSData(data: ByteArray): QRSParseResult = withContext(Dispatchers.IO) {
         try {
-            val content = try {
-                Libbox.decodeProfileContent(data)
-            } catch (e: Exception) {
-                return@withContext QRSParseResult.Error(
-                    context.getString(R.string.error_decode_profile, e.message),
-                )
-            }
-            QRSParseResult.Success(name = content.name)
-        } catch (e: Exception) {
-            QRSParseResult.Error(e.message ?: "Unknown error")
+            QRSParseResult.Success(name = decode(data).name)
+        } catch (refusal: ImportRefusal) {
+            QRSParseResult.Error(refusal.message.orEmpty())
+        } catch (_: Exception) {
+            QRSParseResult.Error(context.getString(R.string.kone_import_file_unreadable))
         }
     }
 
     suspend fun importFromQRSData(data: ByteArray): ImportResult = withContext(Dispatchers.IO) {
         try {
-            val content = try {
-                Libbox.decodeProfileContent(data)
-            } catch (e: Exception) {
-                return@withContext ImportResult.Error(
-                    context.getString(R.string.error_decode_profile, e.message),
-                )
-            }
-            importProfile(content)
-        } catch (e: Exception) {
-            ImportResult.Error(e.message ?: "Unknown error")
+            importProfile(decode(data))
+        } catch (refusal: ImportRefusal) {
+            ImportResult.Error(refusal.message.orEmpty())
+        } catch (_: Exception) {
+            ImportResult.Error(context.getString(R.string.kone_import_file_unreadable))
         }
+    }
+
+    /**
+     * [uri]'s bytes, up to [MOST_BYTES]. Call it off the main thread. Throws [ImportRefusal] for an
+     * empty or oversized file, and what the content resolver throws when it cannot open it.
+     */
+    fun readFile(uri: Uri): ByteArray {
+        val input = context.contentResolver.openInputStream(uri)
+            ?: throw ImportRefusal(context.getString(R.string.error_empty_file))
+        val out = ByteArrayOutputStream()
+        input.use { stream ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = stream.read(buffer)
+                if (read < 0) break
+                out.write(buffer, 0, read)
+                if (out.size() > MOST_BYTES) throw ImportRefusal(context.getString(R.string.kone_import_file_too_large))
+            }
+        }
+        if (out.size() == 0) throw ImportRefusal(context.getString(R.string.error_empty_file))
+        return out.toByteArray()
+    }
+
+    /** Nodes are imported one profile each from the dashboard, where duplicates are recognised; not as a profile here. */
+    fun refuseNodeList(text: String) {
+        val nodes = NodeText.count(text)
+        if (nodes > 0) throw ImportRefusal(context.resources.getQuantityString(R.plurals.kone_import_file_nodes, nodes, nodes))
+    }
+
+    private fun decode(data: ByteArray): ProfileContent = try {
+        Libbox.decodeProfileContent(data)
+    } catch (_: Exception) {
+        // The decoder's own words describe bytes, not what to do.
+        throw ImportRefusal(context.getString(R.string.kone_import_file_unreadable))
     }
 
     private suspend fun importProfile(content: ProfileContent): ImportResult {
         val typedProfile = TypedProfile()
-        val profile = Profile(name = content.name, typed = typedProfile)
-        profile.userOrder = ProfileManager.nextOrder()
-
         when (content.type) {
             Libbox.ProfileTypeLocal -> {
                 typedProfile.type = TypedProfile.Type.Local
@@ -231,54 +212,26 @@ class ProfileImportHandler(private val context: Context) {
                 typedProfile.lastUpdated = Date(content.lastUpdated)
             }
         }
+        return ImportResult.Success(store(content.name, typedProfile, content.config))
+    }
 
-        // Save config file
+    /** Saves [config] as a new profile's file and creates the profile, selected. */
+    private suspend fun store(name: String, typedProfile: TypedProfile, config: String): Profile {
+        val profile = Profile(name = name, typed = typedProfile).apply {
+            userOrder = ProfileManager.nextOrder()
+        }
         val fileID = ProfileManager.nextFileID()
         val configDirectory = File(context.filesDir, "configs").also { it.mkdirs() }
         val configFile = File(configDirectory, "$fileID.json")
-        configFile.writeText(content.config)
+        configFile.writeText(config)
         typedProfile.path = configFile.path
-
-        // Create profile in database and select it
-        ProfileManager.create(profile, andSelect = true)
-
-        return ImportResult.Success(profile)
-    }
-
-    private suspend fun importRemoteProfile(name: String, url: String): ImportResult {
-        val typedProfile =
-            TypedProfile().apply {
-                type = TypedProfile.Type.Remote
-                remoteURL = url
-                autoUpdate = true
-                autoUpdateInterval = 60
-                lastUpdated = Date()
-            }
-
-        val profile =
-            Profile(name = name, typed = typedProfile).apply {
-                userOrder = ProfileManager.nextOrder()
-            }
-
-        // Create empty config file for remote profile
-        val fileID = ProfileManager.nextFileID()
-        val configDirectory = File(context.filesDir, "configs").also { it.mkdirs() }
-        val configFile = File(configDirectory, "$fileID.json")
-        configFile.writeText("{}")
-        typedProfile.path = configFile.path
-
-        // Create profile in database and select it
-        ProfileManager.create(profile, andSelect = true)
-
-        return ImportResult.Success(profile)
-    }
-
-    private fun extractProfileNameFromUrl(url: String): String {
-        // Extract name from URL or use default
-        return url.substringAfterLast("/")
-            .substringBeforeLast(".")
-            .takeIf { it.isNotEmpty() }
-            ?: "Remote Profile"
+        try {
+            ProfileManager.create(profile, andSelect = true)
+        } catch (failure: Exception) {
+            configFile.delete()
+            throw failure
+        }
+        return profile
     }
 
     private fun extractHostFromUrl(url: String): String = try {
@@ -292,13 +245,15 @@ class ProfileImportHandler(private val context: Context) {
         var filename = "Imported Profile"
 
         // Try to get filename from content resolver
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameIndex >= 0 && cursor.moveToFirst()) {
-                filename = cursor.getString(nameIndex)
-                    ?.substringBeforeLast(".") // Remove extension
-                    ?.takeIf { it.isNotEmpty() }
-                    ?: filename
+        runCatching {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex >= 0 && cursor.moveToFirst()) {
+                    filename = cursor.getString(nameIndex)
+                        ?.substringBeforeLast(".") // Remove extension
+                        ?.takeIf { it.isNotEmpty() }
+                        ?: filename
+                }
             }
         }
 
@@ -321,45 +276,18 @@ class ProfileImportHandler(private val context: Context) {
     }
 
     private suspend fun importJsonConfiguration(jsonContent: String, profileName: String): ImportResult {
-        return try {
-            // Validate the JSON configuration using sing-box
-            try {
-                // Try to check the configuration
-                Libbox.checkConfig(jsonContent)
-            } catch (e: Exception) {
-                // Configuration validation failed
-                return ImportResult.Error(
-                    context.getString(R.string.error_invalid_configuration, e.message),
-                )
-            }
-
-            // Create a local profile with the JSON configuration
-            val typedProfile =
-                TypedProfile().apply {
-                    type = TypedProfile.Type.Local
-                }
-
-            val profile =
-                Profile(
-                    name = profileName.ifEmpty { "Imported Profile" },
-                    typed = typedProfile,
-                ).apply {
-                    userOrder = ProfileManager.nextOrder()
-                }
-
-            // Save the configuration file
-            val fileID = ProfileManager.nextFileID()
-            val configDirectory = File(context.filesDir, "configs").also { it.mkdirs() }
-            val configFile = File(configDirectory, "$fileID.json")
-            configFile.writeText(jsonContent)
-            typedProfile.path = configFile.path
-
-            // Create profile in database and select it
-            ProfileManager.create(profile, andSelect = true)
-
-            ImportResult.Success(profile)
-        } catch (e: Exception) {
-            ImportResult.Error(e.message ?: "Unknown error importing JSON configuration")
+        try {
+            Libbox.checkConfig(jsonContent)
+        } catch (_: Exception) {
+            // sing-box's own reason may quote a node's password, so it is not shown.
+            return ImportResult.Error(context.getString(R.string.kone_import_config_invalid))
         }
+        val typedProfile = TypedProfile().apply { type = TypedProfile.Type.Local }
+        return ImportResult.Success(store(profileName.ifEmpty { "Imported Profile" }, typedProfile, jsonContent))
+    }
+
+    private companion object {
+        /** The most a file may hold: far beyond any profile, short of filling memory. */
+        const val MOST_BYTES = 16 shl 20
     }
 }

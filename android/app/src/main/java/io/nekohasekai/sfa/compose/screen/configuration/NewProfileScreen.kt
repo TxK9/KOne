@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.heightIn
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -104,12 +105,12 @@ fun NewProfileScreen(
             contract = ActivityResultContracts.GetContent(),
         ) { uri: Uri? ->
             uri?.let {
-                val fileName =
-                    context.contentResolver.query(it, null, null, null, null)?.use { cursor ->
-                        val nameIndex = cursor.getColumnIndexOrThrow("_display_name")
-                        cursor.moveToFirst()
-                        cursor.getString(nameIndex)
+                // Some providers give no name, or no row at all.
+                val fileName = runCatching {
+                    context.contentResolver.query(it, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getString(0) else null
                     }
+                }.getOrNull()
                 viewModel.setImportUri(it, fileName)
             }
         }
@@ -137,7 +138,8 @@ fun NewProfileScreen(
     if (showErrorDialog) {
         SelectableMessageDialog(
             title = stringResource(R.string.error_title),
-            message = io.nekohasekai.sfa.compose.base.publicErrorMessage(uiState.errorMessage),
+            // The view model lets only fixed words through.
+            message = uiState.errorMessage.orEmpty(),
             onDismiss = {
                 showErrorDialog = false
                 viewModel.clearError()
@@ -424,7 +426,7 @@ fun NewProfileScreen(
 
                         AnimatedVisibility(visible = uiState.autoUpdate) {
                             OutlinedTextField(
-                                value = uiState.autoUpdateInterval.toString(),
+                                value = uiState.autoUpdateInterval,
                                 onValueChange = viewModel::updateAutoUpdateInterval,
                                 label = { Text(stringResource(R.string.profile_auto_update_interval)) },
                                 supportingText = { Text(stringResource(R.string.profile_auto_update_interval_minimum_hint)) },

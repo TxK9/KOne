@@ -13,7 +13,12 @@ import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.Settings
 import io.nekohasekai.sfa.database.TypedProfile
+import io.nekohasekai.sfa.selfuse.SubscriptionException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.util.Date
 import java.util.concurrent.TimeUnit
 
@@ -39,12 +44,10 @@ class UpdateProfileWork {
                 return
             }
 
-            var minDelay =
-                remoteProfiles.minByOrNull { it.typed.autoUpdateInterval }!!.typed.autoUpdateInterval.toLong()
+            val minDelay = remoteProfiles.minOf { it.typed.autoUpdateInterval }.toLong().coerceAtLeast(15)
             val nowSeconds = System.currentTimeMillis() / 1000L
             val minInitDelay =
                 remoteProfiles.minOf { (it.typed.autoUpdateInterval * 60) - (nowSeconds - (it.typed.lastUpdated.time / 1000L)) }
-            if (minDelay < 15) minDelay = 15
             WorkManager.getInstance(Application.application).enqueueUniquePeriodicWork(
                 WORK_NAME,
                 ExistingPeriodicWorkPolicy.UPDATE,
@@ -59,13 +62,13 @@ class UpdateProfileWork {
     }
 
     class UpdateTask(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
-        override suspend fun doWork(): Result {
+        override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
             var selectedProfileUpdated = false
             val remoteProfiles =
                 ProfileManager.list()
                     .filter { it.typed.type == TypedProfile.Type.Remote && it.typed.autoUpdate }
-            if (remoteProfiles.isEmpty()) return Result.success()
-            var success = true
+            if (remoteProfiles.isEmpty()) return@withContext Result.success()
+            var retry = false
             val selectedProfile = Settings.selectedProfile
             for (profile in remoteProfiles) {
                 val lastSeconds =
@@ -82,16 +85,19 @@ class UpdateProfileWork {
                     io.nekohasekai.sfa.selfuse.SubscriptionProfile.keep(profile.id, fetched.info, profile.name)
                     val file = File(profile.typed.path)
                     if (!cc.txwd.kone.shared.ConfigurationContent.same(file.readText(), content)) {
-                        File(profile.typed.path).writeText(content)
+                        file.writeText(content)
                         if (profile.id == selectedProfile) {
                             selectedProfileUpdated = true
                         }
                     }
                     profile.typed.lastUpdated = Date()
                     ProfileManager.update(profile)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    Log.e(TAG, "update profile ${profile.name}", e)
-                    success = false
+                    // A refusal's words never carry the link, so they can be logged as they are.
+                    if (e is SubscriptionException) Log.w(TAG, "update profile ${profile.name}: ${e.message}") else Log.e(TAG, "update profile ${profile.name}", e)
+                    retry = retry || worthRetrying(e)
                 }
             }
             if (selectedProfileUpdated) {
@@ -99,11 +105,16 @@ class UpdateProfileWork {
                     Libbox.newStandaloneCommandClient().serviceReload()
                 }
             }
-            return if (success) {
-                Result.success()
-            } else {
-                Result.retry()
-            }
+            // A link the provider refused or a body KOne cannot use waits for the next period
+            // instead of being fetched again every few minutes.
+            if (retry) Result.retry() else Result.success()
         }
     }
+}
+
+/** Whether a failed refresh may succeed soon: a network hiccup or a busy provider, not a refusal. */
+internal fun worthRetrying(failure: Exception): Boolean = when (failure) {
+    is SubscriptionException -> failure.temporary
+    is IOException -> true
+    else -> false
 }
