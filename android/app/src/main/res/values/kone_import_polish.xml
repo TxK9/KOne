@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Import refusals: fixed words that never repeat a link, a node or a file's contents. -->
+    <plurals name="kone_import_file_nodes">
+        <item quantity="one">This file lists %d node. Copy its text, then choose Import → Clipboard.</item>
+        <item quantity="other">This file lists %d nodes. Copy its text, then choose Import → Clipboard.</item>
+    </plurals>
+    <plurals name="kone_qr_several_links">
+        <item quantity="one">This QR code holds %d node link.</item>
+        <item quantity="other">This QR code holds %d node links. Copy them as text, then choose Import → Clipboard.</item>
+    </plurals>
+    <string name="kone_import_file_unreadable">KOne cannot read this file. Choose a sing-box configuration or a profile exported from KOne.</string>
+    <string name="kone_import_file_unopened">KOne could not open this file. Save it to the phone and try again.</string>
+    <string name="kone_import_file_too_large">This file is larger than 16 MB, too large for a profile.</string>
+    <string name="kone_import_config_invalid">sing-box cannot use this configuration. Check the file and try again.</string>
+    <string name="kone_import_remote_link_unreadable">This remote profile link is incomplete.</string>
+    <string name="kone_subscription_already_added">This subscription is already added as %1$s.</string>
+    <string name="kone_subscription_unusable">The subscription arrived, but KOne could not make a profile from it.</string>
+    <string name="kone_profile_create_failed">The profile could not be created. Check the link or file and try again.</string>
+</resources>

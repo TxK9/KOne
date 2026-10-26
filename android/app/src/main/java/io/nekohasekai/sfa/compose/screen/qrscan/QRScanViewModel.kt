@@ -20,6 +20,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.Libbox
+import io.nekohasekai.sfa.R
 import cc.txwd.kone.shared.ShareLinks
 import cc.txwd.kone.shared.SubscriptionContent
 import io.nekohasekai.sfa.qrs.QRSDecoder
@@ -559,9 +560,15 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
                 _uiState.update { it.copy(result = QRScanResult.ClaimLink(normalized)) }
                 return true
             }
-            if (ShareLinks.isShareLink(normalized)) {
-                ShareLinks.parse(normalized)
-                _uiState.update { it.copy(result = QRScanResult.NodeLink(normalized)) }
+            // One link a line, or a base64 block of them, as a provider's page may encode several.
+            val links = ShareLinks.findAll(normalized)
+            if (links.size > 1) {
+                showScanError(getApplication<Application>().resources.getQuantityString(R.plurals.kone_qr_several_links, links.size, links.size))
+                return false
+            }
+            links.singleOrNull()?.let { link ->
+                ShareLinks.parse(link)
+                _uiState.update { it.copy(result = QRScanResult.NodeLink(link)) }
                 return true
             }
             val uri = Uri.parse(normalized)
