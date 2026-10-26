@@ -7,4 +7,12 @@
     <string name="knine_conceal_link">Hide link</string>
     <string name="knine_import_steps">Import the node, then open the connection from Dashboard. Sign in to Tailscale from Tools if needed.</string>
     <string name="knine_qr_scan_hint">Scan this code on the receiving device.</string>
+    <string name="knine_import_vless_title">Import VLESS node</string>
+    <string name="knine_import_vless_supported">Supports VLESS TCP nodes with TLS or Reality.</string>
+    <string name="knine_import_link_label">Node link</string>
+    <string name="knine_import_confirm">Import and select</string>
+    <string name="knine_import_busy">Importing</string>
+    <string name="knine_import_done">Node imported and selected. Tap Connect if disconnected, then choose Rule or Global.</string>
+    <string name="knine_import_invalid_parameters">Invalid connection parameters</string>
+    <string name="knine_import_save_failed">Could not save the profile. Check the link format and try again.</string>
 </resources>
