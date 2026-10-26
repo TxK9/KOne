@@ -1,5 +1,7 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -111,14 +113,14 @@ fun Palette(commands: (String) -> List<Command>, onClose: () -> Unit) {
                 cursorBrush = SolidColor(ink.ink),
                 decorationBox = { field ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-                        if (query.isEmpty()) Label("A command, a node, a page or a site", 15.sp, ink.soft)
+                        if (query.isEmpty()) Label(tr("A command, a node, a page or a site"), 15.sp, ink.soft)
                         field()
                     }
                 },
             )
             Spacer(Modifier.height(6.dp))
             if (shown.isEmpty()) {
-                Label("Nothing fits", 13.sp, ink.soft, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
+                Label(tr("Nothing fits"), 13.sp, ink.soft, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
             }
             shown.forEachIndexed { index, command ->
                 Row(
@@ -134,7 +136,7 @@ fun Palette(commands: (String) -> List<Command>, onClose: () -> Unit) {
                 }
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp), horizontalArrangement = Arrangement.End) {
-                Label("↑↓ choose · Enter do · Esc close", 11.sp, ink.soft)
+                Label(tr("↑↓ choose · Enter do · Esc close"), 11.sp, ink.soft)
             }
         }
     }

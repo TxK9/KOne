@@ -1,5 +1,8 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
+
 import cc.txwd.kone.shared.NodeFilter
 import cc.txwd.kone.shared.SubscriptionContent
 import cc.txwd.kone.shared.UserInfo
@@ -142,7 +145,7 @@ class Subscriptions(private val file: File, private val vault: Vault) {
         val info = (json["info"] as? JsonObject)?.let { UserInfo(number("upload", it) ?: 0, number("download", it) ?: 0, number("total", it) ?: 0, number("expire", it)) }
         return Subscription(
             id = text("id") ?: return null,
-            name = text("name") ?: "Subscription",
+            name = text("name") ?: tr("Subscription"),
             url = text("url") ?: return null,
             hours = number("hours")?.toInt() ?: Subscription.DEFAULT_HOURS,
             updated = number("updated") ?: 0,
@@ -192,11 +195,11 @@ object SubscriptionFetch {
 
     /** Why [failure] stopped a fetch, in words fit to show; never the link, which may carry a token. */
     fun reason(failure: Throwable): String = when (failure) {
-        is FetchException -> failure.message ?: "The subscription could not be fetched"
-        is java.net.http.HttpTimeoutException -> "The provider did not answer in time"
-        is javax.net.ssl.SSLException -> "The provider's certificate is not trusted"
-        is java.net.ConnectException, is java.net.UnknownHostException, is java.nio.channels.UnresolvedAddressException -> "The provider cannot be reached"
-        else -> "The subscription could not be fetched"
+        is FetchException -> failure.message ?: tr("The subscription could not be fetched")
+        is java.net.http.HttpTimeoutException -> tr("The provider did not answer in time")
+        is javax.net.ssl.SSLException -> tr("The provider's certificate is not trusted")
+        is java.net.ConnectException, is java.net.UnknownHostException, is java.nio.channels.UnresolvedAddressException -> tr("The provider cannot be reached")
+        else -> tr("The subscription could not be fetched")
     }
 
     private fun fetch(url: String, builder: HttpClient.Builder): Fetched {
@@ -209,15 +212,15 @@ object SubscriptionFetch {
             throw FetchException("Interrupted")
         }
         response.body().use { stream ->
-            if (response.statusCode() !in 200..299) throw FetchException("The provider answered ${response.statusCode()}")
-            if (response.uri().scheme != "https") throw FetchException("The subscription moved off https")
+            if (response.statusCode() !in 200..299) throw FetchException(tr("The provider answered {0}" , response.statusCode()))
+            if (response.uri().scheme != "https") throw FetchException(tr("The subscription moved off https"))
             val out = ByteArrayOutputStream()
             val buffer = ByteArray(64 * 1024)
             while (true) {
                 val read = stream.read(buffer)
                 if (read < 0) break
                 out.write(buffer, 0, read)
-                if (out.size() > LIMIT) throw FetchException("The subscription is too large")
+                if (out.size() > LIMIT) throw FetchException(tr("The subscription is too large"))
             }
             val headers = response.headers()
             return Fetched(

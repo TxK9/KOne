@@ -9,6 +9,8 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
@@ -77,7 +79,11 @@ class AccessibilityTest {
         }
         onNodeWithContentDescription("Start with Windows").assert(role(Role.Switch)).assert(toggled(false)).assert(state("Off"))
         onNodeWithContentDescription("Keyboard shortcut").assert(role(Role.Switch)).assert(toggled(true)).assert(state("On"))
-        onNodeWithText("System default").assert(role(Role.Tab)).assertIsSelected()
+        onAllNodesWithText("System default").apply {
+            assertCountEquals(2)
+            get(0).assert(role(Role.Tab)).assertIsSelected()
+            get(1).assert(role(Role.Tab)).assertIsSelected()
+        }
     }
 
     @Test

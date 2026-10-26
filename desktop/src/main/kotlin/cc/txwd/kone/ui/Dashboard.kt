@@ -1,5 +1,10 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+import cc.txwd.kone.i18n.countryTitle
+
+
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -116,7 +121,9 @@ class DashboardActions(
     val onCancelSignIn: () -> Unit = {},
 )
 
-enum class MenuItem(val title: String) { Clipboard("Import from clipboard"), File("Import from file"), Screen("Scan a QR code on screen") }
+enum class MenuItem(private val englishTitle: String) { Clipboard("Import from clipboard"), File("Import from file"), Screen("Scan a QR code on screen");
+    val title: String get() = tr(englishTitle)
+}
 
 /**
  * Dashboard: the handscroll fills the page (the ink one, or with [cities] those of the node's country,
@@ -155,7 +162,7 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions, movi
                         .padding(horizontal = 2.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Label(tab, 14.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
+                    Label(countryTitle(tab), 14.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
                 }
             }
         }
@@ -174,7 +181,7 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions, movi
                     Label(delayText(node.delay), 14.sp, color, tabular = true)
                     if (on) Glyph(Glyphs.check, color, 18.dp, strokeWidth = 2.2f)
                     if (on && node.imported) {
-                        Box(Modifier.height(32.dp).press(bleed = 4.dp, label = "Remove ${node.name}") { actions.onRemove(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.height(32.dp).press(bleed = 4.dp, label = tr("Remove {0}" , node.name)) { actions.onRemove(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                             Label("×", 16.sp, ink.soft)
                         }
                     }
@@ -196,18 +203,18 @@ private fun SignInLine(signIn: SignInState, actions: DashboardActions) {
         horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Label(
-            if (signIn.waiting) "Waiting for you to sign in; KOne connects again once the network is open"
-            else "This network needs you to sign in before anything gets through",
+            if (signIn.waiting) tr("Waiting for you to sign in; KOne connects again once the network is open")
+            else tr("This network needs you to sign in before anything gets through"),
             14.sp, NodeWeather.Mist.ink(ink.dark),
         )
         Spacer(Modifier.weight(1f))
         if (signIn.waiting) {
             Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onCancelSignIn), contentAlignment = Alignment.Center) {
-                Label("Cancel", 14.sp, ink.soft)
+                Label(tr("Cancel"), 14.sp, ink.soft)
             }
         } else {
             Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onSignIn), contentAlignment = Alignment.Center) {
-                Label("Sign in", 14.sp, weight = FontWeight.SemiBold)
+                Label(tr("Sign in"), 14.sp, weight = FontWeight.SemiBold)
             }
         }
     }
@@ -233,12 +240,12 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -
         // A quarter of an hour without KOne (a bank's app, a sign-in elsewhere), then back by itself.
         if (state.connection == Connection.Online) {
             Box(Modifier.height(48.dp).press(bleed = 6.dp, onClick = onPause).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
-                Label("Pause 15 min", 14.sp, ink.soft)
+                Label(tr("Pause 15 min"), 14.sp, ink.soft)
             }
         }
         Row(
             Modifier.height(52.dp).press(bleed = 6.dp, onClick = onPower)
-                .semantics { stateDescription = when (state.connection) { Connection.Online -> "Connected"; Connection.Connecting -> "Connecting"; Connection.Idle -> "Disconnected" } }
+                .semantics { stateDescription = when (state.connection) { Connection.Online -> tr("Connected"); Connection.Connecting -> tr("Connecting"); Connection.Idle -> tr("Disconnected") } }
                 .padding(start = 2.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -250,9 +257,9 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -
             }
             AnimatedContent(
                 when (state.connection) {
-                    Connection.Online -> "Disconnect"
-                    Connection.Connecting -> "Connecting"
-                    Connection.Idle -> "Connect"
+                    Connection.Online -> tr("Disconnect")
+                    Connection.Connecting -> tr("Connecting")
+                    Connection.Idle -> tr("Connect")
                 },
                 transitionSpec = { fadeIn(Motion.spec(still, Motion.STANDARD)) togetherWith fadeOut(Motion.spec(still, Motion.QUICK)) },
                 label = "power",
@@ -272,8 +279,8 @@ private fun ConnectionInfo(state: DashboardState) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Flag(node.country, 26.dp, 18.dp)
-                    Label("Exit ${state.exit ?: "—"}", 18.sp, weight = FontWeight.SemiBold, ellipsis = true)
-                    Label(node.category, 18.sp, ink.soft, modifier = Modifier.weight(1f, fill = false), ellipsis = true)
+                    Label(tr("Exit {0}" , state.exit ?: "—"), 18.sp, weight = FontWeight.SemiBold, ellipsis = true)
+                    Label(countryTitle(node.category), 18.sp, ink.soft, modifier = Modifier.weight(1f, fill = false), ellipsis = true)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -283,15 +290,15 @@ private fun ConnectionInfo(state: DashboardState) {
                     if (state.home) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             Glyph(Glyphs.home, ink.soft, 16.dp, strokeWidth = 1.8f)
-                            Label("Home", 14.sp, ink.soft)
+                            Label(tr("Home"), 14.sp, ink.soft)
                         }
                     }
-                    if (state.proxied) Label("System proxy", 14.sp, ink.soft)
+                    if (state.proxied) Label(tr("System proxy"), 14.sp, ink.soft)
                     Label("↓ ${rate(state.downKbps)}　↑ ${rate(state.upKbps)}", 14.sp, ink.soft, tabular = true)
                     if (state.trail.size >= 2) Sparkline(state.trail)
                     Label(clock(state.seconds), 14.sp, ink.soft, tabular = true)
                     state.expiry?.let { Label(it, 14.sp, NodeWeather.Mist.ink(ink.dark)) }
-                    state.standIn?.let { Label("Using $it for now", 14.sp, NodeWeather.Mist.ink(ink.dark)) }
+                    state.standIn?.let { Label(tr("Using {0} for now" , it), 14.sp, NodeWeather.Mist.ink(ink.dark)) }
                     state.hint?.let { Label(it, 14.sp, ink.soft) }
                 }
             }
@@ -304,7 +311,7 @@ private fun ConnectionInfo(state: DashboardState) {
                 }
                 when {
                     state.notice != null -> Label(state.notice, 14.sp, NodeWeather.Cut.ink(ink.dark), ellipsis = true)
-                    state.pausedUntil != null -> Label("Paused until ${state.pausedUntil}; Connect to come back now", 14.sp, ink.soft, ellipsis = true)
+                    state.pausedUntil != null -> Label(tr("Paused until {0}; Connect to come back now" , state.pausedUntil), 14.sp, ink.soft, ellipsis = true)
                     state.hint != null -> Label(state.hint, 14.sp, ink.soft, ellipsis = true)
                     state.expiry != null -> Label(state.expiry, 14.sp, NodeWeather.Mist.ink(ink.dark), ellipsis = true)
                 }
@@ -328,7 +335,7 @@ private fun BoxScope.More(open: Boolean, onOpen: (Boolean) -> Unit, onPick: (Men
     ) {
         Box(
             Modifier.size(44.dp).clip(CircleShape).then(if (backed) Modifier.background(ink.paper.copy(alpha = 0.72f)) else Modifier)
-                .press(label = "Import nodes") { if (open || System.currentTimeMillis() - closed[0] > 300) onOpen(!open) },
+                .press(label = tr("Import nodes")) { if (open || System.currentTimeMillis() - closed[0] > 300) onOpen(!open) },
             contentAlignment = Alignment.Center,
         ) {
             MoreDots(ink.ink)

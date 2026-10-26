@@ -1,5 +1,9 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
+import cc.txwd.kone.i18n.Language
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -47,10 +51,14 @@ import androidx.compose.ui.unit.sp
 import cc.txwd.kone.app.Hotkey
 
 /** Appearance: as Windows is set, or always light, or always dark. */
-enum class Appearance(val title: String) { System("System default"), Light("Light"), Dark("Dark") }
+enum class Appearance(private val englishTitle: String) { System("System default"), Light("Light"), Dark("Dark");
+    val title: String get() = tr(englishTitle)
+}
 
 /** Background: KOne's own ink handscroll, or the cities of the node's country (Codex's scenes). */
-enum class Backdrop(val title: String) { Ink("Ink"), City("Cities") }
+enum class Backdrop(private val englishTitle: String) { Ink("Ink"), City("Cities");
+    val title: String get() = tr(englishTitle)
+}
 
 /** Where updating stands, as Settings shows it beside the version. */
 sealed interface UpdateState {
@@ -78,9 +86,11 @@ data class SettingsState(
     val hotkeyTaken: Boolean = false,
     val version: String,
     val update: UpdateState,
+    val language: Language = Language.System,
 )
 
 class SettingsActions(
+    val onLanguage: (Language) -> Unit = {},
     val onAppearance: (Appearance) -> Unit = {},
     val onBackdrop: (Backdrop) -> Unit = {},
     val onSound: (Boolean) -> Unit = {},
@@ -146,74 +156,81 @@ fun SettingsView(
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxSize().fadingEdges(scroll, ink.paper)) {
     Column(Modifier.verticalScroll(scroll).padding(horizontal = 40.dp, vertical = 26.dp).widthIn(max = 640.dp).fillMaxWidth()) {
-        Line("Appearance") { Choices(Appearance.entries, state.appearance, Appearance::title, actions.onAppearance) }
-        Line("Background") { Choices(Backdrop.entries, state.backdrop, Backdrop::title, actions.onBackdrop) }
-        if (state.backdrop == Backdrop.City) Line("Ambient sound") { Switch(state.sound, "Ambient sound") { actions.onSound(!state.sound) } }
+        Line(tr("Language")) {
+            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                Language.entries.forEach { language ->
+                    Choice(if (language == Language.System) tr(language.label) else language.label, state.language == language) { actions.onLanguage(language) }
+                }
+            }
+        }
+        Line(tr("Appearance")) { Choices(Appearance.entries, state.appearance, Appearance::title, actions.onAppearance) }
+        Line(tr("Background")) { Choices(Backdrop.entries, state.backdrop, Backdrop::title, actions.onBackdrop) }
+        if (state.backdrop == Backdrop.City) Line(tr("Ambient sound")) { Switch(state.sound, tr("Ambient sound")) { actions.onSound(!state.sound) } }
         state.autostart?.let { on ->
-            Line("Start with Windows") { Switch(on, "Start with Windows") { actions.onAutostart(!on) } }
+            Line(tr("Start with Windows")) { Switch(on, tr("Start with Windows")) { actions.onAutostart(!on) } }
         }
         state.hotkey?.let { on ->
-            Line("Keyboard shortcut") {
+            Line(tr("Keyboard shortcut")) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    if (state.hotkeyTaken) Label("${Hotkey.KEYS} is already in use", 14.sp, NodeWeather.Cut.ink(ink.dark))
+                    if (state.hotkeyTaken) Label(tr("{0} is already in use" , Hotkey.KEYS), 14.sp, NodeWeather.Cut.ink(ink.dark))
                     else Label(Hotkey.KEYS, 14.sp, ink.soft)
-                    Switch(on, "Keyboard shortcut") { actions.onHotkey(!on) }
+                    Switch(on, tr("Keyboard shortcut")) { actions.onHotkey(!on) }
                 }
             }
         }
         // Where the person is decides the China split and which servers are offered straight out.
-        Line("Where you are") {
+        Line(tr("Where you are")) {
             Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                 val china = cc.txwd.kone.shared.Region.china(network.region)
-                Choice("Outside China", !china) { networkActions.onRegion(cc.txwd.kone.shared.Region.GLOBAL) }
-                Choice("China", china) { networkActions.onRegion(cc.txwd.kone.shared.Region.CHINA) }
+                Choice(tr("Outside China"), !china) { networkActions.onRegion(cc.txwd.kone.shared.Region.GLOBAL) }
+                Choice(tr("China"), china) { networkActions.onRegion(cc.txwd.kone.shared.Region.CHINA) }
             }
         }
-        DnsLine("Remote DNS", REMOTE_DNS, network.remoteDns, "https://dns.example.com/dns-query", networkActions.onRemoteDns)
-        DnsLine("Direct DNS", directDns(network.region), network.directDns, "203.0.113.53", networkActions.onDirectDns)
-        PairsLine("Hosts", network.hosts, { "${it.name}  ${it.address}" }, networkActions.onRemoveHost, networkActions.onAddHost, "nas.example.org 192.0.2.10")
-        PairsLine("DNS for domains", network.nameServers, { "${it.domain}  ${it.server}" }, networkActions.onRemoveNameServer, networkActions.onAddNameServer, "corp.example.org 192.0.2.53")
+        DnsLine(tr("Remote DNS"), REMOTE_DNS, network.remoteDns, "https://dns.example.com/dns-query", networkActions.onRemoteDns)
+        DnsLine(tr("Direct DNS"), directDns(network.region), network.directDns, "203.0.113.53", networkActions.onDirectDns)
+        PairsLine(tr("Hosts"), network.hosts, { "${it.name}  ${it.address}" }, networkActions.onRemoveHost, networkActions.onAddHost, "nas.example.org 192.0.2.10")
+        PairsLine(tr("DNS for domains"), network.nameServers, { "${it.domain}  ${it.server}" }, networkActions.onRemoveNameServer, networkActions.onAddNameServer, "corp.example.org 192.0.2.53")
         Line("IPv6") { Switch(network.ipv6, "IPv6") { networkActions.onIpv6(!network.ipv6) } }
         // Faster first connections and no lookups of proxied names on this network; a program that
         // keeps an address after KOne stops may need a moment to look it up again. Address-range
         // and country-address rules see names, not addresses, for the names it answers.
-        Line("Fake IP") { Switch(network.fakeIp, "Fake IP") { networkActions.onFakeIp(!network.fakeIp) } }
-        Line("Fail over") { Switch(network.failover, "Fail over") { networkActions.onFailover(!network.failover) } }
-        Line("Backup") {
+        Line(tr("Fake IP")) { Switch(network.fakeIp, tr("Fake IP")) { networkActions.onFakeIp(!network.fakeIp) } }
+        Line(tr("Fail over")) { Switch(network.failover, tr("Fail over")) { networkActions.onFailover(!network.failover) } }
+        Line(tr("Backup")) {
             Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                Action("Export", networkActions.onExport)
-                Action("Import", networkActions.onImport)
+                Action(tr("Export"), networkActions.onExport)
+                Action(tr("Import"), networkActions.onImport)
             }
         }
-        Line("Version") {
+        Line(tr("Version")) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 Label(state.version, 14.sp, ink.soft, tabular = true)
                 when (val update = state.update) {
-                    UpdateState.Checking -> Busy("Checking")
-                    UpdateState.Latest -> Label("Up to date", 14.sp, ink.soft)
-                    is UpdateState.Available -> Label("Update available", 14.sp, ink.ink)
-                    is UpdateState.Downloading -> Busy("Downloading ${update.percent}%")
-                    UpdateState.Installing -> Busy("Installing")
+                    UpdateState.Checking -> Busy(tr("Checking"))
+                    UpdateState.Latest -> Label(tr("Up to date"), 14.sp, ink.soft)
+                    is UpdateState.Available -> Label(tr("Update available"), 14.sp, ink.ink)
+                    is UpdateState.Downloading -> Busy(tr("Downloading {0}%" , update.percent))
+                    UpdateState.Installing -> Busy(tr("Installing"))
                     is UpdateState.Failed -> Label(update.message, 14.sp, NodeWeather.Cut.ink(ink.dark))
                     UpdateState.Off, UpdateState.Idle -> Unit
                 }
                 when (state.update) {
-                    UpdateState.Idle, UpdateState.Latest -> Action("Check for updates", actions.onCheck)
-                    is UpdateState.Failed -> Action("Retry", actions.onCheck)
-                    is UpdateState.Available -> Primary("Update now", actions.onUpdate)
+                    UpdateState.Idle, UpdateState.Latest -> Action(tr("Check for updates"), actions.onCheck)
+                    is UpdateState.Failed -> Action(tr("Retry"), actions.onCheck)
+                    is UpdateState.Available -> Primary(tr("Update now"), actions.onUpdate)
                     else -> Unit
                 }
             }
         }
         // What KOne includes and under which licenses, opened in place below the line.
         var notices by remember { mutableStateOf(noticesOpen) }
-        Line("Third-party notices") {
-            Action(if (notices) "Hide" else "Show", { notices = !notices }, label = if (notices) "Hide third-party notices" else "Show third-party notices")
+        Line(tr("Third-party notices")) {
+            Action(if (notices) tr("Hide") else tr("Show"), { notices = !notices }, label = if (notices) tr("Hide third-party notices") else tr("Show third-party notices"))
         }
         if (notices) LicensesPanel()
         // Open-Meteo's terms: the weather the cities show is credited to it.
         if (state.backdrop == Backdrop.City) {
-            Label("Weather data: Open-Meteo.com", 12.sp, ink.soft, modifier = Modifier.padding(top = 14.dp))
+            Label(tr("Weather data: Open-Meteo.com"), 12.sp, ink.soft, modifier = Modifier.padding(top = 14.dp))
         }
     }
     InkScrollbar(scroll, Modifier.align(Alignment.TopEnd).padding(vertical = 26.dp), gutter = (-12).dp)
@@ -264,7 +281,7 @@ private fun DnsLine(title: String, presets: List<Pair<String, String>>, chosen: 
                 presets.forEach { (value, name) ->
                     Choice(name, !editing && value == chosen) { editing = false; onChoose(value) }
                 }
-                Choice("Custom", editing || custom) { editing = true }
+                Choice(tr("Custom"), editing || custom) { editing = true }
             }
         }
         if (editing || custom) {
@@ -307,10 +324,10 @@ private fun <T> PairsLine(title: String, items: List<T>, shown: (T) -> String, o
     var adding by remember { mutableStateOf(false) }
     Column {
         Line(title) {
-            if (items.isEmpty() && !adding) Label("None", 14.sp, ink.soft)
+            if (items.isEmpty() && !adding) Label(tr("None"), 14.sp, ink.soft)
             Spacer(Modifier.width(18.dp))
             Box(Modifier.height(34.dp).press(bleed = 8.dp) { adding = !adding }, contentAlignment = Alignment.Center) {
-                Label(if (adding) "Done" else "Add", 14.sp, weight = FontWeight.SemiBold)
+                Label(if (adding) tr("Done") else tr("Add"), 14.sp, weight = FontWeight.SemiBold)
             }
         }
         if (items.isNotEmpty()) {
@@ -322,7 +339,7 @@ private fun <T> PairsLine(title: String, items: List<T>, shown: (T) -> String, o
                 items.forEach { item ->
                     Row(
                         Modifier.height(30.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(15.dp)).background(ink.press)
-                            .press(label = "Remove ${shown(item)}") { onRemove(item) }.padding(horizontal = 12.dp),
+                            .press(label = tr("Remove {0}" , shown(item))) { onRemove(item) }.padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {

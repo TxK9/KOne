@@ -1,5 +1,8 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
@@ -58,7 +61,7 @@ import kotlinx.coroutines.launch
 object Licenses {
     /** Each text by the name shown for it, the overview first. */
     val texts = listOf(
-        "Overview" to "NOTICES.txt",
+        tr("Overview") to "NOTICES.txt",
         "GPL-3.0" to "GPL-3.0.txt",
         "Apache-2.0" to "Apache-2.0.txt",
         "Wintun" to "Wintun.txt",
@@ -67,7 +70,7 @@ object Licenses {
         "MIT (v2fly)" to "MIT-v2fly.txt",
         "SIL OFL" to "OFL-1.1.txt",
         "SunCalc" to "suncalc.txt",
-        "Rule sets" to "rule-sets.txt",
+        tr("Rule sets") to "rule-sets.txt",
     )
 
     /** The text of [file], or an empty one should it be missing. */
@@ -158,7 +161,7 @@ private fun TextFrame(text: String, name: String, scroll: ScrollState) {
                 }
                 true
             }
-            .semantics { contentDescription = "$name text" }
+            .semantics { contentDescription = tr("{0} text" , name) }
             .focusable()
             .fadingEdges(scroll, ink.paper),
     ) {

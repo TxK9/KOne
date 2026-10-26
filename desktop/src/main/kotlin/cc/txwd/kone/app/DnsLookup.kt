@@ -1,5 +1,8 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
+
 import cc.txwd.kone.core.ClashApi
 import cc.txwd.kone.core.DnsReply
 import cc.txwd.kone.core.DnsWire
@@ -43,14 +46,14 @@ object DnsLookup {
     }
 
     /** As programs on this computer see it (Windows' resolver; KOne's own while the adapter is on). */
-    fun system(name: String): Check = timed("Apps") {
+    fun system(name: String): Check = timed(tr("Apps")) {
         val found = InetAddress.getAllByName(name).map { if (it is Inet6Address) "AAAA " + UserRules.compressed(it.address) else "A ${it.hostAddress}" }
         DnsReply(0, found)
     }
 
     /** Through KOne's DNS, with its rules: IPv4, and IPv6 when it is allowed. */
     fun core(api: ClashApi, name: String, ipv6: Boolean): Check = timed("KOne") {
-        val four = api.dnsQuery(name, "A") ?: throw java.io.IOException("KOne's DNS did not answer")
+        val four = api.dnsQuery(name, "A") ?: throw java.io.IOException(tr("KOne's DNS did not answer"))
         val six = if (ipv6 && four.code == 0) api.dnsQuery(name, "AAAA") else null
         DnsReply(four.code, four.answers + six?.answers.orEmpty().filter { it.startsWith("AAAA") })
     }
@@ -59,7 +62,7 @@ object DnsLookup {
     fun direct(server: String, name: String): Check = timed("Direct") { DnsWire.udp(server, name, DnsWire.A) }
 
     /** The remote server over DNS-over-HTTPS at [url], through KOne's local port when [viaPort] is given. */
-    fun remote(url: String, name: String, viaPort: Int?): Check = timed("Remote") {
+    fun remote(url: String, name: String, viaPort: Int?): Check = timed(tr("Remote")) {
         val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
             .proxy(if (viaPort != null) ProxySelector.of(InetSocketAddress("127.0.0.1", viaPort)) else HttpClient.Builder.NO_PROXY).build()
         DnsWire.https(client, url, name, DnsWire.A)
@@ -80,19 +83,19 @@ object DnsLookup {
      * back, servers that disagree (common when sites answer differently at home and abroad), or fine.
      */
     fun verdict(checks: List<Check>, refused: Boolean, ipv6: Boolean): String {
-        if (refused) return "Your provider blocks this name, so nothing looks it up"
+        if (refused) return tr("Your provider blocks this name, so nothing looks it up")
         val details = checks.map { it.detail }
         return when {
-            details.any { it == REFUSED } -> "A rule in KOne refuses this name"
-            checks.all { it.outcome == Outcome.Fail } -> if (details.all { it == NO_NAME }) "No such name: check the spelling" else "Nothing answers: check the connection and the DNS servers in Settings"
-            details.any { it == NO_NAME } -> "Some servers say the name does not exist: one of them may be filtered"
-            checks.any { it.outcome == Outcome.Fail } -> "Some servers do not answer: the others are enough while they work"
-            !ipv6 && checks.any { check -> check.title == "Apps" && check.detail.substringBefore(" · ").split(", ").any { ':' in it } } -> "IPv6 is off in KOne, so only IPv4 addresses are used"
+            details.any { it == REFUSED } -> tr("A rule in KOne refuses this name")
+            checks.all { it.outcome == Outcome.Fail } -> if (details.all { it == NO_NAME }) tr("No such name: check the spelling") else tr("Nothing answers: check the connection and the DNS servers in Settings")
+            details.any { it == NO_NAME } -> tr("Some servers say the name does not exist: one of them may be filtered")
+            checks.any { it.outcome == Outcome.Fail } -> tr("Some servers do not answer: the others are enough while they work")
+            !ipv6 && checks.any { check -> check.title == tr("Apps") && check.detail.substringBefore(" · ").split(", ").any { ':' in it } } -> tr("IPv6 is off in KOne, so only IPv4 addresses are used")
             // Fake IP: KOne's own answer is a stand-in, and the node looks the real one up where it is.
-            checks.any { check -> check.title in setOf("Apps", "KOne") && addressesOf(check).any(cc.txwd.kone.shared.FakeIp::isFake) } ->
-                "KOne answers with a stand-in address (Fake IP is on); the node looks up the real one"
-            disagree(checks) -> "Servers give different addresses; sites often answer by region, and KOne uses its own answer"
-            else -> "The name resolves normally"
+            checks.any { check -> check.title in setOf(tr("Apps"), "KOne") && addressesOf(check).any(cc.txwd.kone.shared.FakeIp::isFake) } ->
+                tr("KOne answers with a stand-in address (Fake IP is on); the node looks up the real one")
+            disagree(checks) -> tr("Servers give different addresses; sites often answer by region, and KOne uses its own answer")
+            else -> tr("The name resolves normally")
         }
     }
 
@@ -111,7 +114,7 @@ object DnsLookup {
     private fun timed(title: String, ask: () -> DnsReply): Check {
         val started = System.nanoTime()
         val reply = runCatching(ask).getOrElse { failure ->
-            return Check(title, Outcome.Fail, if (failure is java.net.UnknownHostException) NO_NAME else "No answer")
+            return Check(title, Outcome.Fail, if (failure is java.net.UnknownHostException) NO_NAME else tr("No answer"))
         }
         val millis = (System.nanoTime() - started) / 1_000_000
         return describe(title, reply, millis)
@@ -123,8 +126,8 @@ object DnsLookup {
         return when {
             reply.code == 5 -> Check(title, Outcome.Fail, REFUSED)
             reply.code == 3 -> Check(title, Outcome.Fail, NO_NAME)
-            reply.code != 0 -> Check(title, Outcome.Fail, "Server error ${reply.code}")
-            addresses.isEmpty() -> Check(title, Outcome.Warn, "No address · $millis ms")
+            reply.code != 0 -> Check(title, Outcome.Fail, tr("Server error {0}" , reply.code))
+            addresses.isEmpty() -> Check(title, Outcome.Warn, tr("No address · {0} ms" , millis))
             else -> Check(title, Outcome.Pass, addresses.take(3).joinToString(", ") + (if (addresses.size > 3) " +${addresses.size - 3}" else "") + " · $millis ms")
         }
     }

@@ -1,5 +1,7 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
 import cc.txwd.kone.shared.SharedNode
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -33,7 +35,7 @@ class Imports(private val file: File, private val vault: Vault) {
         for ((given, name) in found) {
             val outbound = JsonObject(given - "tag")
             if (!keys.add(key(outbound)) || kept.size >= MOST) continue
-            val tag = unique(name ?: "Imported ${kept.size + 1}", tags)
+            val tag = unique(name ?: tr("Imported {0}" , kept.size + 1), tags)
             tags += tag
             kept += JsonObject(outbound + ("tag" to JsonPrimitive(tag)))
             added++
@@ -49,7 +51,7 @@ class Imports(private val file: File, private val vault: Vault) {
         val others = all.filterIndexed { i, _ -> i != index }
         val clean = JsonObject(outbound - "tag")
         if (others.any { key(it) == key(clean) }) return false
-        val tag = unique(name.ifBlank { "Imported ${index + 1}" }, others.mapNotNullTo(HashSet()) { it.tag })
+        val tag = unique(name.ifBlank { tr("Imported {0}" , index + 1) }, others.mapNotNullTo(HashSet()) { it.tag })
         save(all.toMutableList().also { it[index] = JsonObject(clean + ("tag" to JsonPrimitive(tag))) })
         return true
     }

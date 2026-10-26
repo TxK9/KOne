@@ -1,5 +1,7 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
 import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.FocusInteraction
@@ -59,7 +61,7 @@ fun Modifier.press(
                 selected?.let { this.selected = it }
                 toggled?.let {
                     toggleableState = ToggleableState(it)
-                    stateDescription = if (it) "On" else "Off"
+                    stateDescription = if (it) tr("On") else tr("Off")
                 }
             },
         )

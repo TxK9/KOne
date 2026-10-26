@@ -1,5 +1,9 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+import cc.txwd.kone.i18n.Language
+import cc.txwd.kone.i18n.Strings
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -88,6 +92,7 @@ fun Modifier.hairline(color: Color, top: Boolean = false, bottom: Boolean = fals
 /** The window's own title bar: the mark, the name, and the three buttons. */
 @Composable
 fun TitleBar(
+    onLanguage: ((Language) -> Unit)? = null,
     onMinimize: () -> Unit = {},
     onMaximize: () -> Unit = {},
     onClose: () -> Unit = {},
@@ -106,9 +111,18 @@ fun TitleBar(
                 }
             }
         }
-        Cap(Glyphs.minimize, "Minimize", onMinimize)
-        Cap(Glyphs.maximize, "Maximize", onMaximize)
-        Cap(Glyphs.close, "Close", onClose, closes = true)
+        if (onLanguage != null) {
+            Box(Modifier.padding(end = 12.dp)) {
+                val menu = rememberMenu()
+                Box(Modifier.height(28.dp).press(label = tr("Language")) { menu.toggle() }.padding(horizontal = 8.dp), contentAlignment = Alignment.Center) { Label(if (Strings.chinese) "简体中文" else "English", 12.sp) }
+                InkMenu(menu, Language.entries.map { language ->
+                    (if (language == Language.System) tr(language.label) else language.label) to { onLanguage(language) }
+                })
+            }
+        }
+        Cap(Glyphs.minimize, tr("Minimize"), onMinimize)
+        Cap(Glyphs.maximize, tr("Maximize"), onMaximize)
+        Cap(Glyphs.close, tr("Close"), onClose, closes = true)
     }
 }
 
@@ -138,13 +152,14 @@ private fun Cap(glyph: List<String>, name: String, onClick: () -> Unit, closes: 
     }
 }
 
-enum class Page(val title: String, val glyph: List<String>) {
+enum class Page(private val englishTitle: String, val glyph: List<String>) {
     Dashboard("Dashboard", Glyphs.dashboard),
     Nodes("Nodes", Glyphs.nodes),
     Rules("Rules", Glyphs.rules),
     Log("Logs", Glyphs.log),
     Tools("Tools", Glyphs.tools),
-    Settings("Settings", Glyphs.settings),
+    Settings("Settings", Glyphs.settings);
+    val title: String get() = tr(englishTitle)
 }
 
 /**

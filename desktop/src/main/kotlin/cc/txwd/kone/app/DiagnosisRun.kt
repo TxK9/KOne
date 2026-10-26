@@ -1,5 +1,8 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
+
 import cc.txwd.kone.core.ClashApi
 import cc.txwd.kone.core.ExitTrace
 import cc.txwd.kone.core.ReachCheck
@@ -52,26 +55,26 @@ class DiagnosisRun(private val scope: CoroutineScope, private val host: Host) {
             fun show(running: String?) {
                 host.update { it.copy(checks = checks.toList() + listOfNotNull(running?.let { name -> Check(name, Outcome.Running) }), checking = running != null, advice = null) }
             }
-            show("Network")
+            show(tr("Network"))
             val reached = host.reach()
-            checks += reached?.let(Diagnosis::network) ?: Check("Network", Outcome.Warn, "Could not check")
+            checks += reached?.let(Diagnosis::network) ?: Check(tr("Network"), Outcome.Warn, tr("Could not check"))
             Diagnosis.clock(reached?.skew)?.let { checks += it }
             show(Conflicts.TITLE)
             checks += withContext(Dispatchers.IO) { Conflicts.check(Conflicts.adapters(), SystemProxy.read(), host.proxied) }
-            show("Key")
+            show(tr("Key"))
             checks += when {
-                !host.bound -> Check("Key", Outcome.Fail, "No key yet")
-                !host.sourceReady -> Check("Key", Outcome.Fail, "The console has not sent nodes yet")
-                else -> Check("Key", Outcome.Pass, "${host.nodeCount} nodes")
+                !host.bound -> Check(tr("Key"), Outcome.Fail, tr("No key yet"))
+                !host.sourceReady -> Check(tr("Key"), Outcome.Fail, tr("The console has not sent nodes yet"))
+                else -> Check(tr("Key"), Outcome.Pass, "${host.nodeCount} nodes")
             }
             if (host.throughAdapter) {
-                show("Service")
+                show(tr("Service"))
                 checks += when {
-                    host.serviceConnected -> Check("Service", Outcome.Pass, "Connected through it")
-                    !Places.windows -> Check("Service", Outcome.Warn, "Only on Windows")
+                    host.serviceConnected -> Check(tr("Service"), Outcome.Pass, tr("Connected through it"))
+                    !Places.windows -> Check(tr("Service"), Outcome.Warn, tr("Only on Windows"))
                     else -> {
                         val version = withContext(Dispatchers.IO) { ServiceLink.open(Places.service)?.use { it.hello() } }
-                        if (version != null) Check("Service", Outcome.Pass, "Version $version") else Check("Service", Outcome.Fail, "Not answering")
+                        if (version != null) Check(tr("Service"), Outcome.Pass, tr("Version {0}" , version)) else Check(tr("Service"), Outcome.Fail, tr("Not answering"))
                     }
                 }
             }
@@ -79,7 +82,7 @@ class DiagnosisRun(private val scope: CoroutineScope, private val host: Host) {
             val api = host.api
             val tag = host.inUse()
             checks += if (api == null || tag == null) {
-                Check("Node", Outcome.Warn, "Nothing to test through yet")
+                Check("Node", Outcome.Warn, tr("Nothing to test through yet"))
             } else {
                 val measured = withContext(Dispatchers.IO) { api.delay(tag) }
                 host.record(tag, measured)
@@ -106,15 +109,15 @@ class DiagnosisRun(private val scope: CoroutineScope, private val host: Host) {
     fun report(): String = Diagnosis.report(
         host.tools.checks, host.tools.advice,
         listOf(
-            "Version" to (System.getProperty("jpackage.app-version") ?: "development"),
+            tr("Version") to (System.getProperty("jpackage.app-version") ?: "development"),
             "Windows" to System.getProperty("os.version").orEmpty() + " " + System.getProperty("os.arch").orEmpty(),
-            "Mode" to host.mode,
-            "Way" to if (host.proxied != null) "System proxy" else "Virtual adapter",
-            "Connected" to host.online.toString(),
+            tr("Mode") to host.mode,
+            "Way" to if (host.proxied != null) tr("System proxy") else tr("Virtual adapter"),
+            tr("Connected") to host.online.toString(),
         ) + listOfNotNull(
             // A stop in the last week, in a few words: what and where, never its message.
             Crashes.last()?.takeIf { System.currentTimeMillis() - it.at < 7 * 86_400_000L }?.let { stop ->
-                "Last stop" to "${java.time.Instant.ofEpochMilli(stop.at).toString().substringBefore('.').replace('T', ' ')} UTC, ${stop.what}"
+                tr("Last stop") to "${java.time.Instant.ofEpochMilli(stop.at).toString().substringBefore('.').replace('T', ' ')} UTC, ${stop.what}"
             },
         ),
     )
@@ -123,7 +126,7 @@ class DiagnosisRun(private val scope: CoroutineScope, private val host: Host) {
     fun copyReport(copy: (String) -> Unit) {
         if (host.tools.checks.isEmpty()) return
         copy(report())
-        host.hint("Diagnosis copied")
+        host.hint(tr("Diagnosis copied"))
     }
 
     fun clear() {

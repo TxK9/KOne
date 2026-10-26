@@ -1,5 +1,7 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,11 +37,11 @@ import androidx.compose.ui.unit.sp
 import cc.txwd.kone.node.NodeDraft
 import cc.txwd.kone.node.NodeForm
 
-private val FINGERPRINTS = listOf("" to "None", "chrome" to "Chrome", "firefox" to "Firefox", "safari" to "Safari", "edge" to "Edge", "random" to "Random")
-private val FLOWS = listOf("" to "None", "xtls-rprx-vision" to "Vision")
-private val PLUGINS = listOf("" to "None", "obfs-local" to "obfs", "v2ray-plugin" to "v2ray-plugin")
-private val CONGESTIONS = listOf("" to "Default", "bbr" to "BBR", "cubic" to "CUBIC", "new_reno" to "NewReno")
-private val RELAYS = listOf("" to "Default", "native" to "Native", "quic" to "QUIC")
+private val FINGERPRINTS get() = listOf("" to tr("None"), "chrome" to "Chrome", "firefox" to "Firefox", "safari" to "Safari", "edge" to "Edge", "random" to tr("Random"))
+private val FLOWS get() = listOf("" to tr("None"), "xtls-rprx-vision" to "Vision")
+private val PLUGINS get() = listOf("" to tr("None"), "obfs-local" to "obfs", "v2ray-plugin" to "v2ray-plugin")
+private val CONGESTIONS get() = listOf("" to tr("Default"), "bbr" to "BBR", "cubic" to "CUBIC", "new_reno" to "NewReno")
+private val RELAYS get() = listOf("" to tr("Default"), "native" to tr("Native"), "quic" to "QUIC")
 
 /**
  * A node written by hand: its kind, then only the fields that kind uses, grouped as the
@@ -53,96 +55,96 @@ fun NodeEditor(start: NodeDraft, editing: Boolean, error: String?, saving: Boole
     var draft by remember(start) { mutableStateOf(start) }
     val fields = NodeForm.fields(draft.type)
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp).hairline(ink.hair, bottom = true).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Label(if (editing) "Edit node" else "Add node", 15.sp, weight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
+        Label(if (editing) tr("Edit node") else tr("Add node"), 15.sp, weight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
         if (!editing) {
-            Field("Kind") {
+            Field(tr("Kind")) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     NodeForm.TYPES.forEach { (type, title) -> Pick(title, draft.type == type) { draft = draft.copy(type = type, security = NodeForm.securities(type).firstOrNull() ?: "tls") } }
                 }
             }
         }
-        Field("Name") { Text(draft.name, { draft = draft.copy(name = it) }, "Shown in KOne") }
-        Field("Server") {
-            Text(draft.server, { draft = draft.copy(server = it) }, "203.0.113.1 or node.example.com", Modifier.weight(1f))
+        Field(tr("Name")) { Text(draft.name, { draft = draft.copy(name = it) }, tr("Shown in KOne")) }
+        Field(tr("Server")) {
+            Text(draft.server, { draft = draft.copy(server = it) }, tr("203.0.113.1 or node.example.com"), Modifier.weight(1f))
             Spacer(Modifier.width(18.dp))
-            Label("Port", 13.sp, ink.soft)
+            Label(tr("Port"), 13.sp, ink.soft)
             Spacer(Modifier.width(10.dp))
             Text(draft.port, { draft = draft.copy(port = it.filter(Char::isDigit).take(5)) }, "443", Modifier.width(70.dp))
         }
         if ("uuid" in fields) Field("UUID") { Text(draft.uuid, { draft = draft.copy(uuid = it) }, "00000000-0000-0000-0000-000000000000", mono = true) }
-        if ("username" in fields) Field("User") { Text(draft.username, { draft = draft.copy(username = it) }, "Optional") }
-        if ("password" in fields) Field("Password") { Text(draft.password, { draft = draft.copy(password = it) }, if (draft.type == "socks" || draft.type == "http") "Optional" else "", secret = true) }
+        if ("username" in fields) Field(tr("User")) { Text(draft.username, { draft = draft.copy(username = it) }, tr("Optional")) }
+        if ("password" in fields) Field(tr("Password")) { Text(draft.password, { draft = draft.copy(password = it) }, if (draft.type == "socks" || draft.type == "http") tr("Optional") else "", secret = true) }
         if (draft.type == "shadowsocks") {
-            Field("Cipher") {
+            Field(tr("Cipher")) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     NodeForm.CIPHERS.forEach { cipher -> Pick(cipher, draft.method == cipher) { draft = draft.copy(method = cipher) } }
                 }
             }
-            Field("Plugin") { PLUGINS.forEach { (value, title) -> Pick(title, draft.plugin == value) { draft = draft.copy(plugin = value) } } }
-            if (draft.plugin.isNotEmpty()) Field("Options") { Text(draft.pluginOptions, { draft = draft.copy(pluginOptions = it) }, "obfs=http;obfs-host=example.com", mono = true) }
+            Field(tr("Plugin")) { PLUGINS.forEach { (value, title) -> Pick(title, draft.plugin == value) { draft = draft.copy(plugin = value) } } }
+            if (draft.plugin.isNotEmpty()) Field(tr("Options")) { Text(draft.pluginOptions, { draft = draft.copy(pluginOptions = it) }, "obfs=http;obfs-host=example.com", mono = true) }
         }
         if (draft.type == "vmess") {
-            Field("Encryption") {
+            Field(tr("Encryption")) {
                 Text(draft.method, { draft = draft.copy(method = it) }, "auto", Modifier.width(160.dp))
                 Spacer(Modifier.width(18.dp))
-                Label("Alter ID", 13.sp, ink.soft)
+                Label(tr("Alter ID"), 13.sp, ink.soft)
                 Spacer(Modifier.width(10.dp))
                 Text(draft.alterId, { draft = draft.copy(alterId = it.filter(Char::isDigit).take(5)) }, "0", Modifier.width(70.dp))
             }
         }
-        if ("flow" in fields) Field("Flow") { FLOWS.forEach { (value, title) -> Pick(title, draft.flow == value) { draft = draft.copy(flow = value) } } }
+        if ("flow" in fields) Field(tr("Flow")) { FLOWS.forEach { (value, title) -> Pick(title, draft.flow == value) { draft = draft.copy(flow = value) } } }
         val securities = NodeForm.securities(draft.type)
         if (securities.isNotEmpty()) {
-            Field("Encryption") { securities.forEach { value -> Pick(if (value == "none") "None" else value.uppercase().replace("REALITY", "Reality"), draft.security == value) { draft = draft.copy(security = value) } } }
+            Field(tr("Encryption")) { securities.forEach { value -> Pick(if (value == "none") tr("None") else value.uppercase().replace("REALITY", "Reality"), draft.security == value) { draft = draft.copy(security = value) } } }
         }
         val encrypted = "tls" in fields || (securities.isNotEmpty() && draft.security != "none")
         if (encrypted) {
-            Field("SNI") { Text(draft.sni, { draft = draft.copy(sni = it) }, "The server's name, if not the server") }
+            Field("SNI") { Text(draft.sni, { draft = draft.copy(sni = it) }, tr("The server's name, if not the server")) }
             Field("ALPN") {
                 Text(draft.alpn, { draft = draft.copy(alpn = it) }, "h2,http/1.1", Modifier.weight(1f))
                 Spacer(Modifier.width(18.dp))
-                Label("Allow insecure", 13.sp, ink.soft)
+                Label(tr("Allow insecure"), 13.sp, ink.soft)
                 Spacer(Modifier.width(10.dp))
-                Switch(draft.insecure, "Allow insecure") { draft = draft.copy(insecure = !draft.insecure) }
+                Switch(draft.insecure, tr("Allow insecure")) { draft = draft.copy(insecure = !draft.insecure) }
             }
             if (draft.type != "hysteria2" && draft.type != "tuic") {
-                Field("Fingerprint") { FINGERPRINTS.forEach { (value, title) -> Pick(title, draft.fingerprint == value) { draft = draft.copy(fingerprint = value) } } }
+                Field(tr("Fingerprint")) { FINGERPRINTS.forEach { (value, title) -> Pick(title, draft.fingerprint == value) { draft = draft.copy(fingerprint = value) } } }
             }
             if (draft.security == "reality" && "security" in fields) {
-                Field("Public key") { Text(draft.publicKey, { draft = draft.copy(publicKey = it) }, "", mono = true) }
-                Field("Short ID") { Text(draft.shortId, { draft = draft.copy(shortId = it) }, "Optional", Modifier.width(200.dp), mono = true) }
+                Field(tr("Public key")) { Text(draft.publicKey, { draft = draft.copy(publicKey = it) }, "", mono = true) }
+                Field(tr("Short ID")) { Text(draft.shortId, { draft = draft.copy(shortId = it) }, tr("Optional"), Modifier.width(200.dp), mono = true) }
             }
         }
         if ("transport" in fields) {
-            Field("Transport") { NodeForm.TRANSPORTS.forEach { value -> Pick(if (value == "httpupgrade") "HTTPUpgrade" else value.uppercase().replace("GRPC", "gRPC"), draft.transport == value) { draft = draft.copy(transport = value) } } }
+            Field(tr("Transport")) { NodeForm.TRANSPORTS.forEach { value -> Pick(if (value == "httpupgrade") "HTTPUpgrade" else value.uppercase().replace("GRPC", "gRPC"), draft.transport == value) { draft = draft.copy(transport = value) } } }
             when (draft.transport) {
-                "ws", "http", "httpupgrade" -> Field("Host") {
-                    Text(draft.host, { draft = draft.copy(host = it) }, "Optional", Modifier.weight(1f))
+                "ws", "http", "httpupgrade" -> Field(tr("Host")) {
+                    Text(draft.host, { draft = draft.copy(host = it) }, tr("Optional"), Modifier.weight(1f))
                     Spacer(Modifier.width(18.dp))
-                    Label("Path", 13.sp, ink.soft)
+                    Label(tr("Path"), 13.sp, ink.soft)
                     Spacer(Modifier.width(10.dp))
                     Text(draft.path, { draft = draft.copy(path = it) }, "/", Modifier.weight(1f), mono = true)
                 }
-                "grpc" -> Field("Service") { Text(draft.serviceName, { draft = draft.copy(serviceName = it) }, "Service name", mono = true) }
+                "grpc" -> Field(tr("Service")) { Text(draft.serviceName, { draft = draft.copy(serviceName = it) }, tr("Service name"), mono = true) }
             }
         }
         if (draft.type == "hysteria2") {
-            Field("Hop ports") { Text(draft.hops, { draft = draft.copy(hops = it) }, "Optional, as 20000-30000", mono = true) }
-            Field("Obfuscation") { Text(draft.obfsPassword, { draft = draft.copy(obfsPassword = it) }, "Salamander password, optional", secret = true) }
-            Field("Speed") {
-                Text(draft.up, { draft = draft.copy(up = it.filter(Char::isDigit).take(6)) }, "Up Mbps", Modifier.width(110.dp))
+            Field(tr("Hop ports")) { Text(draft.hops, { draft = draft.copy(hops = it) }, tr("Optional, as 20000-30000"), mono = true) }
+            Field(tr("Obfuscation")) { Text(draft.obfsPassword, { draft = draft.copy(obfsPassword = it) }, tr("Salamander password, optional"), secret = true) }
+            Field(tr("Speed")) {
+                Text(draft.up, { draft = draft.copy(up = it.filter(Char::isDigit).take(6)) }, tr("Up Mbps"), Modifier.width(110.dp))
                 Spacer(Modifier.width(18.dp))
-                Text(draft.down, { draft = draft.copy(down = it.filter(Char::isDigit).take(6)) }, "Down Mbps", Modifier.width(110.dp))
+                Text(draft.down, { draft = draft.copy(down = it.filter(Char::isDigit).take(6)) }, tr("Down Mbps"), Modifier.width(110.dp))
             }
         }
         if (draft.type == "tuic") {
-            Field("Congestion") { CONGESTIONS.forEach { (value, title) -> Pick(title, draft.congestion == value) { draft = draft.copy(congestion = value) } } }
-            Field("UDP relay") { RELAYS.forEach { (value, title) -> Pick(title, draft.udpRelay == value) { draft = draft.copy(udpRelay = value) } } }
+            Field(tr("Congestion")) { CONGESTIONS.forEach { (value, title) -> Pick(title, draft.congestion == value) { draft = draft.copy(congestion = value) } } }
+            Field(tr("UDP relay")) { RELAYS.forEach { (value, title) -> Pick(title, draft.udpRelay == value) { draft = draft.copy(udpRelay = value) } } }
         }
         Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             Spacer(Modifier.width(110.dp))
-            Primary("Save", { onSave(draft) }, busy = if (saving) "Checking" else null)
-            Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onCancel), contentAlignment = Alignment.Center) { Label("Cancel", 14.sp, ink.soft) }
+            Primary(tr("Save"), { onSave(draft) }, busy = if (saving) tr("Checking") else null)
+            Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onCancel), contentAlignment = Alignment.Center) { Label(tr("Cancel"), 14.sp, ink.soft) }
             error?.let { Label(it, 13.sp, NodeWeather.Cut.ink(ink.dark)) }
         }
     }

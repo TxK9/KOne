@@ -36,6 +36,7 @@ object Places {
 
     /** 1.0.<build>, as the installer and Apps & features show it. */
     val version: String = build.getProperty("version")?.takeIf { it.isNotBlank() } ?: "1.0.0"
+    val defaultLanguage: String = build.getProperty("language") ?: "system"
 
     /**
      * The console a bare key goes to, when this build was made for one (-Pkone.console=https://…);

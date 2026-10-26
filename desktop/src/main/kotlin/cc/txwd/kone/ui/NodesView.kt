@@ -1,5 +1,9 @@
 package cc.txwd.kone.ui
 
+import cc.txwd.kone.i18n.tr
+
+
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -124,7 +128,9 @@ class NodesActions(
 )
 
 /** How nodes are listed within each source. */
-private enum class NodeOrder(val title: String) { Listed("As listed"), Delay("Delay"), Name("Name") }
+private enum class NodeOrder(private val englishTitle: String) { Listed("As listed"), Delay("Delay"), Name("Name");
+    val title: String get() = tr(englishTitle)
+}
 
 /** The nodes of a source that match [query] (name or kind), without failing ones when [hideFailing], in [order]. */
 private fun List<Node>.shown(query: String, order: NodeOrder, hideFailing: Boolean): List<Node> {
@@ -141,7 +147,7 @@ private fun List<Node>.shown(query: String, order: NodeOrder, hideFailing: Boole
 }
 
 /** The intervals a subscription can update at, in hours; 0 only when asked. */
-private val INTERVALS = listOf(0 to "Manual", 6 to "6 h", 12 to "12 h", 24 to "24 h")
+private val INTERVALS = listOf(0 to tr("Manual"), 6 to "6 h", 12 to "12 h", 24 to "24 h")
 
 /**
  * Nodes: every source of nodes, each with its nodes in aligned rows (flag, name, kind, weather
@@ -162,30 +168,30 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
         Row(Modifier.fillMaxWidth().padding(end = ROOM).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             state.notice?.let { Label(it, 13.sp, if (state.noticeIsError) NodeWeather.Cut.ink(ink.dark) else ink.soft) }
             Spacer(Modifier.weight(1f))
-            if (state.testing) Busy("Testing") else Action("Test all", onClick = actions.onTest)
-            Action("Export", soft = true, onClick = actions.onExport)
+            if (state.testing) Busy(tr("Testing")) else Action(tr("Test all"), onClick = actions.onTest)
+            Action(tr("Export"), soft = true, onClick = actions.onExport)
             // Every way a node comes in, behind the page's one filled button.
             val adds = rememberMenu()
             Box {
-                Primary("Add", adds::toggle)
+                Primary(tr("Add"), adds::toggle)
                 InkMenu(
                     adds,
                     listOf(
-                        "Subscription link" to { adding = true },
-                        "Node by hand" to actions.onAddNode,
-                        "From the clipboard" to actions.onImport,
-                        "From a QR code on screen" to actions.onScan,
+                        tr("Subscription link") to { adding = true },
+                        tr("Node by hand") to actions.onAddNode,
+                        tr("From the clipboard") to actions.onImport,
+                        tr("From a QR code on screen") to actions.onScan,
                     ),
                 )
             }
         }
         // Finding a node among hundreds: by name or kind, in an order, without the ones not answering.
         Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Text(query, { query = it }, Modifier.width(240.dp), hint = "Search nodes")
+            Text(query, { query = it }, Modifier.width(240.dp), hint = tr("Search nodes"))
             Spacer(Modifier.width(4.dp))
             NodeOrder.entries.forEach { choice -> Choice(choice.title, choice == order) { order = choice } }
             Spacer(Modifier.width(4.dp))
-            Choice("Hide failing", hideFailing) { hideFailing = !hideFailing }
+            Choice(tr("Hide failing"), hideFailing) { hideFailing = !hideFailing }
         }
 
         if (adding) {
@@ -231,7 +237,7 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
                 }
             }
             if (state.sections.all { it.nodes.isEmpty() } && state.editing == null && state.qr == null && !adding) {
-                EmptyState("No nodes yet", "Add a subscription, import share links or a Clash profile, or scan a QR code, with the buttons above.", Glyphs.nodes)
+                EmptyState(tr("No nodes yet"), tr("Add a subscription, import share links or a Clash profile, or scan a QR code, with the buttons above."), Glyphs.nodes)
             }
             InkScrollbar(list, Modifier.align(Alignment.TopEnd))
         }
@@ -248,26 +254,26 @@ private fun Header(section: NodeSection, open: Boolean, now: Long, onToggle: () 
     ) {
         Row(Modifier.height(36.dp).press(bleed = 6.dp, onClick = onToggle), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Label(if (open) "▾" else "▸", 13.sp, ink.soft)
-            Label(section.title, 15.sp, weight = FontWeight.SemiBold)
+            Label(when (section.kind) { SourceKind.Managed -> tr("Managed"); SourceKind.Imported -> tr("Imported"); SourceKind.Subscription -> section.title }, 15.sp, weight = FontWeight.SemiBold)
             Label("${section.nodes.size}", 13.sp, ink.soft, tabular = true)
         }
-        if (section.left > 0) Label("${section.left} left out", 13.sp, ink.soft, tabular = true)
+        if (section.left > 0) Label(tr("{0} left out" , section.left), 13.sp, ink.soft, tabular = true)
         section.info?.let { info ->
             if (info.total > 0) Label("${size(info.used)} / ${size(info.total)}", 13.sp, ink.soft, tabular = true)
             info.expire?.let { expire -> Expiry(expire, now) }
         }
         if (section.kind == SourceKind.Subscription) {
             when {
-                section.updating -> Busy("Updating", 13.sp)
+                section.updating -> Busy(tr("Updating"), 13.sp)
                 section.error != null -> Label(section.error, 13.sp, NodeWeather.Cut.ink(ink.dark))
-                section.updated > 0 -> Label("Updated ${ago(now - section.updated)}", 13.sp, ink.soft)
+                section.updated > 0 -> Label(tr("Updated {0}" , ago(now - section.updated)), 13.sp, ink.soft)
             }
         }
         Spacer(Modifier.weight(1f))
         if (section.kind == SourceKind.Subscription) {
-            Action("Update", enabled = !section.updating) { actions.onUpdate(section.id) }
-            Action("Edit", onClick = onEdit)
-            Box(Modifier.height(32.dp).press(bleed = 6.dp, label = "Remove subscription ${section.title}") { actions.onRemoveSubscription(section.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+            Action(tr("Update"), enabled = !section.updating) { actions.onUpdate(section.id) }
+            Action(tr("Edit"), onClick = onEdit)
+            Box(Modifier.height(32.dp).press(bleed = 6.dp, label = tr("Remove subscription {0}" , section.title)) { actions.onRemoveSubscription(section.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                 Label("×", 16.sp, ink.soft)
             }
         }
@@ -284,7 +290,7 @@ private fun Expiry(expire: Long, now: Long) {
         left < 7 * 86_400_000L -> NodeWeather.Mist.ink(ink.dark)
         else -> ink.soft
     }
-    Label(if (left <= 0) "Expired $day" else "Expires $day", 13.sp, color, tabular = true)
+    Label(if (left <= 0) tr("Expired {0}" , day) else tr("Expires {0}" , day), 13.sp, color, tabular = true)
 }
 
 @Composable
@@ -303,19 +309,19 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
         // How often it has not answered lately, once it has missed at all.
         Box(Modifier.width(72.dp), contentAlignment = Alignment.CenterEnd) {
             node.loss?.takeIf { it > 0 }?.let { loss ->
-                Label("${(loss * 100).toInt()}% lost", 12.sp, if (loss >= 0.3) NodeWeather.Cut.ink(ink.dark) else ink.soft, tabular = true)
+                Label(tr("{0}% lost" , (loss * 100).toInt()), 12.sp, if (loss >= 0.3) NodeWeather.Cut.ink(ink.dark) else ink.soft, tabular = true)
             }
         }
         // The last bandwidth test, or the way to run one.
         Box(Modifier.width(140.dp), contentAlignment = Alignment.CenterEnd) {
             val speed = node.speed
             when {
-                speedTesting == node.id -> Busy("Testing speed", 12.sp)
+                speedTesting == node.id -> Busy(tr("Testing speed"), 12.sp)
                 speed != null -> Box(Modifier.height(28.dp).press(enabled = speedTesting == null, bleed = 4.dp) { if (speedTesting == null) actions.onSpeed(node.id) }, contentAlignment = Alignment.Center) {
                     Label("↓ ${mbps(speed.down)}  ↑ ${mbps(speed.up)} Mbps", 12.sp, ink.ink, tabular = true)
                 }
                 else -> Box(Modifier.height(28.dp).press(enabled = speedTesting == null, bleed = 4.dp) { if (speedTesting == null) actions.onSpeed(node.id) }, contentAlignment = Alignment.Center) {
-                    Label("Speed", 12.sp, if (speedTesting == null) ink.soft else ink.hair)
+                    Label(tr("Speed"), 12.sp, if (speedTesting == null) ink.soft else ink.hair)
                 }
             }
         }
@@ -330,7 +336,7 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
         Box(Modifier.width(40.dp), contentAlignment = Alignment.Center) {
             if (copyable) {
                 Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onCopyLink(node.id) }.padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
-                    Label("Copy", 12.sp, ink.soft)
+                    Label(tr("Copy"), 12.sp, ink.soft)
                 }
             }
         }
@@ -344,13 +350,13 @@ private fun NodeRow(node: Node, on: Boolean, removable: Boolean, copyable: Boole
         Box(Modifier.width(32.dp), contentAlignment = Alignment.Center) {
             if (removable) {
                 Box(Modifier.height(28.dp).press(bleed = 4.dp) { actions.onEditNode(node.id) }.padding(horizontal = 2.dp), contentAlignment = Alignment.Center) {
-                    Label("Edit", 12.sp, ink.soft)
+                    Label(tr("Edit"), 12.sp, ink.soft)
                 }
             }
         }
         Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
             if (removable) {
-                Box(Modifier.height(28.dp).press(bleed = 4.dp, label = "Remove ${node.name}") { actions.onRemoveNode(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.height(28.dp).press(bleed = 4.dp, label = tr("Remove {0}" , node.name)) { actions.onRemoveNode(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                     Label("×", 15.sp, ink.soft)
                 }
             }
@@ -368,19 +374,19 @@ private fun Editor(section: NodeSection, onSave: (String, String, Int, String) -
     var leaveOut by remember(section.id) { mutableStateOf(section.leaveOut) }
     var wrong by remember(section.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp).hairline(ink.hair, bottom = true).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        EditLine("Name") { Text(name, { name = it }, Modifier.width(300.dp)) }
-        EditLine("Link") { Text(url, { url = it; wrong = false }, Modifier.width(420.dp), wrong = wrong) }
-        EditLine("Update") {
+        EditLine(tr("Name")) { Text(name, { name = it }, Modifier.width(300.dp)) }
+        EditLine(tr("Link")) { Text(url, { url = it; wrong = false }, Modifier.width(420.dp), wrong = wrong) }
+        EditLine(tr("Update")) {
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 INTERVALS.forEach { (value, title) -> Choice(title, value == hours) { hours = value } }
             }
         }
         // The provider's notices ("剩余流量", "官网") are left out without asking.
-        EditLine("Leave out") { Text(leaveOut, { leaveOut = it }, Modifier.width(420.dp), hint = "Nodes named with, e.g. 0.1x | Test") }
+        EditLine(tr("Leave out")) { Text(leaveOut, { leaveOut = it }, Modifier.width(420.dp), hint = tr("Nodes named with, e.g. 0.1x | Test")) }
         Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             Spacer(Modifier.width(90.dp))
-            Action("Save") { if (!onSave(name.trim(), url.trim(), hours, leaveOut)) wrong = true }
-            Action("Cancel", onClick = onCancel)
+            Action(tr("Save")) { if (!onSave(name.trim(), url.trim(), hours, leaveOut)) wrong = true }
+            Action(tr("Cancel"), onClick = onCancel)
         }
     }
 }
@@ -472,10 +478,10 @@ fun mbps(value: Double?): String = when {
 fun ago(millis: Long): String {
     val minutes = millis / 60_000
     return when {
-        minutes < 1 -> "just now"
-        minutes < 60 -> "$minutes min ago"
-        minutes < 48 * 60 -> "${minutes / 60} h ago"
-        else -> "${minutes / (24 * 60)} days ago"
+        minutes < 1 -> tr("just now")
+        minutes < 60 -> tr("{0} min ago" , minutes)
+        minutes < 48 * 60 -> tr("{0} h ago" , minutes / 60)
+        else -> tr("{0} days ago" , minutes / (24 * 60))
     }
 }
 
@@ -490,7 +496,7 @@ private fun QrPanel(shown: NodeQr, onClose: () -> Unit) {
         QrCode(shown.link)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Label(shown.name, 15.sp, weight = FontWeight.SemiBold)
-            Label("Scan it with KOne on your phone, or another client that reads share links, to add this node there. It carries the node's password: show it only to your own devices.", 13.sp, ink.soft)
+            Label(tr("Scan it with KOne on your phone, or another client that reads share links, to add this node there. It carries the node's password: show it only to your own devices."), 13.sp, ink.soft)
             androidx.compose.foundation.text.BasicText(
                 shown.link,
                 style = androidx.compose.ui.text.TextStyle(color = ink.soft, fontSize = 11.sp, fontFamily = Fonts.mono),
@@ -498,7 +504,7 @@ private fun QrPanel(shown: NodeQr, onClose: () -> Unit) {
             )
             Spacer(Modifier.weight(1f))
             Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = onClose), contentAlignment = Alignment.Center) {
-                Label("Close", 14.sp, weight = FontWeight.SemiBold)
+                Label(tr("Close"), 14.sp, weight = FontWeight.SemiBold)
             }
         }
     }

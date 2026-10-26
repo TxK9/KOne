@@ -1,5 +1,8 @@
 package cc.txwd.kone.app
 
+import cc.txwd.kone.i18n.tr
+
+
 import cc.txwd.kone.shared.Why
 import cc.txwd.kone.core.RouteProbe
 
@@ -40,7 +43,7 @@ object SiteCheck {
     /** The tries as rows: each way, whether it answered, and how fast. */
     fun rows(tries: List<Try>): List<Check> = tries.map { one ->
         when (val millis = one.millis) {
-            null -> Check(one.title, Outcome.Fail, "No answer")
+            null -> Check(one.title, Outcome.Fail, tr("No answer"))
             else -> Check(one.title, if (millis >= 3_000) Outcome.Warn else Outcome.Pass, "$millis ms")
         }
     }
@@ -52,11 +55,11 @@ object SiteCheck {
     fun now(found: RouteProbe.Found, lists: Why.Lists, nameOf: (String) -> String): Check = when (found) {
         is RouteProbe.Found.Carried -> {
             val via = found.connection.via
-            val way = if (via == "direct" || via.isEmpty()) "Straight out" else "Through ${nameOf(via)}"
-            Check("Now", Outcome.Pass, listOfNotNull(way, Why.explain(found.connection.rule, lists)).joinToString(" · "))
+            val way = if (via == "direct" || via.isEmpty()) tr("Straight out") else tr("Through {0}" , nameOf(via))
+            Check(tr("Now"), Outcome.Pass, listOfNotNull(way, Why.explain(found.connection.rule, lists)).joinToString(" · "))
         }
-        RouteProbe.Found.NoName -> Check("Now", Outcome.Warn, "The name does not resolve here")
-        RouteProbe.Found.Unseen -> Check("Now", Outcome.Warn, "Refused, or not carried by KOne")
+        RouteProbe.Found.NoName -> Check(tr("Now"), Outcome.Warn, tr("The name does not resolve here"))
+        RouteProbe.Found.Unseen -> Check(tr("Now"), Outcome.Warn, tr("Refused, or not carried by KOne"))
     }
 
     /** What the tries add up to, in a sentence. */
