@@ -7,12 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -22,8 +19,6 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.SettingsRemote
-import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
-import androidx.compose.material3.CardDefaults
 import io.nekohasekai.sfa.compose.theme.KnineDropdownMenu as DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,19 +35,18 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.compose.component.KnineRowGroup
 import io.nekohasekai.sfa.compose.theme.KnineEmptyState
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
@@ -63,11 +57,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RemoteControlScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    var servers by remember { mutableStateOf<List<RemoteServer>>(emptyList()) }
+    // Null until read, so the empty page does not flash up before the list.
+    var servers by remember { mutableStateOf<List<RemoteServer>?>(null) }
     val activeRemoteServer by RemoteControlManager.remoteServer.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -98,7 +93,7 @@ fun RemoteControlScreen(navController: NavController) {
             },
             actions = {
                 // With no servers the page itself offers to add one; a second button above it would repeat it.
-                if (servers.isNotEmpty()) {
+                if (!servers.isNullOrEmpty()) {
                     IconButton(onClick = { navController.navigate("settings/remote_control/new") }) {
                         Icon(
                             imageVector = Icons.Outlined.Add,
@@ -111,8 +106,9 @@ fun RemoteControlScreen(navController: NavController) {
     }
 
     val scaffoldPadding = LocalScaffoldPadding.current
+    val list = servers ?: return
 
-    if (servers.isEmpty()) {
+    if (list.isEmpty()) {
         KnineEmptyState(
             title = stringResource(R.string.remote_no_servers),
             icon = Icons.Outlined.SettingsRemote,
@@ -138,129 +134,72 @@ fun RemoteControlScreen(navController: NavController) {
                 bottom = scaffoldPadding.calculateBottomPadding() + 8.dp,
             ),
     ) {
-        Card(
-            modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ),
-        ) {
-            Column {
-                servers.forEachIndexed { index, server ->
-                    val shape =
-                        when {
-                            servers.size == 1 -> RoundedCornerShape(12.dp)
-                            index == 0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-                            index == servers.size - 1 ->
-                                RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-
-                            else -> RoundedCornerShape(0.dp)
-                        }
-                    var showMenu by remember { mutableStateOf(false) }
-                    Box {
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    server.displayName,
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                            },
-                            supportingContent =
-                            if (server.name.isNotEmpty()) {
-                                {
-                                    Text(
-                                        server.url,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                            leadingContent = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Dns,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            trailingContent =
-                            if (activeRemoteServer?.id == server.id) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                            modifier =
-                            Modifier
-                                .clip(shape)
-                                .combinedClickable(
-                                    onClick = {
-                                        navController.navigate(
-                                            "settings/remote_control/edit/${server.id}",
-                                        )
-                                    },
-                                    onLongClick = { showMenu = true },
-                                ),
-                            colors =
-                            ListItemDefaults.colors(
-                                containerColor = Color.Transparent,
-                            ),
-                        )
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.edit)) },
-                                leadingIcon = {
-                                    Icon(Icons.Outlined.Edit, contentDescription = null)
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    navController.navigate(
-                                        "settings/remote_control/edit/${server.id}",
-                                    )
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        stringResource(R.string.menu_delete),
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Outlined.Delete,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                    )
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    scope.launch(Dispatchers.IO) {
-                                        if (RemoteControlManager.remoteServer.value?.id == server.id) {
-                                            withContext(Dispatchers.Main) {
-                                                RemoteControlManager.exitRemoteControl()
-                                            }
-                                        }
-                                        RemoteServerManager.delete(server)
+        Spacer(Modifier.height(8.dp))
+        KnineRowGroup {
+            list.forEach { server ->
+                key(server.id) {
+                    ServerRow(
+                        server = server,
+                        active = activeRemoteServer?.id == server.id,
+                        onEdit = { navController.navigate("settings/remote_control/edit/${server.id}") },
+                        onDelete = {
+                            scope.launch(Dispatchers.IO) {
+                                if (RemoteControlManager.remoteServer.value?.id == server.id) {
+                                    withContext(Dispatchers.Main) {
+                                        RemoteControlManager.exitRemoteControl()
                                     }
-                                },
-                            )
-                        }
-                    }
+                                }
+                                RemoteServerManager.delete(server)
+                            }
+                        },
+                    )
                 }
             }
+        }
+    }
+}
+
+/** One server: its name and address; a tap edits it, a long press offers Edit and Delete. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ServerRow(server: RemoteServer, active: Boolean, onEdit: () -> Unit, onDelete: () -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
+    Box {
+        ListItem(
+            headlineContent = { Text(server.displayName, style = MaterialTheme.typography.bodyLarge) },
+            supportingContent = if (server.name.isNotEmpty()) {
+                { Text(server.url, style = MaterialTheme.typography.bodyMedium) }
+            } else {
+                null
+            },
+            leadingContent = {
+                Icon(imageVector = Icons.Outlined.Dns, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            },
+            trailingContent = if (active) {
+                { Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
+            } else {
+                null
+            },
+            modifier = Modifier.combinedClickable(onClick = onEdit, onLongClick = { showMenu = true }),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        )
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.edit)) },
+                leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+                onClick = {
+                    showMenu = false
+                    onEdit()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.menu_delete), color = MaterialTheme.colorScheme.error) },
+                leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    showMenu = false
+                    onDelete()
+                },
+            )
         }
     }
 }

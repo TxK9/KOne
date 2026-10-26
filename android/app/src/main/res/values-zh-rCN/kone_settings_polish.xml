@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Only the lines that take the place of rows already translated. -->
+    <string name="kone_settings_notifications">通知</string>
+    <string name="kone_settings_speed_in_notification">通知栏显示网速</string>
+    <string name="kone_settings_background">允许后台运行</string>
+    <string name="kone_settings_allow_bypass">允许绕过 VPN</string>
+    <string name="kone_settings_exclude_china_apps">排除国内应用</string>
+    <string name="kone_settings_detected">已检测到</string>
+</resources>

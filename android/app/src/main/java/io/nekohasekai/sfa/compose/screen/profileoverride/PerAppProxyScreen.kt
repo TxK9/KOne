@@ -38,14 +38,14 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.ManageSearch
+import androidx.compose.material.icons.automirrored.filled.ManageSearch
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Tune
 import io.nekohasekai.sfa.compose.theme.KnineDropdownMenu as DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -102,6 +102,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipFile
 
@@ -218,16 +219,21 @@ fun PerAppProxyScreen(
             val startTime = System.currentTimeMillis()
             val foundApps =
                 withContext(Dispatchers.Default) {
-                    mutableMapOf<String, PackageCache>().also { found ->
+                    // The packages are scanned side by side, so what they find goes in a map safe for that.
+                    ConcurrentHashMap<String, PackageCache>().also { found ->
                         val progressInt = AtomicInteger()
+                        // About a hundred steps on the bar, rather than a trip to the main thread per app.
+                        val step = (scanPackages.size / 100).coerceAtLeast(1)
                         scanPackages.map { packageCache ->
                             async {
                                 if (PerAppProxyScanner.scanChinaPackage(packageCache.info)) {
                                     found[packageCache.packageName] = packageCache
                                 }
                                 val nextValue = progressInt.incrementAndGet()
-                                withContext(Dispatchers.Main) {
-                                    scanProgress = ScanProgress(nextValue, scanPackages.size)
+                                if (nextValue % step == 0 || nextValue == scanPackages.size) {
+                                    withContext(Dispatchers.Main) {
+                                        scanProgress = ScanProgress(nextValue, scanPackages.size)
+                                    }
                                 }
                             }
                         }.awaitAll()
@@ -313,7 +319,7 @@ fun PerAppProxyScreen(
 
     OverrideTopBar {
         TopAppBar(
-            title = { Text(if (managed) "Managed exceptions" else stringResource(R.string.per_app_proxy)) },
+            title = { Text(stringResource(if (managed) R.string.kone_settings_managed_exceptions else R.string.per_app_proxy)) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -458,7 +464,7 @@ fun PerAppProxyScreen(
             Text(
                 text =
                 if (managed) {
-                    "The opened app is unmanaged and always uses the proxy."
+                    stringResource(R.string.kone_settings_managed_exceptions_mode)
                 } else if (proxyMode == Settings.PER_APP_PROXY_INCLUDE) {
                     stringResource(R.string.per_app_proxy_mode_include_description)
                 } else {
@@ -522,6 +528,7 @@ fun PerAppProxyScreen(
             )
         }
 
+        val chinaAppBadge = stringResource(R.string.kone_settings_china_app)
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding =
@@ -548,7 +555,7 @@ fun PerAppProxyScreen(
                     onCopyLabel = { clipboardText = packageCache.applicationLabel },
                     onCopyPackage = { clipboardText = packageCache.packageName },
                     onCopyUid = { clipboardText = packageCache.uid.toString() },
-                    badge = if (packageCache.packageName in managedPackages) "China apps" else null,
+                    badge = if (packageCache.packageName in managedPackages) chinaAppBadge else null,
                 )
             }
         }
@@ -761,7 +768,7 @@ private fun PerAppProxyMenus(
                 onClick = { showSortMenu = !showSortMenu },
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.Sort,
+                        imageVector = Icons.AutoMirrored.Filled.Sort,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                     )
@@ -1160,7 +1167,7 @@ private fun PerAppProxyMenus(
                     onClick = { showScanMenu = !showScanMenu },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Default.ManageSearch,
+                            imageVector = Icons.AutoMirrored.Filled.ManageSearch,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                         )
@@ -1187,7 +1194,7 @@ private fun PerAppProxyMenus(
                         },
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.ManageSearch,
+                                imageVector = Icons.AutoMirrored.Filled.ManageSearch,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(start = 12.dp),
