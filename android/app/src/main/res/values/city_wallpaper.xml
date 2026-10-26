@@ -1,18 +1,3 @@
 <resources>
     <string name="city_wallpaper_city">City wallpaper</string>
-    <string name="city_wallpaper_search">Search cities or countries</string>
-    <string name="city_wallpaper_empty">No matching cities</string>
-    <string name="city_wallpaper_light">City light</string>
-    <string name="city_wallpaper_clock">Follow the city’s clock</string>
-    <string name="city_wallpaper_day">Day</string>
-    <string name="city_wallpaper_night">Night</string>
-    <string name="city_wallpaper_weather">Art weather</string>
-    <string name="city_wallpaper_story">Changing weather</string>
-    <string name="city_wallpaper_clear">Clear</string>
-    <string name="city_wallpaper_cloudy">Cloudy</string>
-    <string name="city_wallpaper_rain">Rain</string>
-    <string name="city_wallpaper_mist">Mist</string>
-    <string name="city_wallpaper_snow">Seasonal snow</string>
-    <string name="city_wallpaper_motion">Animate wallpaper</string>
-    <string name="city_wallpaper_motion_detail">Clouds, water and city details move while the app is visible. All scenes work offline.</string>
 </resources>

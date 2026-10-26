@@ -495,15 +495,8 @@ fun TailscaleEndpointScreen(
                 onTerminalConfig = { navController.navigate("settings/tailscale/terminal_config") },
                 onChanged = { notifyApplyChange(UiEvent.ApplyServiceChange.Mode.Restart) },
             ) {
+                // Devices appear once KOne is connected; until then the header's state says enough.
                 if (HomeSettings.isEnabled && endpoint != null) RuntimeSections(endpoint)
-                else if (HomeSettings.isEnabled && serviceStatus == Status.Stopped) {
-                    Text(
-                        "Connect KOne to access devices",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
-                    )
-                }
             }
         } else if (endpoint != null) {
             RuntimeSections(endpoint)

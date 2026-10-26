@@ -42,9 +42,7 @@ object Settings {
     var knineSwitcherStyle by dataStore.string("knine_switcher_style") { "dial" }
     var knineWallpaperMode by dataStore.string("knine_wallpaper_mode") { "" }
     var knineCityWallpaper by dataStore.string("knine_city_wallpaper") { "original" }
-    var knineCityWallpaperTime by dataStore.string("knine_city_wallpaper_time") { "city" }
-    var knineCityWallpaperWeather by dataStore.string("knine_city_wallpaper_weather") { "story" }
-    var knineCityWallpaperMotion by dataStore.boolean("knine_city_wallpaper_motion") { true }
+    var knineCityWallpaperChangedAt by dataStore.long("knine_city_wallpaper_changed_at") { 0L }
     var knineCityWallpaperIntroduced by dataStore.boolean("knine_city_wallpaper_introduced") { false }
     var knineInkStyle by dataStore.string("knine_ink_style") { "all" }
     var kninePanelCollapsed by dataStore.boolean("knine_panel_collapsed") { false }

@@ -1,5 +1,11 @@
 package io.nekohasekai.sfa.compose.screen.log
 
+import io.nekohasekai.sfa.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,7 +42,7 @@ fun LogScreen(
 ) {
     OverrideTopBar {
         TopAppBar(
-            title = { Text("Connection status") },
+            title = { Text(stringResource(R.string.knine_connection_status)) },
             navigationIcon = {
                 if (onBack != null) {
                     IconButton(onClick = onBack) {
@@ -46,8 +52,18 @@ fun LogScreen(
             },
         )
     }
-    Column(Modifier.fillMaxSize().padding(LocalScaffoldPadding.current).padding(16.dp)) {
-        BackdropCard(Modifier.fillMaxWidth()) {
+    // The state as the dashboard says it, a weather seal and a word, on the title's own left edge.
+    Column(Modifier.fillMaxSize().padding(LocalScaffoldPadding.current).padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            io.nekohasekai.sfa.compose.screen.dashboard.WeatherSeal(
+                when (serviceStatus) {
+                    Status.Started -> io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather.Clear
+                    Status.Starting, Status.Stopping -> io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather.Mist
+                    Status.Stopped -> io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather.Rest
+                },
+                22.dp,
+            )
+            Spacer(Modifier.width(12.dp))
             Text(
                 when (serviceStatus) {
                     Status.Started -> "Connected"
@@ -56,7 +72,6 @@ fun LogScreen(
                     Status.Stopped -> "Disconnected"
                 },
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(20.dp),
             )
         }
     }

@@ -1,18 +1,3 @@
 <resources>
     <string name="city_wallpaper_city">城市动态壁纸</string>
-    <string name="city_wallpaper_search">搜索城市或国家</string>
-    <string name="city_wallpaper_empty">没有匹配的城市</string>
-    <string name="city_wallpaper_light">城市光照</string>
-    <string name="city_wallpaper_clock">跟随画面城市的时间</string>
-    <string name="city_wallpaper_day">白天</string>
-    <string name="city_wallpaper_night">夜晚</string>
-    <string name="city_wallpaper_weather">艺术天气</string>
-    <string name="city_wallpaper_story">天气轮换</string>
-    <string name="city_wallpaper_clear">晴朗</string>
-    <string name="city_wallpaper_cloudy">多云</string>
-    <string name="city_wallpaper_rain">降雨</string>
-    <string name="city_wallpaper_mist">薄雾</string>
-    <string name="city_wallpaper_snow">应季飘雪</string>
-    <string name="city_wallpaper_motion">壁纸动画</string>
-    <string name="city_wallpaper_motion_detail">应用显示时播放流云、水面和城市细节，所有场景均可离线使用。</string>
 </resources>

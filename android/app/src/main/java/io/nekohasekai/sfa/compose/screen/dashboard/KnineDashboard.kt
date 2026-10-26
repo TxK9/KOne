@@ -75,6 +75,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -210,9 +211,12 @@ private fun routeModeHint(mode: String): String = when (mode.lowercase()) {
 
 /** The country a group stands for: its flag, or a name that is a country's name. */
 
-/** Up to three nodes; the selected node is always among them. */
+/** Folds a page to [SHOWN_NODES] when more than one would hide; the selected node is always among them. */
+internal fun foldsNodes(group: NodeGroup): Boolean = group.profiles.size > SHOWN_NODES + 1
+
+/** Up to three nodes; the selected node is always among them. Four stay whole: a fold for one would cost as much room as the node. */
 internal fun visibleNodes(group: NodeGroup, selectedId: Long): List<Profile> {
-    if (group.profiles.size <= SHOWN_NODES) return group.profiles
+    if (!foldsNodes(group)) return group.profiles
     val top = group.profiles.take(SHOWN_NODES)
     val selected = group.profiles.firstOrNull { it.id == selectedId }
     return if (selected != null && selected !in top) top.take(SHOWN_NODES - 1) + selected else top
@@ -248,6 +252,11 @@ internal fun KnineDashboard(
     val pagerState = rememberPagerState(initialPage = selectedGroupIndex) { groups.size }
     val scope = rememberCoroutineScope()
     val started = serviceStatus == Status.Started
+    // The living city comes up bright behind the dashboard and steps back behind every other page.
+    DisposableEffect(Unit) {
+        io.nekohasekai.sfa.compose.theme.CityWallpapers.lively = true
+        onDispose { io.nekohasekai.sfa.compose.theme.CityWallpapers.lively = false }
+    }
 
     var modeAnchor by remember { mutableStateOf<Offset?>(null) }
     // Where the import fan opens from when it was not the top bar's Import: the empty list's button.
@@ -367,7 +376,9 @@ internal fun KnineDashboard(
 
     BackdropContrastScope(Modifier.fillMaxSize()) {
         val ink = LocalContentColor.current
-        val surface = knineSurface()
+        // The ink paintings shade with their own green-black; a city at night shades with night.
+        val city = io.nekohasekai.sfa.compose.theme.WallpaperCatalog.mode == io.nekohasekai.sfa.compose.theme.WallpaperMode.City
+        val surface = if (city) Color(0xFF0B0E12) else knineSurface()
         val backdrop = LocalBackdrop.current
         // Bright photos keep a glass card; dark photos drop it, like the rest of the app.
         val clear = LocalTransparentUi.current
@@ -498,14 +509,15 @@ internal fun KnineDashboard(
                     Box(
                         Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 14.dp, bottom = navInset + 10.dp)
+                            .padding(end = 16.dp, bottom = navInset + 16.dp)
                             .graphicsLayer { alpha = panelAlpha },
                     ) { startAction() }
                 } else {
                     Column(
                         Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(start = 14.dp, end = 14.dp, bottom = bottomInset + 10.dp)
+                            // The start action sits exactly where it floats on every other tab.
+                            .padding(start = 14.dp, end = 16.dp, bottom = bottomInset + 16.dp)
                             .fillMaxWidth()
                             .onGloballyPositioned { blockHeight = it.size.height }
                             .graphicsLayer { alpha = panelAlpha },
@@ -737,7 +749,10 @@ internal fun CollapsedPanel(
                 BText(selected?.name ?: noNode, style = type, fontWeight = FontWeight.SemiBold, emphasized = true, maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis)
             }
         }
-        if (reading != null) {
+        if (!started) {
+            // Disconnected: the line rests; each node's latency stays in the list above.
+            Row(item, verticalAlignment = Alignment.CenterVertically) { WeatherSeal(NodeWeather.Rest, 18.dp) }
+        } else if (reading != null) {
             Row(item, verticalAlignment = Alignment.CenterVertically) { HealthLabel(reading, large = true) }
         }
         if (started && host.homeState != HomeState.None) {
@@ -871,7 +886,7 @@ internal fun HomeMark(host: KnineHost) {
  * lists its glyph alone. A failure shows the weather alone; its reason is in the details.
  */
 @Composable
-internal fun HealthLabel(reading: NodeReading, large: Boolean = false) {
+internal fun HealthLabel(reading: NodeReading, large: Boolean = false, unit: Boolean = true) {
     val ink = LocalContentColor.current
     val weather = NodeWeather.of(reading.health)
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -890,7 +905,7 @@ internal fun HealthLabel(reading: NodeReading, large: Boolean = false) {
                 )
             } else {
                 BText(
-                    reading.label,
+                    if (unit) reading.label else reading.label.removeSuffix(" ms"),
                     style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
                     maxLines = 1,
                     softWrap = false,
@@ -1078,22 +1093,27 @@ private fun StatusTile(spec: TileSpec, order: Int, clear: Boolean, onCopy: (Stri
     }
 }
 
-/** One line whose font steps down until the whole text fits the width it is given. */
+/**
+ * One line whose font steps down until the whole text fits the width it is given. Past [minSp]
+ * it wraps onto up to [lines] lines at that size instead, so nothing is cut off on a narrow phone.
+ */
 @Composable
-private fun FitText(text: String, style: TextStyle, alignEnd: Boolean = false) {
+private fun FitText(text: String, style: TextStyle, alignEnd: Boolean = false, minSp: Float = 7f, lines: Int = 1, modifier: Modifier = Modifier.fillMaxWidth()) {
     val measurer = rememberTextMeasurer()
-    BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = if (alignEnd) Alignment.CenterEnd else Alignment.CenterStart) {
+    BoxWithConstraints(modifier, contentAlignment = if (alignEnd) Alignment.CenterEnd else Alignment.CenterStart) {
         val maxWidth = constraints.maxWidth
-        val fitted = remember(text, style, maxWidth) {
+        val (fitted, wrap) = remember(text, style, maxWidth) {
             var current = style
+            var fits = true
             if (maxWidth != Constraints.Infinity && style.fontSize.isSp) {
-                while (current.fontSize.value > 7f && measurer.measure(text, current, maxLines = 1, softWrap = false).size.width > maxWidth) {
+                while (measurer.measure(text, current, maxLines = 1, softWrap = false).size.width > maxWidth) {
+                    if (current.fontSize.value <= minSp) { fits = false; break }
                     current = current.copy(fontSize = (current.fontSize.value - 0.5f).sp)
                 }
             }
-            current
+            current to !fits
         }
-        BText(text, style = fitted, maxLines = 1, softWrap = false)
+        BText(text, style = fitted, maxLines = if (wrap) lines else 1, softWrap = wrap && lines > 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -1133,20 +1153,20 @@ internal fun NodeRow(
                     ProfileIconGlyph(profile.icon, fallback = Icons.Default.MoreHoriz, size = 18.dp, tint = ink.copy(alpha = 0.85f))
             }
         }
-        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-            BText(
-                profile.name,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            if (reading != null) {
-                Spacer(Modifier.width(8.dp))
-                HealthLabel(reading)
-            }
+        // The whole name: its type a little smaller when long, then on two lines; the latencies line up in one column.
+        FitText(
+            profile.name,
+            MaterialTheme.typography.bodyLarge.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal),
+            minSp = 12.5f,
+            lines = 2,
+            modifier = Modifier.weight(1f),
+        )
+        // In the list the weather glyph says it is a latency; the folded line keeps the unit.
+        if (reading != null) {
+            Spacer(Modifier.width(6.dp))
+            HealthLabel(reading, unit = false)
         }
+        Spacer(Modifier.width(6.dp))
         AnimatedCheck(selected)
         IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
             Icon(Icons.Default.MoreHoriz, contentDescription = "Edit node", modifier = Modifier.size(18.dp))

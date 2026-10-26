@@ -130,19 +130,20 @@ fun RoutingSettingsScreen(navController: NavController) {
             .padding(top = scaffoldPadding.calculateTopPadding() + 8.dp, bottom = scaffoldPadding.calculateBottomPadding() + 8.dp),
     ) {
         KnineSectionLabel(text = stringResource(R.string.knine_routing_sites))
+        // The empty fields show the form a line takes; the labels say the rest.
         Section {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = direct, onValueChange = { direct = it; saved = false },
                     modifier = Modifier.fillMaxWidth(), minLines = 2,
                     label = { Text(stringResource(R.string.knine_routing_direct)) },
-                    supportingText = { Text(stringResource(R.string.knine_routing_direct_hint)) },
+                    placeholder = { Text("example.cn") },
                 )
                 OutlinedTextField(
                     value = proxied, onValueChange = { proxied = it; saved = false },
                     modifier = Modifier.fillMaxWidth(), minLines = 2,
                     label = { Text(stringResource(R.string.knine_routing_proxied)) },
-                    supportingText = { Text(stringResource(R.string.knine_routing_proxied_hint)) },
+                    placeholder = { Text("example.com") },
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                     if (saved) Text(stringResource(R.string.knine_routing_saved), style = MaterialTheme.typography.bodyMedium)
@@ -260,13 +261,13 @@ fun RoutingSettingsScreen(navController: NavController) {
                     value = hosts, onValueChange = { hosts = it; namesSaved = null },
                     modifier = Modifier.fillMaxWidth(), minLines = 2,
                     label = { Text(stringResource(R.string.knine_routing_hosts)) },
-                    supportingText = { Text(stringResource(R.string.knine_routing_hosts_hint)) },
+                    placeholder = { Text("nas.example.com 192.0.2.10") },
                 )
                 OutlinedTextField(
                     value = nameServers, onValueChange = { nameServers = it; namesSaved = null },
                     modifier = Modifier.fillMaxWidth(), minLines = 2,
                     label = { Text(stringResource(R.string.knine_routing_name_servers)) },
-                    supportingText = { Text(stringResource(R.string.knine_routing_name_servers_hint)) },
+                    placeholder = { Text("corp.example.com 192.0.2.53") },
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                     namesSaved?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f)) }
@@ -378,7 +379,6 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, count
     // The actions, then going through a country, last.
     val through = OwnRules.ACTIONS.size
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(R.string.knine_routing_rules_detail), style = MaterialTheme.typography.bodyMedium)
         if (rules.isEmpty()) Text(stringResource(R.string.knine_routing_rules_none), style = MaterialTheme.typography.bodyMedium)
         rules.forEachIndexed { index, rule ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

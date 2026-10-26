@@ -127,7 +127,18 @@ class ConsoleActivity : AppCompatActivity() {
                                 val view = web
                                 if (!unreachable && view != null && view.canGoBack()) view.goBack() else finish()
                             }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.content_description_back), tint = ink) }
-                            Text(stringResource(R.string.kone_tools_console), modifier = Modifier.weight(1f), fontFamily = FontFamily.Serif, fontSize = 22.sp, color = ink)
+                            // One line between the two buttons: the serif title steps down rather than wrapping.
+                            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.weight(1f)) {
+                                val title = stringResource(R.string.kone_tools_console)
+                                val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+                                val room = constraints.maxWidth
+                                val size = androidx.compose.runtime.remember(title, room) {
+                                    var sp = 22f
+                                    while (sp > 15f && measurer.measure(title, androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Serif, fontSize = sp.sp), maxLines = 1, softWrap = false).size.width > room) sp -= 0.5f
+                                    sp
+                                }
+                                Text(title, fontFamily = FontFamily.Serif, fontSize = size.sp, color = ink, maxLines = 1, softWrap = false)
+                            }
                             IconButton(onClick = { retry(home) }, enabled = !loading) {
                                 Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.kone_console_refresh), tint = ink)
                             }

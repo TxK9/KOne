@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import androidx.compose.ui.text.style.TextOverflow
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -150,20 +152,20 @@ internal fun TailscaleConnectionHeader(
     onEnabledChange: (Boolean) -> Unit,
 ) {
     Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        // The state in one line beside its switch, lined up with the rows below it.
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp),
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 14.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.Hub, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stateText, style = MaterialTheme.typography.titleLarge)
+            Icon(Icons.Outlined.Hub, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stateText, style = MaterialTheme.typography.titleMedium, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                 Text(
                     if (enabled && onlineDevices != null) "$onlineDevices devices online" else "Private network",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
                 )
             }
             Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
@@ -197,7 +199,7 @@ internal fun TailscaleSettingsCard(
             modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { expanded = !expanded },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         )
-        AnimatedVisibility(visible = expanded, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+        AnimatedVisibility(visible = expanded, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
             Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp)) {
                 ListItem(
                     headlineContent = { Text("Home network", style = MaterialTheme.typography.bodyLarge) },

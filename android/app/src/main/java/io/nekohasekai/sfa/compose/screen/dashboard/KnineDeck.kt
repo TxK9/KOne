@@ -199,7 +199,8 @@ internal fun NodeDeck(
     if (editingGroup != null && editingGroup != lastEditing) SideEffect { lastEditing = editingGroup }
 
     Column(modifier) {
-        CategoryTabs(
+        // One category has nothing to switch to: its name would only repeat itself above the nodes.
+        if (groups.size > 1 || editingGroup != null) CategoryTabs(
             groups = groups,
             pagerState = pagerState,
             editing = editingGroup?.id,
@@ -738,7 +739,7 @@ private fun NodePage(
             }
             }
         }
-        if (onToggleAll != null && group.profiles.size > SHOWN_NODES) {
+        if (onToggleAll != null && foldsNodes(group)) {
             Row(
                 Modifier
                     .fillMaxWidth()

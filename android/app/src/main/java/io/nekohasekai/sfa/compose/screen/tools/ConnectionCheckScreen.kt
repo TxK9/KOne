@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -240,7 +241,7 @@ internal fun ConnectionCheckPanel(
             }
             var scopeOpen by remember { mutableStateOf(false) }
             TestFold("Test scope", scopeOpen, { scopeOpen = !scopeOpen })
-            AnimatedVisibility(scopeOpen, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            AnimatedVisibility(scopeOpen, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TestNote("Reads the active configuration and system switches on this phone. Nothing is sent, so it cannot rule out every leak.")
                     TestNote("Actual DNS and IPv6 egress, network changes, other apps, secondary profiles and system call routes require separate device tests.")

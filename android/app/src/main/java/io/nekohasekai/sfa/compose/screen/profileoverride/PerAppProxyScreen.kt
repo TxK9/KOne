@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.profileoverride
 
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
@@ -474,8 +475,8 @@ fun PerAppProxyScreen(
 
         AnimatedVisibility(
             visible = isSearchActive,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
+            enter = KnineMotion.reveal(),
+            exit = KnineMotion.conceal(),
         ) {
             val focusRequester = remember { FocusRequester() }
 

@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.privilegesettings
 
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
@@ -494,8 +495,8 @@ fun PrivilegeSettingsManageScreen(
 
         AnimatedVisibility(
             visible = isSearchActive,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
+            enter = KnineMotion.reveal(),
+            exit = KnineMotion.conceal(),
         ) {
             val focusRequester = remember { FocusRequester() }
 

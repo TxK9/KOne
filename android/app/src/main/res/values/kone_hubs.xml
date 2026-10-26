@@ -33,9 +33,10 @@
     <string name="kone_update_sign_in">Sign in to the management console to check</string>
 
     <!-- App settings. -->
-    <string name="kone_app_block_without_vpn">Block connections without VPN</string>
-    <string name="kone_app_block_without_vpn_on">System protection is enabled. Managed exceptions can still connect directly.</string>
-    <string name="kone_app_block_without_vpn_off">Enable Always-on VPN and Block connections without VPN in system settings.</string>
+    <string name="kone_app_block_without_vpn">Block connections</string>
+    <string name="kone_app_block_without_vpn_on">On</string>
+    <string name="kone_app_block_without_vpn_off">Off</string>
+    <string name="kone_app_block_without_vpn_unknown">In Android VPN settings</string>
     <string name="kone_app_vpn_settings_missing">Search for VPN in system settings.</string>
     <string name="kone_app_category_navigation">Category navigation</string>
     <string name="kone_app_wallpaper">Wallpaper</string>

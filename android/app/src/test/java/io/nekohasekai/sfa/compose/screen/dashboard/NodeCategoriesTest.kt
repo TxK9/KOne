@@ -92,4 +92,12 @@ class NodeCategoriesTest {
         assertEquals(listOf(1L, 2L, 3L), visibleNodes(group, 2L).map { it.id })
         assertEquals(listOf(1L, 2L, 5L), visibleNodes(group, 5L).map { it.id })
     }
+
+    @Test fun fourNodesStayWholeRatherThanFoldingOne() {
+        val four = NodeGroup("c", "c", null, false, (1L..4L).map { Profile(id = it, name = "n$it") })
+        assertEquals(listOf(1L, 2L, 3L, 4L), visibleNodes(four, 4L).map { it.id })
+        assertEquals(false, foldsNodes(four))
+        val five = NodeGroup("c", "c", null, false, (1L..5L).map { Profile(id = it, name = "n$it") })
+        assertEquals(true, foldsNodes(five))
+    }
 }

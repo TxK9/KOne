@@ -69,8 +69,9 @@ fun BackdropOutlinedTextField(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     disabledContainerColor = Color.Transparent, errorContainerColor = Color.Transparent,
                     cursorColor = accent, errorCursorColor = MaterialTheme.colorScheme.error,
-                    focusedIndicatorColor = wallpaperPanelColor(accent), unfocusedIndicatorColor = wallpaperPanelColor(ink.copy(alpha = 0.36f)),
-                    disabledIndicatorColor = wallpaperPanelColor(ink.copy(alpha = 0.16f)), errorIndicatorColor = wallpaperPanelColor(MaterialTheme.colorScheme.error),
+                    // A field's edge is what makes it a field: it keeps a hairline even where panels drop away.
+                    focusedIndicatorColor = accent, unfocusedIndicatorColor = ink.copy(alpha = 0.34f),
+                    disabledIndicatorColor = ink.copy(alpha = 0.16f), errorIndicatorColor = MaterialTheme.colorScheme.error,
                     focusedLabelColor = accent, unfocusedLabelColor = ink, disabledLabelColor = ink.copy(alpha = 0.38f), errorLabelColor = MaterialTheme.colorScheme.error,
                     focusedPlaceholderColor = ink.copy(alpha = 0.72f), unfocusedPlaceholderColor = ink.copy(alpha = 0.72f),
                     disabledPlaceholderColor = ink.copy(alpha = 0.38f), errorPlaceholderColor = ink.copy(alpha = 0.72f),

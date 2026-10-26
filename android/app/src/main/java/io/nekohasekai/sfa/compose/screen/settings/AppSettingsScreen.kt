@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.compose.screen.settings
 
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import android.app.LocaleConfig
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -182,11 +184,9 @@ fun AppSettingsScreen(
         vpnProtectionLifecycle.lifecycle.addObserver(observer)
         onDispose { vpnProtectionLifecycle.lifecycle.removeObserver(observer) }
     }
-    // Show the app version and KOne's core display label in the same entry.
+    // The version as people know it; build numbers belong to the install, not the page.
     val appName = stringResource(R.string.app_name)
-    val versionLine = remember {
-        "$appName ${BuildConfig.VERSION_NAME} · ${BuildConfig.VERSION_CODE}\nCore KOne0.0.1"
-    }
+    val versionLine = remember { "$appName ${BuildConfig.VERSION_NAME}" }
     val hasUpdate by UpdateState.hasUpdate
     val updateInfo by UpdateState.updateInfo
     val isChecking by UpdateState.isChecking
@@ -544,13 +544,28 @@ fun AppSettingsScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         ) {
+            // Android owns this switch (Always-on VPN with blocking); the row says where it stands
+            // and opens the place to change it. Android only reports it while KOne is connected.
             ListItem(
-                headlineContent = { Text(stringResource(R.string.kone_app_block_without_vpn), style = MaterialTheme.typography.bodyLarge) },
+                headlineContent = { Text(stringResource(R.string.kone_app_block_without_vpn), style = MaterialTheme.typography.bodyLarge, maxLines = 1) },
                 supportingContent = {
-                    Text(
-                        stringResource(if (systemVpnProtected == true) R.string.kone_app_block_without_vpn_on else R.string.kone_app_block_without_vpn_off),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = systemVpnProtected,
+                        transitionSpec = { androidx.compose.animation.fadeIn(tween(220)) togetherWith androidx.compose.animation.fadeOut(tween(120)) },
+                        label = "blockState",
+                    ) { state ->
+                        Text(
+                            stringResource(
+                                when (state) {
+                                    true -> R.string.kone_app_block_without_vpn_on
+                                    false -> R.string.kone_app_block_without_vpn_off
+                                    null -> R.string.kone_app_block_without_vpn_unknown
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                        )
+                    }
                 },
                 leadingContent = {
                     Icon(
@@ -781,7 +796,16 @@ fun AppSettingsScreen(
                 Box {
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.kone_app_wallpaper), style = MaterialTheme.typography.bodyLarge) },
-                        supportingContent = { Text(if (WallpaperCatalog.mode == WallpaperMode.City) stringResource(R.string.city_wallpaper_city) else WallpaperCatalog.mode.label, style = MaterialTheme.typography.bodyMedium) },
+                        supportingContent = {
+                            // The cities take turns by themselves; the row says which one is up now.
+                            val city = if (WallpaperCatalog.mode == WallpaperMode.City) {
+                                io.nekohasekai.sfa.compose.theme.CityWallpapers.choices(context).firstOrNull { it.id == io.nekohasekai.sfa.compose.theme.CityWallpapers.selected }?.city
+                            } else null
+                            Text(
+                                if (WallpaperCatalog.mode == WallpaperMode.City) listOfNotNull(stringResource(R.string.city_wallpaper_city), city).joinToString(" · ") else WallpaperCatalog.mode.label,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        },
                         leadingContent = {
                             Icon(
                                 imageVector = Icons.Outlined.Wallpaper,
@@ -819,10 +843,6 @@ fun AppSettingsScreen(
                             }
                         }
                     }
-                }
-
-                if (WallpaperCatalog.mode == WallpaperMode.City) {
-                    io.nekohasekai.sfa.compose.theme.CityWallpaperSettings()
                 }
 
                 // Light or dark: as the phone is, or KOne's own; the paintings follow it too.

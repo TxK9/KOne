@@ -12,6 +12,12 @@ class WallpaperThemeTest {
         assertTrue(KninePalette.contrast(KninePalette.LIGHT_INK, background) >= 5f)
         assertTrue(KninePalette.contrast(KninePalette.LIGHT_ACCENT, background) >= 5f)
     }
+    @Test fun cityShowcaseAlternatesHomeAndAbroadWithoutRepeats() {
+        val cities = CityShowcase.order()
+        assertTrue(cities.first() == "original" && cities[1] == "tokyo-bay")
+        assertTrue(cities.size == cities.toSet().size)
+        assertTrue(cities.size >= 60)
+    }
     @Test fun wallpaperDistributionSelectsOneStablePalette() {
         assertFalse(KninePalette.wallpaperTheme(List(98) { 0xFFF3EFFF.toInt() } + List(2) { 0xFF16131E.toInt() }).lightInk)
         assertTrue(KninePalette.wallpaperTheme(List(98) { 0xFF16131E.toInt() } + List(2) { 0xFFF3EFFF.toInt() }).lightInk)

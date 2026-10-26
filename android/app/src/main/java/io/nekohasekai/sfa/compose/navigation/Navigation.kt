@@ -82,20 +82,21 @@ import io.nekohasekai.sfa.compose.screen.usbip.USBIPServerScreen
 import io.nekohasekai.sfa.compose.screen.usbip.USBIPStatusViewModel
 import io.nekohasekai.sfa.constant.Status
 
+// Sub-pages move a short way and fade over the still wallpaper; see KnineMotion.
 private val slideInFromRight: AnimatedContentTransitionScope<*>.() -> androidx.compose.animation.EnterTransition = {
-    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300))
+    io.nekohasekai.sfa.compose.theme.KnineMotion.pageOpen()
 }
 
 private val slideOutToRight: AnimatedContentTransitionScope<*>.() -> androidx.compose.animation.ExitTransition = {
-    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300))
+    io.nekohasekai.sfa.compose.theme.KnineMotion.pageClose()
 }
 
 private val slideInFromLeft: AnimatedContentTransitionScope<*>.() -> androidx.compose.animation.EnterTransition = {
-    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300))
+    io.nekohasekai.sfa.compose.theme.KnineMotion.pageReturn()
 }
 
 private val slideOutToLeft: AnimatedContentTransitionScope<*>.() -> androidx.compose.animation.ExitTransition = {
-    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300))
+    io.nekohasekai.sfa.compose.theme.KnineMotion.pageCover()
 }
 
 @Composable

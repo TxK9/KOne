@@ -66,28 +66,6 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun RemoteControlScreen(navController: NavController) {
-    OverrideTopBar {
-        TopAppBar(
-            title = { Text(stringResource(R.string.remote_control)) },
-            navigationIcon = {
-                IconButton(onClick = { navController.navigateUp() }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.content_description_back),
-                    )
-                }
-            },
-            actions = {
-                IconButton(onClick = { navController.navigate("settings/remote_control/new") }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = stringResource(R.string.remote_new_server),
-                    )
-                }
-            },
-        )
-    }
-
     val scope = rememberCoroutineScope()
     var servers by remember { mutableStateOf<List<RemoteServer>>(emptyList()) }
     val activeRemoteServer by RemoteControlManager.remoteServer.collectAsState()
@@ -105,6 +83,31 @@ fun RemoteControlScreen(navController: NavController) {
         onDispose {
             RemoteServerManager.unregisterCallback(callback)
         }
+    }
+
+    OverrideTopBar {
+        TopAppBar(
+            title = { Text(stringResource(R.string.remote_control)) },
+            navigationIcon = {
+                IconButton(onClick = { navController.navigateUp() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.content_description_back),
+                    )
+                }
+            },
+            actions = {
+                // With no servers the page itself offers to add one; a second button above it would repeat it.
+                if (servers.isNotEmpty()) {
+                    IconButton(onClick = { navController.navigate("settings/remote_control/new") }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = stringResource(R.string.remote_new_server),
+                        )
+                    }
+                }
+            },
+        )
     }
 
     val scaffoldPadding = LocalScaffoldPadding.current

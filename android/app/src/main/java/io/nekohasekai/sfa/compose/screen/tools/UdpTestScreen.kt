@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
@@ -153,7 +154,7 @@ internal fun UdpTestPanel(name: String, state: UdpCheckState, unavailable: Strin
         Spacer(Modifier.height(28.dp))
         var wifiOpen by remember { mutableStateOf(false) }
         TestFold("Wi-Fi Calling", wifiOpen, { wifiOpen = !wifiOpen })
-        AnimatedVisibility(wifiOpen, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+        AnimatedVisibility(wifiOpen, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
             Column(Modifier.fillMaxWidth()) {
                 connectionSettings()
                 TestLink("Open system settings", onWifiSettings)

@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -65,7 +66,7 @@ internal fun CallingOptionsEditor(options: CallingOptions, saving: Boolean, mess
         if(message.isNotEmpty()) TestNote(message,Modifier.padding(bottom=8.dp))
         if (options.enabled) {
             TestFold("Advanced options",advanced,{advanced=!advanced},enabled=editable)
-            AnimatedVisibility(advanced) {
+            AnimatedVisibility(advanced, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
                 Column(Modifier.fillMaxWidth()) {
                     ChoiceRow("DNS",options.dns.label,editable){editing="dns"}
                     ChoiceRow("MTU",if(options.mtu==0) "Use profile setting" else options.mtu.toString(),editable){editing="mtu"}

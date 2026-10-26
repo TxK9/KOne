@@ -54,17 +54,22 @@
     await Promise.all([load(day, scene.assets.day), load(night, scene.assets.night)]);
     const model = KOneWeatherModelV11.create(scene, {mode:params.get('weather') || 'story', date:Date.now()});
     KOneEnvironmentV13.bind(scene.id, model);
-    const options = {config:motion, playing:running, intensity:'soft', maxFps:18, environmentTime:clock, getWeather:t => model.sample(t)};
+    // The city at full life: its own traffic, water and lights, as the artwork was reviewed for.
+    const options = {config:motion, playing:running, intensity:'expressive', maxFps:24, environmentTime:clock, getWeather:t => model.sample(t)};
     layers.push(NycMotionV13.attach(document.getElementById('motion'), scene, 'day', day, {...options, blendImage:night}));
     layers.push(NycMarineV13.attach(document.getElementById('marine'), scene, 'day', day, options));
     layers.push(NycLightV13.attach(document.getElementById('lighting'), scene, 'day', day, options));
     layers.push(KOneCityLifeV13.attach(document.getElementById('life'), scene, 'day', day, {...options, config:life, blendImage:night}));
     layers.push(KOneWeatherV13.attach(document.getElementById('weather'), scene, 'day', day, options));
+    // The city's own sky is an extra: if it cannot start, the artwork still runs.
+    try { if (window.KOnePulseV1) layers.push(KOnePulseV1.attach(document.getElementById('pulse'), scene, options)); } catch (_) {}
     sky = NycSkyV5.attach(document.getElementById('sky'), scene, 'day', {zone:scene.cityLocation, instant:time()});
     ready = true; updateSky(); active(visible);
     document.documentElement.dataset.ready = 'true';
   }).catch(failure => {
     error = failure.message; active(false);
+    // Whatever did load stays visible rather than behind the fade.
+    document.documentElement.dataset.ready = 'true';
     document.documentElement.dataset.error = 'wallpaper-unavailable';
   });
 })();

@@ -38,6 +38,9 @@ import java.io.ByteArrayInputStream
 
 internal const val CITY_WALLPAPER_VEIL_ALPHA = 0.66f
 
+/** The dashboard's veil: the city shows nearly as painted, with shade only where text sits. */
+internal const val CITY_WALLPAPER_LIVELY_VEIL = 0.1f
+
 internal data class CityWallpaperChoice(val id: String, val city: String, val country: String, val title: String)
 
 internal object CityWallpapers {
@@ -50,19 +53,62 @@ internal object CityWallpapers {
         }
     }.getOrDefault(emptyList()).also { cached = it }
 
+    /** The city on screen now. The cities take turns by themselves; there is nothing to set. */
     var selected by mutableStateOf(Settings.knineCityWallpaper)
         private set
-    var time by mutableStateOf(Settings.knineCityWallpaperTime)
-        private set
-    var weather by mutableStateOf(Settings.knineCityWallpaperWeather)
-        private set
-    var motion by mutableStateOf(Settings.knineCityWallpaperMotion)
-        private set
 
-    fun select(id: String) { require(id.matches(Regex("[a-z0-9-]+"))); Settings.knineCityWallpaper = id; selected = id }
-    fun chooseTime(value: String) { require(value in setOf("city", "day", "night")); Settings.knineCityWallpaperTime = value; time = value }
-    fun chooseWeather(value: String) { require(value in setOf("story", "clear", "cloudy", "shower", "mist", "snow")); Settings.knineCityWallpaperWeather = value; weather = value }
-    fun chooseMotion(value: Boolean) { Settings.knineCityWallpaperMotion = value; motion = value }
+    /** True while the dashboard shows: the city comes up bright there and steps back behind reading pages. */
+    var lively by mutableStateOf(false)
+
+    private var shownThisRun = false
+
+    /**
+     * Moves on to the next city each time KOne opens afresh, and after a break of half an hour,
+     * so a return opens on another skyline: a US city, then one from elsewhere.
+     */
+    fun refresh(context: Context, now: Long = System.currentTimeMillis()) {
+        val due = !shownThisRun || now - Settings.knineCityWallpaperChangedAt !in 0 until TURN_MS
+        shownThisRun = true
+        if (!due) return
+        val known = choices(context).map { it.id }.toSet()
+        val playlist = CityShowcase.order().filter { it in known }.ifEmpty { known.toList() }
+        if (playlist.isEmpty()) return
+        val next = playlist[(playlist.indexOf(selected) + 1).mod(playlist.size)]
+        Settings.knineCityWallpaper = next
+        Settings.knineCityWallpaperChangedAt = now
+        selected = next
+    }
+
+    private const val TURN_MS = 30 * 60_000L
+}
+
+/** The order the cities take turns in, kept apart from settings so it can be checked on its own. */
+internal object CityShowcase {
+    // Busy skylines whose artwork has life of its own, alternating home and abroad.
+    private val US = listOf(
+        "original", "chicago-river", "las-vegas-strip", "san-francisco-bay", "los-angeles-griffith", "miami-biscayne-bay",
+        "east-river", "seattle-elliott-bay", "washington-mall", "boston-harbour", "new-orleans-mississippi", "austin-lady-bird-lake",
+        "san-diego-bay", "harbor", "philadelphia-schuylkill", "houston-buffalo-bayou", "dallas-trinity", "atlanta-midtown",
+        "denver-civic-center", "honolulu-waikiki", "portland-willamette", "detroit-river", "minneapolis-mississippi",
+        "pittsburgh-confluence", "st-louis-mississippi", "baltimore-inner-harbour", "salt-lake-capitol", "san-antonio-riverwalk",
+        "savannah-river", "charleston-harbour",
+    )
+    private val WORLD = listOf(
+        "tokyo-bay", "london-thames", "hong-kong-harbour", "paris-seine", "dubai-downtown", "singapore-marina", "sydney-harbour",
+        "shanghai-huangpu", "seoul-han", "istanbul-bosphorus", "toronto-lake", "rio-bay", "mexico-city-reforma", "dubai-marina",
+        "osaka-river", "bangkok-river", "kuala-lumpur-skyline", "berlin-spree", "amsterdam-canals", "barcelona-coast",
+        "vancouver-harbour", "madrid-plaza", "italy-milan-duomo", "italy-rome-forum", "mumbai-harbour", "cairo-nile",
+        "cape-town-waterfront", "melbourne-yarra", "montreal-old-port", "germany-frankfurt-main", "yokohama-minato-mirai",
+        "shenzhen-bay", "ho-chi-minh-saigon", "jakarta-waterfront", "johannesburg-skyline", "abu-dhabi-corniche",
+        "singapore-orchard", "netherlands-rotterdam-erasmus", "lisbon-tagus", "chongqing-rivers",
+    )
+
+    fun order(): List<String> = buildList {
+        for (i in 0 until maxOf(US.size, WORLD.size)) {
+            US.getOrNull(i)?.let(::add)
+            WORLD.getOrNull(i)?.let(::add)
+        }
+    }
 }
 
 /** Only bundled wallpaper files can be read. The decorative view has no touch or native bridge. */
@@ -109,14 +155,18 @@ internal fun CityWallpaper(modifier: Modifier = Modifier) {
         snapshotFlow { (scale?.scaleFactor ?: 1f) > 0f }.collectLatest { systemMotion = it }
     }
     DisposableEffect(lifecycle) {
-        val observer = LifecycleEventObserver { _, _ -> resumed = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) }
+        CityWallpapers.refresh(context)
+        val observer = LifecycleEventObserver { _, event ->
+            resumed = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+            if (event == Lifecycle.Event.ON_RESUME) CityWallpapers.refresh(context)
+        }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
+    // The city's own clock and weather; motion follows the system's animation setting alone.
     val url = Uri.Builder().scheme("https").authority("appassets.androidplatform.net").path("/wallpaper/index.html")
-        .appendQueryParameter("scene", CityWallpapers.selected).appendQueryParameter("time", CityWallpapers.time)
-        .appendQueryParameter("weather", CityWallpapers.weather)
-        .appendQueryParameter("motion", if (CityWallpapers.motion && systemMotion) "on" else "off").build().toString()
+        .appendQueryParameter("scene", CityWallpapers.selected)
+        .appendQueryParameter("motion", if (systemMotion) "on" else "off").build().toString()
     val web = remember(context) {
         runCatching {
         object : WebView(context) {

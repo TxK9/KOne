@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -303,7 +304,7 @@ fun OOMReportListScreen(
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         )
-                        AnimatedVisibility(visible = oomKillerEnabled) {
+                        AnimatedVisibility(visible = oomKillerEnabled, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
                             Column {
                                 ListItem(
                                     headlineContent = {

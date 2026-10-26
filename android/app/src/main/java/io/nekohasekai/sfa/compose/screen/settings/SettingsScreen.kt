@@ -34,7 +34,6 @@ import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.component.KnineNavRow
 import io.nekohasekai.sfa.compose.component.KnineRowGroup
-import io.nekohasekai.sfa.compose.theme.KnineSectionLabel
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.managed.ManagedState
@@ -89,6 +88,7 @@ fun SettingsScreen(navController: NavController) {
             .verticalScroll(rememberScrollState()),
     ) {
         Spacer(Modifier.height(8.dp))
+        // Short groups, set apart by space alone: a heading over two rows only repeats them.
         KnineRowGroup {
             if (linked) {
                 KnineNavRow(
@@ -112,7 +112,7 @@ fun SettingsScreen(navController: NavController) {
             )
         }
 
-        KnineSectionLabel(text = stringResource(R.string.kone_settings_connection), modifier = Modifier.padding(top = 8.dp))
+        Spacer(Modifier.height(14.dp))
         KnineRowGroup {
             KnineNavRow(
                 title = stringResource(R.string.service),
@@ -131,7 +131,7 @@ fun SettingsScreen(navController: NavController) {
             )
         }
 
-        KnineSectionLabel(text = stringResource(R.string.kone_settings_advanced), modifier = Modifier.padding(top = 8.dp))
+        Spacer(Modifier.height(14.dp))
         KnineRowGroup {
             KnineNavRow(
                 title = stringResource(R.string.remote_control),
@@ -154,7 +154,7 @@ fun SettingsScreen(navController: NavController) {
 
         // Feedback reaches the service that issued the access key, so only a linked copy offers it.
         if (linked) {
-            KnineSectionLabel(text = stringResource(R.string.kone_settings_help), modifier = Modifier.padding(top = 8.dp))
+            Spacer(Modifier.height(14.dp))
             KnineRowGroup {
                 KnineNavRow(
                     title = stringResource(R.string.kone_feedback),
@@ -164,7 +164,7 @@ fun SettingsScreen(navController: NavController) {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp + io.nekohasekai.sfa.compose.screen.tools.START_ACTION_CLEARANCE))
     }
 }
 

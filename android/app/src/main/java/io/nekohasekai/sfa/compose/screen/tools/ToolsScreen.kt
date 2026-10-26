@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import androidx.compose.material.icons.outlined.Router
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -134,7 +135,8 @@ fun ToolsScreen(
             .background(MaterialTheme.colorScheme.surface)
             .padding(scaffoldPadding)
             .verticalScroll(rememberScrollState())
-            .padding(top = 8.dp, bottom = if (showStatusBar) STATUS_BAR_CONTENT_PADDING else 8.dp),
+            // The last row can always scroll clear of the start action floating over the corner.
+            .padding(top = 8.dp, bottom = (if (showStatusBar) STATUS_BAR_CONTENT_PADDING else 8.dp) + START_ACTION_CLEARANCE),
     ) {
         val tailscaleEndpoints = tailscaleState.endpoints
         val openConnectEndpoints = openConnectState.endpoints
@@ -361,17 +363,20 @@ fun ToolsScreen(
             }
         }
 
-        // The private management console is available only in the self-use build.
-        if (BuildConfig.KNINE_OWNER && BuildConfig.KONE_ADMIN.isNotBlank()) {
-            val context = LocalContext.current
+        // The private management console is available only in the self-use build. With devices
+        // shown it joins them under one heading rather than standing alone under its own.
+        val consoleShown = BuildConfig.KNINE_OWNER && BuildConfig.KONE_ADMIN.isNotBlank()
+        val consoleContext = LocalContext.current
+        val consoleRow: @Composable () -> Unit = {
+            KnineNavRow(
+                title = stringResource(R.string.kone_tools_console),
+                icon = Icons.Outlined.Apartment,
+                onClick = { consoleContext.startActivity(Intent(consoleContext, ConsoleActivity::class.java)) },
+            )
+        }
+        if (consoleShown && !DeviceManagementGate.visible) {
             io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.kone_tools_management))
-            KnineRowGroup {
-                KnineNavRow(
-                    title = stringResource(R.string.kone_tools_console),
-                    icon = Icons.Outlined.Apartment,
-                    onClick = { context.startActivity(Intent(context, ConsoleActivity::class.java)) },
-                )
-            }
+            KnineRowGroup { consoleRow() }
         }
 
         // Devices and their engines; the edition for others gains it once the console grants it.
@@ -380,6 +385,7 @@ fun ToolsScreen(
             val integrations by io.nekohasekai.sfa.devices.DeviceIntegrations.registry.integrations.collectAsState()
             io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.kone_devices))
             KnineRowGroup {
+                if (consoleShown) consoleRow()
                 if (integrations.isNotEmpty()) {
                     KnineNavRow(
                         title = stringResource(R.string.kone_tools_devices),
@@ -389,7 +395,7 @@ fun ToolsScreen(
                 }
                 KnineNavRow(
                     title = stringResource(R.string.kone_router),
-                    icon = Icons.Outlined.Hub,
+                    icon = Icons.Outlined.Router,
                     onClick = { routerContext.startActivity(Intent(routerContext, io.nekohasekai.sfa.compose.screen.router.RouterActivity::class.java)) },
                 )
             }
@@ -412,6 +418,9 @@ fun ToolsScreen(
 }
 
 private val STATUS_BAR_CONTENT_PADDING = 8.dp
+
+/** Room under a list for the start action's line, so it never sits on the last row. */
+internal val START_ACTION_CLEARANCE = 80.dp
 
 internal fun handleSSHNavigation(
     navController: NavController,

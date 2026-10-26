@@ -1,5 +1,8 @@
 package io.nekohasekai.sfa.compose.screen.settings
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -132,60 +135,44 @@ fun ServiceSettingsScreen(
             ),
     ) {
         if (!isBatteryOptimizationIgnored && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Card(
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                colors =
-                CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                ),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.BatteryChargingFull,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.padding(end = 12.dp),
-                        )
-                        Text(
-                            stringResource(R.string.background_permission),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                    }
-
+            // One row like the rest: what is missing, and tapping it asks Android for it.
+            androidx.compose.material3.ListItem(
+                headlineContent = { Text(stringResource(R.string.background_permission), style = MaterialTheme.typography.bodyLarge, maxLines = 1) },
+                supportingContent = {
                     Text(
-                        "Keep KOne connected in the background without battery optimization stopping it.",
+                        stringResource(R.string.request_background_permission),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
                     )
-
-                    Button(
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                val intent =
-                                    Intent(
-                                        android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                        Uri.parse("package:${context.packageName}"),
-                                    )
-                                requestBatteryOptimizationLauncher.launch(intent)
-                            }
-                        },
-                        modifier = Modifier.align(Alignment.End),
-                    ) {
-                        Text(stringResource(R.string.request_background_permission))
-                    }
-                }
-            }
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Outlined.BatteryChargingFull,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                },
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                },
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                    .clickable(role = androidx.compose.ui.semantics.Role.Button) {
+                        val intent = Intent(
+                            android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:${context.packageName}"),
+                        )
+                        requestBatteryOptimizationLauncher.launch(intent)
+                    },
+                colors = androidx.compose.material3.ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+            )
         }
 
         // VPN Section

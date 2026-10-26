@@ -55,6 +55,8 @@ class RouterActivity : AppCompatActivity() {
                         else -> finish()
                     }
                 }
+                // A surface of its own, so every label takes the theme's ink instead of Android's black.
+                androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 Column(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
                     Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { finish() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.kone_router_back)) }
@@ -71,9 +73,9 @@ class RouterActivity : AppCompatActivity() {
                                 placeholder = { Text("https://router.example") })
                             OutlinedTextField(fingerprint, { fingerprint = it; problem = null }, Modifier.fillMaxWidth(),
                                 label = { Text(stringResource(R.string.kone_router_pin)) })
-                            Text(stringResource(R.string.kone_router_pin_help), style = MaterialTheme.typography.bodySmall)
                             problem?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
-                            Button(onClick = {
+                            // An outlined pill like the rest of KOne's actions, not a filled block of colour.
+                            androidx.compose.material3.OutlinedButton(onClick = {
                                 val home = RouterAddress.parse(address)
                                 val pin = fingerprint.takeIf { it.isNotBlank() }?.let(RouterAddress::pin)
                                 if (home == null || fingerprint.isNotBlank() && pin == null) {
@@ -101,6 +103,7 @@ class RouterActivity : AppCompatActivity() {
                             view.stopLoading(); view.destroy()
                         })
                     }
+                }
                 }
             }
         }

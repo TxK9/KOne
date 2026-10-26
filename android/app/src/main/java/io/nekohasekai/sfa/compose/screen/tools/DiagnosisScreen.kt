@@ -94,7 +94,6 @@ fun DiagnosisScreen(navController: NavController, serviceStatus: Status = Status
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.knine_diagnose_detail), style = MaterialTheme.typography.bodyMedium)
                 checks.forEach { check -> CheckRow(check) }
                 if (running) Text(stringResource(R.string.knine_diagnose_running), style = MaterialTheme.typography.bodyMedium)
                 if (done) {
@@ -105,7 +104,9 @@ fun DiagnosisScreen(navController: NavController, serviceStatus: Status = Status
                         color = if (advice != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                     )
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                // Before the first run the page is the one action; afterwards copy and again sit at the end.
+                val fresh = !running && !done && checks.isEmpty()
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = if (fresh) Arrangement.Center else Arrangement.End) {
                     // The result as plain text for whoever helps, as on Windows: no key, no node addresses.
                     if (done) TextButton(onClick = {
                         val report = Checks.report(
@@ -123,8 +124,16 @@ fun DiagnosisScreen(navController: NavController, serviceStatus: Status = Status
                     }) {
                         Text(stringResource(R.string.knine_diagnose_copy))
                     }
-                    TextButton(onClick = ::start, enabled = !running) {
-                        Text(stringResource(if (done) R.string.knine_diagnose_again else R.string.knine_diagnose_run))
+                    if (fresh) {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = ::start,
+                            // The dashboard's Import pill: an ink hairline, visible on any wallpaper.
+                            border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.45f)),
+                        ) { Text(stringResource(R.string.knine_diagnose_run)) }
+                    } else {
+                        TextButton(onClick = ::start, enabled = !running) {
+                            Text(stringResource(if (done) R.string.knine_diagnose_again else R.string.knine_diagnose_run))
+                        }
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -235,7 +236,7 @@ internal fun TestRow(
                 if (weather != null) WeatherGlyph(weather, size = 20.dp, ink = ink)
             }
         }
-        AnimatedVisibility(open && detail != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+        AnimatedVisibility(open && detail != null, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
             TestNote(detail.orEmpty(), Modifier.padding(bottom = 10.dp))
         }
     }
