@@ -467,5 +467,6 @@
   "Off": "已关闭",
   "Upload": "上传",
   "Download": "下载",
-  "All": "全部"
+  "All": "全部",
+  "{0} days remaining": "剩余 {0} 天"
 }

@@ -202,7 +202,7 @@ object Expiry {
             days > 7 -> null
             days <= 0L -> tr("Expires today")
             days == 1L -> tr("Expires tomorrow")
-            else -> "$days days remaining"
+            else -> tr("{0} days remaining", days)
         }
     }
 }
