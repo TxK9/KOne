@@ -56,6 +56,10 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
     private var traffic: String? = null
     private var dynamic = false
 
+    // What was last posted. The traffic arrives every second, mostly unchanged when idle, and a
+    // repost makes the system redraw the notification and copy its picture again.
+    private var shown: Triple<String, String, NodeWeather?>? = null
+
     @Volatile
     private var running = false
     private val onHealth: () -> Unit = { refresh() }
@@ -104,6 +108,7 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
             )
         }
         title = lastProfileName.takeIf { it.isNotBlank() } ?: service.getString(R.string.app_name)
+        shown = null
         service.startForeground(
             notificationId,
             notificationBuilder
@@ -121,15 +126,19 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
     suspend fun start() {
         val traffic = Settings.dynamicNotification && checkPermission()
         withContext(Dispatchers.Main) {
+            // Stopped while this was on its way: watching now would outlive the service.
+            if (status.value != Status.Started) return@withContext
             running = true
             dynamic = traffic
             NodeWatch.addListener(onHealth)
             // The screen decides both the traffic and the health checks: nobody sees either with it off.
+            // Registered first, so a screen turning off right after the check below still arrives.
             registerReceiver()
-            if (Application.powerManager.isInteractive) NodeWatch.resume()
-        }
-        if (traffic) {
-            commandClient.connect()
+            if (Application.powerManager.isInteractive) {
+                if (dynamic) commandClient.connect()
+                NodeWatch.resume()
+            }
+            refresh()
         }
     }
 
@@ -142,7 +151,10 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
         if (!running) return
         val reading = NodeWatch.reading
         val weather = reading?.let { NodeWeather.of(it.health) }
-        val content = listOfNotNull(reading?.let { NodeHealthRules.badge(it) }, traffic).joinToString("   ").ifEmpty { service.getString(R.string.status_started) }
+        val content = notificationText(reading?.let { NodeHealthRules.badge(it) }, traffic, service.getString(R.string.knine_proxy_started))
+        val face = Triple(title, content, weather)
+        if (face == shown) return
+        shown = face
         notificationBuilder
             .setContentTitle(title)
             .setContentText(content)
@@ -172,6 +184,8 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        // close() can run off the main thread while a screen change is already being delivered.
+        if (!running) return
         when (intent.action) {
             Intent.ACTION_SCREEN_ON -> {
                 if (dynamic) commandClient.connect()
@@ -189,6 +203,7 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
         running = false
         main.post {
             traffic = null
+            shown = null
             NodeWatch.removeListener(onHealth)
             NodeWatch.stop()
         }
@@ -200,3 +215,7 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
         }
     }
 }
+
+/** The notification's line: the node's health, then the traffic, three spaces apart; [connected] before either is known. */
+internal fun notificationText(health: String?, traffic: String?, connected: String): String =
+    listOfNotNull(health, traffic).joinToString("   ").ifEmpty { connected }

@@ -52,6 +52,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
@@ -287,13 +290,20 @@ private fun StopConnectionAction(label: String, enabled: Boolean, onClick: () ->
     }
 }
 
+/** Milliseconds until the uptime clock shows its next second, so it neither drifts nor skips one. */
+internal fun untilNextSecond(now: Long, startTime: Long): Long = 1_000 - Math.floorMod(now - startTime, 1_000L)
+
 @Composable
 private fun StableUptimeText(startTime: Long) {
     var currentTime by remember(startTime) { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(startTime) {
-        while (true) {
-            currentTime = System.currentTimeMillis()
-            delay(1_000)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(startTime, lifecycle) {
+        // Only while KOne is in view: in the background a once-a-second timer wakes it for nothing.
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                currentTime = System.currentTimeMillis()
+                delay(untilNextSecond(currentTime, startTime))
+            }
         }
     }
     val elapsed = ((currentTime - startTime) / 1_000).coerceAtLeast(0)
