@@ -1,16 +1,14 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
-import androidx.compose.material.icons.outlined.Router
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,65 +17,65 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.outlined.Apartment
-import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Devices
-import androidx.compose.material.icons.outlined.Hub
-import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.HealthAndSafety
+import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.NetworkCheck
 import androidx.compose.material.icons.outlined.Route
-import androidx.compose.material.icons.outlined.SwapHoriz
-import io.nekohasekai.sfa.compose.theme.KnineBadge as Badge
-import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
-import androidx.compose.material3.CardDefaults
-import io.nekohasekai.sfa.compose.theme.KnineDropdownMenu as DropdownMenu
+import androidx.compose.material.icons.outlined.Router
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.nekohasekai.sfa.BuildConfig
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.component.KnineChevron
 import io.nekohasekai.sfa.compose.component.KnineNavRow
 import io.nekohasekai.sfa.compose.component.KnineRowGroup
-import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.component.RemoteControlMenuItems
 import io.nekohasekai.sfa.compose.component.rememberRemoteServers
 import io.nekohasekai.sfa.compose.navigation.DeviceRoutes
 import io.nekohasekai.sfa.compose.navigation.NetworkTestRoutes
 import io.nekohasekai.sfa.compose.screen.console.ConsoleActivity
+import io.nekohasekai.sfa.compose.screen.router.RouterActivity
 import io.nekohasekai.sfa.compose.screen.usbip.USBIPStatusViewModel
+import io.nekohasekai.sfa.compose.theme.KnineSectionLabel
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
-import io.nekohasekai.sfa.selfuse.HomeSettings
-import io.nekohasekai.sfa.selfuse.PairedProfile
 import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.database.Settings
+import io.nekohasekai.sfa.devices.DeviceIntegrations
 import io.nekohasekai.sfa.devices.DeviceManagementGate
+import io.nekohasekai.sfa.selfuse.HomeSettings
+import io.nekohasekai.sfa.selfuse.PairedProfile
 import io.nekohasekai.sfa.terminal.DEFAULT_SSH_TERMINAL_TYPE
 import io.nekohasekai.sfa.terminal.TailscaleSSHPresentedSession
 import io.nekohasekai.sfa.utils.RemoteControlManager
+import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
+import io.nekohasekai.sfa.compose.theme.BackdropText as Text
+import io.nekohasekai.sfa.compose.theme.KnineBadge as Badge
+import io.nekohasekai.sfa.compose.theme.KnineDropdownMenu as DropdownMenu
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolsScreen(
     navController: NavController,
@@ -126,14 +124,13 @@ fun ToolsScreen(
     val openConnectState by openConnectViewModel.uiState.collectAsState()
     val openVPNState by openVPNViewModel.uiState.collectAsState()
     val remoteServer by RemoteControlManager.remoteServer.collectAsState()
-
-    val scaffoldPadding = LocalScaffoldPadding.current
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(scaffoldPadding)
+            .padding(LocalScaffoldPadding.current)
             .verticalScroll(rememberScrollState())
             // The last row can always scroll clear of the start action floating over the corner.
             .padding(top = 8.dp, bottom = (if (showStatusBar) STATUS_BAR_CONTENT_PADDING else 8.dp) + START_ACTION_CLEARANCE),
@@ -142,222 +139,102 @@ fun ToolsScreen(
         val openConnectEndpoints = openConnectState.endpoints
         val openVPNEndpoints = openVPNState.endpoints
         val tailscaleTags = tailscaleEntryTags(tailscaleEndpoints.map { it.endpointTag }, local = remoteServer == null)
-        val endpointRowCount = tailscaleTags.size + openConnectEndpoints.size + openVPNEndpoints.size
-        if (endpointRowCount > 0) {
-            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.tailscale_endpoints))
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            ) {
+        if (tailscaleTags.size + openConnectEndpoints.size + openVPNEndpoints.size > 0) {
+            KnineSectionLabel(text = stringResource(R.string.tailscale_endpoints))
+            // The same card and rows as every other group here, so the hub reads as one list.
+            KnineRowGroup {
                 tailscaleTags.forEachIndexed { index, endpointTag ->
-                    val endpoint = tailscaleEndpoints.firstOrNull { it.endpointTag == endpointTag }
-                    var showSSHMenu by remember { mutableStateOf(false) }
-                    val sshPeers = remember(endpoint) {
-                        endpoint?.userGroups.orEmpty().flatMap { it.peers }.filter { peer ->
-                            peer.online && peer.sshHostKeys.isNotEmpty() &&
-                                peer.tailscaleIPs.isNotEmpty() && peer.id != endpoint?.selfPeer?.id
+                    // Keyed by tag, so a menu left open belongs to its own endpoint when the list changes.
+                    key(endpointTag) {
+                        val endpoint = tailscaleEndpoints.firstOrNull { it.endpointTag == endpointTag }
+                        var showSSHMenu by remember { mutableStateOf(false) }
+                        val sshPeers = remember(endpoint) {
+                            endpoint?.userGroups.orEmpty().flatMap { it.peers }.filter { peer ->
+                                peer.online && peer.sshHostKeys.isNotEmpty() &&
+                                    peer.tailscaleIPs.isNotEmpty() && peer.id != endpoint?.selfPeer?.id
+                            }
                         }
-                    }
-                    Box {
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    if (tailscaleTags.size == 1) {
-                                        stringResource(R.string.tailscale)
-                                    } else {
-                                        stringResource(R.string.tailscale) + " ${index + 1}"
-                                    },
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    if (remoteServer == null && endpointTag == PairedProfile.HOME_TAG) {
-                                        tailscaleConnectionLabel(HomeSettings.isEnabled, serviceStatus, endpoint?.backendState, tailscaleState.hasUpdate)
-                                    } else endpoint?.stateText.orEmpty(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            },
-                            leadingContent = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Hub,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            trailingContent = {
-                                if (taildropSendSessions.any { it.endpointTag == endpointTag && it.errorMessage != null }) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.error) {
-                                        Text("!")
-                                    }
-                                } else if ((endpoint?.unreadFileCount ?: 0) > 0) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                        Text("${endpoint?.unreadFileCount}")
-                                    }
+                        val unread = endpoint?.unreadFileCount ?: 0
+                        Box {
+                            ToolRow(
+                                title = numbered(stringResource(R.string.tailscale), index, tailscaleTags.size),
+                                icon = Icons.Outlined.Hub,
+                                supporting = if (remoteServer == null && endpointTag == PairedProfile.HOME_TAG) {
+                                    tailscaleConnectionLabel(HomeSettings.isEnabled, serviceStatus, endpoint?.backendState, tailscaleState.hasUpdate)
                                 } else {
-                                    KnineChevron()
+                                    endpoint?.stateText.orEmpty()
+                                },
+                                onClick = { navController.navigate("tools/tailscale/${Uri.encode(endpointTag)}") },
+                                onLongClick = if (sshPeers.isNotEmpty()) ({ showSSHMenu = true }) else null,
+                                onLongClickLabel = stringResource(R.string.tailscale_ssh_connect),
+                            ) {
+                                when {
+                                    taildropSendSessions.any { it.endpointTag == endpointTag && it.errorMessage != null } ->
+                                        Badge(containerColor = MaterialTheme.colorScheme.error) { Text("!") }
+                                    unread > 0 -> Badge(containerColor = MaterialTheme.colorScheme.primary) { Text("$unread") }
+                                    else -> KnineChevron()
                                 }
-                            },
-                            modifier = Modifier
-                                .combinedClickable(
-                                    onClick = {
-                                        navController.navigate("tools/tailscale/${Uri.encode(endpointTag)}")
-                                    },
-                                    onLongClick = {
-                                        if (sshPeers.isNotEmpty()) {
-                                            showSSHMenu = true
-                                        }
-                                    },
-                                ),
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        )
-                        DropdownMenu(
-                            expanded = showSSHMenu,
-                            onDismissRequest = { showSSHMenu = false },
-                        ) {
-                            if (sshPeers.size == 1) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.tailscale_ssh_connect)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Terminal, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        showSSHMenu = false
-                                        handleSSHNavigation(
-                                            navController,
-                                            sshSharedViewModel,
-                                            sshPeers[0],
-                                            endpointTag,
-                                        )
-                                    },
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.tailscale_ssh_connect)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Terminal, contentDescription = null)
-                                    },
-                                    enabled = false,
-                                    onClick = {},
-                                )
-                                sshPeers.forEach { peer ->
+                            }
+                            DropdownMenu(
+                                expanded = showSSHMenu,
+                                onDismissRequest = { showSSHMenu = false },
+                            ) {
+                                if (sshPeers.size == 1) {
                                     DropdownMenuItem(
-                                        text = { Text(peer.hostName) },
+                                        text = { Text(stringResource(R.string.tailscale_ssh_connect)) },
+                                        leadingIcon = { Icon(Icons.Default.Terminal, contentDescription = null) },
                                         onClick = {
                                             showSSHMenu = false
-                                            handleSSHNavigation(
-                                                navController,
-                                                sshSharedViewModel,
-                                                peer,
-                                                endpointTag,
-                                            )
+                                            handleSSHNavigation(navController, sshSharedViewModel, sshPeers[0], endpointTag)
                                         },
                                     )
+                                } else {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.tailscale_ssh_connect)) },
+                                        leadingIcon = { Icon(Icons.Default.Terminal, contentDescription = null) },
+                                        enabled = false,
+                                        onClick = {},
+                                    )
+                                    sshPeers.forEach { peer ->
+                                        DropdownMenuItem(
+                                            text = { Text(peer.hostName) },
+                                            onClick = {
+                                                showSSHMenu = false
+                                                handleSSHNavigation(navController, sshSharedViewModel, peer, endpointTag)
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
                 openConnectEndpoints.forEachIndexed { index, endpoint ->
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                if (openConnectEndpoints.size == 1) {
-                                    stringResource(R.string.openconnect)
-                                } else {
-                                    stringResource(R.string.openconnect) + " ${index + 1}"
-                                },
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.Route,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        trailingContent = { KnineChevron() },
-                        modifier = Modifier
-                            .clickable(role = Role.Button) {
-                                navController.navigate("tools/openconnect/${Uri.encode(endpoint.endpointTag)}")
-                            },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    KnineNavRow(
+                        title = numbered(stringResource(R.string.openconnect), index, openConnectEndpoints.size),
+                        icon = Icons.Outlined.Route,
+                        onClick = { navController.navigate("tools/openconnect/${Uri.encode(endpoint.endpointTag)}") },
                     )
                 }
                 openVPNEndpoints.forEachIndexed { index, endpoint ->
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                if (openVPNEndpoints.size == 1) {
-                                    stringResource(R.string.openvpn)
-                                } else {
-                                    stringResource(R.string.openvpn) + " ${index + 1}"
-                                },
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Outlined.Route,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        trailingContent = { KnineChevron() },
-                        modifier = Modifier
-                            .clickable(role = Role.Button) {
-                                navController.navigate("tools/openvpn/${Uri.encode(endpoint.endpointTag)}")
-                            },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    KnineNavRow(
+                        title = numbered(stringResource(R.string.openvpn), index, openVPNEndpoints.size),
+                        icon = Icons.Outlined.Route,
+                        onClick = { navController.navigate("tools/openvpn/${Uri.encode(endpoint.endpointTag)}") },
                     )
                 }
             }
         }
 
-        if (usbIPState.servers.isNotEmpty()) {
-            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.title_services))
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            ) {
-                val servers = usbIPState.servers
+        val servers = usbIPState.servers
+        if (servers.isNotEmpty()) {
+            KnineSectionLabel(text = stringResource(R.string.title_services))
+            KnineRowGroup {
                 servers.forEachIndexed { index, server ->
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                if (servers.size == 1) {
-                                    stringResource(R.string.title_usbip)
-                                } else {
-                                    stringResource(R.string.title_usbip) + " ${index + 1}"
-                                },
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Usb,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        trailingContent = { KnineChevron() },
-                        modifier = Modifier
-                            .clickable(role = Role.Button) {
-                                navController.navigate("tools/usbip/${Uri.encode(server.serverTag)}")
-                            },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    KnineNavRow(
+                        title = numbered(stringResource(R.string.title_usbip), index, servers.size),
+                        icon = Icons.Default.Usb,
+                        onClick = { navController.navigate("tools/usbip/${Uri.encode(server.serverTag)}") },
                     )
                 }
             }
@@ -366,24 +243,22 @@ fun ToolsScreen(
         // The private management console is available only in the self-use build. With devices
         // shown it joins them under one heading rather than standing alone under its own.
         val consoleShown = BuildConfig.KNINE_OWNER && BuildConfig.KONE_ADMIN.isNotBlank()
-        val consoleContext = LocalContext.current
         val consoleRow: @Composable () -> Unit = {
             KnineNavRow(
                 title = stringResource(R.string.kone_tools_console),
                 icon = Icons.Outlined.Apartment,
-                onClick = { consoleContext.startActivity(Intent(consoleContext, ConsoleActivity::class.java)) },
+                onClick = { context.startActivity(Intent(context, ConsoleActivity::class.java)) },
             )
         }
         if (consoleShown && !DeviceManagementGate.visible) {
-            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.kone_tools_management))
+            KnineSectionLabel(text = stringResource(R.string.kone_tools_management))
             KnineRowGroup { consoleRow() }
         }
 
         // Devices and their engines; the edition for others gains it once the console grants it.
         if (DeviceManagementGate.visible) {
-            val routerContext = LocalContext.current
-            val integrations by io.nekohasekai.sfa.devices.DeviceIntegrations.registry.integrations.collectAsState()
-            io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.kone_devices))
+            val integrations by DeviceIntegrations.registry.integrations.collectAsState()
+            KnineSectionLabel(text = stringResource(R.string.kone_devices))
             KnineRowGroup {
                 if (consoleShown) consoleRow()
                 if (integrations.isNotEmpty()) {
@@ -396,12 +271,12 @@ fun ToolsScreen(
                 KnineNavRow(
                     title = stringResource(R.string.kone_router),
                     icon = Icons.Outlined.Router,
-                    onClick = { routerContext.startActivity(Intent(routerContext, io.nekohasekai.sfa.compose.screen.router.RouterActivity::class.java)) },
+                    onClick = { context.startActivity(Intent(context, RouterActivity::class.java)) },
                 )
             }
         }
 
-        io.nekohasekai.sfa.compose.theme.KnineSectionLabel(text = stringResource(R.string.title_network))
+        KnineSectionLabel(text = stringResource(R.string.title_network))
         KnineRowGroup {
             KnineNavRow(
                 title = stringResource(R.string.knine_diagnose),
@@ -415,6 +290,43 @@ fun ToolsScreen(
             )
         }
     }
+}
+
+/** "Tailscale" when there is one, "Tailscale 2" among several. */
+private fun numbered(name: String, index: Int, count: Int): String = if (count == 1) name else "$name ${index + 1}"
+
+/**
+ * [KnineNavRow] for an endpoint: the same icon, lines and trailing slot, with a long press for
+ * its shortcuts and a [trailing] count or warning where the chevron would be.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ToolRow(
+    title: String,
+    icon: ImageVector,
+    supporting: String,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
+    onLongClickLabel: String,
+    trailing: @Composable () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(title, style = MaterialTheme.typography.bodyLarge) },
+        supportingContent = supporting.takeIf { it.isNotEmpty() }?.let {
+            { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        },
+        leadingContent = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        trailingContent = {
+            Box(Modifier.defaultMinSize(24.dp, 24.dp), contentAlignment = Alignment.Center) { trailing() }
+        },
+        modifier = Modifier.combinedClickable(
+            role = Role.Button,
+            onClick = onClick,
+            onLongClick = onLongClick,
+            onLongClickLabel = if (onLongClick != null) onLongClickLabel else null,
+        ),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
 }
 
 private val STATUS_BAR_CONTENT_PADDING = 8.dp

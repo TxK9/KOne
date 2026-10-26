@@ -235,7 +235,7 @@ fun STUNTestScreen(
                     ResultItem(
                         label = stringResource(R.string.stun_external_address),
                         value = state.externalAddr.ifEmpty { null },
-                        isActive = state.phase == Libbox.STUNPhaseBinding.toInt(),
+                        isActive = state.phase == Libbox.STUNPhaseBinding,
                         isRunning = state.isRunning,
                     )
                     HorizontalDivider(
@@ -244,10 +244,10 @@ fun STUNTestScreen(
                     ResultItem(
                         label = stringResource(R.string.stun_latency),
                         value = if (state.latencyMs > 0) "${state.latencyMs} ms" else null,
-                        isActive = state.phase == Libbox.STUNPhaseBinding.toInt(),
+                        isActive = state.phase == Libbox.STUNPhaseBinding,
                         isRunning = state.isRunning,
                     )
-                    if (state.phase == Libbox.STUNPhaseDone.toInt() && !state.natTypeSupported) {
+                    if (state.phase == Libbox.STUNPhaseDone && !state.natTypeSupported) {
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                         )
@@ -264,7 +264,7 @@ fun STUNTestScreen(
                         ResultItem(
                             label = stringResource(R.string.stun_nat_mapping),
                             value = if (state.natMapping > 0) Libbox.formatNATMapping(state.natMapping) else null,
-                            isActive = state.phase == Libbox.STUNPhaseNATMapping.toInt(),
+                            isActive = state.phase == Libbox.STUNPhaseNATMapping,
                             isRunning = state.isRunning,
                             valueColor = if (state.natMapping > 0) natMappingColor(state.natMapping) else null,
                         )
@@ -274,7 +274,7 @@ fun STUNTestScreen(
                         ResultItem(
                             label = stringResource(R.string.stun_nat_filtering),
                             value = if (state.natFiltering > 0) Libbox.formatNATFiltering(state.natFiltering) else null,
-                            isActive = state.phase == Libbox.STUNPhaseNATFiltering.toInt(),
+                            isActive = state.phase == Libbox.STUNPhaseNATFiltering,
                             isRunning = state.isRunning,
                             valueColor = if (state.natFiltering > 0) natFilteringColor(state.natFiltering) else null,
                         )
@@ -286,16 +286,16 @@ fun STUNTestScreen(
 }
 
 private fun natMappingColor(value: Int): Color = when (value) {
-    Libbox.NATMappingEndpointIndependent.toInt() -> Color.Green
-    Libbox.NATMappingAddressDependent.toInt() -> Color.Yellow
-    Libbox.NATMappingAddressAndPortDependent.toInt() -> Color.Red
+    Libbox.NATMappingEndpointIndependent -> Color.Green
+    Libbox.NATMappingAddressDependent -> Color.Yellow
+    Libbox.NATMappingAddressAndPortDependent -> Color.Red
     else -> Color.Unspecified
 }
 
 private fun natFilteringColor(value: Int): Color = when (value) {
-    Libbox.NATFilteringEndpointIndependent.toInt() -> Color.Green
-    Libbox.NATFilteringAddressDependent.toInt() -> Color.Yellow
-    Libbox.NATFilteringAddressAndPortDependent.toInt() -> Color.Red
+    Libbox.NATFilteringEndpointIndependent -> Color.Green
+    Libbox.NATFilteringAddressDependent -> Color.Yellow
+    Libbox.NATFilteringAddressAndPortDependent -> Color.Red
     else -> Color.Unspecified
 }
 

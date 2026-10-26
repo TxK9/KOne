@@ -1,5 +1,10 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
+import io.nekohasekai.sfa.compose.screen.dashboard.weatherInk
+import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
+import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.semantics.Role
 import android.net.Uri
 import android.text.format.DateUtils
 import androidx.activity.compose.LocalActivity
@@ -9,7 +14,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -44,7 +47,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -64,9 +66,7 @@ import androidx.compose.ui.draganddrop.mimeTypes
 import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -121,14 +121,7 @@ fun TailscalePeerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (peer?.online == true) Color(0xFF4CAF50) else Color.Gray,
-                                ),
-                        )
+                        WeatherGlyph(if (peer?.online == true) NodeWeather.Clear else NodeWeather.Rest, size = 12.dp)
                         Text(
                             if (peer?.online == true) {
                                 stringResource(R.string.tailscale_connected)
@@ -196,7 +189,7 @@ fun TailscalePeerScreen(
     ) {
         // Network section (self peer only): network name + logout
         val networkName = endpoint?.networkName
-        val showLogout = isSelf && endpoint?.backendState == "Running" && endpoint?.keyAuth == false
+        val showLogout = isSelf && endpoint.backendState == "Running" && endpoint.keyAuth == false
         if (isSelf && (!networkName.isNullOrEmpty() || showLogout)) {
             SectionHeader(stringResource(R.string.tailscale_network))
             Card(
@@ -310,38 +303,30 @@ fun TailscalePeerScreen(
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Surface(
-                    onClick = {
-                        if (pingState.isRunning) {
-                            pingViewModel.stopPing()
-                        } else {
-                            pingViewModel.startPing(endpointTag, peerIP)
-                        }
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isSystemInDarkTheme()) {
-                        lerp(
-                            MaterialTheme.colorScheme.surfaceContainerHighest,
-                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                            0.5f,
-                        )
-                    } else {
-                        MaterialTheme.colorScheme.surfaceDim
-                    },
-                    modifier = Modifier.size(width = 44.dp, height = 32.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (pingState.isRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
-                            contentDescription = if (pingState.isRunning) {
-                                stringResource(R.string.tailscale_ping_stop)
+                // A faint ink well like the segmented controls', so it reads on any wallpaper.
+                Box(
+                    modifier = Modifier
+                        .size(width = 44.dp, height = 32.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(LocalContentColor.current.copy(alpha = 0.07f))
+                        .clickable(role = Role.Button) {
+                            if (pingState.isRunning) {
+                                pingViewModel.stopPing()
                             } else {
-                                stringResource(R.string.tailscale_ping_start)
-                            },
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                                pingViewModel.startPing(endpointTag, peerIP)
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = if (pingState.isRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        contentDescription = if (pingState.isRunning) {
+                            stringResource(R.string.tailscale_ping_stop)
+                        } else {
+                            stringResource(R.string.tailscale_ping_start)
+                        },
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
             }
             Card(
@@ -363,29 +348,29 @@ fun TailscalePeerScreen(
                             if (pingState.isDirect) {
                                 Text(
                                     text = "\u2192 ",
-                                    color = Color(0xFF4CAF50),
+                                    color = weatherInk(NodeWeather.Clear, LocalContentColor.current),
                                 )
                                 Text(
                                     text = stringResource(R.string.tailscale_ping_direct),
-                                    color = Color(0xFF4CAF50),
+                                    color = weatherInk(NodeWeather.Clear, LocalContentColor.current),
                                 )
                             } else if (pingState.peerRelay.isNotEmpty()) {
                                 Text(
                                     text = "\u21BB ",
-                                    color = Color(0xFF2196F3),
+                                    color = weatherInk(NodeWeather.Mist, LocalContentColor.current),
                                 )
                                 Text(
                                     text = stringResource(R.string.tailscale_ping_peer_relay),
-                                    color = Color(0xFF2196F3),
+                                    color = weatherInk(NodeWeather.Mist, LocalContentColor.current),
                                 )
                             } else {
                                 Text(
                                     text = "\u21BB ",
-                                    color = Color(0xFFFF9800),
+                                    color = weatherInk(NodeWeather.Mist, LocalContentColor.current),
                                 )
                                 Text(
                                     text = stringResource(R.string.tailscale_ping_derp),
-                                    color = Color(0xFFFF9800),
+                                    color = weatherInk(NodeWeather.Mist, LocalContentColor.current),
                                 )
                             }
                             Spacer(modifier = Modifier.weight(1f))
@@ -425,11 +410,7 @@ fun TailscalePeerScreen(
                             ) {
                                 LineChart(
                                     data = pingState.latencyHistory,
-                                    lineColor = if (pingState.isDirect) {
-                                        Color(0xFF4CAF50)
-                                    } else {
-                                        Color(0xFF2196F3)
-                                    },
+                                    lineColor = weatherInk(if (pingState.isDirect) NodeWeather.Clear else NodeWeather.Mist, LocalContentColor.current),
                                     animate = false,
                                     modifier = Modifier.weight(1f),
                                 )

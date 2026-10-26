@@ -1,6 +1,5 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
-import io.nekohasekai.sfa.compose.theme.KnineMotion
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -10,10 +9,6 @@ import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -39,6 +34,7 @@ import io.nekohasekai.sfa.bg.DefaultNetworkMonitor
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import io.nekohasekai.sfa.connection.ConnectionCheckId
 import io.nekohasekai.sfa.connection.ConnectionCheckInput
 import io.nekohasekai.sfa.connection.ConnectionCheckLevel

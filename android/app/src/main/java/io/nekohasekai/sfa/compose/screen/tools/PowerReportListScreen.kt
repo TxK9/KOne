@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.DeleteSweep
 import io.nekohasekai.sfa.compose.theme.KnineBadge as Badge
 import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import io.nekohasekai.sfa.compose.theme.KnineDropdownMenu as DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api

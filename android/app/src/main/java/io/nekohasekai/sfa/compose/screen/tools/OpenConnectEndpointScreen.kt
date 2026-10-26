@@ -3,7 +3,6 @@ package io.nekohasekai.sfa.compose.screen.tools
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -45,14 +43,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.nekohasekai.sfa.R
@@ -391,7 +385,7 @@ private fun SectionHeader(title: String) {
 
 @Composable
 private fun StateRow(state: String, stateText: String) {
-    ToolStatusSummary(stringResource(R.string.endpoint_state), stateText, stateColor(state))
+    ToolStatusSummary(stringResource(R.string.endpoint_state), stateText, endpointWeather(state))
 }
 
 @Composable
@@ -399,10 +393,3 @@ private fun TunnelInfoRow(value: String, label: String) {
     ToolDetailValue(label, value)
 }
 
-private fun stateColor(state: String): Color = when (state) {
-    "connected" -> Color(0xFF4CAF50)
-    "auth-pending" -> Color(0xFFFF9800)
-    "connecting" -> Color(0xFFFFEB3B)
-    "error" -> Color(0xFFF44336)
-    else -> Color.Gray
-}

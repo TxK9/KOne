@@ -4,27 +4,64 @@ import android.annotation.SuppressLint
 import android.net.http.SslCertificate
 import android.net.http.SslError
 import android.os.Bundle
-import android.webkit.*
+import android.webkit.CookieManager
+import android.webkit.PermissionRequest
+import android.webkit.SslErrorHandler
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.compose.screen.console.WebToolBar
+import io.nekohasekai.sfa.compose.screen.console.WebToolProblem
+import io.nekohasekai.sfa.compose.screen.console.WebToolProgress
+import io.nekohasekai.sfa.compose.screen.console.WebToolTheme
+import io.nekohasekai.sfa.compose.screen.console.webToolInk
+import io.nekohasekai.sfa.compose.screen.console.webToolPaper
 import io.nekohasekai.sfa.compose.theme.Theme
 import java.io.ByteArrayInputStream
 import java.net.URI
@@ -45,65 +82,100 @@ class RouterActivity : AppCompatActivity() {
         editing = RouterAddress.parse(store.getString("address", "").orEmpty()) == null
         enableEdgeToEdge()
         setContent {
-            Theme(plainKnine = true) {
-                var address by remember { mutableStateOf(store.getString("address", "").orEmpty()) }
-                var fingerprint by remember { mutableStateOf(store.getString("pin", "").orEmpty()) }
-                BackHandler {
-                    when {
-                        editing -> finish()
-                        web?.canGoBack() == true -> web?.goBack()
-                        else -> finish()
-                    }
-                }
-                // A surface of its own, so every label takes the theme's ink instead of Android's black.
-                androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Column(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
-                    Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { finish() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.kone_router_back)) }
-                        Text(stringResource(R.string.kone_router), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                        if (!editing) {
-                            IconButton(onClick = { problem = null; web?.reload() }) { Icon(Icons.Outlined.Refresh, stringResource(R.string.kone_router_refresh)) }
-                            IconButton(onClick = { editing = true }) { Icon(Icons.Outlined.Settings, stringResource(R.string.kone_router_address)) }
+            val dark = isSystemInDarkTheme()
+            // The console's paper and ink, so the owner's two web tools look like one family.
+            Theme(darkTheme = dark, plainKnine = true) {
+                WebToolTheme(webToolPaper(dark), webToolInk(dark)) {
+                    var address by remember { mutableStateOf(store.getString("address", "").orEmpty()) }
+                    var fingerprint by remember { mutableStateOf(store.getString("pin", "").orEmpty()) }
+                    BackHandler {
+                        when {
+                            editing -> finish()
+                            web?.canGoBack() == true -> web?.goBack()
+                            else -> finish()
                         }
                     }
-                    if (editing) {
-                        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            OutlinedTextField(address, { address = it; problem = null }, Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.kone_router_address)) }, singleLine = true,
-                                placeholder = { Text("https://router.example") })
-                            OutlinedTextField(fingerprint, { fingerprint = it; problem = null }, Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.kone_router_pin)) })
-                            problem?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
-                            // An outlined pill like the rest of KOne's actions, not a filled block of colour.
-                            androidx.compose.material3.OutlinedButton(onClick = {
-                                val home = RouterAddress.parse(address)
-                                val pin = fingerprint.takeIf { it.isNotBlank() }?.let(RouterAddress::pin)
-                                if (home == null || fingerprint.isNotBlank() && pin == null) {
-                                    problem = R.string.kone_router_invalid
-                                } else {
-                                    store.edit().putString("address", home.toString()).putString("pin", pin.orEmpty()).apply()
-                                    problem = null
-                                    editing = false
+                    fun open() {
+                        val home = RouterAddress.parse(address)
+                        val pin = fingerprint.takeIf { it.isNotBlank() }?.let(RouterAddress::pin)
+                        if (home == null || fingerprint.isNotBlank() && pin == null) {
+                            problem = R.string.kone_router_invalid
+                        } else {
+                            store.edit().putString("address", home.toString()).putString("pin", pin.orEmpty()).apply()
+                            problem = null
+                            editing = false
+                        }
+                    }
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .systemBarsPadding()
+                            .imePadding(),
+                    ) {
+                        val ink = MaterialTheme.colorScheme.onSurface
+                        WebToolBar(title = stringResource(R.string.kone_router), onBack = { finish() }) {
+                            if (!editing) {
+                                IconButton(onClick = { problem = null; web?.reload() }) {
+                                    Icon(Icons.Outlined.Refresh, stringResource(R.string.kone_router_refresh), tint = ink)
                                 }
-                            }) { Text(stringResource(R.string.kone_router_open)) }
-                        }
-                    } else {
-                        val home = RouterAddress.parse(store.getString("address", "").orEmpty())!!
-                        val pin = store.getString("pin", "").orEmpty()
-                        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                        problem?.let { Text(stringResource(it), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error) }
-                        AndroidView(modifier = Modifier.weight(1f).fillMaxWidth(), factory = { context ->
-                            WebView(context).also { view ->
-                                web = view
-                                prepare(view, home, pin)
-                                view.loadUrl(home.toString())
+                                IconButton(onClick = { problem = null; editing = true }) {
+                                    Icon(Icons.Outlined.Settings, stringResource(R.string.kone_router_address), tint = ink)
+                                }
                             }
-                        }, onRelease = { view ->
-                            if (web === view) web = null
-                            view.stopLoading(); view.destroy()
-                        })
+                        }
+                        if (editing) {
+                            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                OutlinedTextField(
+                                    address, { address = it; problem = null }, Modifier.fillMaxWidth(),
+                                    label = { Text(stringResource(R.string.kone_router_address)) },
+                                    placeholder = { Text("https://router.example") },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
+                                )
+                                OutlinedTextField(
+                                    fingerprint, { fingerprint = it; problem = null }, Modifier.fillMaxWidth(),
+                                    label = { Text(stringResource(R.string.kone_router_pin)) },
+                                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Go),
+                                    keyboardActions = KeyboardActions(onGo = { open() }),
+                                )
+                                problem?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+                                // An outlined pill like the rest of KOne's actions, not a filled block of colour.
+                                OutlinedButton(onClick = ::open) { Text(stringResource(R.string.kone_router_open)) }
+                            }
+                        } else {
+                            val home = RouterAddress.parse(store.getString("address", "").orEmpty())!!
+                            val pin = store.getString("pin", "").orEmpty()
+                            Box(Modifier.weight(1f).fillMaxWidth()) {
+                                AndroidView(modifier = Modifier.fillMaxSize(), factory = { context ->
+                                    WebView(context).also { view ->
+                                        web = view
+                                        prepare(view, home, pin)
+                                        view.loadUrl(home.toString())
+                                    }
+                                }, onRelease = { view ->
+                                    if (web === view) web = null
+                                    view.stopLoading(); view.destroy()
+                                })
+                                // A page that cannot be had gives way to its reason in place, as the console's does.
+                                val reason = problem
+                                if (reason != null) {
+                                    WebToolProblem(
+                                        title = stringResource(R.string.kone_router_problem),
+                                        hint = stringResource(reason),
+                                        onRetry = { problem = null; web?.reload() },
+                                        secondary = {
+                                            TextButton(onClick = { problem = null; editing = true }, modifier = Modifier.padding(top = 8.dp)) {
+                                                Text(stringResource(R.string.kone_router_address), color = ink)
+                                            }
+                                        },
+                                    )
+                                } else if (loading) {
+                                    WebToolProgress()
+                                }
+                            }
+                        }
                     }
-                }
                 }
             }
         }
@@ -153,7 +225,8 @@ class RouterActivity : AppCompatActivity() {
         view.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) { request.deny() }
         }
-        view.setDownloadListener { _, _, _, _, _ -> problem = R.string.kone_router_download }
+        // Downloads are refused with a short note, as the console does, rather than covering the page.
+        view.setDownloadListener { _, _, _, _, _ -> Toast.makeText(this, getString(R.string.kone_router_download), Toast.LENGTH_SHORT).show() }
     }
 
     override fun onPause() { web?.onPause(); super.onPause() }

@@ -1,31 +1,43 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
-import io.nekohasekai.sfa.compose.theme.KnineMotion
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import io.nekohasekai.sfa.constant.Status
 import io.nekohasekai.sfa.database.ProfileManager
-import io.nekohasekai.sfa.udp.*
+import io.nekohasekai.sfa.udp.UdpCheckController
+import io.nekohasekai.sfa.udp.UdpCheckState
+import io.nekohasekai.sfa.udp.UdpPhase
+import io.nekohasekai.sfa.udp.UdpRuntime
+import io.nekohasekai.sfa.udp.UdpTargets
 import io.nekohasekai.sfa.utils.RemoteControlManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 
 /** A small, local-only check of the connected profile. It never switches a node or tests direct. */
 @Composable
@@ -152,7 +164,7 @@ internal fun UdpTestPanel(name: String, state: UdpCheckState, unavailable: Strin
             TestFigure("Reply", latency?.toString() ?: "—", "ms")
         }
         Spacer(Modifier.height(28.dp))
-        var wifiOpen by remember { mutableStateOf(false) }
+        var wifiOpen by rememberSaveable { mutableStateOf(false) }
         TestFold("Wi-Fi Calling", wifiOpen, { wifiOpen = !wifiOpen })
         AnimatedVisibility(wifiOpen, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
             Column(Modifier.fillMaxWidth()) {

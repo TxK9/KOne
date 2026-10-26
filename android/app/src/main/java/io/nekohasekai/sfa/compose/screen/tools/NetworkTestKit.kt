@@ -1,24 +1,24 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
-import io.nekohasekai.sfa.compose.theme.KnineMotion
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -34,8 +34,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -47,18 +49,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
 import io.nekohasekai.sfa.compose.screen.dashboard.weatherInk
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 
@@ -74,7 +81,8 @@ internal enum class RingPhase { Idle, Running, Done }
 
 /**
  * The ring: breathing while idle, sweeping round while a test runs (or filled to [fill] when the
- * test knows its progress), and closed in [accent] once a finished test has a verdict.
+ * test knows its progress), and closing in [accent] once a finished test has a verdict. It gives
+ * a little under a press. A closed ring is still: a verdict left on screen costs no frames.
  */
 @Composable
 internal fun TestRing(
@@ -88,49 +96,67 @@ internal fun TestRing(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val ink = LocalContentColor.current
+    val verdictInk = accent?.takeIf { phase == RingPhase.Done }
+    val verdict = verdictInk != null
     val shown by animateFloatAsState(fill, tween(600, easing = FastOutSlowInEasing), label = "ringFill")
-    val motion = rememberInfiniteTransition(label = "ring")
-    val spin by motion.animateFloat(0f, 360f, infiniteRepeatable(tween(1400, easing = LinearEasing)), label = "spin")
-    val breath by motion.animateFloat(0.10f, 0.22f, infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breath")
+    val closed by animateFloatAsState(if (verdict) 1f else 0f, tween(if (verdict) 700 else 0, easing = FastOutSlowInEasing), label = "ringClose")
+    val spin = if (phase == RingPhase.Running && sweep) rememberRingSpin() else null
+    val breath = if (phase != RingPhase.Running && !verdict) rememberRingBreath() else null
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val give by animateFloatAsState(if (pressed && enabled) 0.97f else 1f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium), label = "ringPress")
     Box(
         modifier
             .size(236.dp)
+            .graphicsLayer {
+                scaleX = give
+                scaleY = give
+                alpha = if (enabled || phase == RingPhase.Running) 1f else 0.45f
+            }
             .clip(CircleShape)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = source,
                 indication = null,
                 onClick = onTap,
-            )
-            .graphicsLayer { alpha = if (enabled || phase == RingPhase.Running) 1f else 0.45f },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxSize().padding(10.dp)) {
-            val stroke = 7.dp.toPx()
-            val inset = stroke / 2
-            val arcSize = Size(size.width - stroke, size.height - stroke)
+            val stroke = Stroke(7.dp.toPx(), cap = StrokeCap.Round)
+            val inset = stroke.width / 2
+            val arcSize = Size(size.width - stroke.width, size.height - stroke.width)
             val topLeft = Offset(inset, inset)
             val track = when {
                 phase == RingPhase.Running -> 0.12f
-                phase == RingPhase.Done && accent != null -> 0.10f
-                else -> breath
+                verdict -> 0.10f
+                else -> breath?.value ?: 0.16f
             }
-            drawArc(ink.copy(alpha = track), 135f, 270f, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+            drawArc(ink.copy(alpha = track), 135f, 270f, false, topLeft, arcSize, style = stroke)
             when {
-                phase == RingPhase.Running && sweep -> drawArc(ink.copy(alpha = 0.85f), spin + 135f, 46f, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-                phase == RingPhase.Running && shown > 0f -> drawArc(ink, 135f, 270f * shown, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-                phase == RingPhase.Done && accent != null -> drawArc(accent, 135f, 270f, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+                spin != null -> drawArc(ink.copy(alpha = 0.85f), spin.value + 135f, 46f, false, topLeft, arcSize, style = stroke)
+                phase == RingPhase.Running && shown > 0f -> drawArc(ink, 135f, 270f * shown, false, topLeft, arcSize, style = stroke)
+                verdictInk != null && closed > 0f -> drawArc(verdictInk, 135f, 270f * closed, false, topLeft, arcSize, style = stroke)
             }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, content = content)
+        // Clear of the stroke, so a word steps down inside the ring rather than meeting it.
+        Column(Modifier.padding(horizontal = 26.dp), horizontalAlignment = Alignment.CenterHorizontally, content = content)
     }
 }
+
+@Composable
+private fun rememberRingSpin(): State<Float> =
+    rememberInfiniteTransition(label = "ringSpin").animateFloat(0f, 360f, infiniteRepeatable(tween(1400, easing = LinearEasing)), label = "spin")
+
+@Composable
+private fun rememberRingBreath(): State<Float> =
+    rememberInfiniteTransition(label = "ringBreath").animateFloat(0.10f, 0.22f, infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breath")
 
 /** The ring's word when it asks to be tapped: Start, Test again. */
 @Composable
 internal fun RingWord(text: String) {
-    Text(text, fontSize = 30.sp, fontWeight = FontWeight.Medium, letterSpacing = 2.sp, textAlign = TextAlign.Center)
+    FitLine(text, TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Medium, letterSpacing = 2.sp, textAlign = TextAlign.Center))
 }
 
 /** A live number in the ring, with its unit. */
@@ -155,7 +181,6 @@ internal fun RingLine(text: String) {
         text,
         style = MaterialTheme.typography.bodyMedium,
         textAlign = TextAlign.Center,
-        maxLines = 2,
         modifier = Modifier.fillMaxWidth().padding(horizontal = TestGutter).graphicsLayer { alpha = 0.75f },
     )
 }
@@ -185,7 +210,7 @@ internal fun TestFigure(title: String, weather: NodeWeather?, word: String) {
             WeatherGlyph(weather, size = 20.dp, modifier = Modifier.padding(bottom = 5.dp))
             Spacer(Modifier.width(6.dp))
         }
-        Text(word, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, modifier = Modifier.padding(bottom = 2.dp))
+        FitLine(word, TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Medium), Modifier.padding(bottom = 2.dp))
     }
 }
 
@@ -248,7 +273,7 @@ internal fun TestRow(
  * wrapping at the row's full width, so nothing is squeezed, clipped or ellipsized.
  */
 @Composable
-private fun TitleAndValue(title: @Composable () -> Unit, value: (@Composable () -> Unit)?, modifier: Modifier = Modifier) {
+internal fun TitleAndValue(title: @Composable () -> Unit, value: (@Composable () -> Unit)?, modifier: Modifier = Modifier) {
     Layout(contents = listOf<@Composable () -> Unit>(title, value ?: {}), modifier = modifier) { (titles, values), constraints ->
         val gap = 12.dp.roundToPx()
         val titleMeasurable = titles.first()
@@ -276,36 +301,49 @@ private fun TitleAndValue(title: @Composable () -> Unit, value: (@Composable () 
     }
 }
 
+/** How a fold's arrow turns, here and on the device pages: a quick half turn that settles. */
+internal val FoldTurn: SpringSpec<Float> = spring(dampingRatio = 0.7f, stiffness = 420f)
+
 /** A heading that opens what belongs under it, such as Wi-Fi Calling or the test's scope. */
 @Composable
 internal fun TestFold(title: String, open: Boolean, onToggle: () -> Unit, enabled: Boolean = true) {
-    val turn by animateFloatAsState(if (open) 180f else 0f, label = "fold")
+    val turn by animateFloatAsState(if (open) 180f else 0f, FoldTurn, label = "fold")
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onToggle)
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                onClickLabel = stringResource(if (open) R.string.kone_row_hide_details else R.string.kone_row_show_details),
+                onClick = onToggle,
+            )
             .padding(horizontal = TestGutter, vertical = 13.dp)
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-        Icon(Icons.Filled.ExpandMore, contentDescription = null, modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = turn })
+        Icon(Icons.Filled.ExpandMore, contentDescription = null, modifier = Modifier.padding(start = 12.dp).size(20.dp).graphicsLayer { rotationZ = turn })
     }
 }
 
-/** A row that leaves KOne for a system setting. */
+/** A row that does one thing: by default it leaves KOne for a system setting; [icon] says otherwise. */
 @Composable
-internal fun TestLink(title: String, onClick: () -> Unit, enabled: Boolean = true) {
+internal fun TestLink(
+    title: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    icon: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = TestGutter, vertical = 13.dp)
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, modifier = Modifier.padding(start = 12.dp).size(20.dp))
     }
 }
 
@@ -322,3 +360,30 @@ internal fun TestNote(text: String, modifier: Modifier = Modifier) {
 /** The verdict colour a finished ring closes in. */
 @Composable
 internal fun ringAccent(weather: NodeWeather): Color = weatherInk(weather, LocalContentColor.current)
+
+/**
+ * One line that steps its type down to fit the width it is given rather than wrap or be cut. Below
+ * [minScale] of its size it stops shrinking and wraps instead, so the words always stay whole.
+ */
+@Composable
+internal fun FitLine(text: String, style: TextStyle, modifier: Modifier = Modifier, minScale: Float = 0.7f) {
+    val base = LocalTextStyle.current.merge(style)
+    BoxWithConstraints(modifier) {
+        val measurer = rememberTextMeasurer()
+        val room = constraints.maxWidth
+        val bounded = constraints.hasBoundedWidth
+        val (fitted, wraps) = remember(text, base, room, bounded) {
+            val need = if (bounded) measurer.measure(text, base, maxLines = 1, softWrap = false).size.width else 0
+            if (!bounded || need <= room || !base.fontSize.isSpecified) {
+                base to false
+            } else {
+                val scale = maxOf(minScale, room.toFloat() / need * 0.98f)
+                base.copy(
+                    fontSize = base.fontSize * scale,
+                    letterSpacing = if (base.letterSpacing.isSpecified) base.letterSpacing * scale else base.letterSpacing,
+                ) to (scale <= minScale)
+            }
+        }
+        Text(text, style = fitted, maxLines = if (wraps) Int.MAX_VALUE else 1, softWrap = wraps)
+    }
+}

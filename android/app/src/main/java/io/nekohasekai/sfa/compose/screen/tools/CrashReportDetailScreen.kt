@@ -24,7 +24,6 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Settings
 import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import androidx.compose.material3.IconButton

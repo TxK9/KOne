@@ -25,41 +25,22 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
@@ -71,9 +52,6 @@ import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.update.OwnerUpdateAccess
 import io.nekohasekai.sfa.update.KoneUpdates
 import io.nekohasekai.sfa.compose.theme.Theme
-import io.nekohasekai.sfa.compose.theme.KninePalette
-import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
-import io.nekohasekai.sfa.compose.screen.dashboard.WeatherSeal
 import java.net.URI
 
 /**
@@ -105,12 +83,9 @@ class ConsoleActivity : AppCompatActivity() {
             val appDark = isSystemInDarkTheme()
             val dark = pagePaper?.let { ColorUtils.calculateLuminance(it) < .5 } ?: appDark
             Theme(darkTheme = dark, plainKnine = true) {
-                val ink = androidx.compose.ui.graphics.Color(pageInk ?: if (dark) KninePalette.LIGHT_INK else KninePalette.DARK_INK)
-                val paper = androidx.compose.ui.graphics.Color(pagePaper ?: if (dark) 0xFF181A1F.toInt() else 0xFFF0F2F5.toInt())
-                MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(
-                    surface = paper, background = paper, onSurface = ink, onBackground = ink,
-                    onSurfaceVariant = ink.copy(alpha = .65f), primary = ink, onPrimary = paper,
-                )) {
+                val ink = pageInk?.let { androidx.compose.ui.graphics.Color(it) } ?: webToolInk(dark)
+                val paper = pagePaper?.let { androidx.compose.ui.graphics.Color(it) } ?: webToolPaper(dark)
+                WebToolTheme(paper, ink) {
                     BackHandler {
                         val view = web
                         if (!unreachable && view != null && view.canGoBack()) view.goBack() else finish()
@@ -122,52 +97,46 @@ class ConsoleActivity : AppCompatActivity() {
                             .systemBarsPadding()
                             .imePadding(),
                     ) {
-                        Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = {
+                        WebToolBar(
+                            title = stringResource(R.string.kone_tools_console),
+                            onBack = {
                                 val view = web
                                 if (!unreachable && view != null && view.canGoBack()) view.goBack() else finish()
-                            }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.content_description_back), tint = ink) }
-                            // One line between the two buttons: the serif title steps down rather than wrapping.
-                            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.weight(1f)) {
-                                val title = stringResource(R.string.kone_tools_console)
-                                val measurer = androidx.compose.ui.text.rememberTextMeasurer()
-                                val room = constraints.maxWidth
-                                val size = androidx.compose.runtime.remember(title, room) {
-                                    var sp = 22f
-                                    while (sp > 15f && measurer.measure(title, androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Serif, fontSize = sp.sp), maxLines = 1, softWrap = false).size.width > room) sp -= 0.5f
-                                    sp
-                                }
-                                Text(title, fontFamily = FontFamily.Serif, fontSize = size.sp, color = ink, maxLines = 1, softWrap = false)
-                            }
+                            },
+                        ) {
                             IconButton(onClick = { retry(home) }, enabled = !loading) {
                                 Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.kone_console_refresh), tint = ink)
                             }
                         }
-                        HorizontalDivider(color = ink.copy(alpha = .10f))
                         Box(Modifier.weight(1f)) {
-                        AndroidView(
-                            modifier = Modifier.fillMaxSize(),
-                            factory = { context ->
-                                WebView(context).also { view ->
-                                    prepare(view, home)
-                                    web = view
-                                    if (savedInstanceState == null || view.restoreState(savedInstanceState) == null) {
-                                        view.loadUrl(home.toString())
+                            AndroidView(
+                                modifier = Modifier.fillMaxSize(),
+                                factory = { context ->
+                                    WebView(context).also { view ->
+                                        prepare(view, home)
+                                        web = view
+                                        if (savedInstanceState == null || view.restoreState(savedInstanceState) == null) {
+                                            view.loadUrl(home.toString())
+                                        }
                                     }
-                                }
-                            },
-                        )
-                        if (unreachable) {
-                            Unreachable(onRetry = { retry(home) })
-                        } else if (loading) {
-                            LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = ink, trackColor = paper)
+                                },
+                            )
+                            if (unreachable) {
+                                WebToolProblem(
+                                    title = stringResource(R.string.kone_console_unreachable),
+                                    hint = stringResource(R.string.kone_console_unreachable_hint),
+                                    onRetry = { retry(home) },
+                                )
+                            } else if (loading) {
+                                WebToolProgress()
+                            }
                         }
-                        }
-                }
+                    }
                 }
             }
         }
     }
+
     /** Refresh stays on the page in view (the console routes by #/…); only with none of it loaded does it start from home. */
     private fun retry(home: URI) {
         if (loading) return
@@ -338,32 +307,5 @@ class ConsoleActivity : AppCompatActivity() {
         }
         web = null
         super.onDestroy()
-    }
-}
-
-@Composable
-private fun Unreachable(onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        WeatherSeal(NodeWeather.Cut, size = 48.dp)
-        Spacer(Modifier.height(24.dp))
-        Text(stringResource(R.string.kone_console_unreachable), fontFamily = FontFamily.Serif, fontSize = 26.sp, color = MaterialTheme.colorScheme.onSurface)
-        Text(
-            stringResource(R.string.kone_console_unreachable_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-        )
-        Button(onClick = onRetry, shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
-            Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(17.dp))
-            Text(stringResource(R.string.kone_console_retry), Modifier.padding(start = 8.dp))
-        }
     }
 }

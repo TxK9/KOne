@@ -1,14 +1,9 @@
 package io.nekohasekai.sfa.compose.screen.tools
 
-import androidx.compose.ui.text.style.TextOverflow
+import io.nekohasekai.sfa.compose.component.KnineChevron
 import io.nekohasekai.sfa.compose.theme.KnineMotion
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,11 +12,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -44,7 +36,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -160,12 +151,11 @@ internal fun TailscaleConnectionHeader(
         ) {
             Icon(Icons.Outlined.Hub, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stateText, style = MaterialTheme.typography.titleMedium, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                Text(stateText, style = MaterialTheme.typography.titleMedium)
                 Text(
                     if (enabled && onlineDevices != null) "$onlineDevices devices online" else "Private network",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
                 )
             }
             Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
@@ -196,7 +186,7 @@ internal fun TailscaleSettingsCard(
             headlineContent = { Text("Connection settings", style = MaterialTheme.typography.bodyLarge) },
             leadingContent = { Icon(Icons.Outlined.Tune, null, tint = MaterialTheme.colorScheme.primary) },
             trailingContent = { Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, if (expanded) "Collapse connection settings" else "Expand connection settings") },
-            modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { expanded = !expanded },
+            modifier = Modifier.clickable { expanded = !expanded },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         )
         AnimatedVisibility(visible = expanded, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
@@ -205,14 +195,14 @@ internal fun TailscaleSettingsCard(
                     headlineContent = { Text("Home network", style = MaterialTheme.typography.bodyLarge) },
                     supportingContent = { Text(if (hasSubnets) "Configured" else "Not configured", style = MaterialTheme.typography.bodyMedium) },
                     leadingContent = { Icon(Icons.Outlined.Router, null, tint = MaterialTheme.colorScheme.primary) },
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, onClick = onSubnets),
+                    modifier = Modifier.clickable(enabled = enabled, onClick = onSubnets),
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
                 ListItem(
                     headlineContent = { Text("Device name", style = MaterialTheme.typography.bodyLarge) },
                     supportingContent = { Text(if (hasHostname) "Configured" else "Not configured", style = MaterialTheme.typography.bodyMedium) },
                     leadingContent = { Icon(Icons.Outlined.Badge, null, tint = MaterialTheme.colorScheme.primary) },
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, onClick = onHostname),
+                    modifier = Modifier.clickable(enabled = enabled, onClick = onHostname),
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
             }
@@ -220,8 +210,8 @@ internal fun TailscaleSettingsCard(
         ListItem(
             headlineContent = { Text("Terminal appearance", style = MaterialTheme.typography.bodyLarge) },
             leadingContent = { Icon(Icons.Default.Terminal, null, tint = MaterialTheme.colorScheme.primary) },
-            trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp)) },
-            modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onTerminalConfig),
+            trailingContent = { KnineChevron() },
+            modifier = Modifier.clickable(onClick = onTerminalConfig),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         )
     }

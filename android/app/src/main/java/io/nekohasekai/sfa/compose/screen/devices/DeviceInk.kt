@@ -8,10 +8,6 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.clickable
@@ -76,7 +72,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
+import io.nekohasekai.sfa.compose.screen.tools.FoldTurn
 import io.nekohasekai.sfa.compose.screen.tools.TestGutter
+import io.nekohasekai.sfa.compose.screen.tools.TitleAndValue
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.devices.TrafficSnapshot
 import kotlinx.coroutines.Job
@@ -519,7 +518,7 @@ private fun smooth(points: List<Offset>): Path = Path().apply {
 @Composable
 internal fun InkFold(title: String, state: String?, open: Boolean, onToggle: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val ink = LocalContentColor.current
-    val turn by animateFloatAsState(if (open) 180f else 0f, spring(dampingRatio = 0.7f, stiffness = 420f), label = "fold")
+    val turn by animateFloatAsState(if (open) 180f else 0f, FoldTurn, label = "fold")
     Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier
@@ -529,17 +528,15 @@ internal fun InkFold(title: String, state: String?, open: Boolean, onToggle: () 
                 .padding(horizontal = TestGutter, vertical = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, modifier = Modifier.weight(1f))
-            if (state != null) {
-                Text(state, style = MaterialTheme.typography.bodySmall, maxLines = 1, modifier = Modifier.padding(horizontal = 10.dp).graphicsLayer { alpha = 0.55f })
-            }
-            Icon(Icons.Filled.ExpandMore, contentDescription = null, modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = turn; alpha = 0.6f })
+            // A long state (a profile's name) goes under the title rather than cutting either.
+            TitleAndValue(
+                title = { Text(title, style = MaterialTheme.typography.bodyLarge) },
+                value = state?.let { { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.graphicsLayer { alpha = 0.55f }) } },
+                modifier = Modifier.weight(1f),
+            )
+            Icon(Icons.Filled.ExpandMore, contentDescription = null, modifier = Modifier.padding(start = 10.dp).size(18.dp).graphicsLayer { rotationZ = turn; alpha = 0.6f })
         }
-        AnimatedVisibility(
-            open,
-            enter = fadeIn(tween(220, delayMillis = 60)) + expandVertically(spring(dampingRatio = 0.9f, stiffness = 380f)),
-            exit = fadeOut(tween(140)) + shrinkVertically(spring(dampingRatio = 0.95f, stiffness = 420f)),
-        ) {
+        AnimatedVisibility(open, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
             Column(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalArrangement = Arrangement.Top, content = content)
         }
     }

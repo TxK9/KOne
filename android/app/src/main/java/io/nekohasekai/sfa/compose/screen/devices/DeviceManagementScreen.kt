@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -66,6 +67,7 @@ import androidx.navigation.NavController
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.compose.screen.dashboard.WeatherGlyph
 import io.nekohasekai.sfa.compose.screen.dashboard.weatherInk
+import io.nekohasekai.sfa.compose.screen.tools.FitLine
 import io.nekohasekai.sfa.compose.screen.tools.TestGutter
 import io.nekohasekai.sfa.compose.theme.KnineSegmented
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
@@ -394,7 +396,7 @@ private fun EngineHeading(kind: EngineKind, page: EnginePageState) {
     val since = status?.since?.takeIf { status.state == RunState.Running }?.let { "since " + clock(it) }
     Row(Modifier.fillMaxWidth().padding(start = TestGutter, end = TestGutter, top = 22.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
-            Text(kind.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium, maxLines = 1)
+            FitLine(kind.title, MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium))
             Spacer(Modifier.height(2.dp))
             Text(
                 listOfNotNull(kind.family, page.status?.version, since).joinToString(" · "),
@@ -406,7 +408,7 @@ private fun EngineHeading(kind: EngineKind, page: EnginePageState) {
         Row(Modifier.padding(start = 12.dp, bottom = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             WeatherGlyph(weather, size = 16.dp)
             Spacer(Modifier.width(6.dp))
-            Text(word, style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.graphicsLayer { alpha = 0.82f })
+            Text(word, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.graphicsLayer { alpha = 0.82f })
         }
     }
 }
@@ -446,7 +448,8 @@ private fun NodeGroups(groups: List<NodeGroup>, enabled: Boolean, onSelect: (Str
             Box(Modifier.size(18.dp), contentAlignment = Alignment.Center) {
                 if (chosen) Icon(Icons.Filled.Check, contentDescription = "Selected", modifier = Modifier.size(16.dp))
             }
-            Text(node.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, modifier = Modifier.weight(1f).padding(start = 10.dp))
+            // A long name wraps; it is never cut.
+            Text(node.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(start = 10.dp))
             node.protocol?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp).graphicsLayer { alpha = 0.55f }) }
             // The delay as a short stroke in its weather's ink, then the number.
             val delay = node.latencyMs
@@ -481,9 +484,10 @@ private fun RuleLines(rules: List<RoutingRule>) {
                 .graphicsLayer { alpha = if (rule.enabled) 1f else DimAlpha },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(rule.match, style = MaterialTheme.typography.bodyMedium, maxLines = 2, modifier = Modifier.weight(1f))
+            // Both sides wrap whole; the target keeps to at most two fifths of the line.
+            Text(rule.match, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             Text("  →  ", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.graphicsLayer { alpha = 0.35f })
-            Text(rule.target, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1)
+            Text(rule.target, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.fillMaxWidth(0.4f).wrapContentWidth(Alignment.End))
         }
     }
     if (rules.size > RULES_SHOWN) Whisper("${rules.size - RULES_SHOWN} more", Modifier.padding(top = 6.dp))

@@ -185,16 +185,16 @@ class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
                     if (!currentState.isRunning || generation != testGeneration) return@launch
                     updateState {
                         copy(
-                            phase = progress.phase.toInt(),
-                            idleLatencyMs = progress.idleLatencyMs.toInt(),
+                            phase = progress.phase,
+                            idleLatencyMs = progress.idleLatencyMs,
                             downloadCapacity = progress.downloadCapacity,
                             uploadCapacity = progress.uploadCapacity,
-                            downloadRPM = progress.downloadRPM.toInt(),
-                            uploadRPM = progress.uploadRPM.toInt(),
-                            downloadCapacityAccuracy = progress.downloadCapacityAccuracy.toInt(),
-                            uploadCapacityAccuracy = progress.uploadCapacityAccuracy.toInt(),
-                            downloadRPMAccuracy = progress.downloadRPMAccuracy.toInt(),
-                            uploadRPMAccuracy = progress.uploadRPMAccuracy.toInt(),
+                            downloadRPM = progress.downloadRPM,
+                            uploadRPM = progress.uploadRPM,
+                            downloadCapacityAccuracy = progress.downloadCapacityAccuracy,
+                            uploadCapacityAccuracy = progress.uploadCapacityAccuracy,
+                            downloadRPMAccuracy = progress.downloadRPMAccuracy,
+                            uploadRPMAccuracy = progress.uploadRPMAccuracy,
                         )
                     }
                 }
@@ -206,16 +206,16 @@ class NetworkQualityViewModel : BaseViewModel<NetworkQualityState, Nothing>() {
                     if (!currentState.isRunning || generation != testGeneration) return@launch
                     updateState {
                         copy(
-                            phase = Libbox.NetworkQualityPhaseDone.toInt(),
-                            idleLatencyMs = result.idleLatencyMs.toInt(),
+                            phase = Libbox.NetworkQualityPhaseDone,
+                            idleLatencyMs = result.idleLatencyMs,
                             downloadCapacity = result.downloadCapacity,
                             uploadCapacity = result.uploadCapacity,
-                            downloadRPM = result.downloadRPM.toInt(),
-                            uploadRPM = result.uploadRPM.toInt(),
-                            downloadCapacityAccuracy = result.downloadCapacityAccuracy.toInt(),
-                            uploadCapacityAccuracy = result.uploadCapacityAccuracy.toInt(),
-                            downloadRPMAccuracy = result.downloadRPMAccuracy.toInt(),
-                            uploadRPMAccuracy = result.uploadRPMAccuracy.toInt(),
+                            downloadRPM = result.downloadRPM,
+                            uploadRPM = result.uploadRPM,
+                            downloadCapacityAccuracy = result.downloadCapacityAccuracy,
+                            uploadCapacityAccuracy = result.uploadCapacityAccuracy,
+                            downloadRPMAccuracy = result.downloadRPMAccuracy,
+                            uploadRPMAccuracy = result.uploadRPMAccuracy,
                             isRunning = false,
                         )
                     }
