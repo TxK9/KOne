@@ -28,11 +28,8 @@ object PairedProfile {
         // The fragment is only a display name and is often shared unencoded.
         val uri = try { URI(link.trim().substringBefore('#')) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
-        val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        // java.net.URI keeps the brackets of an IPv6 literal; sing-box expects the bare address.
-        val host = uri.host?.removeSurrounding("[", "]")?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
-        val port = if (uri.port == -1) 443 else uri.port
-        require(port in 1..65535) { "Invalid connection port" }
+        val (userInfo, host, port) = authority(uri)
+        val uuid = try { UUID.fromString(userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
         val parameters = mutableMapOf<String, String>()
         uri.rawQuery.orEmpty().split('&').filter { it.isNotBlank() }.forEach {
             val pieces = it.split('=', limit = 2)
@@ -61,6 +58,30 @@ object PairedProfile {
             node.put("flow", it)
         }
         return build(node, rulesDirectory)
+    }
+
+    /**
+     * java.net.URI keeps the brackets of an IPv6 literal in [URI.host], which sing-box expects bare,
+     * and drops the whole server authority for hostnames it rejects, such as names containing '_'.
+     */
+    private fun authority(uri: URI): Triple<String?, String, Int> {
+        val (userInfo, rawHost, rawPort) = if (uri.host != null) {
+            Triple(uri.userInfo, uri.host, uri.port)
+        } else {
+            // URI only falls back to a registry authority for names, never for bracketed IPv6.
+            val raw = uri.rawAuthority ?: throw IllegalArgumentException("Connection server is missing")
+            val hostPort = raw.substringAfterLast('@')
+            val name = hostPort.substringBefore(':')
+            require(name.isNotEmpty() && name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it in "-._" }) { "Invalid connection server" }
+            val portText = hostPort.substringAfter(':', "")
+            val port = if (portText.isEmpty()) -1 else portText.toIntOrNull() ?: throw IllegalArgumentException("Invalid connection port")
+            val userInfo = if ('@' in raw) URLDecoder.decode(raw.substringBeforeLast('@'), "UTF-8") else null
+            Triple(userInfo, name, port)
+        }
+        val host = rawHost.removeSurrounding("[", "]").takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        val port = if (rawPort == -1) 443 else rawPort
+        require(port in 1..65535) { "Invalid connection port" }
+        return Triple(userInfo, host, port)
     }
 
     // Names accepted by the core's uTLS client; Xray-only names have no equivalent there.

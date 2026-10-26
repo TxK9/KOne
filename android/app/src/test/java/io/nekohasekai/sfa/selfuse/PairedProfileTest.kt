@@ -177,4 +177,19 @@ class PairedProfileTest {
         val emoji = PairedProfile.displayName("$link#" + "x".repeat(63) + "🇺🇸")
         assertTrue(!emoji.last().isHighSurrogate())
     }
+
+    @Test
+    fun acceptsHostnameWithUnderscore() {
+        val node = JSONObject(PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@edge_1.node.invalid:2053"))).getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("edge_1.node.invalid", node.getString("server"))
+        assertEquals(2053, node.getInt("server_port"))
+        assertEquals("00000000-0000-0000-0000-000000000001", node.getString("uuid"))
+        val defaultPort = JSONObject(PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@edge_1.node.invalid"))).getJSONArray("outbounds").getJSONObject(1)
+        assertEquals(443, defaultPort.getInt("server_port"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsInvalidPortOnUnderscoreHostname() {
+        PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@edge_1.node.invalid:70000"))
+    }
 }
