@@ -76,6 +76,8 @@ object ProfileManager {
         try {
             return instance.profileDao().delete(profile)
         } finally {
+            // A chain through or of a deleted node ends with it.
+            runCatching { io.nekohasekai.sfa.selfuse.NodeChain.forget(profile.id) }
             for (callback in callbacks.toList()) {
                 callback()
             }
@@ -86,6 +88,7 @@ object ProfileManager {
         try {
             return instance.profileDao().delete(profiles)
         } finally {
+            profiles.forEach { runCatching { io.nekohasekai.sfa.selfuse.NodeChain.forget(it.id) } }
             for (callback in callbacks.toList()) {
                 callback()
             }

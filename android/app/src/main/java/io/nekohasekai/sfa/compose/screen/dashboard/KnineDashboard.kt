@@ -1,5 +1,10 @@
 package io.nekohasekai.sfa.compose.screen.dashboard
 
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -348,6 +353,7 @@ internal fun KnineDashboard(
     val selectedReading = NodeLatency[selectedId]
     SideEffect {
         io.nekohasekai.sfa.compose.theme.InkStage.weather.value = if (started) selectedReading?.let { NodeWeather.of(it.health) } else null
+        io.nekohasekai.sfa.compose.theme.CityWallpapers.connected = started
     }
     LaunchedEffect(uiState.probeTime, uiState.probeDelay) {
         if (started && uiState.probeTime > 0 && uiState.probeDelay > 0) {
@@ -749,11 +755,17 @@ internal fun CollapsedPanel(
                 BText(selected?.name ?: noNode, style = type, fontWeight = FontWeight.SemiBold, emphasized = true, maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis)
             }
         }
-        if (!started) {
-            // Disconnected: the line rests; each node's latency stays in the list above.
-            Row(item, verticalAlignment = Alignment.CenterVertically) { WeatherSeal(NodeWeather.Rest, 18.dp) }
-        } else if (reading != null) {
-            Row(item, verticalAlignment = Alignment.CenterVertically) { HealthLabel(reading, large = true) }
+        // Disconnected: the line rests; each node's latency stays in the list above. Changes cross-fade.
+        androidx.compose.animation.AnimatedContent(
+            targetState = if (!started) null else reading,
+            transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(180)) },
+            contentKey = { it?.let { r -> NodeWeather.of(r.health) } ?: NodeWeather.Rest },
+            label = "foldedHealth",
+            modifier = item,
+        ) { shown ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (shown == null) WeatherSeal(NodeWeather.Rest, 18.dp) else HealthLabel(shown, large = true)
+            }
         }
         if (started && host.homeState != HomeState.None) {
             Row(item, verticalAlignment = Alignment.CenterVertically) { HomeMark(host) }
@@ -904,13 +916,24 @@ internal fun HealthLabel(reading: NodeReading, large: Boolean = false, unit: Boo
                     softWrap = false,
                 )
             } else {
-                BText(
-                    if (unit) reading.label else reading.label.removeSuffix(" ms"),
-                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.graphicsLayer { alpha = 0.72f },
-                )
+                // A new reading rolls in over the old one, up when slower, down when faster.
+                androidx.compose.animation.AnimatedContent(
+                    targetState = if (unit) reading.label else reading.label.removeSuffix(" ms"),
+                    transitionSpec = {
+                        val slower = (targetState.filter(Char::isDigit).toIntOrNull() ?: 0) > (initialState.filter(Char::isDigit).toIntOrNull() ?: 0)
+                        (slideInVertically(tween(240)) { if (slower) it else -it } + fadeIn(tween(240))) togetherWith
+                            (slideOutVertically(tween(200)) { if (slower) -it else it } + fadeOut(tween(160)))
+                    },
+                    label = "latency",
+                ) { label ->
+                    BText(
+                        label,
+                        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.graphicsLayer { alpha = 0.72f },
+                    )
+                }
             }
         }
     }
@@ -919,7 +942,7 @@ internal fun HealthLabel(reading: NodeReading, large: Boolean = false, unit: Boo
 internal fun healthColor(health: NodeHealth, ink: Color): Color = weatherInk(NodeWeather.of(health), ink)
 
 @Composable
-private fun rememberUptime(start: Long?): String {
+internal fun rememberUptime(start: Long?): String {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(start) {
         while (start != null) {
@@ -1151,6 +1174,15 @@ internal fun NodeRow(
                 flag != null -> FlagGlyph(flag, size = 18.dp)
                 ProfileIcons.getIconById(profile.icon) != null ->
                     ProfileIconGlyph(profile.icon, fallback = Icons.Default.MoreHoriz, size = 18.dp, tint = ink.copy(alpha = 0.85f))
+            }
+            // A node reached through another wears a small link at its flag's corner.
+            @Suppress("UNUSED_VARIABLE") val chains = io.nekohasekai.sfa.selfuse.NodeChain.revision
+            if (io.nekohasekai.sfa.selfuse.NodeChain.via(profile.id) != null) {
+                Icon(
+                    Icons.Outlined.Link,
+                    contentDescription = "Chained",
+                    modifier = Modifier.align(Alignment.BottomEnd).offset(x = 3.dp, y = 4.dp).size(11.dp),
+                )
             }
         }
         // The whole name: its type a little smaller when long, then on two lines; the latencies line up in one column.

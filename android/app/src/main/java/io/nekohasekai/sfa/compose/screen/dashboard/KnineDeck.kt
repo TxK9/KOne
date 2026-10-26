@@ -115,6 +115,7 @@ import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as BText
 import io.nekohasekai.sfa.compose.theme.knineSurface
 import io.nekohasekai.sfa.compose.util.FlagGlyph
+import io.nekohasekai.sfa.compose.util.FlagIcons
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -165,7 +166,11 @@ internal fun NodeDeck(
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     var expanded by remember { mutableStateOf(false) }
-    val listMax = (LocalConfiguration.current.screenHeightDp * 0.42f).dp
+    // The lifted list stops a third of the way up, so the city stays in view above even with many nodes.
+    val listMax = (LocalConfiguration.current.screenHeightDp * if (floating) 0.34f else 0.42f).dp
+    // With many nodes from several countries, a line of flags narrows the lifted list to one country.
+    var country by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(pagerState.currentPage) { country = null }
 
     // Every page is composed, so the tallest is known before anyone swipes to it.
     val heights = remember { mutableStateMapOf<String, Int>() }
@@ -223,6 +228,17 @@ internal fun NodeDeck(
                 key(group.id) { CategoryEditor(group = group, onDone = { onEditingChange(null) }) }
             }
         }
+        val current = groups.getOrNull(pagerState.currentPage)
+        val flags = remember(current?.profiles) {
+            current?.profiles.orEmpty().groupingBy { FlagIcons.codeFor(it.icon, it.name) }.eachCount()
+        }
+        AnimatedVisibility(
+            visible = floating && current != null && current.profiles.size > MANY_NODES && flags.keys.count { it != null } >= 2,
+            enter = io.nekohasekai.sfa.compose.theme.KnineMotion.reveal(),
+            exit = io.nekohasekai.sfa.compose.theme.KnineMotion.conceal(),
+        ) {
+            CountryFilter(flags = flags, picked = country, onPick = { country = if (country == it) null else it })
+        }
         HorizontalPager(
             state = pagerState,
             modifier = Modifier
@@ -237,10 +253,14 @@ internal fun NodeDeck(
         ) { index ->
             val group = groups.getOrNull(index) ?: return@HorizontalPager
             val all = floating || expanded
+            val filtered = if (floating && country != null && index == pagerState.currentPage) {
+                group.copy(profiles = group.profiles.filter { FlagIcons.codeFor(it.icon, it.name) == country })
+            } else group
             // Only a list too long for the screen scrolls; a short one leaves the swipe that folds the panel alone.
-            val long = all && group.profiles.size * NODE_ROW_DP > listMax.value
+            val long = all && filtered.profiles.size * NODE_ROW_DP > listMax.value
+            val scroll = rememberScrollState()
             NodePage(
-                group = group,
+                group = filtered,
                 selectedId = selectedId,
                 clear = clear || floating,
                 all = all,
@@ -258,8 +278,69 @@ internal fun NodeDeck(
                         val distance = abs(index - pagerState.currentPage - pagerState.currentPageOffsetFraction).coerceAtMost(1f)
                         alpha = 1f - distance * 0.6f
                     }
-                    .then(if (long) Modifier.heightIn(max = listMax).verticalScroll(rememberScrollState()) else Modifier),
+                    .then(if (long) Modifier.heightIn(max = listMax).fadingEdges(scroll).verticalScroll(scroll) else Modifier),
             )
+        }
+    }
+}
+
+/** More nodes than this in one category, from more than one country, bring out the line of flags. */
+private const val MANY_NODES = 8
+
+/**
+ * A scrolling list dissolves at the edge that has more beyond it, so rows ease into the city
+ * rather than being cut off by a hard line; the fade grows with the first rows scrolled.
+ */
+private fun Modifier.fadingEdges(scroll: androidx.compose.foundation.ScrollState): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val edge = 36.dp.toPx()
+            val top = 1f - (scroll.value / edge).coerceIn(0f, 1f)
+            val bottom = 1f - ((scroll.maxValue - scroll.value) / edge).coerceIn(0f, 1f)
+            if (top < 1f) {
+                drawRect(
+                    Brush.verticalGradient(0f to Color.Black.copy(alpha = top), 1f to Color.Black, startY = 0f, endY = edge),
+                    size = androidx.compose.ui.geometry.Size(size.width, edge),
+                    blendMode = BlendMode.DstIn,
+                )
+            }
+            if (bottom < 1f) {
+                drawRect(
+                    Brush.verticalGradient(0f to Color.Black, 1f to Color.Black.copy(alpha = bottom), startY = size.height - edge, endY = size.height),
+                    topLeft = Offset(0f, size.height - edge),
+                    size = androidx.compose.ui.geometry.Size(size.width, edge),
+                    blendMode = BlendMode.DstIn,
+                )
+            }
+        }
+
+/** The countries of a long list as flags with their counts; tapping one shows only its nodes, tapping it again shows all. */
+@Composable
+private fun CountryFilter(flags: Map<String?, Int>, picked: String?, onPick: (String) -> Unit) {
+    val ink = LocalContentColor.current
+    LazyRow(
+        Modifier.fillMaxWidth().padding(bottom = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(horizontal = 6.dp),
+    ) {
+        val countries = flags.entries.filter { it.key != null }.sortedByDescending { it.value }
+        itemsIndexed(countries, key = { _, entry -> entry.key!! }) { _, (code, count) ->
+            val chosen = code == picked
+            val fill by animateFloatAsState(if (chosen) 1f else 0f, tween(220), label = "countryFill")
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(ink.copy(alpha = 0.08f + 0.14f * fill))
+                    .border(1.dp, ink.copy(alpha = 0.5f * fill), RoundedCornerShape(16.dp))
+                    .selectable(selected = chosen, role = Role.Tab, onClick = { onPick(code!!) })
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FlagGlyph(code!!, size = 16.dp)
+                Spacer(Modifier.width(5.dp))
+                BText(count.toString(), style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"))
+            }
         }
     }
 }
@@ -718,9 +799,14 @@ private fun NodePage(
         val shown = if (all) group.profiles else visibleNodes(group, selectedId)
         shown.forEachIndexed { i, profile ->
             key(profile.id) {
+            val shareContext = LocalContext.current
+            val shareScope = rememberCoroutineScope()
             SwipeNode(
                 deletable = onDelete != null && !io.nekohasekai.sfa.managed.ManagedState.isManaged(profile.id),
                 onDelete = { onDelete?.invoke(profile.id) },
+                onShare = if (io.nekohasekai.sfa.compose.component.canShareNode(profile)) ({
+                    shareScope.launch { io.nekohasekai.sfa.compose.component.shareNodeAsText(shareContext, profile) }
+                }) else null,
             ) {
             NodeRow(
                 profile = profile,

@@ -148,18 +148,22 @@ fun NavHost(
         }
 
         composable(Screen.Log.route) {
+            // The Status tab reads the dashboard's live state: the node, speeds and totals.
+            val live = dashboardViewModel?.uiState?.collectAsState()?.value
             if (logViewModel != null) {
                 LogScreen(
                     serviceStatus = serviceStatus,
                     showStartFab = showStartFab,
                     showStatusBar = showStatusBar,
                     viewModel = logViewModel,
+                    live = live,
                 )
             } else {
                 LogScreen(
                     serviceStatus = serviceStatus,
                     showStartFab = showStartFab,
                     showStatusBar = showStatusBar,
+                    live = live,
                 )
             }
         }

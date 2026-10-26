@@ -1,5 +1,12 @@
 package io.nekohasekai.sfa.compose.screen.profile
 
+import android.widget.Toast
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 
@@ -152,6 +159,12 @@ internal fun KnineNodeEditor(
             Spacer(Modifier.height(26.dp))
             BackdropCard(Modifier.fillMaxWidth().settle(3)) {
                 CategoryChoice(profile = profile, savedName = state.originalName)
+                if (io.nekohasekai.sfa.compose.component.canShareNode(profile)) {
+                    Hairline()
+                    ChainChoice(profile = profile)
+                    Hairline()
+                    ShareChoice(profile = profile)
+                }
                 if (remote) {
                     Hairline()
                     RemoteOptions(state, onAutoUpdate, onAutoUpdateInterval, onLeaveOut, onUpdateNow)
@@ -292,6 +305,93 @@ private fun CategoryChoice(profile: Profile, savedName: String) {
                 CategoryChip(label = label, flag = flag, chosen = id == current) { NodeCategoryStore.assign(profile.id, id) }
             }
         }
+    }
+}
+
+/**
+ * The node in front of this one, chosen in place: Off, or any other node of the person's own. A pick
+ * is tried on the core first and kept only if the chained configuration holds.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChainChoice(profile: Profile) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var open by remember { mutableStateOf(false) }
+    var trying by remember { mutableStateOf(false) }
+    @Suppress("UNUSED_VARIABLE") val revision = io.nekohasekai.sfa.selfuse.NodeChain.revision
+    val via = io.nekohasekai.sfa.selfuse.NodeChain.via(profile.id)
+    val others by androidx.compose.runtime.produceState(emptyList<Profile>(), profile.id) {
+        value = withContext(Dispatchers.IO) { ProfileManager.list() }.filter { other ->
+            other.id != profile.id && !io.nekohasekai.sfa.managed.ManagedState.isManaged(other.id) &&
+                io.nekohasekai.sfa.selfuse.NodeChain.via(other.id) != profile.id
+        }
+    }
+    val front = others.firstOrNull { it.id == via }
+    fun pick(choice: Profile?) {
+        if (choice == null) { io.nekohasekai.sfa.selfuse.NodeChain.set(profile.id, null); return }
+        trying = true
+        scope.launch {
+            val problem = withContext(Dispatchers.IO) {
+                runCatching {
+                    val exit = java.io.File(profile.typed.path).readText()
+                    val chained = io.nekohasekai.sfa.selfuse.NodeChain.chain(exit, java.io.File(choice.typed.path).readText(), choice.name)
+                        ?: return@runCatching "${choice.name} cannot carry another node."
+                    io.nekohasekai.libbox.Libbox.checkConfig(io.nekohasekai.sfa.selfuse.HomeSettings.prepare(chained))
+                    null
+                }.getOrElse { it.message?.lineSequence()?.firstOrNull()?.take(120) ?: "This chain does not hold." }
+            }
+            trying = false
+            if (problem == null) io.nekohasekai.sfa.selfuse.NodeChain.set(profile.id, choice.id)
+            else Toast.makeText(context, problem, Toast.LENGTH_SHORT).show()
+        }
+    }
+    ActionRow(Icons.Outlined.Link, "Chain through", onClick = { open = !open }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val frontFlag = front?.let { FlagIcons.codeFor(it.icon, it.name) }
+            frontFlag?.let { FlagGlyph(it, size = 16.dp); Spacer(Modifier.width(6.dp)) }
+            BText(
+                front?.name ?: "Off",
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 120.dp).graphicsLayer { alpha = if (trying) 0.4f else 0.75f },
+            )
+        }
+    }
+    AnimatedVisibility(visible = open, enter = io.nekohasekai.sfa.compose.theme.KnineMotion.reveal(), exit = io.nekohasekai.sfa.compose.theme.KnineMotion.conceal()) {
+        FlowRow(
+            Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            CategoryChip(label = "Off", flag = null, chosen = front == null) { pick(null) }
+            others.forEach { other ->
+                CategoryChip(label = other.name, flag = FlagIcons.codeFor(other.icon, other.name), chosen = other.id == via) { if (!trying) pick(other) }
+            }
+        }
+    }
+}
+
+/** The node's QR code and link, unfolding under the row and scrolled into view with its buttons. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun ShareChoice(profile: Profile) {
+    var open by remember { mutableStateOf(false) }
+    val bring = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    LaunchedEffect(open) {
+        // Once the panel has unfolded, so the page scrolls by its full height.
+        if (open) { kotlinx.coroutines.delay(380); bring.bringIntoView() }
+    }
+    ActionRow(Icons.Outlined.QrCode2, "Share", onClick = { open = !open }) {
+        Icon(
+            if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp).graphicsLayer { alpha = 0.5f },
+        )
+    }
+    AnimatedVisibility(visible = open, enter = io.nekohasekai.sfa.compose.theme.KnineMotion.reveal(), exit = io.nekohasekai.sfa.compose.theme.KnineMotion.conceal()) {
+        io.nekohasekai.sfa.compose.component.NodeSharePanel(profile, Modifier.bringIntoViewRequester(bring))
     }
 }
 

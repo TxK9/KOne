@@ -13,6 +13,17 @@ object NodeShareLink {
         return (0 until values.length()).mapNotNull { values.optJSONObject(it) }
             .filter { it.optString("type") in setOf("vless", "vmess", "trojan", "shadowsocks", "hysteria2", "tuic", "anytls") }
     }
+    /** The link for the node a saved configuration selects by default, named [name]. */
+    fun forConfig(config: String, name: String): String {
+        val all = nodes(config)
+        if (all.isEmpty()) throw ShareLinkException("This node cannot be shared as a link.")
+        val selector = JSONObject(config).optJSONArray("outbounds")?.let { array ->
+            (0 until array.length()).mapNotNull { array.optJSONObject(it) }.firstOrNull { it.optString("tag") == PairedProfile.PROXY_TAG }
+        }
+        val wanted = selector?.optString("default").orEmpty()
+        return encode(all.firstOrNull { it.optString("tag") == wanted } ?: all.first(), name)
+    }
+
     fun encode(node: JSONObject, name: String): String {
         fun fail(): Nothing = throw ShareLinkException("This node has parameters unsupported by QR export.")
         val type = node.getString("type")

@@ -33,8 +33,15 @@
     schedule();
   }
   // No JavaScript-to-native bridge. Android only supplies visibility to this local page.
+  let linked = false;
+  // The app says when KOne connects; the city answers with a sweep of light (see pulse-v1.js).
+  function connected(value) {
+    linked = Boolean(value);
+    for (const layer of layers) layer.setConnected?.(linked);
+  }
   window.KOneWallpaper = {
     active,
+    connected,
     get state() { return {ready, error, scene: scene?.id, running, time:clock(), layers:layers.map(layer => layer.state)}; },
   };
   document.addEventListener('visibilitychange', () => active(!document.hidden));
@@ -64,7 +71,7 @@
     // The city's own sky is an extra: if it cannot start, the artwork still runs.
     try { if (window.KOnePulseV1) layers.push(KOnePulseV1.attach(document.getElementById('pulse'), scene, options)); } catch (_) {}
     sky = NycSkyV5.attach(document.getElementById('sky'), scene, 'day', {zone:scene.cityLocation, instant:time()});
-    ready = true; updateSky(); active(visible);
+    ready = true; updateSky(); active(visible); connected(linked);
     document.documentElement.dataset.ready = 'true';
   }).catch(failure => {
     error = failure.message; active(false);

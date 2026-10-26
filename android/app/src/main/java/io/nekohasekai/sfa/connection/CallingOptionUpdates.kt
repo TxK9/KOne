@@ -47,8 +47,11 @@ internal object CallingOptionUpdates {
 
                 override suspend fun prepareAndValidate(profileId: Long, options: CallingOptions): PreparedCallingConfig {
                     val profile = ProfileManager.get(profileId) ?: error("Profile unavailable")
+                    val chained = io.nekohasekai.sfa.selfuse.NodeChain.applyFor(profile.id, File(profile.typed.path).readText()) { id ->
+                        ProfileManager.get(id)?.let { front -> File(front.typed.path).readText().takeIf { it.isNotBlank() }?.let { it to front.name } }
+                    }
                     val content = RuntimeConnectionConfig.prepare(
-                        HomeSettings.prepare(File(profile.typed.path).readText()), options,
+                        HomeSettings.prepare(chained), options,
                         AppPolicySnapshot.current(application.packageName),
                     )
                     Libbox.checkConfig(content)

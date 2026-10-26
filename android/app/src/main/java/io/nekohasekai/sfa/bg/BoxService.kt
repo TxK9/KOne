@@ -122,11 +122,16 @@ class BoxService(private val service: Service, private val platformInterface: Pl
 
     private var lastProfileName = ""
 
+    /** The node a chain goes through, read for the service as it starts. */
+    private fun chainFront(id: Long): Pair<String, String>? = kotlinx.coroutines.runBlocking {
+        io.nekohasekai.sfa.database.ProfileManager.get(id)
+    }?.let { front -> runCatching { File(front.typed.path).readText() }.getOrNull()?.takeIf { it.isNotBlank() }?.let { it to front.name } }
+
     private fun runtimeContent(profile: io.nekohasekai.sfa.database.Profile): String {
         val content = File(profile.typed.path).readText()
         if (content.isBlank()) return content
         return RuntimeConnectionConfig.prepare(
-            HomeSettings.prepare(content),
+            HomeSettings.prepare(io.nekohasekai.sfa.selfuse.NodeChain.applyFor(profile.id, content, ::chainFront)),
             io.nekohasekai.sfa.connection.CallingPreferences(service).read(profile.id),
             AppPolicySnapshot.current(service.applicationContext.packageName),
         )

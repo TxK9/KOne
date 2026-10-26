@@ -60,6 +60,9 @@ internal object CityWallpapers {
     /** True while the dashboard shows: the city comes up bright there and steps back behind reading pages. */
     var lively by mutableStateOf(false)
 
+    /** True while KOne is connected: the city answers the connection with a sweep of light. */
+    var connected by mutableStateOf(false)
+
     private var shownThisRun = false
 
     /**
@@ -190,6 +193,7 @@ internal fun CityWallpaper(modifier: Modifier = Modifier) {
             }
             webViewClient = WallpaperAssetClient(context) { page ->
                 page.evaluateJavascript("window.KOneWallpaper && window.KOneWallpaper.active($resumed)", null)
+                page.evaluateJavascript("window.KOneWallpaper && window.KOneWallpaper.connected && window.KOneWallpaper.connected(${CityWallpapers.connected})", null)
             }
         }
         }.getOrNull()
@@ -206,6 +210,9 @@ internal fun CityWallpaper(modifier: Modifier = Modifier) {
         return
     }
     LaunchedEffect(web, url) { web.loadUrl(url) }
+    LaunchedEffect(web, CityWallpapers.connected) {
+        web.evaluateJavascript("window.KOneWallpaper && window.KOneWallpaper.connected && window.KOneWallpaper.connected(${CityWallpapers.connected})", null)
+    }
     LaunchedEffect(web, resumed) {
         if (resumed) web.onResume()
         web.evaluateJavascript("window.KOneWallpaper && window.KOneWallpaper.active($resumed)", null)

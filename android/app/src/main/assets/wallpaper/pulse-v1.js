@@ -109,6 +109,8 @@
     let playing = options.playing !== false, visible = true, destroyed = false;
     let width = 0, height = 0, dpr = 1, raf = 0, last = null, lastPaint = null, seconds = 0, frames = 0;
     let daylight = 1, craft = [], nextAir = 0, nextHeli = 0;
+    // Connecting sends one sweep of light along the skyline; while connected the city glows a little warmer.
+    let connected = false, lift = 0, sweepAt = null;
 
     const zone = scene?.cityZone || 'UTC';
     const localDate = () => {
@@ -156,7 +158,7 @@
     function drawGlow(night) {
       const [r, g, b, strength] = profile.glow;
       const breath = 1 + .06 * Math.sin(seconds / 47 * TAU);
-      const a = strength * night * breath;
+      const a = strength * night * breath * (1 + .3 * lift);
       if (a <= .01) return;
       const [, hy] = at(0, horizon), band = height * .16;
       const grad = ctx.createLinearGradient(0, hy - band, 0, hy + band * .5);
@@ -250,12 +252,29 @@
       return true;
     }
 
+    function drawSweep(night) {
+      if (sweepAt === null) return;
+      const t = (seconds - sweepAt) / 2.2;
+      if (t < 0 || t > 1) { if (t > 1) sweepAt = null; return; }
+      const [r, g, b] = profile.glow;
+      const x = (-.2 + t * 1.4) * width, [, hy] = at(0, horizon), band = width * .22;
+      const strength = (.2 + .35 * night) * Math.sin(t * Math.PI);
+      const grad = ctx.createRadialGradient(x, hy, 0, x, hy, band);
+      grad.addColorStop(0, `rgba(${r},${g},${b},${strength})`);
+      grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = 1; ctx.fillStyle = grad;
+      ctx.fillRect(x - band, hy - band * .6, band * 2, band * 1.2);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
     function render() {
       if (!ctx || !width || !height) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
       const night = clamp(1 - daylight), day = clamp(daylight);
+      lift += ((connected ? 1 : 0) - lift) * .04;
       drawGlow(night);
+      drawSweep(night);
       drawBeams(night);
       craft = craft.filter(c => drawCraft(c, night, day));
       ctx.globalAlpha = 1;
@@ -295,6 +314,12 @@
       setPlaying(value) { if (destroyed) return; playing = Boolean(value); updateLoop(); },
       setVisible(value) { if (destroyed) return; visible = Boolean(value); updateLoop(); },
       setSky(value) { if (destroyed) return; daylight = finite(value?.daylight) ? clamp(value.daylight) : daylight; if (!raf) render(); },
+      setConnected(value) {
+        if (destroyed) return;
+        const next = Boolean(value);
+        if (next && !connected) sweepAt = seconds;
+        connected = next; if (!raf) { lift = next ? 1 : 0; render(); }
+      },
       destroy() {
         if (destroyed) return; destroyed = true; if (raf) cancelAnimationFrame(raf); raf = 0;
         observer?.disconnect(); document.removeEventListener('visibilitychange', onChange); reducedQuery.removeEventListener?.('change', onChange); canvas.remove();
