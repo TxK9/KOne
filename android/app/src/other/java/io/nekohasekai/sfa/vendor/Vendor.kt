@@ -100,9 +100,7 @@ object Vendor : VendorInterface {
     override val updateSources = listOf(UpdateSource.GITHUB, UpdateSource.FDROID)
 
     override fun checkUpdateAsync(): UpdateInfo? {
-        if (Application.application.packageName == "cc.txwd.tianxiawudi.proxy") {
-            throw IllegalStateException("Update the private edition using its signed package. The upstream SFA package is not downloaded.")
-        }
+        GitHubUpdateChecker.requireUpstreamPackage(Application.application.packageName)
         return when (UpdateSource.fromString(Settings.updateSource)) {
             UpdateSource.FDROID -> checkFDroidUpdate(Application.application)
             UpdateSource.GITHUB -> {

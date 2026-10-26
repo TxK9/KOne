@@ -64,6 +64,11 @@ class UpdateWorker(private val appContext: Context, params: WorkerParameters) : 
             val updateInfo = when (UpdateSource.fromString(Settings.updateSource)) {
                 UpdateSource.FDROID -> checkFDroidUpdate(appContext)
                 UpdateSource.GITHUB -> {
+                    if (!GitHubUpdateChecker.servesPackage(appContext.packageName)) {
+                        // Retrying cannot help: upstream releases never carry this package.
+                        Log.d(TAG, "Upstream releases do not update this package, skipping")
+                        return Result.success()
+                    }
                     val track = UpdateTrack.fromString(Settings.updateTrack)
                     GitHubUpdateChecker().use { it.checkUpdate(track, Settings.githubToken) }
                 }

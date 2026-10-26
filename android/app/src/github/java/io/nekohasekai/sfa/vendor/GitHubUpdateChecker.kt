@@ -16,6 +16,16 @@ class GitHubUpdateChecker : Closeable {
     companion object {
         private const val RELEASES_URL = "https://api.github.com/repos/SagerNet/sing-box/releases"
         private const val METADATA_FILENAME = "SFA-version-metadata.json"
+        private const val UPSTREAM_PACKAGE = "io.nekohasekai.sfa"
+
+        /** Upstream releases ship the upstream SFA package, never a KOne edition. */
+        fun servesPackage(packageName: String) = packageName == UPSTREAM_PACKAGE
+
+        fun requireUpstreamPackage(packageName: String) {
+            check(servesPackage(packageName)) {
+                "Update this edition using its signed package. The upstream SFA package is not downloaded."
+            }
+        }
     }
 
     private val client = Libbox.newHTTPClient().apply {
@@ -26,6 +36,7 @@ class GitHubUpdateChecker : Closeable {
     private val json = Json { ignoreUnknownKeys = true }
 
     fun checkUpdate(track: UpdateTrack, githubToken: String): UpdateInfo? {
+        requireUpstreamPackage(BuildConfig.APPLICATION_ID)
         val request = client.newRequest()
         request.setURL(
             when (track) {
