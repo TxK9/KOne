@@ -34,6 +34,27 @@ class PairedProfileTest {
         PairedProfile.requirePaired(config.toString())
     }
 
+    @Test
+    fun acceptsUnescapedDisplayName() {
+        val node = JSONObject(PairedProfile.fromVlessLink("$link#Tokyo 01")).getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("node.invalid", node.getString("server"))
+    }
+
+    @Test
+    fun stripsIpv6Brackets() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@[2001:db8::1]:8443")))
+        val node = config.getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(8443, node.getInt("server_port"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link&fp="))
+        val utls = config.getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls").getJSONObject("utls")
+        assertEquals("chrome", utls.getString("fingerprint"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsProxyOnlyConfiguration() {
         PairedProfile.requirePaired("{\"inbounds\":[{\"type\":\"tun\"}]}")
