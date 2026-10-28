@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.qrscan
 
+import androidx.annotation.StringRes
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.DecodeHintType
 import com.google.zxing.RGBLuminanceSource
@@ -7,6 +8,7 @@ import com.google.zxing.ReaderException
 import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeReader
+import io.nekohasekai.sfa.R
 
 /** Local image pixels only; camera and gallery share the node import path. */
 internal object QRImageDecoder {
@@ -43,16 +45,24 @@ internal object QRImageDecoder {
     }
 }
 
+/** A scanner message resolved by the UI, so it follows the in-app language rather than the Application locale. */
+sealed interface ScanMessage {
+    data class Resource(@StringRes val id: Int) : ScanMessage
+
+    /** Untranslated validator text; only a fixed allow-list ever reaches this, never decoded content. */
+    data class Literal(val text: String) : ScanMessage
+}
+
 internal object QRImportErrors {
     private val knownParameters = setOf(
         "Invalid connection link", "Invalid connection identifier", "Connection server is missing", "Invalid connection port",
         "Connection contains duplicate parameters", "Reality public key is missing", "Invalid Reality public key format", "Invalid Reality short ID format",
     )
 
-    fun controlledMessage(failure: Exception): String = when (val message = failure.message.orEmpty()) {
-        "Import this transport using a complete configuration" -> "QR import supports VLESS TCP with TLS or Reality. Import other transports as a complete configuration."
-        "The paired configuration requires an encrypted VLESS connection" -> "This VLESS node uses unsupported encryption. TLS and Reality are supported."
-        in knownParameters -> message
-        else -> "The QR code contains invalid node or configuration parameters."
+    fun controlledMessage(failure: Exception): ScanMessage = when (val message = failure.message.orEmpty()) {
+        "Import this transport using a complete configuration" -> ScanMessage.Resource(R.string.knine_qr_error_transport)
+        "The paired configuration requires an encrypted VLESS connection" -> ScanMessage.Resource(R.string.knine_qr_error_encryption)
+        in knownParameters -> ScanMessage.Literal(message)
+        else -> ScanMessage.Resource(R.string.knine_qr_error_parameters)
     }
 }

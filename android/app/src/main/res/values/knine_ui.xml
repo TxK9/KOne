@@ -15,4 +15,6 @@
     <string name="knine_import_done">Node imported and selected. Tap Connect if disconnected, then choose Rule or Global.</string>
     <string name="knine_import_invalid_parameters">Invalid connection parameters</string>
     <string name="knine_import_save_failed">Could not save the profile. Check the link format and try again.</string>
+    <string name="knine_import_vless_summary">Create a proxy and Tailscale configuration from a VLESS link</string>
+    <string name="knine_running_for">Running for %1$d h %2$d m %3$d s</string>
 </resources>

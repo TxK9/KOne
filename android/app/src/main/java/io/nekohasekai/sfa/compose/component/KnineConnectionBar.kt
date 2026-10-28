@@ -272,12 +272,13 @@ private fun StableUptimeText(startTime: Long) {
     val minutes = elapsed % 3_600 / 60
     val seconds = elapsed % 60
     val clock = "${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+    val spoken = stringResource(R.string.knine_running_for, hours, minutes, seconds)
     Text(
         text = clock,
         style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
         softWrap = false,
-        modifier = Modifier.clearAndSetSemantics { contentDescription = "Running for $hours h $minutes m $seconds s" },
+        modifier = Modifier.clearAndSetSemantics { contentDescription = spoken },
     )
 }

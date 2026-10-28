@@ -53,8 +53,9 @@ internal object CountryProfileGrouping {
         return order.map { key -> CountryProfileGroup(key, grouped[key].orEmpty()) }
     }
 
-    fun label(key: String, locale: Locale = Locale.getDefault()): String {
-        if (key == UNCLASSIFIED) return "Local nodes"
+    /** [localNodes] is the localized name of [UNCLASSIFIED], resolved by the caller from resources. */
+    fun label(key: String, localNodes: String, locale: Locale = Locale.getDefault()): String {
+        if (key == UNCLASSIFIED) return localNodes
         if (key.startsWith("custom:")) return key.removePrefix("custom:")
         return Locale("", key).getDisplayCountry(locale)
     }

@@ -14,4 +14,5 @@
     <string name="knine_country_more">Show %1$d more</string>
     <string name="knine_country_show_two">Show less</string>
     <string name="knine_country_custom_name">Custom category</string>
+    <string name="knine_country_local_nodes">Local nodes</string>
 </resources>

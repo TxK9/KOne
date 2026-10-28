@@ -3,12 +3,12 @@ package io.nekohasekai.sfa.compose.screen.qrscan
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.selfuse.PairedProfile
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class QRImageDecoderTest {
@@ -45,13 +45,22 @@ class QRImageDecoderTest {
 
     @Test fun unsupportedTransportExplainsTheLimitWithoutTheLink() {
         val failure = runCatching { PairedProfile.fromVlessLink(link.replace("type=tcp", "type=ws")) }.exceptionOrNull() as Exception
-        val message = QRImportErrors.controlledMessage(failure)
-        assertTrue(message.contains("TCP"))
-        assertFalse(message.contains("node.invalid"))
-        assertFalse(message.contains("vless://"))
+        assertEquals(ScanMessage.Resource(R.string.knine_qr_error_transport), QRImportErrors.controlledMessage(failure))
+    }
+
+    @Test fun unencryptedNodeNamesTheSupportedSecurity() {
+        val failure = runCatching { PairedProfile.fromVlessLink(link.replace("security=tls", "security=none")) }.exceptionOrNull() as Exception
+        assertEquals(ScanMessage.Resource(R.string.knine_qr_error_encryption), QRImportErrors.controlledMessage(failure))
+    }
+
+    @Test fun knownValidatorMessagesPassThroughWithoutTheLink() {
+        val failure = runCatching { PairedProfile.fromVlessLink(link.replace("00000000-0000-0000-0000-000000000001", "not-a-uuid")) }.exceptionOrNull() as Exception
+        val message = QRImportErrors.controlledMessage(failure) as ScanMessage.Literal
+        assertFalse(message.text.contains("node.invalid"))
+        assertFalse(message.text.contains("vless://"))
     }
 
     @Test fun unexpectedDecoderErrorsCannotEchoCredentials() {
-        assertEquals("The QR code contains invalid node or configuration parameters.", QRImportErrors.controlledMessage(IllegalArgumentException(link)))
+        assertEquals(ScanMessage.Resource(R.string.knine_qr_error_parameters), QRImportErrors.controlledMessage(IllegalArgumentException(link)))
     }
 }

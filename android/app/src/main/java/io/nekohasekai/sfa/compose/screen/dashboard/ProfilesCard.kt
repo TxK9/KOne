@@ -413,8 +413,8 @@ fun ProfilesCard(
                 ListItem(
                     modifier = Modifier.clickable { onHideAddProfileSheet(); showPairedProfileDialog = true },
                     leadingContent = { Icon(Icons.Default.Cloud, contentDescription = null) },
-                    headlineContent = { Text("Import VLESS node") },
-                    supportingContent = { Text("Create a proxy and Tailscale configuration from a VLESS link") },
+                    headlineContent = { Text(stringResource(R.string.knine_import_vless_title)) },
+                    supportingContent = { Text(stringResource(R.string.knine_import_vless_summary)) },
                 )
 
                 ListItem(

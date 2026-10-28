@@ -71,6 +71,7 @@ import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.screen.qrscan.QRCodeCropArea
 import io.nekohasekai.sfa.compose.screen.qrscan.QRScanResult
 import io.nekohasekai.sfa.compose.screen.qrscan.QRScanViewModel
+import io.nekohasekai.sfa.compose.screen.qrscan.ScanMessage
 import kotlin.math.max
 import java.util.Locale
 
@@ -170,7 +171,7 @@ fun QRScanSheet(onDismiss: () -> Unit, onScanResult: (QRScanResult) -> Unit, vie
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = chooseImage, enabled = !uiState.isDecodingImage) {
                         Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text("Image", modifier = Modifier.padding(start = 6.dp))
+                        Text(stringResource(R.string.knine_qr_image), modifier = Modifier.padding(start = 6.dp))
                     }
                     Box {
                         IconButton(onClick = { showMenu = true }) {
@@ -184,7 +185,7 @@ fun QRScanSheet(onDismiss: () -> Unit, onScanResult: (QRScanResult) -> Unit, vie
                             onDismissRequest = { showMenu = false },
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Scan QR code from image") },
+                                text = { Text(stringResource(R.string.knine_qr_scan_from_image)) },
                                 enabled = !uiState.isDecodingImage,
                                 onClick = {
                                     showMenu = false
@@ -238,7 +239,7 @@ fun QRScanSheet(onDismiss: () -> Unit, onScanResult: (QRScanResult) -> Unit, vie
             }
 
             Text(
-                "Aim at the complete QR code, or import a node from an image.",
+                stringResource(R.string.knine_qr_aim_hint),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
             )
@@ -282,8 +283,8 @@ fun QRScanSheet(onDismiss: () -> Unit, onScanResult: (QRScanResult) -> Unit, vie
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(44.dp), tint = MaterialTheme.colorScheme.primary)
-                        Text("Camera is off", style = MaterialTheme.typography.titleMedium)
-                        Text("Enable the camera, or choose a QR code image.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                        Text(stringResource(R.string.knine_qr_camera_off), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.knine_qr_camera_off_hint), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
                         TextButton(onClick = {
                             if (permissionDenied) {
                                 context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
@@ -291,9 +292,9 @@ fun QRScanSheet(onDismiss: () -> Unit, onScanResult: (QRScanResult) -> Unit, vie
                                 permissionLauncher.launch(Manifest.permission.CAMERA)
                             }
                         }) {
-                            Text(if (permissionDenied) "Open app permission settings" else "Allow camera access")
+                            Text(stringResource(if (permissionDenied) R.string.knine_qr_open_permission_settings else R.string.knine_qr_allow_camera))
                         }
-                        TextButton(onClick = chooseImage, enabled = !uiState.isDecodingImage) { Text("Scan image") }
+                        TextButton(onClick = chooseImage, enabled = !uiState.isDecodingImage) { Text(stringResource(R.string.knine_qr_scan_image)) }
                     }
                 }
 
@@ -306,7 +307,7 @@ fun QRScanSheet(onDismiss: () -> Unit, onScanResult: (QRScanResult) -> Unit, vie
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
-                            Text(if (uiState.isDecodingImage) "Scanning image…" else "Opening camera…", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(if (uiState.isDecodingImage) R.string.knine_qr_scanning_image else R.string.knine_qr_opening_camera), color = Color.White, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -338,13 +339,13 @@ fun QRScanSheet(onDismiss: () -> Unit, onScanResult: (QRScanResult) -> Unit, vie
                                 )
                             }
                             Text(
-                                text = "Animated QR code",
+                                text = stringResource(R.string.knine_qr_animated),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Color.White,
                                 modifier = Modifier.offset(y = (-88).dp),
                             )
                             Text(
-                                text = "Keep the complete animated QR code in view.",
+                                text = stringResource(R.string.knine_qr_animated_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White,
                                 modifier = Modifier.offset(y = 84.dp),
@@ -356,21 +357,28 @@ fun QRScanSheet(onDismiss: () -> Unit, onScanResult: (QRScanResult) -> Unit, vie
         }
     }
 
-    if (uiState.errorMessage != null) {
+    uiState.errorMessage?.let { message ->
         AlertDialog(
             onDismissRequest = { viewModel.dismissError() },
-            title = { Text("Scan incomplete") },
-            text = { Text(uiState.errorMessage ?: "") },
+            title = { Text(stringResource(R.string.knine_qr_scan_incomplete)) },
+            text = {
+                Text(
+                    when (message) {
+                        is ScanMessage.Resource -> stringResource(message.id)
+                        is ScanMessage.Literal -> message.text
+                    },
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { viewModel.dismissError() }) {
-                    Text(if (hasPermission) "Continue scanning" else "Got it")
+                    Text(stringResource(if (hasPermission) R.string.knine_qr_continue_scanning else R.string.knine_qr_got_it))
                 }
             },
             dismissButton = {
                 TextButton(onClick = {
                     viewModel.dismissError()
                     chooseImage()
-                }) { Text("Choose image") }
+                }) { Text(stringResource(R.string.knine_qr_choose_image)) }
             },
         )
     }
