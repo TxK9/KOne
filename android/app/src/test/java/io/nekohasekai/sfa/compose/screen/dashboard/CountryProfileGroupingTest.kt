@@ -27,6 +27,35 @@ class CountryProfileGroupingTest {
         assertEquals("GB", CountryProfileGrouping.fromName("united kingdom 3"))
     }
 
+    @Test fun cityAirportAndTraditionalChineseNamesRecogniseTheirCountry() {
+        val expected = mapOf(
+            "Tokyo 01" to "JP",
+            "\u6771\u4eac IPLC" to "JP",
+            "LAX-02" to "US",
+            "\u7f8e\u570b \u7f8e\u897f" to "US",
+            "US Los Angeles" to "US",
+            "London BGP" to "GB",
+            "\u6cd5\u5170\u514b\u798f" to "DE",
+            "HKG|01" to "HK",
+            "Hongkong 3" to "HK",
+            "\u81fa\u7063 \u53f0\u5317" to "TW",
+            "\u97d3\u570b Seoul" to "KR",
+            "\u72ee\u57ce 2" to "SG",
+            "\u6fb3\u6d32 Sydney" to "AU",
+        )
+        for ((name, country) in expected) {
+            assertEquals(name, country, CountryProfileGrouping.fromName(name))
+        }
+    }
+
+    @Test fun lowercaseAirportCodesAndCrossCountryRoutesStayLocal() {
+        for (name in listOf("sin city", "ams relay", "order 1", "Tokyo \u2192 London", "LAX / HKG")) {
+            assertEquals(name, CountryProfileGrouping.UNCLASSIFIED, CountryProfileGrouping.fromName(name))
+        }
+        // France's ISO code FRA is also Frankfurt's airport, so neither is an alias.
+        assertEquals(CountryProfileGrouping.UNCLASSIFIED, CountryProfileGrouping.fromName("FRA 1"))
+    }
+
     @Test fun manualCategoryWinsAndLocalProfilesKeepTheirIdentityAndOrder() {
         val profiles = listOf(Profile(id = 1, name = "US 1"), Profile(id = 2, name = "Verizon"), Profile(id = 3, name = "Neutral"))
         val groups = CountryProfileGrouping.group(profiles, mapOf(1L to "GB"))
