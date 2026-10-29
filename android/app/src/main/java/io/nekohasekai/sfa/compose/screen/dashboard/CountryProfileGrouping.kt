@@ -19,8 +19,8 @@ internal object CountryProfileGrouping {
             "DFW", "IAD",
         ),
         "GB" to listOf(
-            "\u82f1\u56fd", "\u82f1\u570b", "United Kingdom", "Britain", "England", "UK", "GB", "GBR", "🇬🇧", "\u4f26\u6566", "\u502b\u6566",
-            "London", "LHR",
+            "\u82f1\u56fd", "\u82f1\u570b", "United Kingdom", "Britain", "England", "UK", "GB", "GBR", "🇬🇧",
+            "\u4f26\u6566", "\u502b\u6566", "London", "LHR",
         ),
         "DE" to listOf(
             "\u5fb7\u56fd", "\u5fb7\u570b", "Germany", "Deutschland", "DE", "DEU", "🇩🇪", "\u6cd5\u5170\u514b\u798f",
@@ -44,8 +44,8 @@ internal object CountryProfileGrouping {
             "\u6eab\u54e5\u83ef", "Vancouver", "YYZ", "YVR",
         ),
         "AU" to listOf(
-            "\u6fb3\u5927\u5229\u4e9a", "\u6fb3\u5927\u5229\u4e9e", "\u6fb3\u6d32", "Australia", "AU", "🇦🇺", "\u6089\u5c3c", "\u96ea\u68a8",
-            "Sydney", "\u58a8\u5c14\u672c", "\u58a8\u723e\u672c", "Melbourne", "SYD",
+            "\u6fb3\u5927\u5229\u4e9a", "\u6fb3\u5927\u5229\u4e9e", "\u6fb3\u6d32", "Australia", "AU", "🇦🇺",
+            "\u6089\u5c3c", "\u96ea\u68a8", "Sydney", "\u58a8\u5c14\u672c", "\u58a8\u723e\u672c", "Melbourne", "SYD",
         ),
         "FR" to listOf("\u6cd5\u56fd", "\u6cd5\u570b", "France", "FR", "🇫🇷", "\u5df4\u9ece", "Paris", "CDG"),
         "TW" to listOf(
