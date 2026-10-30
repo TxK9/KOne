@@ -436,7 +436,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             var asked = System.currentTimeMillis()
             while (isActive) {
                 val status = withContext(Dispatchers.IO) { runCatching { link.status(since) }.getOrNull() } ?: break
-                status.logs.forEach(::log)
+                appendLogs(status.logs)
                 since = status.next
                 if (status.state == "running" && clash == null && status.api != null) {
                     ran = true
@@ -1083,11 +1083,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                         trail.addLast(down to up)
                         while (trail.size > 60) trail.removeFirst()
                         tools = tools.copy(today = usage.today(), month = usage.month())
-                        refresh()
+                        refreshTelemetry()
                     }
                 }
             }
-            launch { while (isActive && clash === api) { delay(1000); seconds++; refresh() } }
+            launch { while (isActive && clash === api) { delay(1000); seconds++; refreshTelemetry() } }
             launch(Dispatchers.IO) { detectExit() }
             launch { testDelays(api) }
             launch { countTraffic(api) }
@@ -1418,6 +1418,15 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         refresh()
     }
 
+    /** Service status arrives on the model scope; apply a bounded batch without one job per line. */
+    internal fun appendLogs(lines: List<String>) {
+        if (lines.isEmpty()) return
+        val kept = lines.takeLast(500)
+        val remove = (logs.size + kept.size - 500).coerceAtLeast(0)
+        if (remove > 0) logs.removeRange(0, remove)
+        logs.addAll(kept)
+    }
+
     private fun log(line: String) {
         scope.launch {
             logs += line
@@ -1431,6 +1440,17 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         imported = node.tag in importedTags, protocol = node.type, loss = health.loss(node.tag), speed = speeds[node.tag],
         history = health.samples(node.tag),
     )
+
+    /** Rate and clock ticks do not change nodes, health or subscription sections. */
+    internal fun refreshTelemetry() {
+        dashboard = dashboard.copy(
+            downKbps = rates.first / 1024.0,
+            upKbps = rates.second / 1024.0,
+            seconds = seconds,
+            trail = trail.toList(),
+            expiry = Expiry.hint(account.binding?.expiresAt),
+        )
+    }
 
     private fun refresh() {
         val selected = account.binding?.selected?.takeIf { tag -> (tag == KoneConfig.AUTO_TAG && auto) || regionOf(tag) != null || nodes.any { it.tag == tag } }
