@@ -4,7 +4,9 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import io.nekohasekai.sfa.database.Profile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -126,7 +128,10 @@ internal object NodeLatency {
     const val INTERVAL_MS = 6_000L
     private const val CONNECT_TIMEOUT_MS = 2_500
 
-    private val readings = mutableStateMapOf<Long, NodeReading>()
+    // Each node's reading is a state of its own, so a result recomposes only the rows showing that
+    // node. A row whose node has no state yet watches [added], which moves when states appear.
+    private val readings = ConcurrentHashMap<Long, MutableState<NodeReading?>>()
+    private val added = mutableIntStateOf(0)
     private val tcpHistory = ConcurrentHashMap<Long, List<LatencySample>>()
     private val proxyHistory = ConcurrentHashMap<Long, List<LatencySample>>()
     private val endpoints = ConcurrentHashMap<Long, Pair<Long, NodeEndpoint?>>()
@@ -135,10 +140,13 @@ internal object NodeLatency {
     @Volatile
     private var proxied: Long? = null
 
-    operator fun get(profileId: Long): NodeReading? = readings[profileId]
+    operator fun get(profileId: Long): NodeReading? = readings[profileId]?.value ?: run {
+        added.intValue
+        null
+    }
 
     fun forget(profileId: Long) {
-        readings.remove(profileId)
+        drop(profileId)
         tcpHistory.remove(profileId)
         proxyHistory.remove(profileId)
         endpoints.remove(profileId)
@@ -161,6 +169,7 @@ internal object NodeLatency {
     }
 
     suspend fun refresh(context: Context, profiles: List<Profile>) = coroutineScope {
+        withContext(Dispatchers.Main) { watch(profiles.map { it.id }) }
         val network = physicalNetwork(context)
         val gate = Semaphore(6)
         profiles.map { profile ->
@@ -168,24 +177,27 @@ internal object NodeLatency {
                 gate.withPermit {
                     val endpoint = endpointOf(profile)
                     val sample = endpoint?.let { measure(it, network) }
-                    withContext(Dispatchers.Main) {
-                        if (sample == null) {
-                            tcpHistory.remove(profile.id)
-                        } else {
-                            tcpHistory[profile.id] = (tcpHistory[profile.id].orEmpty() + sample).takeLast(NodeHealthRules.WINDOW)
-                        }
-                        publish(profile.id)
-                    }
+                    withContext(Dispatchers.Main) { recordTcp(profile.id, sample) }
                 }
             }
         }.awaitAll()
         val alive = profiles.map { it.id }.toSet()
         withContext(Dispatchers.Main) {
-            readings.keys.retainAll(alive)
+            (readings.keys - alive).forEach(::drop)
             tcpHistory.keys.retainAll(alive)
             proxyHistory.keys.retainAll(alive)
         }
         endpoints.keys.retainAll(alive)
+    }
+
+    /** Main thread. One handshake result for [profileId]; null when its server cannot be told. */
+    internal fun recordTcp(profileId: Long, sample: LatencySample?) {
+        if (sample == null) {
+            tcpHistory.remove(profileId)
+        } else {
+            tcpHistory[profileId] = (tcpHistory[profileId].orEmpty() + sample).takeLast(NodeHealthRules.WINDOW)
+        }
+        publish(profileId)
     }
 
     private fun publish(profileId: Long) {
@@ -195,7 +207,29 @@ internal object NodeLatency {
         } else {
             NodeHealthRules.judge(tcpHistory[profileId].orEmpty(), NodeHealthRules.TCP_SLOW_MS, NodeHealthRules.TCP_JITTER_MS)
         }
-        if (reading == null) readings.remove(profileId) else readings[profileId] = reading
+        val slot = readings[profileId]
+        when {
+            slot != null -> slot.value = reading
+            reading != null -> {
+                readings[profileId] = mutableStateOf(reading)
+                added.intValue++
+            }
+        }
+    }
+
+    /** Main thread. Gives every node of a list its state at once, so the first sweep wakes each row once. */
+    internal fun watch(profileIds: Collection<Long>) {
+        var fresh = false
+        for (id in profileIds) {
+            if (readings.containsKey(id)) continue
+            readings[id] = mutableStateOf(null)
+            fresh = true
+        }
+        if (fresh) added.intValue++
+    }
+
+    private fun drop(profileId: Long) {
+        readings.remove(profileId)?.value = null
     }
 
     private fun endpointOf(profile: Profile): NodeEndpoint? {
