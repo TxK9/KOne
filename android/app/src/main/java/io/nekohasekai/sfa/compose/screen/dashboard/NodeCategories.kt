@@ -31,24 +31,33 @@ internal object NodeCategories {
 
     fun sanitizeName(raw: String): String = raw.replace(Regex("[\\t\\r\\n]+"), " ").trim().take(MAX_NAME)
 
-    fun matches(category: NodeCategory, nodeName: String): Boolean {
-        if (category.country?.matches(nodeName) == true) return true
-        val literal = category.name.trim()
-        return literal.length >= 2 && aliasRegex(literal).containsMatchIn(nodeName)
+    fun matches(category: NodeCategory, nodeName: String): Boolean = Recogniser(category).matches(nodeName)
+
+    /** What one category recognises, worked out once for a whole list rather than again for every node. */
+    private class Recogniser(val category: NodeCategory) {
+        private val country = category.country
+        private val literal = category.name.trim().takeIf { it.length >= 2 }?.let(::aliasRegex)
+
+        fun matches(nodeName: String): Boolean =
+            country?.matches(nodeName) == true || literal?.containsMatchIn(nodeName) == true
     }
 
     fun categoryFor(profile: Profile, state: NodeCategoryState): String = categoryFor(profile.id, profile.name, state)
 
     /** An explicit choice wins; otherwise exactly one recognising category, else the fallback. */
-    fun categoryFor(profileId: Long, name: String, state: NodeCategoryState): String {
+    fun categoryFor(profileId: Long, name: String, state: NodeCategoryState): String =
+        categoryFor(profileId, name, state, state.categories.map(::Recogniser))
+
+    private fun categoryFor(profileId: Long, name: String, state: NodeCategoryState, recognisers: List<Recogniser>): String {
         state.assignments[profileId]?.let { assigned ->
             if (assigned == FALLBACK_ID || state.categories.any { it.id == assigned }) return assigned
         }
-        return state.categories.filter { matches(it, name) }.singleOrNull()?.id ?: FALLBACK_ID
+        return recognisers.filter { it.matches(name) }.singleOrNull()?.category?.id ?: FALLBACK_ID
     }
 
     fun group(profiles: List<Profile>, state: NodeCategoryState): List<NodeGroup> {
-        val byCategory = profiles.groupBy { categoryFor(it, state) }
+        val recognisers = state.categories.map(::Recogniser)
+        val byCategory = profiles.groupBy { categoryFor(it.id, it.name, state, recognisers) }
         val fallback = NodeGroup(FALLBACK_ID, state.fallbackName, state.fallbackFlag, true, byCategory[FALLBACK_ID].orEmpty())
         return listOf(fallback) + state.categories.map { NodeGroup(it.id, it.name, it.flag, false, byCategory[it.id].orEmpty()) }
     }
