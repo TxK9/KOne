@@ -37,12 +37,13 @@ internal fun WeatherSeal(weather: NodeWeather, size: Dp = 18.dp, modifier: Modif
     val shape = RoundedCornerShape(size * 0.2f)
     val paths = remember(weather) { WeatherGlyphs.paths(weather).map { PathParser().parsePathString(it).toPath() } }
     val cut = Color(weather.onPigment)
+    val edge = LocalContentColor.current.copy(alpha = 0.16f)
     Canvas(
         modifier
             .size(size)
             .clip(shape)
             .background(Color(weather.pigment))
-            .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+            .border(1.dp, edge, shape)
             .semantics { contentDescription = weather.word },
     ) {
         val unit = this.size.width * 0.6f / 24f

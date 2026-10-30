@@ -1,30 +1,23 @@
 package io.nekohasekai.sfa.compose.screen.profile
 
 import android.widget.Toast
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import io.nekohasekai.sfa.compose.theme.cityLine
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Link
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,31 +64,33 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.nekohasekai.sfa.compose.screen.dashboard.FitText
 import io.nekohasekai.sfa.compose.screen.dashboard.FlagStrip
 import io.nekohasekai.sfa.compose.screen.dashboard.HealthLabel
+import io.nekohasekai.sfa.compose.screen.dashboard.KnineArrive
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeCategories
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeCategoryStore
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeLatency
+import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
+import io.nekohasekai.sfa.compose.screen.dashboard.knineTone
+import io.nekohasekai.sfa.compose.screen.dashboard.weatherInk
 import io.nekohasekai.sfa.compose.theme.BackdropCard
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as BText
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import io.nekohasekai.sfa.compose.theme.KnineSwitch
-import io.nekohasekai.sfa.compose.theme.knineSurface
 import io.nekohasekai.sfa.compose.util.FlagGlyph
 import io.nekohasekai.sfa.compose.util.FlagIcons
 import io.nekohasekai.sfa.compose.util.ProfileIconGlyph
@@ -133,7 +128,7 @@ internal fun KnineNodeEditor(
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) { appear.animateTo(1f, tween(760, easing = LinearEasing)) }
     fun Modifier.settle(order: Int): Modifier = graphicsLayer {
-        val p = FastOutSlowInEasing.transform(((appear.value - order * 0.08f) / 0.5f).coerceIn(0f, 1f))
+        val p = KnineArrive.transform(((appear.value - order * 0.08f) / 0.5f).coerceIn(0f, 1f))
         alpha = p
         translationY = (1f - p) * 18.dp.toPx()
     }
@@ -142,11 +137,7 @@ internal fun KnineNodeEditor(
     BackdropContrastScope(modifier) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             NodeBadge(icon = state.icon, open = flagsOpen, onClick = { flagsOpen = !flagsOpen }, modifier = Modifier.settle(0).padding(top = 8.dp))
-            AnimatedVisibility(
-                visible = flagsOpen,
-                enter = expandVertically(spring(dampingRatio = 0.86f, stiffness = 380f)) + fadeIn(tween(200, delayMillis = 60)),
-                exit = shrinkVertically(spring(dampingRatio = 0.9f, stiffness = 420f)) + fadeOut(tween(120)),
-            ) {
+            AnimatedVisibility(visible = flagsOpen, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
                 FlagStrip(
                     current = FlagIcons.codeOf(state.icon),
                     onPick = { code -> onIcon(code?.let(FlagIcons::idFor)) },
@@ -189,8 +180,8 @@ internal fun KnineNodeEditor(
 @Composable
 private fun NodeBadge(icon: String?, open: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val ink = LocalContentColor.current
-    val surface = knineSurface()
-    val lift by animateFloatAsState(if (open) 1.06f else 1f, spring(dampingRatio = 0.5f, stiffness = 500f), label = "badgeLift")
+    val surface = knineTone()
+    val lift by animateFloatAsState(if (open) 1.06f else 1f, tween(280, easing = KnineArrive), label = "badgeLift")
     Box(modifier.size(92.dp), contentAlignment = Alignment.Center) {
         Box(
             Modifier
@@ -208,8 +199,8 @@ private fun NodeBadge(icon: String?, open: Boolean, onClick: () -> Unit, modifie
             AnimatedContent(
                 targetState = icon,
                 transitionSpec = {
-                    (scaleIn(spring(dampingRatio = 0.5f, stiffness = 480f), initialScale = 0.4f) + fadeIn(tween(140)))
-                        .togetherWith(scaleOut(tween(140), targetScale = 0.4f) + fadeOut(tween(140)))
+                    (scaleIn(tween(320, easing = KnineArrive), initialScale = 0.6f) + fadeIn(tween(200, delayMillis = 60)))
+                        .togetherWith(scaleOut(tween(160), targetScale = 0.6f) + fadeOut(tween(140)))
                 },
                 label = "badgeIcon",
             ) { id ->
@@ -347,27 +338,28 @@ private fun ChainChoice(profile: Profile) {
         }
     }
     ActionRow(Icons.Outlined.Link, "Chain through", onClick = { open = !open }) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // The front node's whole name: smaller when long, then on two lines, never cut.
+        Row(Modifier.graphicsLayer { alpha = if (trying) 0.4f else 0.75f }, verticalAlignment = Alignment.CenterVertically) {
             val frontFlag = front?.let { FlagIcons.codeFor(it.icon, it.name) }
             frontFlag?.let { FlagGlyph(it, size = 16.dp); Spacer(Modifier.width(6.dp)) }
-            BText(
-                front?.name ?: "Off",
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 120.dp).graphicsLayer { alpha = if (trying) 0.4f else 0.75f },
-            )
+            FitText(front?.name ?: "Off", MaterialTheme.typography.bodyMedium, alignEnd = true, minSp = 11f, lines = 2, modifier = Modifier.weight(1f, fill = false))
         }
     }
-    AnimatedVisibility(visible = open, enter = io.nekohasekai.sfa.compose.theme.KnineMotion.reveal(), exit = io.nekohasekai.sfa.compose.theme.KnineMotion.conceal()) {
+    AnimatedVisibility(visible = open, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
+        val bloom = rememberBloom()
         FlowRow(
             Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            CategoryChip(label = "Off", flag = null, chosen = front == null) { pick(null) }
-            others.forEach { other ->
-                CategoryChip(label = other.name, flag = FlagIcons.codeFor(other.icon, other.name), chosen = other.id == via) { if (!trying) pick(other) }
+            CategoryChip(label = "Off", flag = null, chosen = front == null, modifier = Modifier.bloomIn(bloom, 0)) { pick(null) }
+            others.forEachIndexed { index, other ->
+                CategoryChip(
+                    label = other.name,
+                    flag = FlagIcons.codeFor(other.icon, other.name),
+                    chosen = other.id == via,
+                    modifier = Modifier.bloomIn(bloom, index + 1),
+                ) { if (!trying) pick(other) }
             }
         }
     }
@@ -390,23 +382,38 @@ private fun ShareChoice(profile: Profile) {
             modifier = Modifier.size(18.dp).graphicsLayer { alpha = 0.5f },
         )
     }
-    AnimatedVisibility(visible = open, enter = io.nekohasekai.sfa.compose.theme.KnineMotion.reveal(), exit = io.nekohasekai.sfa.compose.theme.KnineMotion.conceal()) {
+    AnimatedVisibility(visible = open, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
         io.nekohasekai.sfa.compose.component.NodeSharePanel(profile, Modifier.bringIntoViewRequester(bring))
     }
 }
 
+/** The clock for a row of choices unfolding: each one fades and settles a beat after the one before. */
 @Composable
-private fun CategoryChip(label: String, flag: String?, chosen: Boolean, onClick: () -> Unit) {
+internal fun rememberBloom(): Animatable<Float, *> {
+    val bloom = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { bloom.animateTo(1f, tween(560, easing = LinearEasing)) }
+    return bloom
+}
+
+internal fun Modifier.bloomIn(bloom: Animatable<Float, *>, index: Int): Modifier = graphicsLayer {
+    val p = KnineArrive.transform(((bloom.value - minOf(index, 8) * 0.05f) / 0.55f).coerceIn(0f, 1f))
+    alpha = p
+    translationY = (1f - p) * 6.dp.toPx()
+}
+
+/** A choice in ink: a faint wash, filled with the ink itself once chosen. A long name wraps inside it. */
+@Composable
+internal fun CategoryChip(label: String, flag: String?, chosen: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val ink = LocalContentColor.current
-    val surface = knineSurface()
+    val surface = knineTone()
     val fill by animateFloatAsState(if (chosen) 1f else 0f, tween(240), label = "chipFill")
     Row(
-        Modifier
+        modifier
             .clip(RoundedCornerShape(17.dp))
             .background(lerp(ink.copy(alpha = 0.07f), ink, fill))
             .clickable(enabled = !chosen, onClick = onClick)
-            .height(34.dp)
-            .padding(horizontal = 14.dp),
+            .heightIn(min = 34.dp)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         flag?.let {
@@ -441,11 +448,15 @@ private fun ActionRow(icon: ImageVector, label: String, onClick: () -> Unit, tra
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(14.dp))
-        BText(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        if (trailing != null) {
-            trailing()
-        } else {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.size(18.dp).graphicsLayer { alpha = 0.5f })
+        BText(label, style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.width(12.dp))
+        // Whatever the label leaves, the value on the right may use, so it is never cut short.
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            if (trailing != null) {
+                trailing()
+            } else {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.size(18.dp).graphicsLayer { alpha = 0.5f })
+            }
         }
     }
 }
@@ -464,13 +475,12 @@ private fun RemoteOptions(
         // Words that leave nodes out, as KOne for Windows offers per subscription.
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             BText("Leave out nodes named", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp).graphicsLayer { alpha = 0.7f })
-            PillField(value = state.leaveOut, onValueChange = onLeaveOut, modifier = Modifier.fillMaxWidth(), keyboardType = KeyboardType.Text)
-            BText("Words separated by |, e.g. Trial | Russia", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 2.dp, top = 4.dp).graphicsLayer { alpha = 0.6f })
+            PillField(value = state.leaveOut, onValueChange = onLeaveOut, modifier = Modifier.fillMaxWidth(), keyboardType = KeyboardType.Text, placeholder = "Trial | Expired")
         }
         ActionRow(Icons.Default.Update, "Automatic updates", onClick = { onAutoUpdate(!state.autoUpdate) }) {
             KnineSwitch(checked = state.autoUpdate, onCheckedChange = onAutoUpdate)
         }
-        AnimatedVisibility(visible = state.autoUpdate) {
+        AnimatedVisibility(visible = state.autoUpdate, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
             Column(Modifier.padding(start = 50.dp, end = 16.dp, bottom = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     BText("Interval (minutes)", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -503,7 +513,7 @@ private fun RemoteOptions(
 }
 
 @Composable
-private fun PillField(value: String, onValueChange: (String) -> Unit, modifier: Modifier, keyboardType: KeyboardType = KeyboardType.Uri) {
+private fun PillField(value: String, onValueChange: (String) -> Unit, modifier: Modifier, keyboardType: KeyboardType = KeyboardType.Uri, placeholder: String? = null) {
     val ink = LocalContentColor.current
     val focusManager = LocalFocusManager.current
     val shape = RoundedCornerShape(16.dp)
@@ -520,6 +530,14 @@ private fun PillField(value: String, onValueChange: (String) -> Unit, modifier: 
             .background(ink.copy(alpha = 0.07f))
             .border(0.7.dp, ink.copy(alpha = 0.16f), shape)
             .padding(horizontal = 14.dp, vertical = 10.dp),
+        decorationBox = { field ->
+            Box {
+                if (value.isEmpty() && placeholder != null) {
+                    Text(placeholder, style = MaterialTheme.typography.bodyMedium, color = ink.copy(alpha = 0.45f), maxLines = 1)
+                }
+                field()
+            }
+        },
     )
 }
 
@@ -536,8 +554,9 @@ private fun DeleteNode(profile: Profile, onDeleted: () -> Unit, modifier: Modifi
             armed = false
         }
     }
-    val surface = knineSurface()
-    val danger = Color(if (ink.red > 0.5f) 0xFFFF9C8F else 0xFFA3322A)
+    val surface = knineTone()
+    // Cinnabar, the weather's own red for a node that is gone.
+    val danger = weatherInk(NodeWeather.Cut, ink)
     val fill by animateFloatAsState(if (armed) 1f else 0f, tween(200), label = "deleteFill")
     // A frosted pill, so the red reads over any photograph; armed, it turns red itself.
     Row(
@@ -567,7 +586,11 @@ private fun DeleteNode(profile: Profile, onDeleted: () -> Unit, modifier: Modifi
     ) {
         androidx.compose.material3.Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = danger, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(6.dp))
-        AnimatedContent(targetState = armed, label = "deleteLabel") { second ->
+        AnimatedContent(
+            targetState = armed,
+            transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(140)) },
+            label = "deleteLabel",
+        ) { second ->
             Text(if (second) "Tap again to delete" else "Delete node", color = danger, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
         }
     }
