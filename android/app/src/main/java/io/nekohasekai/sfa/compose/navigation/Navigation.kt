@@ -11,6 +11,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -150,6 +151,15 @@ fun NavHost(
         composable(Screen.Log.route) {
             // The Status tab reads the dashboard's live state: the node, speeds and totals.
             val live = dashboardViewModel?.uiState?.collectAsState()?.value
+            // Its own connections stream, grouped by app, open only while the tab is on screen.
+            val connections: ConnectionsViewModel = connectionsViewModel ?: viewModel()
+            DisposableEffect(connections) {
+                connections.setGrouped(true)
+                connections.setVisible(true)
+                onDispose { connections.setVisible(false) }
+            }
+            LaunchedEffect(connections, serviceStatus) { connections.updateServiceStatus(serviceStatus) }
+            val traffic by connections.uiState.collectAsState()
             if (logViewModel != null) {
                 LogScreen(
                     serviceStatus = serviceStatus,
@@ -157,6 +167,8 @@ fun NavHost(
                     showStatusBar = showStatusBar,
                     viewModel = logViewModel,
                     live = live,
+                    apps = traffic.apps,
+                    onCloseConnections = connections::closeConnections,
                 )
             } else {
                 LogScreen(
@@ -164,6 +176,8 @@ fun NavHost(
                     showStartFab = showStartFab,
                     showStatusBar = showStatusBar,
                     live = live,
+                    apps = traffic.apps,
+                    onCloseConnections = connections::closeConnections,
                 )
             }
         }

@@ -3,6 +3,7 @@ package io.nekohasekai.sfa.compose.screen.connections
 import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.ConnectionEvents
 import io.nekohasekai.libbox.Connections
+import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.compose.base.BaseViewModel
 import io.nekohasekai.sfa.compose.base.ScreenEvent
 import io.nekohasekai.sfa.compose.model.Connection
@@ -33,6 +34,7 @@ data class ConnectionsUiState(
     val sort: ConnectionSort = ConnectionSort.ByDate,
     val searchText: String = "",
     val isSearchActive: Boolean = false,
+    val apps: List<AppTraffic> = emptyList(),
 )
 
 sealed class ConnectionsEvent : ScreenEvent {
@@ -58,6 +60,10 @@ class ConnectionsViewModel :
     private var connectionsStore: Connections? = null
     private val connectionsMutex = Mutex()
     private val connectionsGeneration = AtomicLong(0)
+
+    // The Status tab reads connections grouped by app and has no use for the sorted flat list.
+    @Volatile
+    private var grouped = false
 
     override fun createInitialState() = ConnectionsUiState()
 
@@ -87,6 +93,12 @@ class ConnectionsViewModel :
         }
     }
 
+    fun setGrouped(value: Boolean) {
+        if (grouped == value) return
+        grouped = value
+        requestConnectionsRefresh()
+    }
+
     fun setVisible(visible: Boolean) {
         _visibleCount.value += if (visible) 1 else -1
     }
@@ -108,7 +120,7 @@ class ConnectionsViewModel :
                 connectionsGeneration.incrementAndGet()
             }
             updateState {
-                copy(connections = emptyList(), allConnections = emptyList(), isLoading = false)
+                copy(connections = emptyList(), allConnections = emptyList(), apps = emptyList(), isLoading = false)
             }
         }
     }
@@ -176,6 +188,18 @@ class ConnectionsViewModel :
         }
     }
 
+    fun closeConnections(ids: List<String>) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val client = CommandTarget.standaloneClient()
+                ids.forEach { client.closeConnection(it) }
+            } catch (e: Exception) {
+                sendError(e)
+            }
+        }
+    }
+
     override fun onDisconnected() {
         viewModelScope.launch(Dispatchers.Default) {
             connectionsMutex.withLock {
@@ -184,7 +208,7 @@ class ConnectionsViewModel :
             connectionsGeneration.incrementAndGet()
             withContext(Dispatchers.Main) {
                 updateState {
-                    copy(connections = emptyList(), allConnections = emptyList(), isLoading = false)
+                    copy(connections = emptyList(), allConnections = emptyList(), apps = emptyList(), isLoading = false)
                 }
             }
         }
@@ -212,6 +236,7 @@ class ConnectionsViewModel :
                     copy(
                         connections = snapshot.connections,
                         allConnections = snapshot.allConnections,
+                        apps = snapshot.apps,
                         isLoading = false,
                     )
                 }
@@ -237,6 +262,7 @@ class ConnectionsViewModel :
                     copy(
                         connections = snapshot.connections,
                         allConnections = snapshot.allConnections,
+                        apps = snapshot.apps,
                         isLoading = false,
                     )
                 }
@@ -251,6 +277,14 @@ class ConnectionsViewModel :
         val allConnectionList = connections.iterator().toList()
             .filter { it.outboundType != "dns" }
             .map { Connection.from(it) }
+
+        if (grouped) {
+            return ConnectionLists(
+                connections = emptyList(),
+                allConnections = allConnectionList,
+                apps = AppTrafficGrouping.group(allConnectionList, BuildConfig.APPLICATION_ID),
+            )
+        }
 
         connections.filterState(currentState.stateFilter.libboxValue)
 
@@ -268,11 +302,13 @@ class ConnectionsViewModel :
         return ConnectionLists(
             connections = connectionList,
             allConnections = allConnectionList,
+            apps = emptyList(),
         )
     }
 
     private data class ConnectionLists(
         val connections: List<Connection>,
         val allConnections: List<Connection>,
+        val apps: List<AppTraffic>,
     )
 }
