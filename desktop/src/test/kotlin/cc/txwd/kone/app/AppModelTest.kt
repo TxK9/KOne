@@ -11,6 +11,26 @@ import kotlin.test.assertEquals
 
 class AppModelTest {
     @Test
+    fun serviceLogBatchesKeepOnlyTheNewestFiveHundredInOrder() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val model = AppModel(scope, Preferences(Files.createTempDirectory("kone-log-batch").toFile()))
+            model.appendLogs((0 until 450).map { "INFO line $it" })
+            model.appendLogs((450 until 600).map { "INFO line $it" })
+            assertEquals((100 until 600).map { "INFO line $it" }, model.logs.toList())
+            model.appendLogs(emptyList())
+            assertEquals(500, model.logs.size)
+            model.appendLogs((600 until 2000).map { "INFO line $it" })
+            assertEquals((1500 until 2000).map { "INFO line $it" }, model.logs.toList())
+            model.logs.clear()
+            model.appendLogs(listOf("INFO restarted"))
+            assertEquals(listOf("INFO restarted"), model.logs.toList())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun telemetryTicksKeepNodeAndSubscriptionSnapshots() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {

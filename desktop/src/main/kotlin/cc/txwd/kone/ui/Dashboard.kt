@@ -188,7 +188,9 @@ private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions, movi
             // Only visible rows are composed; traffic ticks do not rebuild the filtered list.
             val nodes = remember(state.nodes, state.tab) { state.nodes.filter { it.category == state.tab } }
             key(state.tab) {
-                val list = rememberLazyListState()
+                val list = rememberLazyListState(
+                    initialFirstVisibleItemIndex = nodes.indexOfFirst { it.id == state.selected }.coerceAtLeast(0),
+                )
                 Box(Modifier.fillMaxWidth().heightIn(max = deckHeight)) {
                     LazyColumn(
                         Modifier.fillMaxWidth().testTag("dashboard-nodes"), state = list,

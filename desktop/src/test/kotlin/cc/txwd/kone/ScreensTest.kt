@@ -335,6 +335,7 @@ class ScreensTest {
         )
         for (dark in listOf(false, true)) {
             shoot("nodes", dark) { WithRail(Page.Nodes, {}) { NodesView(state, NodesActions(), now) } }
+            shoot("nodes-narrow", dark, width = 960, height = 620) { WithRail(Page.Nodes, {}) { NodesView(state, NodesActions(), now) } }
         }
         // A node written by hand: VLESS with Reality over WebSocket, the save refused once.
         val draft = NodeDraft(

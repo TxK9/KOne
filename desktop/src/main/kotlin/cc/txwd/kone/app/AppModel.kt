@@ -436,7 +436,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             var asked = System.currentTimeMillis()
             while (isActive) {
                 val status = withContext(Dispatchers.IO) { runCatching { link.status(since) }.getOrNull() } ?: break
-                status.logs.forEach(::log)
+                appendLogs(status.logs)
                 since = status.next
                 if (status.state == "running" && clash == null && status.api != null) {
                     ran = true
@@ -1416,6 +1416,15 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun say(message: String?) {
         notice = message
         refresh()
+    }
+
+    /** Service status arrives on the model scope; apply a bounded batch without one job per line. */
+    internal fun appendLogs(lines: List<String>) {
+        if (lines.isEmpty()) return
+        val kept = lines.takeLast(500)
+        val remove = (logs.size + kept.size - 500).coerceAtLeast(0)
+        if (remove > 0) logs.removeRange(0, remove)
+        logs.addAll(kept)
     }
 
     private fun log(line: String) {

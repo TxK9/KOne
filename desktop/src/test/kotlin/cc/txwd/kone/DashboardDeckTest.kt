@@ -17,6 +17,25 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class DashboardDeckTest {
     @Test
+    fun reopeningTheDashboardRevealsTheSelectedNode() = runComposeUiTest {
+        var showing by mutableStateOf(true)
+        val state = DashboardState(listOf("Japan"),
+            (0 until 1000).map { Node("jp$it", "Tokyo $it", "JP", "Japan", 80) }, "Japan", "jp999")
+        setContent {
+            KoneTheme(false) {
+                Box(Modifier.size(600.dp, 540.dp)) {
+                    if (showing) DashboardView(state, DashboardActions(), false, {}, moving = false)
+                }
+            }
+        }
+        onNodeWithText("Tokyo 999").assertIsDisplayed().assertIsSelected()
+        runOnIdle { showing = false }
+        onNodeWithText("Tokyo 999").assertDoesNotExist()
+        runOnIdle { showing = true }
+        onNodeWithText("Tokyo 999").assertIsDisplayed().assertIsSelected()
+    }
+
+    @Test
     fun largeListsScrollSelectAndResetWhenChangingCountry() = runComposeUiTest {
         var state by mutableStateOf(DashboardState(
             categories = listOf("Japan", "Singapore"),
