@@ -18,6 +18,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,9 +44,12 @@ enum class LogLevel(private val englishTitle: String) { All("All"), Warnings("Wa
 }
 
 /** How serious a line of the core's is, by the level it names: 2 an error, 1 a warning, 0 anything else. */
+private val errorLevel = Regex("""\b(ERROR|FATAL|PANIC)\b""")
+private val warningLevel = Regex("""\bWARN\b""")
+
 fun severity(line: String): Int = when {
-    Regex("""\b(ERROR|FATAL|PANIC)\b""").containsMatchIn(line) -> 2
-    Regex("""\bWARN\b""").containsMatchIn(line) -> 1
+    errorLevel.containsMatchIn(line) -> 2
+    warningLevel.containsMatchIn(line) -> 1
     else -> 0
 }
 
@@ -52,6 +58,7 @@ fun severity(line: String): Int = when {
  * and a level narrow them; Pause holds them still to read; Copy puts what is shown on the
  * clipboard (for sending to whoever helps), Clear starts afresh.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: () -> Unit = {}) {
     val ink = LocalInk.current
@@ -59,20 +66,27 @@ fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: (
     var query by remember { mutableStateOf("") }
     var held by remember { mutableStateOf<List<String>?>(null) }
     val source = held ?: lines
-    val shown = source.filter { line ->
-        severity(line) >= level.ordinal && (query.isBlank() || line.contains(query.trim(), ignoreCase = true))
+    // derivedStateOf observes live SnapshotStateList edits, including rollover at 500 lines.
+    val shown by remember(source, level, query) {
+        derivedStateOf {
+            val needle = query.trim()
+            source.filter { line ->
+                (level == LogLevel.All || severity(line) >= level.ordinal) &&
+                    (needle.isEmpty() || line.contains(needle, ignoreCase = true))
+            }
+        }
     }
     // Opened at the newest line; afterwards it follows new lines only when it is not already there,
     // so nothing scrolls (and no layout runs off the frame) when there is nothing to follow.
     val list = rememberLazyListState(initialFirstVisibleItemIndex = (shown.size - 1).coerceAtLeast(0))
-    LaunchedEffect(shown.size, held) {
+    LaunchedEffect(shown, held) {
         val newest = shown.size - 1
         val showing = list.firstVisibleItemIndex == newest || list.layoutInfo.visibleItemsInfo.lastOrNull()?.index == newest
         if (newest >= 0 && held == null && !showing) list.scrollToItem(newest)
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 26.dp)) {
         if (lines.isNotEmpty() || held != null) {
-            Row(Modifier.fillMaxWidth().height(40.dp), horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 BasicTextField(
                     query, { query = it },
                     Modifier.width(220.dp).height(32.dp).hairline(ink.hair, bottom = true, width = 1.5.dp),
@@ -87,8 +101,7 @@ fun LogView(lines: List<String>, onCopy: (List<String>) -> Unit = {}, onClear: (
                     },
                 )
                 LogLevel.entries.forEach { choice -> Choice(choice.title, choice == level) { level = choice } }
-                Box(Modifier.weight(1f))
-                Action(if (held == null) "Pause" else "Resume", ink.soft) { held = if (held == null) lines.toList() else null }
+                Action(tr(if (held == null) "Pause" else "Resume"), ink.soft) { held = if (held == null) lines.toList() else null }
                 Action(tr("Copy")) { onCopy(shown) }
                 Action(tr("Clear"), ink.soft) {
                     held = null

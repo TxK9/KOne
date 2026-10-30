@@ -1083,11 +1083,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                         trail.addLast(down to up)
                         while (trail.size > 60) trail.removeFirst()
                         tools = tools.copy(today = usage.today(), month = usage.month())
-                        refresh()
+                        refreshTelemetry()
                     }
                 }
             }
-            launch { while (isActive && clash === api) { delay(1000); seconds++; refresh() } }
+            launch { while (isActive && clash === api) { delay(1000); seconds++; refreshTelemetry() } }
             launch(Dispatchers.IO) { detectExit() }
             launch { testDelays(api) }
             launch { countTraffic(api) }
@@ -1431,6 +1431,17 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         imported = node.tag in importedTags, protocol = node.type, loss = health.loss(node.tag), speed = speeds[node.tag],
         history = health.samples(node.tag),
     )
+
+    /** Rate and clock ticks do not change nodes, health or subscription sections. */
+    internal fun refreshTelemetry() {
+        dashboard = dashboard.copy(
+            downKbps = rates.first / 1024.0,
+            upKbps = rates.second / 1024.0,
+            seconds = seconds,
+            trail = trail.toList(),
+            expiry = Expiry.hint(account.binding?.expiresAt),
+        )
+    }
 
     private fun refresh() {
         val selected = account.binding?.selected?.takeIf { tag -> (tag == KoneConfig.AUTO_TAG && auto) || regionOf(tag) != null || nodes.any { it.tag == tag } }

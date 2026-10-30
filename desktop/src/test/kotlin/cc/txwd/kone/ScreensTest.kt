@@ -121,6 +121,21 @@ class ScreensTest {
         trail = (0 until 60).map { i -> ((kotlin.math.sin(i / 4.0) + 1.2) * 9_000 + (if (i % 13 == 0) 40_000 else 0)).toLong() to (1_000L + (i % 7) * 150L) },
     )
 
+    @Test
+    fun dashboardDeck() {
+        for (dark in listOf(false, true)) {
+            for (width in listOf(960, 1280)) {
+                shoot("dashboard-deck-$width", dark, width = width, height = 620) {
+                    WithRail(Page.Dashboard, {}) {
+                        DashboardView(online.copy(nodes = online.nodes + (3..60).map {
+                            Node("extra$it", "United States $it · West coast", "US", "United States", 150 + it)
+                        }), DashboardActions(), false, {}, moving = false)
+                    }
+                }
+            }
+        }
+    }
+
     private val out = File(System.getProperty("kone.screens") ?: "build/screens").apply { mkdirs() }
 
     private fun shoot(

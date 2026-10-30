@@ -6,9 +6,27 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import java.nio.file.Files
 import kotlin.test.Test
+import kotlin.test.assertSame
 import kotlin.test.assertEquals
 
 class AppModelTest {
+    @Test
+    fun telemetryTicksKeepNodeAndSubscriptionSnapshots() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val model = AppModel(scope, Preferences(Files.createTempDirectory("kone-telemetry").toFile()))
+            val nodes = model.dashboard.nodes
+            val sections = model.nodesPage
+            repeat(60) { model.refreshTelemetry() }
+            assertSame(nodes, model.dashboard.nodes)
+            assertSame(sections, model.nodesPage)
+            assertEquals(0.0, model.dashboard.downKbps)
+            assertEquals(0L, model.dashboard.seconds)
+        } finally {
+            scope.cancel()
+        }
+    }
+
     /**
      * The App is made as Main makes it, with every delegate and the work it starts at once. A
      * property used while starting but declared after the start once left one delegate unmade,
