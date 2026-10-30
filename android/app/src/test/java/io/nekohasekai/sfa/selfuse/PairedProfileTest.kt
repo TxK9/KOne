@@ -75,4 +75,40 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    @Test
+    fun ignoresUnescapedShareLinkName() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link#Example node (backup)"))
+        assertEquals("node.invalid", config.getJSONArray("outbounds").getJSONObject(1).getString("server"))
+    }
+
+    @Test
+    fun unwrapsIpv6ServerLiteral() {
+        val node = JSONObject(PairedProfile.fromVlessLink(link.replace("node.invalid:443", "[2001:db8::1]:8443")))
+            .getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(8443, node.getInt("server_port"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToDefault() {
+        val tls = JSONObject(PairedProfile.fromVlessLink("$link&fp="))
+            .getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls")
+        assertEquals("chrome", tls.getJSONObject("utls").getString("fingerprint"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnsupportedFlow() {
+        PairedProfile.fromVlessLink(link.replace("flow=xtls-rprx-vision", "flow=xtls-rprx-direct"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun malformedEarlyRuleIsAnArgumentFailure() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link))
+        val original = config.getJSONObject("route").getJSONArray("rules")
+        val reordered = JSONArray().put("not-a-rule")
+        for (index in 0 until original.length()) reordered.put(original.getJSONObject(index))
+        config.getJSONObject("route").put("rules", reordered)
+        PairedProfile.requirePaired(config.toString())
+    }
 }
