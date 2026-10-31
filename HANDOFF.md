@@ -26,6 +26,13 @@ rendering, installation, live networking, update recovery, and visual acceptance
 are separate evidence levels. Obtain deployment and billing authorization before
 creating public services or paid infrastructure.
 
+## Current Android line
+
+`docs/android/CURRENT.md` describes where Android work stands: the integration branch
+(`claude/polish-10042`), how parallel feature branches own disjoint files, the design system
+every screen follows, where features live, and what has and has not been checked on a device.
+Start Android work from that branch's head and follow its working rules.
+
 ## Development and release languages
 
 Repository documentation, comments, default display resources and development

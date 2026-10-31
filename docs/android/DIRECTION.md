@@ -1,5 +1,7 @@
 # KOne for Android: where it stands and where it goes
 
+For the current branch, design system and verification state, see `CURRENT.md`.
+
 KOne for Android is SFA (sing-box for Android) with KOne's own layer on top. This page is the
 Android counterpart of `docs/windows/DIRECTION.md`: what is there, how it compares, and what is
 built next. Claims of being better than other clients wait for device evidence.
