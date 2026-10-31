@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.MotionDurationScale
@@ -242,5 +243,7 @@ internal fun CityWallpaper(modifier: Modifier = Modifier, blur: () -> Float = { 
         }
     }
     DisposableEffect(web) { onDispose { web.stopLoading(); web.onPause(); web.removeAllViews(); web.destroy() } }
-    AndroidView(factory = { web }, modifier = modifier)
+    // A layer of its own: each frame the city paints redraws this view alone, not the shade and
+    // backdrop drawn beside it, which would otherwise be redrawn with every one of its frames.
+    AndroidView(factory = { web }, modifier = modifier.graphicsLayer())
 }

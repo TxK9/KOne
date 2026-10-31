@@ -6,6 +6,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.database.Profile
 import cc.txwd.kone.shared.Countries
 import android.os.SystemClock
 import android.widget.Toast
@@ -43,6 +44,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -54,7 +57,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -165,6 +167,12 @@ internal fun NodeDeck(
 ) {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    // The dashboard hands down new callbacks with every status tick; the pages get steady ones,
+    // so a tick passes over the node rows instead of recomposing every one of them.
+    val select = steady(onSelect)
+    val edit = steady(onEdit)
+    val delete = steady<Long> { onDelete?.invoke(it) }.takeIf { onDelete != null }
+    val import = steady<Offset> { onImport?.invoke(it) }.takeIf { onImport != null }
     var expanded by remember { mutableStateOf(false) }
     // The lifted list stops a third of the way up, so the city stays in view above even with many nodes.
     val listMax = (LocalConfiguration.current.screenHeightDp * if (floating) 0.34f else 0.42f).dp
@@ -258,7 +266,7 @@ internal fun NodeDeck(
             } else group
             // Only a list too long for the screen scrolls; a short one leaves the swipe that folds the panel alone.
             val long = all && filtered.profiles.size * NODE_ROW_DP > listMax.value
-            val scroll = rememberScrollState()
+            val list = rememberLazyListState()
             NodePage(
                 group = filtered,
                 selectedId = selectedId,
@@ -267,10 +275,11 @@ internal fun NodeDeck(
                 fromBottom = floating,
                 rise = { rise.value },
                 onToggleAll = if (floating) null else ({ expanded = !expanded }),
-                onSelect = onSelect,
-                onEdit = onEdit,
-                onDelete = onDelete,
-                onImport = onImport,
+                onSelect = select,
+                onEdit = edit,
+                onDelete = delete,
+                onImport = import,
+                list = if (long) list else null,
                 modifier = Modifier
                     .naturalHeight { if (heights[group.id] != it) heights[group.id] = it }
                     .graphicsLayer {
@@ -278,7 +287,7 @@ internal fun NodeDeck(
                         val distance = abs(index - pagerState.currentPage - pagerState.currentPageOffsetFraction).coerceAtMost(1f)
                         alpha = 1f - distance * 0.6f
                     }
-                    .then(if (long) Modifier.heightIn(max = listMax).fadingEdges(scroll).verticalScroll(scroll) else Modifier),
+                    .then(if (long) Modifier.heightIn(max = listMax).fadingEdges(list) else Modifier),
             )
         }
     }
@@ -291,13 +300,13 @@ private const val MANY_NODES = 8
  * A scrolling list dissolves at the edge that has more beyond it, so rows ease into the city
  * rather than being cut off by a hard line; the fade grows with the first rows scrolled.
  */
-private fun Modifier.fadingEdges(scroll: androidx.compose.foundation.ScrollState): Modifier =
+private fun Modifier.fadingEdges(list: LazyListState): Modifier =
     graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         .drawWithContent {
             drawContent()
             val edge = 36.dp.toPx()
-            val top = 1f - (scroll.value / edge).coerceIn(0f, 1f)
-            val bottom = 1f - ((scroll.maxValue - scroll.value) / edge).coerceIn(0f, 1f)
+            val top = 1f - (scrolledAbove(list) / edge).coerceIn(0f, 1f)
+            val bottom = 1f - (scrolledBelow(list) / edge).coerceIn(0f, 1f)
             if (top < 1f) {
                 drawRect(
                     Brush.verticalGradient(0f to Color.Black.copy(alpha = top), 1f to Color.Black, startY = 0f, endY = edge),
@@ -314,6 +323,25 @@ private fun Modifier.fadingEdges(scroll: androidx.compose.foundation.ScrollState
                 )
             }
         }
+
+/** How far the list has scrolled past its start, in px; a row's height and more once the first row is gone. */
+private fun scrolledAbove(list: LazyListState): Float =
+    if (list.firstVisibleItemIndex > 0) Float.MAX_VALUE else list.firstVisibleItemScrollOffset.toFloat()
+
+/** How much of the list lies below the view, in px; a row's height and more until the last row shows. */
+private fun scrolledBelow(list: LazyListState): Float {
+    val info = list.layoutInfo
+    val last = info.visibleItemsInfo.lastOrNull() ?: return 0f
+    if (last.index < info.totalItemsCount - 1) return Float.MAX_VALUE
+    return (last.offset + last.size - info.viewportEndOffset).coerceAtLeast(0).toFloat()
+}
+
+/** A callback that stays one object while always calling the latest [action]. */
+@Composable
+private fun <T> steady(action: (T) -> Unit): (T) -> Unit {
+    val latest = rememberUpdatedState(action)
+    return remember { { value: T -> latest.value(value) } }
+}
 
 /** The countries of a long list as flags with their counts; tapping one shows only its nodes, tapping it again shows all. */
 @Composable
@@ -764,81 +792,111 @@ private fun NodePage(
     onDelete: ((Long) -> Unit)?,
     onImport: ((Offset) -> Unit)?,
     modifier: Modifier,
+    list: LazyListState? = null,
 ) {
-    Column(modifier.fillMaxWidth()) {
-        if (group.profiles.isEmpty() && onImport != null) {
-            // Nothing here yet at all: the one thing to do is to bring a node in.
-            val ink = LocalContentColor.current
-            var center by remember { mutableStateOf(Offset.Zero) }
-            Row(
-                Modifier
-                    .padding(horizontal = 8.dp, vertical = 10.dp)
-                    .onGloballyPositioned { center = it.boundsInRoot().center }
-                    .clip(RoundedCornerShape(50))
-                    .border(1.dp, ink.copy(alpha = 0.45f), RoundedCornerShape(50))
-                    .clickable { onImport(center) }
-                    .padding(start = 14.dp, end = 18.dp, top = 9.dp, bottom = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                BText("Import nodes", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
-            }
-            return@Column
-        }
-        if (group.profiles.isEmpty()) {
-            BText(
-                "No nodes yet",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 14.dp)
-                    .graphicsLayer { alpha = 0.7f },
-            )
-            return@Column
-        }
-        val shown = if (all) group.profiles else visibleNodes(group, selectedId)
-        shown.forEachIndexed { i, profile ->
-            key(profile.id) {
-            val shareContext = LocalContext.current
-            val shareScope = rememberCoroutineScope()
-            SwipeNode(
-                deletable = onDelete != null && !io.nekohasekai.sfa.managed.ManagedState.isManaged(profile.id),
-                onDelete = { onDelete?.invoke(profile.id) },
-                onShare = if (io.nekohasekai.sfa.compose.component.canShareNode(profile)) ({
-                    shareScope.launch { io.nekohasekai.sfa.compose.component.shareNodeAsText(shareContext, profile) }
-                }) else null,
-            ) {
-            NodeRow(
-                profile = profile,
-                selected = profile.id == selectedId,
-                clear = clear,
-                onSelect = { onSelect(profile.id) },
-                onEdit = { onEdit(profile.id) },
-                modifier = Modifier.graphicsLayer {
-                    // One row after another; the lifted list starts from the row nearest the folded line.
-                    val order = (if (fromBottom) shown.size - 1 - i else i).coerceAtMost(8)
-                    val p = FastOutSlowInEasing.transform(((rise() - order * 0.07f) / 0.5f).coerceIn(0f, 1f))
-                    alpha = p
-                    translationY = (1f - p) * 18.dp.toPx()
-                },
-            )
-            }
+    if (group.profiles.isEmpty()) {
+        Column(modifier.fillMaxWidth()) {
+            if (onImport != null) {
+                // Nothing here yet at all: the one thing to do is to bring a node in.
+                val ink = LocalContentColor.current
+                var center by remember { mutableStateOf(Offset.Zero) }
+                Row(
+                    Modifier
+                        .padding(horizontal = 8.dp, vertical = 10.dp)
+                        .onGloballyPositioned { center = it.boundsInRoot().center }
+                        .clip(RoundedCornerShape(50))
+                        .border(1.dp, ink.copy(alpha = 0.45f), RoundedCornerShape(50))
+                        .clickable { onImport(center) }
+                        .padding(start = 14.dp, end = 18.dp, top = 9.dp, bottom = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    BText("Import nodes", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                }
+            } else {
+                BText(
+                    "No nodes yet",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp, vertical = 14.dp)
+                        .graphicsLayer { alpha = 0.7f },
+                )
             }
         }
-        if (onToggleAll != null && foldsNodes(group)) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(role = Role.Button, onClick = onToggleAll)
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BText(if (all) stringResource(R.string.kone_dashboard_collapse) else pluralStringResource(R.plurals.kone_dashboard_all_nodes, group.profiles.size, group.profiles.size), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                Icon(if (all) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp))
+        return
+    }
+    val shown = if (all) group.profiles else visibleNodes(group, selectedId)
+    val toggle = onToggleAll != null && foldsNodes(group)
+    // One row after another; the lifted list starts from the row nearest the folded line.
+    fun order(i: Int) = (if (fromBottom) shown.size - 1 - i else i).coerceAtMost(8)
+    if (list != null) {
+        // A list longer than the screen composes only the rows in view, however many nodes it holds.
+        LazyColumn(modifier.fillMaxWidth(), state = list) {
+            itemsIndexed(shown, key = { _, profile -> profile.id }) { i, profile ->
+                NodeItem(profile, order(i), selectedId, clear, rise, onSelect, onEdit, onDelete)
             }
+            if (toggle) item(key = "all") { AllNodesToggle(group, all, onToggleAll) }
         }
+    } else {
+        Column(modifier.fillMaxWidth()) {
+            shown.forEachIndexed { i, profile ->
+                key(profile.id) { NodeItem(profile, order(i), selectedId, clear, rise, onSelect, onEdit, onDelete) }
+            }
+            if (toggle) AllNodesToggle(group, all, onToggleAll)
+        }
+    }
+}
+
+@Composable
+private fun NodeItem(
+    profile: Profile,
+    order: Int,
+    selectedId: Long,
+    clear: Boolean,
+    rise: () -> Float,
+    onSelect: (Long) -> Unit,
+    onEdit: (Long) -> Unit,
+    onDelete: ((Long) -> Unit)?,
+) {
+    val shareContext = LocalContext.current
+    val shareScope = rememberCoroutineScope()
+    SwipeNode(
+        deletable = onDelete != null && !io.nekohasekai.sfa.managed.ManagedState.isManaged(profile.id),
+        onDelete = { onDelete?.invoke(profile.id) },
+        onShare = if (io.nekohasekai.sfa.compose.component.canShareNode(profile)) ({
+            shareScope.launch { io.nekohasekai.sfa.compose.component.shareNodeAsText(shareContext, profile) }
+        }) else null,
+    ) {
+        NodeRow(
+            profile = profile,
+            selected = profile.id == selectedId,
+            clear = clear,
+            onSelect = { onSelect(profile.id) },
+            onEdit = { onEdit(profile.id) },
+            modifier = Modifier.graphicsLayer {
+                val p = FastOutSlowInEasing.transform(((rise() - order * 0.07f) / 0.5f).coerceIn(0f, 1f))
+                alpha = p
+                translationY = (1f - p) * 18.dp.toPx()
+            },
+        )
+    }
+}
+
+/** Under a folded page: show every node, or fold them back. */
+@Composable
+private fun AllNodesToggle(group: NodeGroup, all: Boolean, onToggleAll: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(38.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClick = onToggleAll)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BText(if (all) stringResource(R.string.kone_dashboard_collapse) else pluralStringResource(R.plurals.kone_dashboard_all_nodes, group.profiles.size, group.profiles.size), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+        Icon(if (all) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp))
     }
 }
 
