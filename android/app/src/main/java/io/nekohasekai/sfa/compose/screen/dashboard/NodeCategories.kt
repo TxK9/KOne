@@ -97,3 +97,99 @@ internal object NodeCategories {
         return NodeCategoryState(categories = categories.values.toList(), assignments = assignments)
     }
 }
+
+/** How a category's nodes are ordered: as saved, fastest first, or by name. */
+internal enum class NodeSort {
+    Saved,
+    Latency,
+    Name,
+    ;
+
+    fun next(): NodeSort = entries[(ordinal + 1) % entries.size]
+}
+
+/**
+ * Ordering, searching and finding copies among one category's nodes. Pure over plain values,
+ * so it is unit tested; the deck hands it profiles and their readings.
+ */
+internal object NodeListing {
+    /** A place when fastest first: replies by their latency, then no reply, then unreachable, then not yet tested. */
+    fun rank(reading: NodeReading?): Long = when {
+        reading == null -> Long.MAX_VALUE
+        reading.health == NodeHealth.Down -> Long.MAX_VALUE - 1
+        reading.failed -> Long.MAX_VALUE - 2
+        else -> reading.ms?.toLong() ?: (Long.MAX_VALUE - 3)
+    }
+
+    /** [items] in [sort]'s order; equal places keep their saved order. */
+    fun <T> sort(items: List<T>, sort: NodeSort, name: (T) -> String, rank: (T) -> Long): List<T> = when (sort) {
+        NodeSort.Saved -> items
+        NodeSort.Latency -> items.map { it to rank(it) }.sortedBy { it.second }.map { it.first }
+        NodeSort.Name -> items.map { it to sortKey(name(it)) }.sortedWith(compareBy(NaturalOrder) { it.second }).map { it.first }
+    }
+
+    /** A name without the flags and marks in front of it, folded, so "🇯🇵 Tokyo" sorts under T. */
+    fun sortKey(name: String): String = fold(name).dropWhile { !it.isLetterOrDigit() }
+
+    /** Text order, with runs of digits compared as numbers: "Node 2" before "Node 10". */
+    val NaturalOrder: Comparator<String> = Comparator { a, b ->
+        var i = 0
+        var j = 0
+        while (i < a.length && j < b.length) {
+            if (a[i] in '0'..'9' && b[j] in '0'..'9') {
+                val si = i
+                val sj = j
+                while (i < a.length && a[i] in '0'..'9') i++
+                while (j < b.length && b[j] in '0'..'9') j++
+                val na = a.substring(si, i).trimStart('0')
+                val nb = b.substring(sj, j).trimStart('0')
+                if (na.length != nb.length) return@Comparator na.length - nb.length
+                val c = na.compareTo(nb)
+                if (c != 0) return@Comparator c
+            } else {
+                if (a[i] != b[j]) return@Comparator a[i].compareTo(b[j])
+                i++
+                j++
+            }
+        }
+        (a.length - i) - (b.length - j)
+    }
+
+    /**
+     * Whether a node answers [query]: every word in it is in the name, or names the node's
+     * country, so "japan" finds "Tokyo 01". Case and accents are ignored.
+     */
+    fun matches(name: String, flag: String?, query: String): Boolean {
+        val words = fold(query).split(' ').filter { it.isNotEmpty() }
+        if (words.isEmpty()) return true
+        val text = fold(name)
+        val country = Countries.byCode(flag)
+        // The country's own names only: its cities would make "osaka" find every node in Japan.
+        val countryWords = country?.let { listOf(it.code, it.en, it.zh) }.orEmpty().map(::fold)
+        return words.all { word -> word in text || countryWords.any { word in it } }
+    }
+
+    /**
+     * The copies to merge away: of nodes with the same [fingerprint], all but one are copies. The
+     * one kept is a managed node, else the node in use, else the first. Managed nodes are never copies.
+     */
+    fun duplicates(ids: List<Long>, fingerprint: (Long) -> String?, inUse: Long, managed: (Long) -> Boolean): Set<Long> {
+        val copies = LinkedHashSet<Long>()
+        ids.groupBy(fingerprint).forEach { (print, same) ->
+            if (print == null || same.size < 2) return@forEach
+            val keep = same.firstOrNull(managed) ?: same.firstOrNull { it == inUse } ?: same.first()
+            same.filterTo(copies) { it != keep && !managed(it) }
+        }
+        return copies
+    }
+
+    private fun fold(text: String): String =
+        java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFKD)
+            .replace(COMBINING, "")
+            .lowercase(java.util.Locale.ROOT)
+            .replace(SPACES, " ")
+            .trim()
+
+    private val COMBINING = Regex("\\p{M}+")
+    private val SPACES = Regex("\\s+")
+}

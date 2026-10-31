@@ -9,13 +9,17 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import io.nekohasekai.sfa.database.Profile
+import io.nekohasekai.sfa.database.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.ConnectException
@@ -26,7 +30,9 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 internal data class NodeEndpoint(val host: String, val port: Int)
 
@@ -70,13 +76,52 @@ internal object NodeEndpoints {
     }
 }
 
+/** What makes two nodes one node: the settings of their proxies, with names and tags left aside. */
+internal object NodeFingerprints {
+    private val notProxies = setOf("direct", "block", "dns", "selector", "urltest")
+    private val cache = ConcurrentHashMap<Long, Pair<Long, String?>>()
+
+    /** A digest of every proxy in [content], the same for two configs that differ only in names; null when it has none. */
+    fun of(content: String): String? {
+        val config = runCatching { JSONObject(content) }.getOrNull() ?: return null
+        val proxies = listOfNotNull(config.optJSONArray("outbounds"), config.optJSONArray("endpoints")).flatMap { list ->
+            (0 until list.length()).mapNotNull { list.optJSONObject(it) }
+        }.filter { it.optString("type").let { type -> type.isNotEmpty() && type !in notProxies } }
+        if (proxies.isEmpty()) return null
+        val canonical = proxies.map { canonical(it, top = true) }.sorted().joinToString("\n")
+        return MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray()).joinToString("") { "%02x".format(it) }
+    }
+
+    /** Off the main thread. A profile's fingerprint, read again only when its file changes. */
+    fun of(profile: Profile): String? {
+        val file = File(profile.typed.path)
+        val modified = file.lastModified()
+        cache[profile.id]?.takeIf { it.first == modified }?.let { return it.second }
+        val print = runCatching { of(file.readText()) }.getOrNull()
+        cache[profile.id] = modified to print
+        return print
+    }
+
+    private fun canonical(value: Any?, top: Boolean = false): String = when (value) {
+        is JSONObject -> value.keys().asSequence().filterNot { top && it == "tag" }.sorted()
+            .joinToString(",", "{", "}") { "${JSONObject.quote(it)}:${canonical(value.opt(it))}" }
+        is JSONArray -> (0 until value.length()).joinToString(",", "[", "]") { canonical(value.opt(it)) }
+        is String -> JSONObject.quote(value)
+        null, JSONObject.NULL -> "null"
+        else -> value.toString()
+    }
+}
+
 internal enum class NodeHealth { Good, Slow, Down }
 
 /**
  * A node's latest result: a latency, or with [failed] the reason it failed. Rows show a
  * failure as a dot alone; the reason appears in the connection details.
  */
-internal data class NodeReading(val label: String, val health: NodeHealth, val failed: Boolean = false)
+internal data class NodeReading(val label: String, val health: NodeHealth, val failed: Boolean = false) {
+    /** The latency in milliseconds, or null for a failure. */
+    val ms: Int? get() = if (failed) null else label.removeSuffix(" ms").toIntOrNull()
+}
 
 /** One measurement: [ms] on success, otherwise the [failure] in words. */
 internal data class LatencySample(val ms: Int?, val failure: String? = null)
@@ -134,6 +179,13 @@ internal object NodeHealthRules {
 internal object NodeLatency {
     const val INTERVAL_MS = 6_000L
     private const val CONNECT_TIMEOUT_MS = 2_500
+
+    /** Up to this many nodes are all checked by themselves; beyond it, only the rows on screen and the node chosen. */
+    const val AUTO_ALL = 24
+
+    // Test all: this many handshakes at once, each started a beat after the last.
+    private const val SWEEP_PARALLEL = 8
+    private const val SWEEP_GAP_MS = 25L
     private const val TAG = "NodeLatency"
 
     // Each node's reading is a state of its own, so a result recomposes only the rows showing that
@@ -143,6 +195,31 @@ internal object NodeLatency {
     private val tcpHistory = ConcurrentHashMap<Long, List<LatencySample>>()
     private val proxyHistory = ConcurrentHashMap<Long, List<LatencySample>>()
     private val endpoints = ConcurrentHashMap<Long, Pair<Long, NodeEndpoint?>>()
+
+    /** How many times each node's row is on screen. */
+    private val shown = ConcurrentHashMap<Long, Int>()
+    private val sweeps = AtomicInteger(0)
+    private val rounds = mutableIntStateOf(0)
+
+    /** Moves each time a check of the list finishes, by itself or from Test all. */
+    val round: Int get() = rounds.intValue
+
+    /** Main thread. A node's row came on screen. */
+    fun show(profileId: Long) {
+        shown.merge(profileId, 1, Int::plus)
+    }
+
+    /** Main thread. A node's row left the screen. */
+    fun hide(profileId: Long) {
+        shown.computeIfPresent(profileId) { _, count -> (count - 1).takeIf { it > 0 } }
+    }
+
+    /**
+     * The nodes the regular check covers: all of a short list; of a long one only the rows on
+     * screen and [focus], so hundreds of nodes don't each take a handshake every few seconds.
+     */
+    internal fun due(ids: List<Long>, onScreen: Set<Long>, focus: Set<Long>): Set<Long> =
+        if (ids.size <= AUTO_ALL) ids.toSet() else ids.filterTo(LinkedHashSet()) { it in onScreen || it in focus }
 
     /** The node whose reading comes from the proxy test; null when disconnected. */
     @Volatile
@@ -176,14 +253,18 @@ internal object NodeLatency {
         publish(profileId)
     }
 
-    suspend fun refresh(context: Context, profiles: List<Profile>) = coroutineScope {
+    suspend fun refresh(context: Context, profiles: List<Profile>): Unit = coroutineScope {
         withContext(Dispatchers.Main) { watch(profiles.map { it.id }) }
+        // Test all is checking the list already.
+        if (sweeps.get() > 0) return@coroutineScope
+        val focus = withContext(Dispatchers.IO) { setOfNotNull(Settings.selectedProfile, proxied) }
+        val due = due(profiles.map { it.id }, shown.keys, focus)
         val network = physicalNetwork(context)
         val over = network?.let { context.getSystemService(ConnectivityManager::class.java)?.getNetworkCapabilities(it) }?.let {
             if (it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) "Wi-Fi" else if (it.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) "mobile data" else "another network"
         } ?: "the default route"
         val gate = Semaphore(6)
-        profiles.map { profile ->
+        profiles.filter { it.id in due }.map { profile ->
             async(Dispatchers.IO) {
                 gate.withPermit {
                     val endpoint = endpointOf(profile)
@@ -201,8 +282,44 @@ internal object NodeLatency {
             (readings.keys - alive).forEach(::drop)
             tcpHistory.keys.retainAll(alive)
             proxyHistory.keys.retainAll(alive)
+            rounds.intValue++
         }
         endpoints.keys.retainAll(alive)
+    }
+
+    /**
+     * Test all: [profiles] checked now, in order, a few at a time and a beat apart, so hundreds of
+     * nodes never open hundreds of sockets at once. Each result lands in its row as it comes, and
+     * [onProgress] has how many are done. Cancelled, results still in flight are dropped.
+     */
+    suspend fun sweep(context: Context, profiles: List<Profile>, onProgress: (Int) -> Unit) {
+        sweeps.incrementAndGet()
+        try {
+            coroutineScope {
+                withContext(Dispatchers.Main) { watch(profiles.map { it.id }) }
+                val network = physicalNetwork(context)
+                val gate = Semaphore(SWEEP_PARALLEL)
+                var done = 0
+                for (profile in profiles) {
+                    gate.acquire()
+                    launch(Dispatchers.IO) {
+                        try {
+                            val sample = endpointOf(profile)?.let { measure(it, network) }
+                            withContext(Dispatchers.Main) {
+                                recordTcp(profile.id, sample)
+                                onProgress(++done)
+                            }
+                        } finally {
+                            gate.release()
+                        }
+                    }
+                    delay(SWEEP_GAP_MS)
+                }
+            }
+            withContext(Dispatchers.Main) { rounds.intValue++ }
+        } finally {
+            sweeps.decrementAndGet()
+        }
     }
 
     /** Main thread. One handshake result for [profileId]; null when its server cannot be told. */

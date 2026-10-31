@@ -34,10 +34,17 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
-/** Physical right swipe reveals explicit Share and Delete actions. */
+/** Physical right swipe reveals explicit Share and Delete actions; while [enabled] is false the row stays shut. */
 @Composable
-internal fun SwipeNode(deletable: Boolean, onDelete: () -> Unit, onShare: (() -> Unit)? = null, content: @Composable () -> Unit) {
-    if (!deletable && onShare == null) { content(); return }
+internal fun SwipeNode(
+    deletable: Boolean,
+    onDelete: () -> Unit,
+    onShare: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    if (!deletable && onShare == null) { Box(modifier) { content() }; return }
     // One round action's room for each the swipe uncovers: Share, then Delete.
     val actions = (if (onShare != null) 1 else 0) + (if (deletable) 1 else 0)
     val reveal = with(LocalDensity.current) { (ACTION_SLOT * actions).dp.toPx() }
@@ -47,7 +54,10 @@ internal fun SwipeNode(deletable: Boolean, onDelete: () -> Unit, onShare: (() ->
     val settled by animateFloatAsState(offset, spring(dampingRatio = .92f, stiffness = 480f), label = "nodeActions")
     val shown = if (dragging) offset else settled
     val currentDelete by rememberUpdatedState(onDelete)
-    Box(Modifier.fillMaxWidth().clipToBounds().pointerInput(reveal) {
+    // Selecting nodes takes the row's taps; an open row closes for it.
+    LaunchedEffect(enabled) { if (!enabled) offset = 0f }
+    Box(modifier.fillMaxWidth().clipToBounds().pointerInput(reveal, enabled) {
+        if (!enabled) return@pointerInput
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             val canClose = offset > 0f
@@ -100,7 +110,7 @@ private const val ACTION_SLOT = 54
 @Composable
 private fun SwipeAction(label: String, icon: ImageVector, enabled: Boolean, danger: Boolean = false, onClick: () -> Unit) {
     val ink = LocalContentColor.current
-    val tint = if (danger) Color(if (ink.red > 0.5f) 0xFFFF9C8F else 0xFFA3322A) else ink
+    val tint = if (danger) dangerInk(ink) else ink
     Box(Modifier.width(ACTION_SLOT.dp), contentAlignment = Alignment.Center) {
         Box(
             Modifier
@@ -116,3 +126,6 @@ private fun SwipeAction(label: String, icon: ImageVector, enabled: Boolean, dang
         }
     }
 }
+
+/** The red that deleting wears, light on light ink and deep on dark. */
+internal fun dangerInk(ink: Color): Color = Color(if (ink.red > 0.5f) 0xFFFF9C8F else 0xFFA3322A)

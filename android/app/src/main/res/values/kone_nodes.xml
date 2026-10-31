@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Node list tools: search, order, Test all, copies, and selecting nodes. -->
+    <string name="kone_nodes_select">Select</string>
+    <string name="kone_nodes_search">Search nodes</string>
+    <string name="kone_nodes_close_search">Close search</string>
+    <string name="kone_nodes_sort_saved">Saved order</string>
+    <string name="kone_nodes_sort_latency">Fastest first</string>
+    <string name="kone_nodes_sort_name">By name</string>
+    <string name="kone_nodes_test">Test all</string>
+    <string name="kone_nodes_stop_test">Stop testing</string>
+    <string name="kone_nodes_clear_selection">Clear selection</string>
+    <string name="kone_nodes_select_all">Select all</string>
+    <string name="kone_nodes_select_none">Select none</string>
+    <string name="kone_nodes_move">Move to category</string>
+    <plurals name="kone_nodes_copies">
+        <item quantity="one">%d duplicate</item>
+        <item quantity="other">%d duplicates</item>
+    </plurals>
+    <plurals name="kone_nodes_selected">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <plurals name="kone_nodes_delete">
+        <item quantity="one">Delete %d</item>
+        <item quantity="other">Delete %d</item>
+    </plurals>
+</resources>

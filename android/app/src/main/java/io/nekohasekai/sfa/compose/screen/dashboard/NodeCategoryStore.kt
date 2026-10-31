@@ -15,6 +15,7 @@ internal object NodeCategoryStore {
     private const val KEY_FALLBACK_NAME = "fallback_name"
     private const val KEY_FALLBACK_FLAG = "fallback_flag"
     private const val ASSIGNMENT_PREFIX = "a:"
+    private const val KEY_SORT = "sort"
 
     private val prefs: SharedPreferences by lazy {
         Application.application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -22,6 +23,20 @@ internal object NodeCategoryStore {
     private val holder by lazy { mutableStateOf(load()) }
 
     val state: NodeCategoryState get() = holder.value
+
+    // Kept apart from [state], so choosing an order never regroups the nodes.
+    private val sortHolder by lazy {
+        mutableStateOf(NodeSort.entries.firstOrNull { it.name == prefs.getString(KEY_SORT, null) } ?: NodeSort.Saved)
+    }
+
+    /** How every category's nodes are ordered, kept across launches. */
+    var sort: NodeSort
+        get() = sortHolder.value
+        set(value) {
+            if (value == sortHolder.value) return
+            sortHolder.value = value
+            prefs.edit().putString(KEY_SORT, value.name).apply()
+        }
 
     private fun load(): NodeCategoryState {
         if (!prefs.contains(KEY_VERSION)) {
@@ -122,6 +137,11 @@ internal object NodeCategoryStore {
     /** Also used after a rename so a new name cannot move the node elsewhere. */
     fun assign(profileId: Long, categoryId: String) {
         update { it.copy(assignments = it.assignments + (profileId to categoryId)) }
+    }
+
+    /** Several nodes moved to one category at once, in a single save. */
+    fun assignAll(profileIds: Collection<Long>, categoryId: String) {
+        update { it.copy(assignments = it.assignments + profileIds.associateWith { categoryId }) }
     }
 
     /**
