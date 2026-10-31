@@ -1,5 +1,7 @@
 # Android city wallpaper
 
+Superseded in part (builds 10042 to 10051): the light, art-weather, motion and city choices were removed. Cities now take turns by themselves and the city is every page's canvas; see `docs/android/CURRENT.md`.
+
 Build 10041 adds the approved city artwork to the Android application behind its
 native controls. The library contains 302 views in 289 cities and 31 countries,
 with 604 day/night WebP paintings (63,132,338 bytes). The importer verifies each
