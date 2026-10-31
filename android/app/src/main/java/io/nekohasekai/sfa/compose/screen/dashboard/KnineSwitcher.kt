@@ -133,7 +133,9 @@ internal class DialSpacing(val type: Float, val stops: FloatArray) {
     companion object {
         const val FOCUS_SCALE = 1.1f
         const val SIDE_SCALE = 0.9f
-        const val MIN_TYPE = 0.8f
+        // Low enough that two long names fit side by side on a 320 dp screen at a large font
+        // scale (about 12 sp before scaling): a smaller name beats one cut by the screen's edge.
+        const val MIN_TYPE = 0.62f
 
         /** [widthAt] is a label's full width at a type factor, including [pad] on each side. */
         fun fit(count: Int, widthAt: (Int, Float) -> Float, radius: Float, halfScreen: Float, pad: Float, gap: Float): DialSpacing {

@@ -53,6 +53,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -679,6 +680,16 @@ private fun ExpandedPanel(
     }
 }
 
+/** True when a node's name is only an address: an IPv4 or IPv6 address, or a host name, with or without a port. */
+internal fun looksLikeAddress(name: String): Boolean {
+    val text = name.trim()
+    if (text.isEmpty() || text.any { it.isWhitespace() }) return false
+    val ipv4 = Regex("""\d{1,3}(\.\d{1,3}){3}(:\d{1,5})?""")
+    val ipv6 = Regex("""\[?[0-9A-Fa-f]{0,4}(:[0-9A-Fa-f]{0,4}){2,7}]?(:\d{1,5})?""")
+    val host = Regex("""[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}(:\d{1,5})?""")
+    return ipv4.matches(text) || ipv6.matches(text) || host.matches(text)
+}
+
 /**
  * The folded panel: the flag, health and home tunnel in the start action's own
  * type, on the start action's line. It wraps to a second line only when it must. Tapping it
@@ -711,10 +722,15 @@ internal fun CollapsedPanel(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         val noNode = stringResource(R.string.kone_dashboard_no_node)
+        // A node named by its server's address shows a plain globe here: the home screen never
+        // spells out an address, and the line stays one line. The list above keeps the name.
+        val addressName = flag == null && selected != null && looksLikeAddress(selected.name)
         // A flag alone says nothing to a screen reader; the node's name does.
-        Row(item.then(if (flag != null) Modifier.semantics { contentDescription = selected.name } else Modifier), verticalAlignment = Alignment.CenterVertically) {
+        Row(item.then(if (flag != null || addressName) Modifier.semantics { contentDescription = selected!!.name } else Modifier), verticalAlignment = Alignment.CenterVertically) {
             if (flag != null) {
                 FlagGlyph(flag, size = 18.dp)
+            } else if (addressName) {
+                Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(18.dp))
             } else {
                 BText(selected?.name ?: noNode, style = type, fontWeight = FontWeight.SemiBold, emphasized = true, maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis)
             }

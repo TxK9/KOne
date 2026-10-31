@@ -100,13 +100,25 @@ Sharing and chaining exist only in the owner edition, and never apply to console
   - swipe Share and Delete;
   - the Share QR;
   - the four-node lifted list.
+- **On the owner's phone (builds 10051 and 10052, disconnected):**
+  - a night city (Washington, D.C.) and a day city (Seoul) on the dashboard;
+  - the lazy node list with two category tabs and five nodes, where swiping keeps the row height and the rows above stay put;
+  - the node page's Chain through and Share rows;
+  - the start seal at rest;
+  - the dial opening and closing, with the neighbouring name inside the screen (10052; it was cut at 10051);
+  - the folded line for a node without a flag: a node named only by its address shows a globe and stays on one line (10052; at 10051 the address showed in large type and pushed the seal to a second line);
+  - App and Status at night.
 - **Not yet on a device:**
-  - live traffic, live connections and the connect sweep, which need a connection;
+  - live traffic, live connections, the detail tiles and the connect sweep, which need a connection;
+  - the start seal breathing and pressing in while connecting;
   - the dawn and dusk ink switch as it happens;
   - the country filter with more than eight nodes;
-  - build 10051's performance, surfaces and Status changes.
+  - the key page, which only the edition for others shows;
+  - the corrected city labels ("Washington, D.C.", "Viana do Castelo"), checked in the catalog but not yet seen on the App page.
+- **Known open:**
+  - every node showed the unreachable glyph while the phone was on mobile data; this is being looked at on `claude/kone-probe-fix`.
 
 ## Next
 
-- Device check of 10051.
+- The probe fix on `claude/kone-probe-fix`, then a connected check of the tiles, the Status connections and the connect sweep.
 - Windows lag and motion on `claude/kone-windows-perf`.
