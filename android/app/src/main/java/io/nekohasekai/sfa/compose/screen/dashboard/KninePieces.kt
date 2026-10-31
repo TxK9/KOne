@@ -102,12 +102,26 @@ internal fun fitType(measurer: TextMeasurer, text: String, style: TextStyle, max
     return current to false
 }
 
+/** Below this a single word still shrinks rather than breaking across lines. */
+private const val ONE_WORD_FLOOR_SP = 9f
+
 /**
  * One line whose font steps down until the whole text fits the width it is given. Past [minSp]
  * it wraps onto up to [lines] lines at that size instead, so nothing is cut off on a narrow phone.
+ * A single word, such as an address, has no place to wrap but mid-word, so it shrinks further first.
+ * With [measureAs] the size is chosen for that style, so a name keeps one size whether or not it
+ * is drawn in bold.
  */
 @Composable
-internal fun FitText(text: String, style: TextStyle, alignEnd: Boolean = false, minSp: Float = 7f, lines: Int = 1, modifier: Modifier = Modifier.fillMaxWidth()) {
+internal fun FitText(
+    text: String,
+    style: TextStyle,
+    alignEnd: Boolean = false,
+    minSp: Float = 7f,
+    lines: Int = 1,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    measureAs: TextStyle? = null,
+) {
     val measurer = rememberTextMeasurer()
     val alignment = when {
         style.textAlign == TextAlign.Center -> Alignment.Center
@@ -116,7 +130,11 @@ internal fun FitText(text: String, style: TextStyle, alignEnd: Boolean = false, 
     }
     BoxWithConstraints(modifier, contentAlignment = alignment) {
         val maxWidth = constraints.maxWidth
-        val (fitted, wrap) = remember(text, style, maxWidth) { fitType(measurer, text, style, maxWidth, minSp) }
+        val (fitted, wrap) = remember(text, style, measureAs, maxWidth) {
+            val floor = if (lines > 1 && text.none(Char::isWhitespace)) minOf(minSp, ONE_WORD_FLOOR_SP) else minSp
+            val (sized, wrap) = fitType(measurer, text, measureAs ?: style, maxWidth, floor)
+            style.copy(fontSize = sized.fontSize) to wrap
+        }
         BackdropText(text, style = fitted, maxLines = if (wrap) lines else 1, softWrap = wrap && lines > 1, overflow = TextOverflow.Ellipsis)
     }
 }

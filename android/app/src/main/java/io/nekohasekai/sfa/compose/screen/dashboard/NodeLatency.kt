@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +19,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.net.ConnectException
+import java.net.Inet4Address
+import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -26,6 +29,10 @@ import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 
 internal data class NodeEndpoint(val host: String, val port: Int)
+
+/** The addresses a handshake tries in turn: the first IPv4 address, then the first IPv6 one. */
+internal fun dialOrder(addresses: List<InetAddress>): List<InetAddress> =
+    listOfNotNull(addresses.firstOrNull { it is Inet4Address }, addresses.firstOrNull { it is Inet6Address })
 
 /** Finds the server a profile actually dials, without starting the core. */
 internal object NodeEndpoints {
@@ -127,6 +134,7 @@ internal object NodeHealthRules {
 internal object NodeLatency {
     const val INTERVAL_MS = 6_000L
     private const val CONNECT_TIMEOUT_MS = 2_500
+    private const val TAG = "NodeLatency"
 
     // Each node's reading is a state of its own, so a result recomposes only the rows showing that
     // node. A row whose node has no state yet watches [added], which moves when states appear.
@@ -171,12 +179,19 @@ internal object NodeLatency {
     suspend fun refresh(context: Context, profiles: List<Profile>) = coroutineScope {
         withContext(Dispatchers.Main) { watch(profiles.map { it.id }) }
         val network = physicalNetwork(context)
+        val over = network?.let { context.getSystemService(ConnectivityManager::class.java)?.getNetworkCapabilities(it) }?.let {
+            if (it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) "Wi-Fi" else if (it.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) "mobile data" else "another network"
+        } ?: "the default route"
         val gate = Semaphore(6)
         profiles.map { profile ->
             async(Dispatchers.IO) {
                 gate.withPermit {
                     val endpoint = endpointOf(profile)
                     val sample = endpoint?.let { measure(it, network) }
+                    // A changed failure is logged once, without the server, so a phone check has a lead.
+                    if (sample?.failure != null && tcpHistory[profile.id]?.lastOrNull()?.failure != sample.failure) {
+                        Log.w(TAG, "Node ${profile.id} handshake: ${sample.failure} over $over")
+                    }
                     withContext(Dispatchers.Main) { recordTcp(profile.id, sample) }
                 }
             }
@@ -241,12 +256,38 @@ internal object NodeLatency {
         return endpoint
     }
 
-    private fun measure(endpoint: NodeEndpoint, network: Network?): LatencySample = try {
-        val address = (network?.getAllByName(endpoint.host) ?: InetAddress.getAllByName(endpoint.host)).first()
+    /**
+     * A handshake with [endpoint], tried on an IPv4 address first and then on an IPv6 one, as the
+     * core reaches a paired node (its DNS is ipv4_only). Only the first address the system gave
+     * used to be tried; on a dual-stack mobile network that is usually IPv6, so a server answering
+     * on IPv4 alone looked down. The latency is the attempt that connected; a failure names the first.
+     */
+    internal fun measure(
+        endpoint: NodeEndpoint,
+        network: Network?,
+        resolve: (String) -> Array<InetAddress> = { host -> network?.getAllByName(host) ?: InetAddress.getAllByName(host) },
+    ): LatencySample {
+        val addresses = try {
+            dialOrder(resolve(endpoint.host).toList())
+        } catch (_: UnknownHostException) {
+            return LatencySample(null, if (network == null) "No network" else "Resolution failed")
+        } catch (_: Exception) {
+            return LatencySample(null, "Connection failed")
+        }
+        var failure = LatencySample(null, "Resolution failed")
+        addresses.forEachIndexed { i, address ->
+            val sample = connect(address, endpoint.port, network)
+            if (sample.ms != null) return sample
+            if (i == 0) failure = sample
+        }
+        return failure
+    }
+
+    private fun connect(address: InetAddress, port: Int, network: Network?): LatencySample = try {
         Socket().use { socket ->
             network?.bindSocket(socket)
             val started = System.nanoTime()
-            socket.connect(InetSocketAddress(address, endpoint.port), CONNECT_TIMEOUT_MS)
+            socket.connect(InetSocketAddress(address, port), CONNECT_TIMEOUT_MS)
             LatencySample(((System.nanoTime() - started) / 1_000_000).toInt().coerceAtLeast(1))
         }
     } catch (_: SocketTimeoutException) {

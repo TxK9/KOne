@@ -96,6 +96,10 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -890,6 +894,10 @@ internal fun HealthLabel(reading: NodeReading, large: Boolean = false, unit: Boo
     Row(verticalAlignment = Alignment.CenterVertically) {
         // The seal carries the glyph itself now, so it stands alone rather than beside a second sun.
         if (large) WeatherSeal(weather, 18.dp) else WeatherGlyph(weather, 14.dp, ink)
+        // A failed node in the list keeps the empty column, so its glyph stays in line with the rest.
+        if (reading.failed && !large && !unit) {
+            Spacer(Modifier.width(4.dp + figureColumn(MaterialTheme.typography.labelSmall)))
+        }
         if (!reading.failed) {
             Spacer(Modifier.width(if (large) 6.dp else 4.dp))
             if (large) {
@@ -902,8 +910,11 @@ internal fun HealthLabel(reading: NodeReading, large: Boolean = false, unit: Boo
                     softWrap = false,
                 )
             } else {
-                // A new reading rolls in over the old one, up when slower, down when faster.
+                // A new reading rolls in over the old one, up when slower, down when faster. In the
+                // list the figure keeps a column of three digits, so the weather glyphs line up.
                 androidx.compose.animation.AnimatedContent(
+                    modifier = if (unit) Modifier else Modifier.widthIn(min = figureColumn(MaterialTheme.typography.labelSmall)),
+                    contentAlignment = Alignment.CenterEnd,
                     targetState = if (unit) reading.label else reading.label.removeSuffix(" ms"),
                     transitionSpec = {
                         val slower = (targetState.filter(Char::isDigit).toIntOrNull() ?: 0) > (initialState.filter(Char::isDigit).toIntOrNull() ?: 0)
@@ -923,6 +934,15 @@ internal fun HealthLabel(reading: NodeReading, large: Boolean = false, unit: Boo
             }
         }
     }
+}
+
+/** The width of three tabular digits in [style]: the latency column of the node list. */
+@Composable
+private fun figureColumn(style: TextStyle): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val tabular = style.copy(fontFeatureSettings = "tnum")
+    return remember(tabular, density) { with(density) { measurer.measure("000", tabular).size.width.toDp() } }
 }
 
 internal fun healthColor(health: NodeHealth, ink: Color): Color = weatherInk(NodeWeather.of(health), ink)
@@ -1132,13 +1152,16 @@ internal fun NodeRow(
                 )
             }
         }
-        // The whole name: its type a little smaller when long, then on two lines; the latencies line up in one column.
+        // The whole name: its type a little smaller when long, then on two lines; the latencies line up
+        // in one column. It is sized as if bold, so choosing a node never changes its size or its lines.
+        val nameStyle = MaterialTheme.typography.bodyLarge
         FitText(
             profile.name,
-            MaterialTheme.typography.bodyLarge.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal),
+            nameStyle.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal),
             minSp = 12.5f,
             lines = 2,
             modifier = Modifier.weight(1f),
+            measureAs = nameStyle.copy(fontWeight = FontWeight.SemiBold),
         )
         // In the list the weather glyph says it is a latency; the folded line keeps the unit.
         if (reading != null) {
