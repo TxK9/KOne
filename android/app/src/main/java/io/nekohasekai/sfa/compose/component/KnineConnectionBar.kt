@@ -1,11 +1,16 @@
 package io.nekohasekai.sfa.compose.component
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,15 +26,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,7 +45,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -50,18 +56,22 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.compose.screen.dashboard.KnineArrive
+import io.nekohasekai.sfa.compose.screen.dashboard.StatusDot
+import io.nekohasekai.sfa.compose.screen.dashboard.rememberMotionOn
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import io.nekohasekai.sfa.compose.theme.WallpaperGlass
 import io.nekohasekai.sfa.constant.Status
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun KnineStartAction(onClick: () -> Unit) {
@@ -80,7 +90,6 @@ fun KnineConnectAction(status: Status, onStart: () -> Unit, onStop: () -> Unit, 
         Status.Started -> stringResource(R.string.knine_disconnect)
         Status.Stopping -> stringResource(R.string.status_stopping)
     }
-    val busy = status == Status.Starting || status == Status.Stopping
     BackdropContrastScope {
         WallpaperGlass(enabled = glass) {
             ExtendedFloatingActionButton(
@@ -92,19 +101,91 @@ fun KnineConnectAction(status: Status, onStart: () -> Unit, onStop: () -> Unit, 
                         else -> Unit
                     }
                 },
-                icon = {
-                    if (busy) {
-                        CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.onSurface, strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Default.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(20.dp), emphasized = true)
-                    }
+                icon = { PowerSeal(status) },
+                text = {
+                    // The words change in place: the old ones lift away, the new settle from below,
+                    // and the action widens or narrows to them without a jump.
+                    AnimatedContent(
+                        targetState = label,
+                        transitionSpec = {
+                            (slideInVertically(tween(320, easing = KnineArrive)) { it / 3 } + fadeIn(tween(240, delayMillis = 80))) togetherWith
+                                (slideOutVertically(tween(200)) { -it / 3 } + fadeOut(tween(140))) using
+                                SizeTransform(clip = false) { _, _ -> tween(320, easing = KnineArrive) }
+                        },
+                        label = "connectLabel",
+                    ) { shown -> Text(shown, fontWeight = FontWeight.SemiBold, emphasized = true) }
                 },
-                text = { Text(label, fontWeight = FontWeight.SemiBold, emphasized = true) },
                 containerColor = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
             )
         }
+    }
+}
+
+private const val SEAL_ALPHA = 0.42f
+
+/**
+ * The power glyph and its seal, a hairline ring in the glyph's ink. It breathes while the
+ * connection is made or taken down, is pressed into place once the connection holds, and lifts
+ * away when it stops. At rest there is no ring: the original ⏻ alone. With the phone's animations
+ * off the ring simply shows or not.
+ */
+@Composable
+private fun PowerSeal(status: Status) {
+    val ink = LocalContentColor.current
+    val moving = rememberMotionOn()
+    val ringAlpha = remember { Animatable(if (status == Status.Started) SEAL_ALPHA else 0f) }
+    val ringScale = remember { Animatable(1f) }
+    LaunchedEffect(status, moving) {
+        when (status) {
+            Status.Starting, Status.Stopping -> {
+                if (!moving) {
+                    ringScale.snapTo(1f)
+                    ringAlpha.snapTo(SEAL_ALPHA * 0.6f)
+                    return@LaunchedEffect
+                }
+                while (true) {
+                    coroutineScope {
+                        launch { ringAlpha.animateTo(SEAL_ALPHA, tween(1000, easing = FastOutSlowInEasing)) }
+                        ringScale.animateTo(1.08f, tween(1000, easing = FastOutSlowInEasing))
+                    }
+                    coroutineScope {
+                        launch { ringAlpha.animateTo(0.12f, tween(1000, easing = FastOutSlowInEasing)) }
+                        ringScale.animateTo(0.9f, tween(1000, easing = FastOutSlowInEasing))
+                    }
+                }
+            }
+            Status.Started -> {
+                // Already pressed, as when the page comes back while connected: nothing to replay.
+                if (ringAlpha.value >= SEAL_ALPHA && ringScale.value == 1f) return@LaunchedEffect
+                ringScale.snapTo(1.4f)
+                coroutineScope {
+                    launch { ringAlpha.animateTo(SEAL_ALPHA, tween(420, easing = KnineArrive)) }
+                    ringScale.animateTo(1f, tween(560, easing = KnineArrive))
+                }
+            }
+            Status.Stopped -> {
+                coroutineScope {
+                    launch { ringAlpha.animateTo(0f, tween(360)) }
+                    ringScale.animateTo(1.24f, tween(360, easing = KnineArrive))
+                }
+                ringScale.snapTo(1f)
+            }
+        }
+    }
+    Box(
+        Modifier
+            .size(20.dp)
+            .drawBehind {
+                val alpha = ringAlpha.value
+                if (alpha > 0.005f) {
+                    drawCircle(ink.copy(alpha = alpha), radius = 12.dp.toPx() * ringScale.value, style = Stroke(width = 1.dp.toPx()))
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Default.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(20.dp), emphasized = true)
     }
 }
 
@@ -227,14 +308,21 @@ fun KnineConnectionBar(
 private fun ConnectionSummary(statusLabel: String, started: Boolean, homeStatus: String, homeStatusAlpha: Float, onHomeClick: () -> Unit, startTime: Long?, modifier: Modifier = Modifier) {
     Column(modifier.padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(5.dp).background(if (started) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, CircleShape))
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = statusLabel,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                emphasized = started,
-            )
+            // The dashboard's own dot: it breathes while connecting and pulses once connected.
+            StatusDot(started = started, busy = !started && statusLabel.isNotEmpty())
+            Spacer(Modifier.width(4.dp))
+            AnimatedContent(
+                targetState = statusLabel,
+                transitionSpec = { fadeIn(tween(240, delayMillis = 60)) togetherWith fadeOut(tween(160)) },
+                label = "barStatus",
+            ) { shown ->
+                Text(
+                    text = shown,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    emphasized = started,
+                )
+            }
         }
         if (homeStatus.isNotBlank() || startTime != null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

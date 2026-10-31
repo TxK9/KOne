@@ -6,7 +6,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import io.nekohasekai.sfa.compose.theme.knineSurface
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import androidx.compose.foundation.background
 import androidx.compose.animation.slideOutVertically
@@ -250,7 +249,8 @@ fun EditProfileScreen(
 private fun SaveButton(saving: Boolean, enabled: Boolean, onSave: () -> Unit, modifier: Modifier) {
     BackdropContrastScope(modifier) {
         val ink = androidx.compose.material3.LocalContentColor.current
-        val surface = knineSurface()
+        // Written in the city's own tone on the ink, like every filled action.
+        val surface = io.nekohasekai.sfa.compose.screen.dashboard.knineTone()
         Row(
             Modifier
                 .clip(RoundedCornerShape(24.dp))

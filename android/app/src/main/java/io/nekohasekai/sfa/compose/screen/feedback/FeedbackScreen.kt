@@ -48,7 +48,8 @@ import io.nekohasekai.sfa.compose.screen.tools.TestGutter
 import io.nekohasekai.sfa.compose.screen.tools.TestLink
 import io.nekohasekai.sfa.compose.screen.tools.TestRow
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
-import io.nekohasekai.sfa.compose.theme.knineSurface
+import io.nekohasekai.sfa.compose.screen.dashboard.knineTone
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.feedback.*
@@ -58,6 +59,7 @@ import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.animation.AnimatedVisibility
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -258,9 +260,15 @@ internal fun FeedbackForm(
         }
         Spacer(Modifier.height(12.dp))
         SendRow(enabled = !busy && (description.isNotBlank() || images.isNotEmpty()), sending = busy && !adding, onClick = onSubmit)
-        if (problem != null) {
-            var open by remember(problem) { mutableStateOf(false) }
-            TestRow(problem.title, NodeWeather.Cut, detail = problem.reason, open = open, onToggle = { open = !open })
+        // The failure unfolds under Send, and folds away with its own words once it is cleared.
+        var lastProblem by remember { mutableStateOf(problem) }
+        SideEffect { if (problem != null) lastProblem = problem }
+        AnimatedVisibility(visible = problem != null, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
+            val shown = problem ?: lastProblem
+            if (shown != null) {
+                var open by remember(shown) { mutableStateOf(false) }
+                TestRow(shown.title, NodeWeather.Cut, detail = shown.reason, open = open, onToggle = { open = !open })
+            }
         }
     }
 }
@@ -279,19 +287,26 @@ internal fun FeedbackReceipt(number: String, metadata: JSONObject, onMore: () ->
 
 @Composable
 private fun FeedbackTile(picture: JSONObject, index: Int, enabled: Boolean, onRemove: () -> Unit) {
-    val bitmap = remember(picture) {
-        val data = Base64.decode(picture.getString("data"), Base64.DEFAULT)
-        BitmapFactory.decodeByteArray(data, 0, data.size)
+    // Decoded off the main thread; the tile shows its faint wash until the picture is ready.
+    val bitmap by produceState<android.graphics.Bitmap?>(null, picture) {
+        val decoded = withContext(Dispatchers.Default) {
+            runCatching {
+                val data = Base64.decode(picture.getString("data"), Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(data, 0, data.size)
+            }.getOrNull()
+        }
+        value = decoded
+        awaitDispose { decoded?.recycle() }
     }
-    DisposableEffect(bitmap) { onDispose { bitmap?.recycle() } }
     val ink = LocalContentColor.current
     Box(Modifier.size(TileSize)) {
         Box(Modifier.matchParentSize().clip(TileShape).background(ink.copy(alpha = 0.07f))) {
-            if (bitmap != null) Image(bitmap.asImageBitmap(), stringResource(R.string.kone_feedback_image, index + 1), Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            val shown = bitmap
+            if (shown != null) Image(shown.asImageBitmap(), stringResource(R.string.kone_feedback_image, index + 1), Modifier.matchParentSize(), contentScale = ContentScale.Crop)
         }
         // The cross sits on a disc of the page's paper over the tile's corner, so it reads on any picture.
         IconButton(enabled = enabled, onClick = onRemove, modifier = Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-8).dp).size(32.dp)) {
-            Box(Modifier.size(22.dp).background(knineSurface().copy(alpha = 0.92f), CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(22.dp).background(knineTone().copy(alpha = 0.92f), CircleShape), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.Close, stringResource(R.string.kone_feedback_remove_image, index + 1), Modifier.size(14.dp))
             }
         }

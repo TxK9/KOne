@@ -18,13 +18,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -46,6 +52,8 @@ import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.screen.settings.AccountRoutes
 import io.nekohasekai.sfa.compose.screen.tools.TestGutter
 import io.nekohasekai.sfa.compose.screen.tools.TestLink
+import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
+import io.nekohasekai.sfa.compose.screen.dashboard.weatherInk
 import io.nekohasekai.sfa.compose.screen.tools.TestNote
 import io.nekohasekai.sfa.compose.screen.tools.TestRow
 import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
@@ -62,7 +70,7 @@ import java.time.Instant
 import java.util.Locale
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
-import io.nekohasekai.sfa.compose.theme.KnineGlassAlertDialog as AlertDialog
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 
 /**
  * The customer edition's account: how the binding to the service stands, the terms it states,
@@ -78,7 +86,8 @@ fun ManagedAccountScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val state = ManagedState.snapshot
     var syncing by remember { mutableStateOf(false) }
-    var confirmUnlink by remember { mutableStateOf(false) }
+    // Unlinking asks in place: the first tap turns the row into the question, the second answers it.
+    var unlinkArmed by remember { mutableStateOf(false) }
     var unlinking by remember { mutableStateOf(false) }
     var unlinkFailed by remember { mutableStateOf(false) }
     // Ticks on each minute, so "Synced 3 minutes ago" and an end date that has just passed change
@@ -123,8 +132,16 @@ fun ManagedAccountScreen(navController: NavController) {
                 unlinkFailed = true
             } finally {
                 unlinking = false
-                confirmUnlink = false
+                unlinkArmed = false
             }
+        }
+    }
+
+    // Left unanswered, the question folds away again.
+    LaunchedEffect(unlinkArmed, unlinking) {
+        if (unlinkArmed && !unlinking) {
+            delay(6_000)
+            unlinkArmed = false
         }
     }
 
@@ -137,32 +154,12 @@ fun ManagedAccountScreen(navController: NavController) {
                 syncing = syncing,
                 unlinking = unlinking,
                 unlinkFailed = unlinkFailed,
+                unlinkArmed = unlinkArmed,
                 onSync = ::syncNow,
                 onFeedback = { navController.navigate(AccountRoutes.Feedback) },
-                onUnlink = { confirmUnlink = true },
+                onUnlink = { if (unlinkArmed) unlink() else unlinkArmed = true },
             )
         }
-    }
-
-    if (confirmUnlink) {
-        AlertDialog(
-            onDismissRequest = { if (!unlinking) confirmUnlink = false },
-            title = { Text(stringResource(R.string.kone_account_unlink_title)) },
-            text = { Text(stringResource(R.string.kone_account_unlink_message)) },
-            confirmButton = {
-                TextButton(onClick = ::unlink, enabled = !unlinking) {
-                    Text(
-                        stringResource(if (unlinking) R.string.kone_account_unlinking else R.string.kone_account_unlink_confirm),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmUnlink = false }, enabled = !unlinking) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
     }
 }
 
@@ -178,6 +175,7 @@ internal fun ManagedAccountContent(
     onFeedback: () -> Unit,
     onUnlink: () -> Unit,
     modifier: Modifier = Modifier,
+    unlinkArmed: Boolean = false,
 ) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 12.dp)) {
         AccountStatus(state, clock.now)
@@ -186,8 +184,10 @@ internal fun ManagedAccountContent(
         SyncRow(syncing = syncing, onClick = onSync)
         TestLink(stringResource(R.string.kone_feedback), onClick = onFeedback)
         Spacer(Modifier.height(12.dp))
-        UnlinkRow(busy = unlinking, onClick = onUnlink)
-        if (unlinkFailed) TestNote(stringResource(R.string.kone_account_unlink_failed), Modifier.padding(bottom = 8.dp))
+        UnlinkRow(busy = unlinking, armed = unlinkArmed, onClick = onUnlink)
+        AnimatedVisibility(visible = unlinkFailed, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
+            TestNote(stringResource(R.string.kone_account_unlink_failed), Modifier.padding(bottom = 8.dp))
+        }
     }
 }
 
@@ -271,23 +271,47 @@ private fun SyncRow(syncing: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** The one way out, in the error's ink and apart from the rest. */
+/**
+ * The one way out, in cinnabar and apart from the rest. A first tap turns it into the question,
+ * with what unlinking does unfolding beneath; a second tap within a few seconds unlinks.
+ */
 @Composable
-private fun UnlinkRow(busy: Boolean, onClick: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(enabled = !busy, role = Role.Button, onClick = onClick)
-            .padding(horizontal = TestGutter, vertical = 13.dp)
-            .graphicsLayer { alpha = if (busy) 0.45f else 1f },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(R.string.kone_account_unlink),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.weight(1f),
-        )
+private fun UnlinkRow(busy: Boolean, armed: Boolean, onClick: () -> Unit) {
+    val cinnabar = weatherInk(NodeWeather.Cut, LocalContentColor.current)
+    val stage = when {
+        busy -> R.string.kone_account_unlinking
+        armed -> R.string.kone_account_unlink_title
+        else -> R.string.kone_account_unlink
+    }
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !busy, role = Role.Button, onClick = onClick)
+                .padding(horizontal = TestGutter, vertical = 13.dp)
+                .graphicsLayer { alpha = if (busy) 0.45f else 1f },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AnimatedContent(
+                targetState = stage,
+                transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(140)) },
+                label = "unlinkStage",
+                modifier = Modifier.weight(1f),
+            ) { shown ->
+                Text(stringResource(shown), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = cinnabar)
+            }
+            AnimatedVisibility(visible = armed && !busy, enter = fadeIn(tween(220)), exit = fadeOut(tween(140))) {
+                Text(
+                    stringResource(R.string.kone_account_unlink_confirm),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = cinnabar,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
+        }
+        AnimatedVisibility(visible = armed, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
+            TestNote(stringResource(R.string.kone_account_unlink_message), Modifier.padding(bottom = 8.dp))
+        }
     }
 }

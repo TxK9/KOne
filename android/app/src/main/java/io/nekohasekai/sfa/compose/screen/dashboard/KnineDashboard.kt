@@ -11,16 +11,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import io.nekohasekai.sfa.R
-import cc.txwd.kone.shared.Countries
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PriorityHigh
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -37,10 +34,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -58,27 +53,20 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
@@ -86,7 +74,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -102,21 +89,15 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -126,13 +107,12 @@ import io.nekohasekai.sfa.compose.theme.BackdropContrastScope
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as BText
 import io.nekohasekai.sfa.compose.theme.KnineAppearance
-import io.nekohasekai.sfa.compose.theme.KnineDropdownMenu
 import io.nekohasekai.sfa.compose.theme.KnineSwitch
 import io.nekohasekai.sfa.compose.theme.KnineSwitcherStyle
 import io.nekohasekai.sfa.compose.theme.LocalBackdrop
 import io.nekohasekai.sfa.compose.theme.LocalBackdropHalo
 import io.nekohasekai.sfa.compose.theme.LocalTransparentUi
-import io.nekohasekai.sfa.compose.theme.knineSurface
+import io.nekohasekai.sfa.compose.theme.KnineMotion
 import io.nekohasekai.sfa.compose.theme.rememberReadingAlpha
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.util.FlagGlyph
@@ -200,21 +180,12 @@ internal fun routeModeLabel(mode: String): String = when (mode.lowercase()) {
     else -> mode
 }
 
-private fun routeModeShort(mode: String): String = when (mode.lowercase()) {
-    "rule" -> "Route by rules"
-    "global" -> "Proxy all traffic"
-    "direct" -> "Direct traffic"
-    else -> ""
-}
-
 private fun routeModeHint(mode: String): String = when (mode.lowercase()) {
     "rule" -> "Choose routes using profile rules"
     "global" -> "Use the global proxy policy"
     "direct" -> "Connect directly without a proxy"
     else -> mode
 }
-
-/** The country a group stands for: its flag, or a name that is a country's name. */
 
 /** Folds a page to [SHOWN_NODES] when more than one would hide; the selected node is always among them. */
 internal fun foldsNodes(group: NodeGroup): Boolean = group.profiles.size > SHOWN_NODES + 1
@@ -237,7 +208,6 @@ internal fun visibleNodes(group: NodeGroup, selectedId: Long): List<Profile> {
 internal fun KnineDashboard(
     uiState: DashboardUiState,
     serviceStatus: Status,
-    exit: ExitIpUi,
     actions: KnineDashboardActions,
     addCategoryRequested: Boolean = false,
     onAddCategoryShown: () -> Unit = {},
@@ -384,9 +354,8 @@ internal fun KnineDashboard(
         val ink = LocalContentColor.current
         // The ink paintings shade with their own green-black; a city shades with its own tone, night
         // blue under light ink and paper under dark (CityCanvas).
-        val city = io.nekohasekai.sfa.compose.theme.WallpaperCatalog.mode == io.nekohasekai.sfa.compose.theme.WallpaperMode.City
         val backdrop = LocalBackdrop.current
-        val surface = if (city) Color(io.nekohasekai.sfa.compose.theme.cityTone(backdrop?.theme?.lightInk ?: true)) else knineSurface()
+        val surface = knineTone()
         // Bright photos keep a glass card; dark photos drop it, like the rest of the app.
         val clear = LocalTransparentUi.current
         var panelBounds by remember { mutableStateOf(Rect.Zero) }
@@ -403,7 +372,7 @@ internal fun KnineDashboard(
         val shelfShown = collapsed && shelfOpen
         val panelOnTop = atTop && !collapsed
         val measure = Modifier.onGloballyPositioned { panelBounds = it.boundsInWindow() }
-        val glass = Modifier.knineFilm(RoundedCornerShape(28.dp), film, surface, ink.luminance() > 0.5f)
+        val glass = Modifier.knineFilm(RoundedCornerShape(28.dp), film, surface, ink)
         val panelSurface = Modifier
             .then(if (shelfShown) Modifier else measure)
             // Folded, the line has no underlay at all, like the start action beside it.
@@ -475,7 +444,6 @@ internal fun KnineDashboard(
                         CollapsedPanel(
                             uiState = uiState,
                             serviceStatus = serviceStatus,
-                            exit = exit,
                             host = host,
                             onSwitch = { if (shelfOpen) closeShelf() else shelfOpen = true },
                             modifier = modifier,
@@ -484,7 +452,6 @@ internal fun KnineDashboard(
                         ExpandedPanel(
                             uiState = uiState,
                             serviceStatus = serviceStatus,
-                            exit = exit,
                             host = host,
                             clear = clear,
                             atTop = atTop,
@@ -657,7 +624,6 @@ private fun FoldHandle(onTap: () -> Unit) {
 private fun ExpandedPanel(
     uiState: DashboardUiState,
     serviceStatus: Status,
-    exit: ExitIpUi,
     host: KnineHost,
     clear: Boolean,
     atTop: Boolean,
@@ -681,7 +647,6 @@ private fun ExpandedPanel(
         PanelHeader(
             uiState = uiState,
             serviceStatus = serviceStatus,
-            exit = exit,
             host = host,
             name = selected?.name ?: stringResource(R.string.kone_dashboard_no_node),
             open = statusOpen,
@@ -690,12 +655,11 @@ private fun ExpandedPanel(
         )
         AnimatedVisibility(
             visible = started && statusOpen,
-            enter = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-            exit = shrinkVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut(),
+            enter = KnineMotion.reveal(),
+            exit = KnineMotion.conceal(),
         ) {
             StatusDetails(
                 uiState = uiState,
-                exit = exit,
                 reading = selected?.let { NodeLatency[it.id] },
                 host = host,
                 clear = clear,
@@ -716,7 +680,7 @@ private fun ExpandedPanel(
 }
 
 /**
- * The folded panel: the flag, exit IP, health and home tunnel in the start action's own
+ * The folded panel: the flag, health and home tunnel in the start action's own
  * type, on the start action's line. It wraps to a second line only when it must. Tapping it
  * lifts the nodes out of it; swiping up unfolds it. A failure is a red dot here; the reason waits in
  * the details.
@@ -726,7 +690,6 @@ private fun ExpandedPanel(
 internal fun CollapsedPanel(
     uiState: DashboardUiState,
     serviceStatus: Status,
-    exit: ExitIpUi,
     host: KnineHost,
     onSwitch: () -> Unit,
     modifier: Modifier,
@@ -749,7 +712,7 @@ internal fun CollapsedPanel(
     ) {
         val noNode = stringResource(R.string.kone_dashboard_no_node)
         // A flag alone says nothing to a screen reader; the node's name does.
-        Row(item.then(if (flag != null) Modifier.semantics { contentDescription = selected?.name ?: noNode } else Modifier), verticalAlignment = Alignment.CenterVertically) {
+        Row(item.then(if (flag != null) Modifier.semantics { contentDescription = selected.name } else Modifier), verticalAlignment = Alignment.CenterVertically) {
             if (flag != null) {
                 FlagGlyph(flag, size = 18.dp)
             } else {
@@ -778,7 +741,6 @@ internal fun CollapsedPanel(
 private fun PanelHeader(
     uiState: DashboardUiState,
     serviceStatus: Status,
-    exit: ExitIpUi,
     host: KnineHost,
     name: String,
     open: Boolean,
@@ -787,7 +749,7 @@ private fun PanelHeader(
 ) {
     val started = serviceStatus == Status.Started
     val uptime = rememberUptime(if (started) uiState.serviceStartTime else null)
-    val chevron by animateFloatAsState(if (open) 180f else 0f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow), label = "chevron")
+    val chevron by animateFloatAsState(if (open) 180f else 0f, tween(320, easing = KnineArrive), label = "chevron")
     val lineStyle = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum", letterSpacing = 0.4.sp)
     val detailsLabel = stringResource(if (open) R.string.kone_row_hide_details else R.string.kone_row_show_details)
     val openState = stringResource(if (open) R.string.kone_dashboard_expanded else R.string.kone_dashboard_collapsed)
@@ -808,17 +770,24 @@ private fun PanelHeader(
         ) {
             StatusDot(started = started, busy = serviceStatus == Status.Starting || serviceStatus == Status.Stopping)
             Spacer(Modifier.width(4.dp))
-            BText(
-                when (serviceStatus) {
-                    Status.Started -> if (uptime.isEmpty()) stringResource(R.string.kone_dashboard_connected) else stringResource(R.string.kone_dashboard_connected_for, uptime)
-                    Status.Starting -> stringResource(R.string.kone_dashboard_connecting)
-                    Status.Stopping -> stringResource(R.string.kone_dashboard_disconnecting)
-                    Status.Stopped -> stringResource(R.string.kone_dashboard_disconnected)
-                },
-                style = lineStyle,
-                maxLines = 1,
-                softWrap = false,
-            )
+            // A new state fades in over the old one; the running clock ticks inside it without a fade.
+            androidx.compose.animation.AnimatedContent(
+                targetState = serviceStatus,
+                transitionSpec = { fadeIn(tween(260, delayMillis = 60)) togetherWith fadeOut(tween(160)) using null },
+                label = "panelState",
+            ) { shown ->
+                BText(
+                    when (shown) {
+                        Status.Started -> if (uptime.isEmpty()) stringResource(R.string.kone_dashboard_connected) else stringResource(R.string.kone_dashboard_connected_for, uptime)
+                        Status.Starting -> stringResource(R.string.kone_dashboard_connecting)
+                        Status.Stopping -> stringResource(R.string.kone_dashboard_disconnecting)
+                        Status.Stopped -> stringResource(R.string.kone_dashboard_disconnected)
+                    },
+                    style = lineStyle,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
             if (started) {
                 HomeMark(host)
                 Spacer(Modifier.weight(1f))
@@ -843,12 +812,12 @@ private fun PanelHeader(
                     .clickable(onClickLabel = stringResource(R.string.kone_dashboard_show_selected), role = Role.Button, onClick = onNameClick),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                BText(
+                // The whole name: a little smaller when long, then on two lines, never cut.
+                FitText(
                     name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    minSp = 13f,
+                    lines = 2,
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 Icon(Icons.Default.UnfoldMore, contentDescription = null, modifier = Modifier.size(16.dp).graphicsLayer { alpha = 0.7f })
@@ -956,20 +925,24 @@ internal fun rememberUptime(start: Long?): String {
     return "%02d:%02d:%02d".format(seconds / 3_600, seconds % 3_600 / 60, seconds % 60)
 }
 
+/** A tile that opens something says so beside its label: a picker drops down, a page goes on. */
+private enum class TileOpens { Nothing, Picker, Page }
+
 private data class TileSpec(
     val label: String,
     val icon: ImageVector,
     val value: String,
-    val sub: String,
+    val sub: String = "",
+    /** Figures that change every second cross-fade; the rest roll in. */
+    val steady: Boolean = false,
+    val opens: TileOpens = TileOpens.Nothing,
     val onClick: ((Offset) -> Unit)? = null,
-    val copy: String? = null,
 )
 
 /** Everything behind the status line, shown on demand. */
 @Composable
 private fun StatusDetails(
     uiState: DashboardUiState,
-    exit: ExitIpUi,
     reading: NodeReading?,
     host: KnineHost,
     clear: Boolean,
@@ -977,28 +950,27 @@ private fun StatusDetails(
     onToggleProxy: (Boolean) -> Unit,
 ) {
     val ink = LocalContentColor.current
-    val clipboard = LocalClipboardManager.current
-    val context = LocalContext.current
     val tiles = buildList {
         if (reading != null) {
+            // A word or two, as the weather says it; the reason waits in the node's own row.
             val verdict = when (reading.health) {
                 NodeHealth.Good -> "Good"
-                NodeHealth.Slow -> if (reading.failed) "No recent response" else "Slow"
-                NodeHealth.Down -> "Repeatedly unresponsive"
+                NodeHealth.Slow -> if (reading.failed) "No reply" else "Slow"
+                NodeHealth.Down -> "Unreachable"
             }
             add(TileSpec("Latency", Icons.Outlined.Speed, reading.label, verdict))
         }
         if (uiState.clashModeVisible && uiState.clashModes.isNotEmpty()) {
-            add(TileSpec("Route", Icons.Outlined.Tune, routeModeLabel(uiState.selectedClashMode), routeModeShort(uiState.selectedClashMode), onClick = onModes))
+            add(TileSpec("Route", Icons.Outlined.Tune, routeModeLabel(uiState.selectedClashMode), opens = TileOpens.Picker, onClick = onModes))
         }
         if (uiState.trafficVisible) {
-            add(TileSpec("Download", Icons.Default.ArrowDownward, uiState.downlink, "Total ${uiState.downlinkTotal}"))
-            add(TileSpec("Upload", Icons.Default.ArrowUpward, uiState.uplink, "Total ${uiState.uplinkTotal}"))
+            add(TileSpec("Download", Icons.Default.ArrowDownward, uiState.downlink, "Total ${uiState.downlinkTotal}", steady = true))
+            add(TileSpec("Upload", Icons.Default.ArrowUpward, uiState.uplink, "Total ${uiState.uplinkTotal}", steady = true))
         }
-        add(TileSpec("Connection", Icons.Default.SwapVert, uiState.connectionsCount.toString(), "View connections", onClick = { host.openConnections() }))
+        add(TileSpec("Connections", Icons.Default.SwapVert, uiState.connectionsCount.toString(), opens = TileOpens.Page, onClick = { host.openConnections() }))
         // Only worth a tile when some group actually offers a choice.
         if (uiState.choosableGroupsCount > 0) {
-            add(TileSpec("Policy groups", Icons.Outlined.AccountTree, uiState.groupsCount.toString(), "View policy groups", onClick = { host.openGroups() }))
+            add(TileSpec("Groups", Icons.Outlined.AccountTree, uiState.groupsCount.toString(), opens = TileOpens.Page, onClick = { host.openGroups() }))
         }
     }
     val shape = RoundedCornerShape(18.dp)
@@ -1024,10 +996,6 @@ private fun StatusDetails(
                         spec = tile,
                         order = rowIndex * 3 + columnIndex,
                         clear = clear,
-                        onCopy = { text ->
-                            clipboard.setText(AnnotatedString(text))
-                            Toast.makeText(context, "Copied $text", Toast.LENGTH_SHORT).show()
-                        },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -1052,92 +1020,54 @@ private fun StatusDetails(
     }
 }
 
+/**
+ * One figure: its label, the value fitted whole to the tile, and a quiet line under it. The tiles
+ * come in one after another as the details open, and a changed value rolls or fades into place.
+ * The sub line is always kept, empty or not, so the tiles of a row share one height.
+ */
 @Composable
-private fun StatusTile(spec: TileSpec, order: Int, clear: Boolean, onCopy: (String) -> Unit, modifier: Modifier) {
-    val surface = knineSurface()
+private fun StatusTile(spec: TileSpec, order: Int, clear: Boolean, modifier: Modifier) {
+    val tone = knineTone()
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
-        delay(order * 50L)
-        appear.animateTo(1f, spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessLow))
+        delay(order * 40L)
+        appear.animateTo(1f, tween(360, easing = KnineArrive))
     }
     var center by remember { mutableStateOf(Offset.Zero) }
     Column(
         modifier
             .graphicsLayer {
                 val p = appear.value
-                alpha = p.coerceIn(0f, 1f)
-                translationY = (1f - p) * -14.dp.toPx()
-                val s = 0.86f + 0.14f * p
-                scaleX = s
-                scaleY = s
+                alpha = p
+                translationY = (1f - p) * -8.dp.toPx()
             }
             .onGloballyPositioned { center = it.boundsInRoot().center }
             .clip(RoundedCornerShape(14.dp))
-            .background(if (clear) Color.Transparent else surface.copy(alpha = 0.4f))
-            .then(
-                when {
-                    spec.onClick != null -> Modifier.clickable { spec.onClick.invoke(center) }
-                    // The whole tile copies, so its small icon never crowds the label.
-                    spec.copy != null -> Modifier.clickable { onCopy(spec.copy) }
-                    else -> Modifier
-                },
-            )
+            .background(if (clear) Color.Transparent else tone.copy(alpha = 0.4f))
+            .then(if (spec.onClick != null) Modifier.clickable(role = Role.Button) { spec.onClick.invoke(center) } else Modifier)
             .padding(start = 10.dp, end = 4.dp, top = 9.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(spec.icon, contentDescription = null, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(4.dp))
-            BText(spec.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false, modifier = Modifier.weight(1f))
-            if (spec.copy != null) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = "Copy",
-                    modifier = Modifier
-                        .padding(end = 4.dp)
-                        .size(13.dp)
-                        .graphicsLayer { alpha = 0.7f },
-                )
+            FitText(spec.label, MaterialTheme.typography.labelSmall, minSp = 9f, modifier = Modifier.weight(1f))
+            val mark = when (spec.opens) {
+                TileOpens.Picker -> Icons.Default.ExpandMore
+                TileOpens.Page -> Icons.AutoMirrored.Filled.KeyboardArrowRight
+                TileOpens.Nothing -> null
+            }
+            if (mark != null) {
+                Icon(mark, contentDescription = null, modifier = Modifier.padding(end = 2.dp).size(14.dp).graphicsLayer { alpha = 0.6f })
             }
         }
-        BText(
-            if (spec.onClick != null && spec.label == "Route") "${spec.value} ⌄" else spec.value,
-            style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        RollingText(
+            spec.value,
+            MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.SemiBold),
+            drift = !spec.steady,
+            minSp = 10f,
         )
-        val subStyle = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum")
-        if (spec.copy != null) {
-            // A copyable value (the exit IP) is shown whole, never cut to an ellipsis.
-            FitText(spec.sub, subStyle)
-        } else {
-            BText(spec.sub, style = subStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
-/**
- * One line whose font steps down until the whole text fits the width it is given. Past [minSp]
- * it wraps onto up to [lines] lines at that size instead, so nothing is cut off on a narrow phone.
- */
-@Composable
-private fun FitText(text: String, style: TextStyle, alignEnd: Boolean = false, minSp: Float = 7f, lines: Int = 1, modifier: Modifier = Modifier.fillMaxWidth()) {
-    val measurer = rememberTextMeasurer()
-    BoxWithConstraints(modifier, contentAlignment = if (alignEnd) Alignment.CenterEnd else Alignment.CenterStart) {
-        val maxWidth = constraints.maxWidth
-        val (fitted, wrap) = remember(text, style, maxWidth) {
-            var current = style
-            var fits = true
-            if (maxWidth != Constraints.Infinity && style.fontSize.isSp) {
-                while (measurer.measure(text, current, maxLines = 1, softWrap = false).size.width > maxWidth) {
-                    if (current.fontSize.value <= minSp) { fits = false; break }
-                    current = current.copy(fontSize = (current.fontSize.value - 0.5f).sp)
-                }
-            }
-            current to !fits
-        }
-        BText(text, style = fitted, maxLines = if (wrap) lines else 1, softWrap = wrap && lines > 1, overflow = TextOverflow.Ellipsis)
+        FitText(spec.sub.ifEmpty { " " }, MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"), minSp = 8f)
     }
 }
 

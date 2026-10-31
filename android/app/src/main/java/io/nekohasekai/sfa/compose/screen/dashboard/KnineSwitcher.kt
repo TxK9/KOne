@@ -80,12 +80,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.nekohasekai.sfa.compose.theme.KnineSwitcherStyle
-import io.nekohasekai.sfa.compose.theme.knineSurface
 import io.nekohasekai.sfa.compose.util.FlagGlyph
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -103,8 +101,12 @@ import kotlin.math.sin
 
 internal data class SwitcherItem(val label: String, val count: Int? = null, val flag: String? = null)
 
-private const val ITEM_SPAN = 0.55f
-private const val ITEM_STAGGER = 0.06f
+private const val ITEM_SPAN = 0.6f
+private const val ITEM_STAGGER = 0.05f
+
+/** The whole fan's clock: each name travels for [ITEM_SPAN] of it, the farthest starting last. */
+private const val OPEN_MS = 640
+private const val CLOSE_MS = 340
 private const val DIAL_STEP_DEGREES = 15f
 private const val WHEEL_STEP_DEGREES = 22f
 private const val DIAL_TYPE_SP = 19f
@@ -191,7 +193,8 @@ internal fun KnineSwitcher(
         return
     }
     val ink = LocalContentColor.current
-    val surface = knineSurface()
+    // The city's own shade under the names, the same tone the dashboard lays under its panel.
+    val surface = knineTone()
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val last = items.lastIndex
@@ -202,14 +205,14 @@ internal fun KnineSwitcher(
     var motion by remember { mutableStateOf<Job?>(null) }
     var origin by remember { mutableStateOf<Offset?>(null) }
 
-    LaunchedEffect(Unit) { open.animateTo(1f, tween(950, easing = LinearEasing)) }
+    LaunchedEffect(Unit) { open.animateTo(1f, tween(OPEN_MS, easing = LinearEasing)) }
 
     fun close(result: Int?) {
         if (closing) return
         closing = true
         motion?.cancel()
         scope.launch {
-            open.animateTo(0f, tween(420, easing = LinearEasing))
+            open.animateTo(0f, tween(CLOSE_MS, easing = LinearEasing))
             if (result != null) onSelect(result) else onDismiss()
         }
     }
@@ -217,7 +220,8 @@ internal fun KnineSwitcher(
     fun glideTo(target: Int, then: (() -> Unit)? = null) {
         motion?.cancel()
         motion = scope.launch {
-            animate(position, target.toFloat(), animationSpec = spring(dampingRatio = 0.82f, stiffness = 320f)) { value, _ ->
+            // Critically damped: the dial comes to its name and stops there, without swinging past.
+            animate(position, target.toFloat(), animationSpec = spring(dampingRatio = 1f, stiffness = 360f)) { value, _ ->
                 position = value
             }
             then?.invoke()
@@ -226,10 +230,11 @@ internal fun KnineSwitcher(
 
     BackHandler { close(null) }
 
-    // Closer names arrive first; a linear clock keeps the same stagger in reverse when closing.
+    // Closer names arrive first and settle without overshooting; a linear clock keeps the same
+    // stagger in reverse when closing, so the farthest name leaves first.
     fun progress(index: Int): Float {
         val delayFraction = min(abs(index - start), 6) * ITEM_STAGGER
-        return backOut(((open.value - delayFraction) / ITEM_SPAN).coerceIn(0f, 1f))
+        return KnineArrive.transform(((open.value - delayFraction) / ITEM_SPAN).coerceIn(0f, 1f))
     }
     val chrome = ((open.value - 0.25f) / 0.5f).coerceIn(0f, 1f)
     val focus = position.roundToInt().coerceIn(0, last)
@@ -463,10 +468,11 @@ internal fun KnineSwitcher(
                                     item.label,
                                     color = ink,
                                     fontSize = 27.sp,
+                                    lineHeight = 31.sp,
                                     fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
                                     style = halo,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = 2,
+                                    modifier = Modifier.weight(1f, fill = false),
                                 )
                                 item.count?.takeIf { it > 0 }?.let { count ->
                                     Text(
@@ -548,18 +554,20 @@ private fun SwitcherFooter(base: Float, hint: String, alpha: Float, halo: TextSt
             },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (onManage != null) FooterAction(Icons.Default.Edit, stringResource(R.string.kone_dashboard_organize), halo, onManage) else Spacer(Modifier.width(64.dp))
+        // An action on one side is balanced by room on the other, so the hint stays centred; with
+        // none the hint has the whole width, and a long one wraps rather than being cut.
+        val balance = onManage != null || onAdd != null
+        if (onManage != null) FooterAction(Icons.Default.Edit, stringResource(R.string.kone_dashboard_organize), halo, onManage) else if (balance) Spacer(Modifier.width(64.dp))
         Text(
             hint,
             color = ink.copy(alpha = 0.82f),
             fontSize = 12.5.sp,
             textAlign = TextAlign.Center,
             style = halo,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            maxLines = 2,
             modifier = Modifier.weight(1f),
         )
-        if (onAdd != null) FooterAction(Icons.Default.Add, "New", halo, onAdd) else Spacer(Modifier.width(64.dp))
+        if (onAdd != null) FooterAction(Icons.Default.Add, "New", halo, onAdd) else if (balance) Spacer(Modifier.width(64.dp))
     }
 }
 
@@ -655,7 +663,7 @@ private fun CardsSwitcher(
                 }
                 .clip(RoundedCornerShape(30.dp))
                 .background(surface.copy(alpha = 0.94f))
-                .border(0.7.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(30.dp))
+                .border(0.7.dp, ink.copy(alpha = 0.16f), RoundedCornerShape(30.dp))
                 .pointerInput(Unit) { detectTapGestures { } }
                 .padding(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -717,7 +725,7 @@ private fun CardsSwitcher(
                             Column(
                                 Modifier
                                     .weight(1f)
-                                    .height(66.dp)
+                                    .heightIn(min = 66.dp)
                                     .onGloballyPositioned { centers[index] = it.boundsInRoot().center }
                                     .graphicsLayer {
                                         val from = center?.let { anchorInRoot - it } ?: Offset.Zero
@@ -749,7 +757,7 @@ private fun CardsSwitcher(
                                             FlagGlyph(it, size = 18.dp)
                                             Spacer(Modifier.width(6.dp))
                                         }
-                                        Text(item.label, color = fg, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(item.label, color = fg, fontSize = 15.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
                                     }
                                     val count = item.count
                                     Text(

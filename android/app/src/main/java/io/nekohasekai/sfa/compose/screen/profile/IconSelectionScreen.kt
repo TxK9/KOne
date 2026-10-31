@@ -1,11 +1,25 @@
 package io.nekohasekai.sfa.compose.screen.profile
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import io.nekohasekai.sfa.compose.screen.dashboard.AnimatedCheck
+import io.nekohasekai.sfa.compose.screen.dashboard.FitText
+import io.nekohasekai.sfa.compose.theme.KnineMotion
+import io.nekohasekai.sfa.compose.theme.LocalTransparentUi
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
@@ -17,7 +31,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,20 +44,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
-import io.nekohasekai.sfa.compose.theme.BackdropCard as Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
-import io.nekohasekai.sfa.compose.theme.KnineSurface as Surface
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -63,7 +70,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
@@ -133,12 +139,7 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
                                 R.string.search_icons,
                             )
                         },
-                        tint =
-                        if (isSearchActive) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
+                        tint = LocalContentColor.current.copy(alpha = if (isSearchActive) 1f else 0.75f),
                     )
                 }
             },
@@ -173,28 +174,9 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
                 .padding(bottom = bottomBarPadding),
         ) {
             // Show search bar with animation
-            AnimatedVisibility(
-                visible = isSearchActive,
-                enter =
-                expandVertically(
-                    animationSpec = tween(300),
-                ) +
-                    fadeIn(
-                        animationSpec = tween(300),
-                    ),
-                exit =
-                shrinkVertically(
-                    animationSpec = tween(300),
-                ) +
-                    fadeOut(
-                        animationSpec = tween(300),
-                    ),
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 4.dp,
-                ) {
+            AnimatedVisibility(visible = isSearchActive, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
+                // The field alone, on the city like every other field; no raised bar behind it.
+                Box(Modifier.fillMaxWidth()) {
                     val focusRequester = remember { FocusRequester() }
 
                     LaunchedEffect(Unit) {
@@ -257,72 +239,32 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
                     .padding(horizontal = 16.dp),
             ) {
                 // View mode tabs (only show when not searching)
-                AnimatedVisibility(visible = searchQuery.isEmpty()) {
+                AnimatedVisibility(visible = searchQuery.isEmpty(), enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        FilterChip(
-                            selected = viewMode == IconViewMode.CATEGORIES && selectedCategory == null,
-                            onClick = {
-                                viewMode = IconViewMode.CATEGORIES
-                                selectedCategory = null
-                            },
-                            label = { Text(stringResource(R.string.categories)) },
-                            leadingIcon =
-                            if (viewMode == IconViewMode.CATEGORIES && selectedCategory == null) {
-                                { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                            } else {
-                                null
-                            },
-                        )
-
-                        FilterChip(
-                            selected = viewMode == IconViewMode.ALL,
-                            onClick = {
-                                viewMode = IconViewMode.ALL
-                                selectedCategory = null
-                            },
-                            label = { Text(stringResource(R.string.all_icons)) },
-                            leadingIcon =
-                            if (viewMode == IconViewMode.ALL) {
-                                { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                            } else {
-                                null
-                            },
-                        )
-
-                        FilterChip(
-                            selected = viewMode == IconViewMode.FLAGS,
-                            onClick = {
-                                viewMode = IconViewMode.FLAGS
-                                selectedCategory = null
-                            },
-                            label = { Text("Flag") },
-                            leadingIcon =
-                            if (viewMode == IconViewMode.FLAGS) {
-                                { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                            } else {
-                                null
-                            },
-                        )
-
-                        FilterChip(
-                            selected = currentIconId == null,
-                            onClick = {
-                                onIconSelected(null)
-                                onNavigateBack()
-                            },
-                            label = { Text(stringResource(R.string.default_text)) },
-                            leadingIcon = {
-                                Icon(Icons.Default.RestartAlt, contentDescription = null, Modifier.size(16.dp))
-                            },
-                        )
+                        CategoryChip(stringResource(R.string.categories), null, chosen = viewMode == IconViewMode.CATEGORIES && selectedCategory == null) {
+                            viewMode = IconViewMode.CATEGORIES
+                            selectedCategory = null
+                        }
+                        CategoryChip(stringResource(R.string.all_icons), null, chosen = viewMode == IconViewMode.ALL) {
+                            viewMode = IconViewMode.ALL
+                            selectedCategory = null
+                        }
+                        CategoryChip("Flags", null, chosen = viewMode == IconViewMode.FLAGS) {
+                            viewMode = IconViewMode.FLAGS
+                            selectedCategory = null
+                        }
+                        CategoryChip(stringResource(R.string.default_text), null, chosen = currentIconId == null) {
+                            onIconSelected(null)
+                            onNavigateBack()
+                        }
                     }
                 }
 
                 // Back button when category is selected
-                AnimatedVisibility(visible = selectedCategory != null && searchQuery.isEmpty()) {
+                AnimatedVisibility(visible = selectedCategory != null && searchQuery.isEmpty(), enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
                     TextButton(
                         onClick = {
                             selectedCategory = null
@@ -418,82 +360,23 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
             }
         }
 
-        if (currentIcon == null && currentFlag != null) {
-            Card(
-                modifier =
-                Modifier
+        val currentLabel = currentIcon?.let { (id, _) -> MaterialIconsLibrary.getAllIcons().find { it.id == id }?.label ?: id } ?: currentFlag?.label
+        if (currentLabel != null) {
+            // What the node wears now, in one line at the foot of the page.
+            Row(
+                modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
                     .padding(bottom = scaffoldPadding.calculateBottomPadding())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                colors =
-                CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                ),
+                    .padding(horizontal = 24.dp, vertical = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    FlagGlyph(currentFlag.code, size = 24.dp)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = stringResource(R.string.current_icon_format, currentFlag.label),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                when {
+                    currentIcon != null -> Icon(imageVector = currentIcon.second, contentDescription = null, modifier = Modifier.size(22.dp))
+                    currentFlag != null -> FlagGlyph(currentFlag.code, size = 22.dp)
                 }
-            }
-        }
-
-        currentIcon?.let { (id, icon) ->
-            Card(
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = scaffoldPadding.calculateBottomPadding())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                colors =
-                CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                ),
-            ) {
-                Row(
-                    modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        val iconInfo = MaterialIconsLibrary.getAllIcons().find { it.id == id }
-                        Text(
-                            text =
-                            stringResource(
-                                R.string.current_icon_format,
-                                iconInfo?.label ?: id,
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        MaterialIconsLibrary.getCategoryForIcon(id)?.let { category ->
-                            Text(
-                                text = category,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
+                Spacer(modifier = Modifier.width(12.dp))
+                FitText(stringResource(R.string.current_icon_format, currentLabel), MaterialTheme.typography.bodyMedium, minSp = 11f, lines = 2)
             }
         }
     }
@@ -501,11 +384,11 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
 
 @Composable
 private fun CategoryList(categories: List<IconCategory>, currentIconId: String?, onCategoryClick: (IconCategory) -> Unit) {
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items(categories) { category ->
-            CategoryCard(
+    val ink = LocalContentColor.current
+    LazyColumn {
+        itemsIndexed(categories) { index, category ->
+            if (index > 0) Box(Modifier.padding(horizontal = 8.dp).fillMaxWidth().height(0.7.dp).background(ink.copy(alpha = 0.12f)))
+            CategoryRow(
                 category = category,
                 hasSelectedIcon = category.icons.any { it.id == currentIconId },
                 onClick = { onCategoryClick(category) },
@@ -514,60 +397,36 @@ private fun CategoryList(categories: List<IconCategory>, currentIconId: String?,
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** A category as a row: its name and size, three of its icons, and a check where the node's icon is. */
 @Composable
-private fun CategoryCard(category: IconCategory, hasSelectedIcon: Boolean, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors =
-        CardDefaults.cardColors(
-            containerColor =
-            if (hasSelectedIcon) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            },
-        ),
+private fun CategoryRow(category: IconCategory, hasSelectedIcon: Boolean, onClick: () -> Unit) {
+    val ink = LocalContentColor.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = category.name,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = stringResource(R.string.icon_count_format, category.icons.size),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = category.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (hasSelectedIcon) FontWeight.SemiBold else FontWeight.Normal,
+            )
+            Text(
+                text = stringResource(R.string.icon_count_format, category.icons.size),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.graphicsLayer { alpha = 0.7f },
+            )
+        }
+        AnimatedCheck(hasSelectedIcon, Modifier.padding(end = 8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            category.icons.take(3).forEach { icon ->
+                Icon(imageVector = icon.icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = ink.copy(alpha = 0.7f))
             }
-
-            // Preview first 3 icons
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                category.icons.take(3).forEach { icon ->
-                    Icon(
-                        imageVector = icon.icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = ink.copy(alpha = 0.5f))
         }
     }
 }
@@ -602,116 +461,53 @@ private fun IconGrid(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * One cell of the grid in ink: a faint wash on a bright scene, nothing on a dark one, and a ring of
+ * ink round the one the node wears. Its name fits whole, smaller or on two lines.
+ */
 @Composable
-private fun IconGridItem(icon: ProfileIcon, isSelected: Boolean, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier =
-        Modifier
+private fun GridCell(label: String, isSelected: Boolean, onClick: () -> Unit, glyph: @Composable () -> Unit) {
+    val ink = LocalContentColor.current
+    val clear = LocalTransparentUi.current
+    val ring by animateFloatAsState(if (isSelected) 1f else 0f, tween(240), label = "cellRing")
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1f),
-        colors =
-        CardDefaults.cardColors(
-            containerColor =
-            if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            },
-        ),
-        border =
-        if (isSelected) {
-            CardDefaults.outlinedCardBorder()
-        } else {
-            null
-        },
+            .aspectRatio(1f)
+            .clip(shape)
+            .background(if (clear) Color.Transparent else ink.copy(alpha = 0.05f + 0.05f * ring))
+            .border(1.dp, ink.copy(alpha = 0.55f * ring), shape)
+            .semantics { selected = isSelected }
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(6.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(
-                imageVector = icon.icon,
-                contentDescription = icon.label,
-                modifier = Modifier.size(28.dp),
-                tint =
-                if (isSelected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = icon.label,
-                style = MaterialTheme.typography.labelSmall,
-                color =
-                if (isSelected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+        glyph()
+        Spacer(modifier = Modifier.height(4.dp))
+        FitText(
+            label,
+            MaterialTheme.typography.labelSmall.copy(
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            ),
+            minSp = 8f,
+            lines = 2,
+        )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun IconGridItem(icon: ProfileIcon, isSelected: Boolean, onClick: () -> Unit) {
+    GridCell(icon.label, isSelected, onClick) {
+        Icon(imageVector = icon.icon, contentDescription = null, modifier = Modifier.size(28.dp))
+    }
+}
+
 @Composable
 private fun FlagGridItem(country: Country, isSelected: Boolean, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier =
-        Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f),
-        colors =
-        CardDefaults.cardColors(
-            containerColor =
-            if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            },
-        ),
-        border =
-        if (isSelected) {
-            CardDefaults.outlinedCardBorder()
-        } else {
-            null
-        },
-    ) {
-        Column(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            FlagGlyph(country.code, size = 30.dp)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = country.label,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
+    GridCell(country.label, isSelected, onClick) { FlagGlyph(country.code, size = 30.dp) }
 }
 
 @Composable

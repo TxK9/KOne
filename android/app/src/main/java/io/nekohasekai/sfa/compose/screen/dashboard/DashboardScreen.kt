@@ -103,13 +103,8 @@ fun DashboardScreen(
                         if (kninePanel) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.kone_dashboard_import)) },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentPaste,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                },
+                                // The menu's own ink, like every line laid over the city.
+                                leadingIcon = { Icon(imageVector = Icons.Default.ContentPaste, contentDescription = null) },
                                 onClick = {
                                     showOthersMenu = false
                                     viewModel.showAddProfileSheet()
@@ -117,13 +112,7 @@ fun DashboardScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.kone_dashboard_add_category)) },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                },
+                                leadingIcon = { Icon(imageVector = Icons.Default.Add, contentDescription = null) },
                                 onClick = {
                                     showOthersMenu = false
                                     addCategoryRequested = true
@@ -216,7 +205,6 @@ fun DashboardScreen(
                 KnineDashboard(
                     uiState = uiState,
                     serviceStatus = serviceStatus,
-                    exit = exit,
                     actions = KnineDashboardActions(
                         start = { viewModel.sendGlobalEvent(UiEvent.RequestStartService) },
                         stop = { viewModel.toggleService() },
