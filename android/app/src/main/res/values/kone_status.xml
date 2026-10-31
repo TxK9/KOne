@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="kone_status_connections">
+        <item quantity="one">%d connection</item>
+        <item quantity="other">%d connections</item>
+    </plurals>
+    <string name="kone_status_app_system">Android system</string>
+    <string name="kone_status_app_unknown">Unknown</string>
+    <string name="kone_status_route_direct">Direct</string>
+    <string name="kone_status_route_blocked">Blocked</string>
+    <string name="kone_status_route_home">Home</string>
+    <string name="kone_status_route_node">Node</string>
+    <string name="kone_status_rule_default">default</string>
+    <string name="kone_status_rule_private">private network</string>
+    <string name="kone_status_rule_domain">domain rule</string>
+    <string name="kone_status_rule_address">address rule</string>
+    <string name="kone_status_rule_port">port rule</string>
+    <string name="kone_status_rule_app">app rule</string>
+    <string name="kone_status_rule_protocol">%1$s rule</string>
+    <string name="kone_status_rule_network">%1$s rule</string>
+    <string name="kone_status_rule_mode">%1$s mode</string>
+    <string name="kone_status_rule_wifi">Wi-Fi rule</string>
+    <string name="kone_status_rule_other">rule</string>
+    <string name="kone_status_close">Close</string>
+    <string name="kone_status_close_all">Close all</string>
+    <string name="kone_status_speed">%1$s/s</string>
+</resources>

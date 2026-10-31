@@ -19,12 +19,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import io.nekohasekai.sfa.compose.theme.BackdropCard
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.constant.Status
+import io.nekohasekai.sfa.compose.screen.connections.AppTraffic
+import io.nekohasekai.sfa.selfuse.PairedProfile
+import cc.txwd.kone.shared.ShareLinks
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
 
 /** Raw service logs can contain node addresses and credentials. Only connection state is public. */
 @Suppress("UNUSED_PARAMETER")
@@ -43,6 +48,8 @@ fun LogScreen(
     saveFilePrefix: String = "logs",
     onBack: (() -> Unit)? = null,
     live: io.nekohasekai.sfa.compose.screen.dashboard.DashboardUiState? = null,
+    apps: List<AppTraffic> = emptyList(),
+    onCloseConnections: (List<String>) -> Unit = {},
 ) {
     OverrideTopBar {
         TopAppBar(
@@ -57,42 +64,64 @@ fun LogScreen(
         )
     }
     // The state as the dashboard says it, a weather seal and a word, on the title's own left edge;
-    // while connected, the node and the traffic going through it, live.
-    Column(Modifier.fillMaxSize().padding(LocalScaffoldPadding.current).padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            io.nekohasekai.sfa.compose.screen.dashboard.WeatherSeal(
-                when (serviceStatus) {
-                    Status.Started -> io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather.Clear
-                    Status.Starting, Status.Stopping -> io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather.Mist
-                    Status.Stopped -> io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather.Rest
-                },
-                22.dp,
-            )
-            Spacer(Modifier.width(12.dp))
-            Text(
-                when (serviceStatus) {
-                    Status.Started -> "Connected"
-                    Status.Starting -> "Connecting"
-                    Status.Stopping -> "Disconnecting"
-                    Status.Stopped -> "Disconnected"
-                },
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-            )
-            if (serviceStatus == Status.Started && live != null) {
-                Text(
-                    io.nekohasekai.sfa.compose.screen.dashboard.rememberUptime(live.serviceStartTime),
-                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-                    modifier = Modifier.graphicsLayer { alpha = 0.75f },
+    // while connected, the node and the traffic going through it, then each app's connections, live.
+    val connected = serviceStatus == Status.Started && live != null
+    val opened = remember { mutableStateMapOf<String, Long>() }
+    val selected = live?.profiles?.firstOrNull { it.id == live.selectedProfileId }
+    val names = remember(selected?.name) {
+        RouteNames(selected?.name, selected?.name?.let { mapOf(ShareLinks.NODE_TAG to it, PairedProfile.PROXY_TAG to it) } ?: emptyMap())
+    }
+    LazyColumn(
+        Modifier.fillMaxSize().padding(LocalScaffoldPadding.current),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        item(key = "state") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                io.nekohasekai.sfa.compose.screen.dashboard.WeatherSeal(
+                    when (serviceStatus) {
+                        Status.Started -> io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather.Clear
+                        Status.Starting, Status.Stopping -> io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather.Mist
+                        Status.Stopped -> io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather.Rest
+                    },
+                    22.dp,
                 )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    when (serviceStatus) {
+                        Status.Started -> "Connected"
+                        Status.Starting -> "Connecting"
+                        Status.Stopping -> "Disconnecting"
+                        Status.Stopped -> "Disconnected"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                if (connected && live != null) {
+                    Text(
+                        io.nekohasekai.sfa.compose.screen.dashboard.rememberUptime(live.serviceStartTime),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                        modifier = Modifier.graphicsLayer { alpha = 0.75f },
+                    )
+                }
             }
         }
-        androidx.compose.animation.AnimatedVisibility(
-            visible = serviceStatus == Status.Started && live != null,
-            enter = io.nekohasekai.sfa.compose.theme.KnineMotion.reveal(),
-            exit = io.nekohasekai.sfa.compose.theme.KnineMotion.conceal(),
-        ) {
-            if (live != null) LiveTraffic(live)
+        item(key = "live") {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = connected,
+                enter = io.nekohasekai.sfa.compose.theme.KnineMotion.reveal(),
+                exit = io.nekohasekai.sfa.compose.theme.KnineMotion.conceal(),
+            ) {
+                if (live != null) LiveTraffic(live)
+            }
+        }
+        if (connected) {
+            statusConnections(
+                apps = apps,
+                opened = opened,
+                onToggle = { key -> if (opened.remove(key) == null) opened[key] = android.os.SystemClock.uptimeMillis() },
+                names = names,
+                onClose = onCloseConnections,
+            )
         }
     }
 }
