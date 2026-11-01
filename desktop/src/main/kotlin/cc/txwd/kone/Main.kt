@@ -24,7 +24,6 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
@@ -260,7 +259,7 @@ fun main(args: Array<String>) {
                     // With a binding, closing keeps KOne by the clock, connected or not; without one there is nothing to keep.
                     if (model.screen == Screen.Dashboard && SystemTray.isSupported()) shown = false else quit()
                 },
-                state = window, visible = shown, title = "KOne", icon = icon, undecorated = true,
+                state = window, visible = shown, title = "KOne", icon = icon, undecorated = true, resizable = true,
                 onPreviewKeyEvent = { event ->
                     // Ctrl+K opens the command palette from anywhere, a text field included; Ctrl+1 to
                     // Ctrl+6 go to the rail's pages in order.
@@ -445,8 +444,8 @@ fun main(args: Array<String>) {
                           }
                       }
                         if (palette) Palette({ query -> commands(model, query, scan = { importScreen(model, this@Window.window) }) { page = it } }, onClose = { palette = false })
-                        // The edges a window frame would have: drag the right, the bottom or the corner.
-                        ResizeHandles(window)
+                        // Resize from any edge or corner, as with a native window frame.
+                        ResizeHandles(window, this@Window.window)
                     }
                   }
                 }
@@ -571,25 +570,49 @@ private fun firstSize(): DpSize {
 }
 
 /**
- * Handles along the right and bottom edges and in the corner, since a window drawn without
- * Windows' own frame has none: the resize pointer over them, and dragging resizes.
+ * Every edge and corner of the undecorated window can be dragged. Screen coordinates keep
+ * the opposite edge still when the left or top edge moves, including at the minimum size.
  */
 @Composable
-private fun BoxScope.ResizeHandles(state: WindowState) {
+private fun BoxScope.ResizeHandles(state: WindowState, native: java.awt.Window) {
     if (state.placement != WindowPlacement.Floating) return
-    val density = LocalDensity.current
-    fun Modifier.resizes(width: Boolean, height: Boolean, cursor: Int) = pointerHoverIcon(PointerIcon(java.awt.Cursor(cursor)))
-        .pointerInput(width, height) {
-            detectDragGestures { change, drag ->
-                change.consume()
-                val size = state.size
-                val grow = with(density) { DpSize(if (width) drag.x.toDp() else 0.dp, if (height) drag.y.toDp() else 0.dp) }
-                state.size = DpSize(maxOf(MINIMUM.width, size.width + grow.width), maxOf(MINIMUM.height, size.height + grow.height))
-            }
+    fun Modifier.resizes(horizontal: Int, vertical: Int, cursor: Int) = pointerHoverIcon(PointerIcon(java.awt.Cursor(cursor)))
+        .pointerInput(native, horizontal, vertical) {
+            var start: java.awt.Rectangle? = null
+            var anchor: java.awt.Point? = null
+            detectDragGestures(
+                onDragStart = {
+                    start = native.bounds
+                    anchor = java.awt.MouseInfo.getPointerInfo()?.location
+                },
+                onDrag = { change, _ ->
+                    change.consume()
+                    val from = start
+                    val origin = anchor
+                    val pointer = java.awt.MouseInfo.getPointerInfo()?.location
+                    if (from != null && origin != null && pointer != null) {
+                        val minimum = native.minimumSize
+                        val width = (from.width + (pointer.x - origin.x) * horizontal)
+                            .coerceAtLeast(maxOf(minimum.width, MINIMUM.width.value.toInt()))
+                        val height = (from.height + (pointer.y - origin.y) * vertical)
+                            .coerceAtLeast(maxOf(minimum.height, MINIMUM.height.value.toInt()))
+                        native.setBounds(
+                            if (horizontal < 0) from.x + from.width - width else from.x,
+                            if (vertical < 0) from.y + from.height - height else from.y,
+                            width, height,
+                        )
+                    }
+                },
+            )
         }
-    Box(Modifier.align(Alignment.CenterEnd).width(6.dp).fillMaxHeight().resizes(width = true, height = false, java.awt.Cursor.E_RESIZE_CURSOR))
-    Box(Modifier.align(Alignment.BottomCenter).height(6.dp).fillMaxWidth().resizes(width = false, height = true, java.awt.Cursor.S_RESIZE_CURSOR))
-    Box(Modifier.align(Alignment.BottomEnd).size(14.dp).resizes(width = true, height = true, java.awt.Cursor.SE_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.CenterStart).width(6.dp).fillMaxHeight().resizes(-1, 0, java.awt.Cursor.W_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.CenterEnd).width(6.dp).fillMaxHeight().resizes(1, 0, java.awt.Cursor.E_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.TopCenter).height(6.dp).fillMaxWidth().resizes(0, -1, java.awt.Cursor.N_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.BottomCenter).height(6.dp).fillMaxWidth().resizes(0, 1, java.awt.Cursor.S_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.TopStart).size(14.dp).resizes(-1, -1, java.awt.Cursor.NW_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.TopEnd).size(14.dp).resizes(1, -1, java.awt.Cursor.NE_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.BottomStart).size(14.dp).resizes(-1, 1, java.awt.Cursor.SW_RESIZE_CURSOR))
+    Box(Modifier.align(Alignment.BottomEnd).size(14.dp).resizes(1, 1, java.awt.Cursor.SE_RESIZE_CURSOR))
 }
 
 /** Windows' own file picker for a program to send straight out; its file name, or null when none was picked. */
