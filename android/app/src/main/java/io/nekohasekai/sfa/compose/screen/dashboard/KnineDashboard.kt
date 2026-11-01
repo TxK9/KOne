@@ -180,17 +180,17 @@ internal class KnineDashboardActions(
 
 internal const val SHOWN_NODES = 3
 
-internal fun routeModeLabel(mode: String): String = when (mode.lowercase()) {
-    "rule" -> "Rule"
-    "global" -> "Global"
-    "direct" -> "Direct"
+internal fun routeModeLabel(mode: String, context: android.content.Context): String = when (mode.lowercase()) {
+    "rule" -> context.getString(R.string.kone_mode_rule)
+    "global" -> context.getString(R.string.kone_mode_global)
+    "direct" -> context.getString(R.string.kone_mode_direct)
     else -> mode
 }
 
-private fun routeModeHint(mode: String): String = when (mode.lowercase()) {
-    "rule" -> "Choose routes using profile rules"
-    "global" -> "Use the global proxy policy"
-    "direct" -> "Connect directly without a proxy"
+private fun routeModeHint(mode: String, context: android.content.Context): String = when (mode.lowercase()) {
+    "rule" -> context.getString(R.string.kone_mode_rule_hint)
+    "global" -> context.getString(R.string.kone_mode_global_hint)
+    "direct" -> context.getString(R.string.kone_mode_direct_hint)
     else -> mode
 }
 
@@ -223,6 +223,7 @@ internal fun KnineDashboard(
     onImportClosed: () -> Unit = {},
 ) {
     val host = LocalKnineHost.current
+    val context = LocalContext.current
     val scaffold = LocalScaffoldPadding.current
     val topInset = scaffold.calculateTopPadding()
     val navInset = scaffold.calculateBottomPadding()
@@ -262,7 +263,7 @@ internal fun KnineDashboard(
 
     // A new category is named right where its nodes will be.
     fun addCategory() {
-        val id = NodeCategoryStore.add("New category")
+        val id = NodeCategoryStore.add(context.getString(R.string.kone_dashboard_new_category))
         if (collapsed) shelfOpen = true
         editing = id
     }
@@ -290,7 +291,6 @@ internal fun KnineDashboard(
     LaunchedEffect(started) { if (!started) statusOpen = false }
 
     // Node health, only while this page is on screen: every 6 s on Wi-Fi and mobile data and again whenever the connection changes the network underneath.
-    val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(profiles, serviceStatus, selectedId, uiState.latencyRefreshToken) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -437,7 +437,7 @@ internal fun KnineDashboard(
                         onDelete = { id ->
                             profiles.firstOrNull { it.id == id }?.let { profile ->
                                 if (id == selectedId && serviceStatus != Status.Stopped) {
-                                    android.widget.Toast.makeText(context, "Disconnect before deleting the active node.", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, context.getString(R.string.kone_node_disconnect_first), android.widget.Toast.LENGTH_SHORT).show()
                                 } else actions.delete(profile)
                             }
                         },
@@ -536,7 +536,7 @@ internal fun KnineDashboard(
                 // Tapping the current category again: the categories fly out on the dial.
                 KnineSwitcher(
                     style = KnineAppearance.switcher,
-                    title = "Categories",
+                    title = stringResource(R.string.categories),
                     items = groups.map { SwitcherItem(it.name, it.profiles.size, it.flag) },
                     initial = pagerState.currentPage,
                     anchorInRoot = anchor,
@@ -555,12 +555,12 @@ internal fun KnineDashboard(
                 val modes = uiState.clashModes
                 KnineSwitcher(
                     style = if (KnineAppearance.switcher == KnineSwitcherStyle.Cards) KnineSwitcherStyle.Floating else KnineAppearance.switcher,
-                    title = "Routing mode",
-                    items = modes.map { SwitcherItem(routeModeLabel(it)) },
+                    title = stringResource(R.string.kone_routing_mode),
+                    items = modes.map { SwitcherItem(routeModeLabel(it, context)) },
                     initial = modes.indexOf(uiState.selectedClashMode).coerceAtLeast(0),
                     anchorInRoot = anchor,
                     bottomInset = navInset,
-                    hint = { routeModeHint(modes[it]) },
+                    hint = { routeModeHint(modes[it], context) },
                     onSelect = { index ->
                         modeAnchor = null
                         if (modes[index] != uiState.selectedClashMode) actions.selectMode(modes[index])
@@ -988,27 +988,28 @@ private fun StatusDetails(
     onToggleProxy: (Boolean) -> Unit,
 ) {
     val ink = LocalContentColor.current
+    val context = LocalContext.current
     val tiles = buildList {
         if (reading != null) {
             // A word or two, as the weather says it; the reason waits in the node's own row.
             val verdict = when (reading.health) {
-                NodeHealth.Good -> "Good"
-                NodeHealth.Slow -> if (reading.failed) "No reply" else "Slow"
-                NodeHealth.Down -> "Unreachable"
+                NodeHealth.Good -> stringResource(R.string.kone_health_good)
+                NodeHealth.Slow -> stringResource(if (reading.failed) R.string.kone_health_no_reply else R.string.kone_health_slow)
+                NodeHealth.Down -> stringResource(R.string.kone_health_unreachable)
             }
-            add(TileSpec("Latency", Icons.Outlined.Speed, reading.label, verdict))
+            add(TileSpec(stringResource(R.string.kone_detail_latency), Icons.Outlined.Speed, reading.label, verdict))
         }
         if (uiState.clashModeVisible && uiState.clashModes.isNotEmpty()) {
-            add(TileSpec("Route", Icons.Outlined.Tune, routeModeLabel(uiState.selectedClashMode), opens = TileOpens.Picker, onClick = onModes))
+            add(TileSpec(stringResource(R.string.kone_detail_route), Icons.Outlined.Tune, routeModeLabel(uiState.selectedClashMode, context), opens = TileOpens.Picker, onClick = onModes))
         }
         if (uiState.trafficVisible) {
-            add(TileSpec("Download", Icons.Default.ArrowDownward, uiState.downlink, "Total ${uiState.downlinkTotal}", steady = true))
-            add(TileSpec("Upload", Icons.Default.ArrowUpward, uiState.uplink, "Total ${uiState.uplinkTotal}", steady = true))
+            add(TileSpec(stringResource(R.string.download), Icons.Default.ArrowDownward, uiState.downlink, stringResource(R.string.kone_detail_total, uiState.downlinkTotal), steady = true))
+            add(TileSpec(stringResource(R.string.upload), Icons.Default.ArrowUpward, uiState.uplink, stringResource(R.string.kone_detail_total, uiState.uplinkTotal), steady = true))
         }
-        add(TileSpec("Connections", Icons.Default.SwapVert, uiState.connectionsCount.toString(), opens = TileOpens.Page, onClick = { host.openConnections() }))
+        add(TileSpec(stringResource(R.string.title_connections), Icons.Default.SwapVert, uiState.connectionsCount.toString(), opens = TileOpens.Page, onClick = { host.openConnections() }))
         // Only worth a tile when some group actually offers a choice.
         if (uiState.choosableGroupsCount > 0) {
-            add(TileSpec("Groups", Icons.Outlined.AccountTree, uiState.groupsCount.toString(), opens = TileOpens.Page, onClick = { host.openGroups() }))
+            add(TileSpec(stringResource(R.string.kone_detail_groups), Icons.Outlined.AccountTree, uiState.groupsCount.toString(), opens = TileOpens.Page, onClick = { host.openGroups() }))
         }
     }
     val shape = RoundedCornerShape(18.dp)
@@ -1047,7 +1048,7 @@ private fun StatusDetails(
                     .padding(start = 6.dp, end = 2.dp, top = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                BText("System HTTP proxy", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                BText(stringResource(R.string.system_proxy), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                 KnineSwitch(
                     checked = uiState.systemProxyEnabled,
                     onCheckedChange = onToggleProxy,
@@ -1167,7 +1168,7 @@ internal fun NodeRow(
             if (io.nekohasekai.sfa.selfuse.NodeChain.via(profile.id) != null) {
                 Icon(
                     Icons.Outlined.Link,
-                    contentDescription = "Chained",
+                    contentDescription = stringResource(R.string.kone_node_chained),
                     modifier = Modifier.align(Alignment.BottomEnd).offset(x = 3.dp, y = 4.dp).size(11.dp),
                 )
             }
@@ -1194,7 +1195,7 @@ internal fun NodeRow(
             Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { SelectMark(marked) }
         } else {
             IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.MoreHoriz, contentDescription = "Edit node", modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.MoreHoriz, contentDescription = stringResource(R.string.kone_node_edit), modifier = Modifier.size(18.dp))
             }
         }
     }

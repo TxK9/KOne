@@ -31,6 +31,35 @@ class AccountFactsTest {
         assertNull(accountExpiry("  ", now, zone))
         assertNull(accountExpiry("next month", now, zone))
         assertNull(accountExpiry("2026-13-40", now, zone))
+        assertNull(accountExpiry("0", now, zone))
+        assertNull(accountExpiry("-1", now, zone))
+        assertNull(accountExpiry(Long.MAX_VALUE.toString(), now, zone))
+        assertNull(accountExpiry("NaN", now, zone))
+        assertNull(accountExpiry("Infinity", now, zone))
+        assertNull(accountExpiry("1e999999999", now, zone))
+        assertNull(accountExpiry("1e-999999999", now, zone))
+    }
+
+    @Test
+    fun consoleUnixSecondsShowTheSameDateAndExpiryBoundaryAsIso() {
+        val end = Instant.parse("2026-12-01T20:00:00Z")
+        val seconds = end.epochSecond.toString()
+        val tokyo = ZoneId.of("Asia/Tokyo")
+        assertEquals(AccountExpiry(LocalDate.of(2026, 12, 2), TermState.Active), accountExpiry(seconds, now, tokyo))
+        assertEquals(accountExpiry(end.toString(), end.minusSeconds(1), tokyo), accountExpiry(seconds, end.minusSeconds(1), tokyo))
+        assertEquals(TermState.EndingSoon, accountExpiry(seconds, end.minusSeconds(1), tokyo)?.state)
+        assertEquals(TermState.Ended, accountExpiry(seconds, end, tokyo)?.state)
+    }
+
+    @Test
+    fun fractionalAndExponentUnixSecondsRetainTheExpiryInstant() {
+        val end = Instant.parse("2026-12-01T20:00:00.125Z")
+        val decimal = "${end.epochSecond}.125"
+        val exponent = java.math.BigDecimal(decimal).movePointLeft(9).toPlainString() + "E9"
+        for (value in listOf(decimal, exponent)) {
+            assertEquals(TermState.EndingSoon, accountExpiry(value, end.minusNanos(1), zone)?.state)
+            assertEquals(TermState.Ended, accountExpiry(value, end, zone)?.state)
+        }
     }
 
     @Test

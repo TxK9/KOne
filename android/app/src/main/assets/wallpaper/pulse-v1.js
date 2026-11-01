@@ -132,7 +132,7 @@
     }
     function spawnHeli(prefill) {
       const y = horizon - .015 - rand() * .045, duration = 50 + rand() * 40;
-      craft.push({kind: 'heli', born: seconds - (prefill ? rand() * duration : 0), duration, rightward: rand() < .5, y, phase: rand() * 10, depth: .9, light: rand() < .35});
+      craft.push({kind: 'heli', born: seconds - (prefill ? rand() * duration : 0), duration, rightward: rand() < .5, y, drift: 0, phase: rand() * 10, depth: .9, light: rand() < .35});
     }
     const gap = rate => rate > 0 ? 60 / rate * (.5 + rand()) : Infinity;
     function seed() {

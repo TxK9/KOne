@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.compose.component
 
+import io.nekohasekai.sfa.R
+import androidx.compose.ui.res.stringResource
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -62,7 +64,7 @@ internal suspend fun nodeShareLink(profile: Profile): String? = withContext(Disp
 internal suspend fun shareNodeAsText(context: Context, profile: Profile) {
     val link = nodeShareLink(profile)
     if (link == null) {
-        Toast.makeText(context, "This node has no link form to share.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.kone_node_share_unusable), Toast.LENGTH_SHORT).show()
         return
     }
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, link)
@@ -96,7 +98,7 @@ internal fun NodeSharePanel(profile: Profile, modifier: Modifier = Modifier) {
         when {
             link == null -> Box(Modifier.size(196.dp))
             link == "" -> Text(
-                "This node has no link form to share.",
+                stringResource(R.string.kone_node_share_unusable),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(vertical = 8.dp).graphicsLayer { alpha = 0.75f },
             )
@@ -113,15 +115,15 @@ internal fun NodeSharePanel(profile: Profile, modifier: Modifier = Modifier) {
                         .background(Color(PAPER))
                         .padding(12.dp),
                 ) {
-                    code?.let { Image(it, contentDescription = "QR code for ${profile.name}", filterQuality = FilterQuality.None, modifier = Modifier.fillMaxWidth()) }
+                    code?.let { Image(it, contentDescription = stringResource(R.string.kone_node_qr, profile.name), filterQuality = FilterQuality.None, modifier = Modifier.fillMaxWidth()) }
                 }
                 Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    NodeActionBubble("Copy", Icons.Outlined.ContentCopy) {
+                    NodeActionBubble(stringResource(R.string.kone_action_copy), Icons.Outlined.ContentCopy) {
                         val clipboard = context.getSystemService(ClipboardManager::class.java)
                         clipboard?.setPrimaryClip(ClipData.newPlainText(profile.name, link))
-                        Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.kone_node_link_copied), Toast.LENGTH_SHORT).show()
                     }
-                    NodeActionBubble("Share", Icons.Outlined.IosShare) {
+                    NodeActionBubble(stringResource(R.string.kone_action_share), Icons.Outlined.IosShare) {
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, link)
                         context.startActivity(Intent.createChooser(send, profile.name))
                     }

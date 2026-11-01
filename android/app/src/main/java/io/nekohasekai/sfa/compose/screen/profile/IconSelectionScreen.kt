@@ -252,7 +252,7 @@ fun IconSelectionScreen(currentIconId: String?, onIconSelected: (String?) -> Uni
                             viewMode = IconViewMode.ALL
                             selectedCategory = null
                         }
-                        CategoryChip("Flags", null, chosen = viewMode == IconViewMode.FLAGS) {
+                        CategoryChip(stringResource(R.string.kone_flags), null, chosen = viewMode == IconViewMode.FLAGS) {
                             viewMode = IconViewMode.FLAGS
                             selectedCategory = null
                         }

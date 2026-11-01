@@ -767,14 +767,14 @@ private fun CategoryEditor(group: NodeGroup, onDone: () -> Unit) {
                     if (at >= 0 && at + by in list.indices) NodeCategoryStore.move(group.id, at + by)
                 }
                 if (index > 0) {
-                    RepeatingAction(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Move up") { step(-1) }
+                    RepeatingAction(Icons.AutoMirrored.Filled.KeyboardArrowLeft, stringResource(R.string.kone_category_move_up)) { step(-1) }
                 }
                 if (index in 0 until categories.lastIndex) {
-                    RepeatingAction(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Move down") { step(1) }
+                    RepeatingAction(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.kone_category_move_down)) { step(1) }
                 }
-                EditorAction(Icons.Outlined.DeleteOutline, "Delete category") {
+                EditorAction(Icons.Outlined.DeleteOutline, stringResource(R.string.kone_category_delete)) {
                     NodeCategoryStore.delete(group.id)
-                    Toast.makeText(context, "Deleted ${group.name}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.kone_category_deleted, group.name), Toast.LENGTH_SHORT).show()
                     finish()
                 }
             }
@@ -796,7 +796,7 @@ private fun CategoryEditor(group: NodeGroup, onDone: () -> Unit) {
                 NodeCategoryStore.setFlag(group.id, code)
                 // A fresh category takes the country's name with its flag.
                 val country = Countries.byCode(code)
-                if (country != null && !group.fallback && group.name == "New category") {
+                if (country != null && !group.fallback && group.name in setOf("New category", context.getString(R.string.kone_dashboard_new_category))) {
                     NodeCategoryStore.rename(group.id, country.label)
                     text = TextFieldValue(country.label, TextRange(country.label.length))
                 }
@@ -1010,11 +1010,11 @@ private fun NodePage(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    BText("Import nodes", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                    BText(stringResource(R.string.kone_nodes_import), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
                 }
             } else {
                 BText(
-                    "No nodes yet",
+                    stringResource(R.string.kone_nodes_empty),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier
                         .padding(horizontal = 12.dp, vertical = 14.dp)

@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.theme
 
+import androidx.annotation.StringRes
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -18,16 +19,16 @@ import java.io.File
 import java.io.IOException
 
 /** Where the dashboard's picture comes from. */
-enum class WallpaperMode(val id: String, val label: String) {
-    City("city", "Living cities"),
+enum class WallpaperMode(val id: String, @StringRes val labelRes: Int) {
+    City("city", R.string.city_wallpaper_city),
     /** The photos built into this copy, taking turns. */
-    Builtin("builtin", "Built-in rotation"),
+    Builtin("builtin", R.string.kone_wallpaper_builtin),
 
     /** One photo the user chose from their gallery. */
-    Photo("photo", "My photos"),
+    Photo("photo", R.string.kone_wallpaper_photo),
 
     /** No photo: a quiet gradient that follows the system's light or dark mode. */
-    None("none", "No wallpaper"),
+    None("none", R.string.kone_wallpaper_none),
     ;
 
     companion object {

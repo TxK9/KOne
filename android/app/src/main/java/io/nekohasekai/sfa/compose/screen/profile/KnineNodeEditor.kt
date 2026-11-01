@@ -1,5 +1,8 @@
 package io.nekohasekai.sfa.compose.screen.profile
 
+import io.nekohasekai.sfa.R
+import androidx.compose.ui.res.stringResource
+
 import android.widget.Toast
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import io.nekohasekai.sfa.compose.theme.cityLine
@@ -164,7 +167,7 @@ internal fun KnineNodeEditor(
             }
             if (managed) {
                 Text(
-                    "Managed by the claim service",
+                    stringResource(R.string.kone_node_managed),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.settle(4).padding(top = 18.dp, bottom = 24.dp).graphicsLayer { alpha = 0.7f },
                 )
@@ -216,7 +219,7 @@ private fun NodeBadge(icon: String?, open: Boolean, onClick: () -> Unit, modifie
                 .background(ink),
             contentAlignment = Alignment.Center,
         ) {
-            androidx.compose.material3.Icon(Icons.Default.Edit, contentDescription = "Change icon", tint = surface, modifier = Modifier.size(13.dp))
+            androidx.compose.material3.Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.kone_node_change_icon), tint = surface, modifier = Modifier.size(13.dp))
         }
     }
 }
@@ -290,7 +293,7 @@ private fun CategoryChoice(profile: Profile, savedName: String) {
     val targets = listOf(Triple(NodeCategories.FALLBACK_ID, state.fallbackName, state.fallbackFlag)) +
         state.categories.map { Triple(it.id, it.name, it.flag) }
     Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 16.dp)) {
-        BText("Categories", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 2.dp, bottom = 10.dp).graphicsLayer { alpha = 0.7f })
+        BText(stringResource(R.string.categories), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 2.dp, bottom = 10.dp).graphicsLayer { alpha = 0.7f })
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             targets.forEach { (id, label, flag) ->
                 CategoryChip(label = label, flag = flag, chosen = id == current) { NodeCategoryStore.assign(profile.id, id) }
@@ -327,22 +330,22 @@ private fun ChainChoice(profile: Profile) {
                 runCatching {
                     val exit = java.io.File(profile.typed.path).readText()
                     val chained = io.nekohasekai.sfa.selfuse.NodeChain.chain(exit, java.io.File(choice.typed.path).readText(), choice.name)
-                        ?: return@runCatching "${choice.name} cannot carry another node."
+                        ?: return@runCatching context.getString(R.string.kone_node_chain_unusable, choice.name)
                     io.nekohasekai.libbox.Libbox.checkConfig(io.nekohasekai.sfa.selfuse.HomeSettings.prepare(chained))
                     null
-                }.getOrElse { it.message?.lineSequence()?.firstOrNull()?.take(120) ?: "This chain does not hold." }
+                }.getOrElse { it.message?.lineSequence()?.firstOrNull()?.take(120) ?: context.getString(R.string.kone_node_chain_invalid) }
             }
             trying = false
             if (problem == null) io.nekohasekai.sfa.selfuse.NodeChain.set(profile.id, choice.id)
             else Toast.makeText(context, problem, Toast.LENGTH_SHORT).show()
         }
     }
-    ActionRow(Icons.Outlined.Link, "Chain through", onClick = { open = !open }) {
+    ActionRow(Icons.Outlined.Link, stringResource(R.string.kone_node_chain), onClick = { open = !open }) {
         // The front node's whole name: smaller when long, then on two lines, never cut.
         Row(Modifier.graphicsLayer { alpha = if (trying) 0.4f else 0.75f }, verticalAlignment = Alignment.CenterVertically) {
             val frontFlag = front?.let { FlagIcons.codeFor(it.icon, it.name) }
             frontFlag?.let { FlagGlyph(it, size = 16.dp); Spacer(Modifier.width(6.dp)) }
-            FitText(front?.name ?: "Off", MaterialTheme.typography.bodyMedium, alignEnd = true, minSp = 11f, lines = 2, modifier = Modifier.weight(1f, fill = false))
+            FitText(front?.name ?: stringResource(R.string.kone_node_chain_off), MaterialTheme.typography.bodyMedium, alignEnd = true, minSp = 11f, lines = 2, modifier = Modifier.weight(1f, fill = false))
         }
     }
     AnimatedVisibility(visible = open, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
@@ -352,7 +355,7 @@ private fun ChainChoice(profile: Profile) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            CategoryChip(label = "Off", flag = null, chosen = front == null, modifier = Modifier.bloomIn(bloom, 0)) { pick(null) }
+            CategoryChip(label = stringResource(R.string.kone_node_chain_off), flag = null, chosen = front == null, modifier = Modifier.bloomIn(bloom, 0)) { pick(null) }
             others.forEachIndexed { index, other ->
                 CategoryChip(
                     label = other.name,
@@ -375,7 +378,7 @@ private fun ShareChoice(profile: Profile) {
         // Once the panel has unfolded, so the page scrolls by its full height.
         if (open) { kotlinx.coroutines.delay(380); bring.bringIntoView() }
     }
-    ActionRow(Icons.Outlined.QrCode2, "Share", onClick = { open = !open }) {
+    ActionRow(Icons.Outlined.QrCode2, stringResource(R.string.kone_action_share), onClick = { open = !open }) {
         Icon(
             if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
             contentDescription = null,
@@ -474,16 +477,16 @@ private fun RemoteOptions(
     Column(Modifier.padding(vertical = 6.dp)) {
         // Words that leave nodes out, as KOne for Windows offers per subscription.
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            BText("Leave out nodes named", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp).graphicsLayer { alpha = 0.7f })
-            PillField(value = state.leaveOut, onValueChange = onLeaveOut, modifier = Modifier.fillMaxWidth(), keyboardType = KeyboardType.Text, placeholder = "Trial | Expired")
+            BText(stringResource(R.string.kone_node_leave_out), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 2.dp, bottom = 8.dp).graphicsLayer { alpha = 0.7f })
+            PillField(value = state.leaveOut, onValueChange = onLeaveOut, modifier = Modifier.fillMaxWidth(), keyboardType = KeyboardType.Text, placeholder = stringResource(R.string.kone_node_leave_out_hint))
         }
-        ActionRow(Icons.Default.Update, "Automatic updates", onClick = { onAutoUpdate(!state.autoUpdate) }) {
+        ActionRow(Icons.Default.Update, stringResource(R.string.profile_auto_update), onClick = { onAutoUpdate(!state.autoUpdate) }) {
             KnineSwitch(checked = state.autoUpdate, onCheckedChange = onAutoUpdate)
         }
         AnimatedVisibility(visible = state.autoUpdate, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
             Column(Modifier.padding(start = 50.dp, end = 16.dp, bottom = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    BText("Interval (minutes)", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    BText(stringResource(R.string.kone_node_interval), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     PillField(
                         value = state.autoUpdateInterval.toString(),
                         onValueChange = onAutoUpdateInterval,
@@ -498,7 +501,7 @@ private fun RemoteOptions(
         }
         ActionRow(
             Icons.Default.Update,
-            "Update now",
+            stringResource(R.string.profile_update),
             onClick = { if (!state.isUpdating && !state.showUpdateSuccess) onUpdateNow() },
         ) {
             when {
@@ -573,10 +576,10 @@ private fun DeleteNode(profile: Profile, onDeleted: () -> Unit, modifier: Modifi
                             withContext(Dispatchers.IO) { ProfileManager.delete(profile) }
                             NodeCategoryStore.forget(profile.id)
                             NodeLatency.forget(profile.id)
-                            android.widget.Toast.makeText(context, "Deleted ${profile.name}", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.kone_node_deleted, profile.name), android.widget.Toast.LENGTH_SHORT).show()
                             onDeleted()
                         } catch (e: Exception) {
-                            android.widget.Toast.makeText(context, "Deletion incomplete. Try again later.", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.kone_node_delete_failed), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -591,7 +594,7 @@ private fun DeleteNode(profile: Profile, onDeleted: () -> Unit, modifier: Modifi
             transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(140)) },
             label = "deleteLabel",
         ) { second ->
-            Text(if (second) "Tap again to delete" else "Delete node", color = danger, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Text(stringResource(if (second) R.string.kone_node_delete_confirm else R.string.kone_node_delete), color = danger, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
         }
     }
 }

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kone_nodes_select">选择</string>
+    <string name="kone_nodes_search">搜索节点</string>
+    <string name="kone_nodes_close_search">关闭搜索</string>
+    <string name="kone_nodes_sort_saved">原顺序</string>
+    <string name="kone_nodes_sort_latency">按延迟</string>
+    <string name="kone_nodes_sort_name">按名称</string>
+    <string name="kone_nodes_test">全部测速</string>
+    <string name="kone_nodes_stop_test">停止测速</string>
+    <string name="kone_nodes_clear_selection">清除选择</string>
+    <string name="kone_nodes_select_all">全选</string>
+    <string name="kone_nodes_select_none">全不选</string>
+    <string name="kone_nodes_move">移至分类</string>
+    <plurals name="kone_nodes_copies">
+        <item quantity="other">%d 个重复节点</item>
+    </plurals>
+    <plurals name="kone_nodes_selected">
+        <item quantity="other">已选 %d 个</item>
+    </plurals>
+    <plurals name="kone_nodes_delete">
+        <item quantity="other">删除 %d 个</item>
+    </plurals>
+</resources>

@@ -1,6 +1,7 @@
 package io.nekohasekai.sfa.compose.screen.settings
 
-import android.text.format.DateUtils
+import io.nekohasekai.sfa.compose.component.managedStatusText
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -171,7 +172,8 @@ fun SettingsScreen(navController: NavController) {
 /** "Synced · 5 minutes ago" while all is well; otherwise the state alone, which says enough. */
 @Composable
 private fun accountSummary(status: ManagedStatus, syncedAt: Long): String {
-    if (status != ManagedStatus.Synced || syncedAt <= 0L) return status.label
-    val ago = DateUtils.getRelativeTimeSpanString(syncedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
-    return "${status.label} · $ago"
+    val statusText = LocalContext.current.managedStatusText(status)
+    if (status != ManagedStatus.Synced || syncedAt <= 0L) return statusText
+    val ago = io.nekohasekai.sfa.compose.util.RelativeTimeFormatter.format(LocalContext.current, java.util.Date(syncedAt))
+    return "$statusText · $ago"
 }

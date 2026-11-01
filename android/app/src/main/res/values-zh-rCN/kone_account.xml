@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kone_account">账户</string>
+    <string name="kone_account_synced_ago">同步于%1$s</string>
+    <string name="kone_account_never_synced">尚未同步</string>
+    <string name="kone_account_offline_hint">继续使用上次同步的配置</string>
+    <string name="kone_account_waiting_hint">等待服务方分配线路</string>
+    <string name="kone_account_plan">套餐</string>
+    <string name="kone_account_route">线路</string>
+    <string name="kone_account_data">流量额度</string>
+    <string name="kone_account_data_period">%1$s · %2$s</string>
+    <string name="kone_account_devices">设备数</string>
+    <string name="kone_account_expires">到期时间</string>
+    <string name="kone_account_ended">已到期</string>
+    <string name="kone_account_ending_hint">请联系服务方续期</string>
+    <string name="kone_account_device">本机</string>
+    <string name="kone_account_sync_now">立即同步</string>
+    <string name="kone_account_syncing">同步中</string>
+    <string name="kone_account_unlink">解绑本机</string>
+    <string name="kone_account_unlink_title">解绑本机？</string>
+    <string name="kone_account_unlink_message">将移除托管节点，正在使用它的连接会断开。再次绑定需要新密钥；自有节点和设置保留。</string>
+    <string name="kone_account_unlink_confirm">解绑</string>
+    <string name="kone_account_unlinking">解绑中</string>
+    <string name="kone_account_unlink_failed">解绑失败，请重试</string>
+</resources>

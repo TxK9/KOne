@@ -57,7 +57,7 @@ fun LogScreen(
             navigationIcon = {
                 if (onBack != null) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_description_back))
                     }
                 }
             },
@@ -88,10 +88,10 @@ fun LogScreen(
                 Spacer(Modifier.width(12.dp))
                 Text(
                     when (serviceStatus) {
-                        Status.Started -> "Connected"
-                        Status.Starting -> "Connecting"
-                        Status.Stopping -> "Disconnecting"
-                        Status.Stopped -> "Disconnected"
+                        Status.Started -> stringResource(R.string.kone_dashboard_connected)
+                        Status.Starting -> stringResource(R.string.kone_dashboard_connecting)
+                        Status.Stopping -> stringResource(R.string.kone_dashboard_disconnecting)
+                        Status.Stopped -> stringResource(R.string.kone_dashboard_disconnected)
                     },
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
@@ -142,7 +142,7 @@ private fun LiveTraffic(live: io.nekohasekai.sfa.compose.screen.dashboard.Dashbo
             }
             if (via != null) {
                 Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("through", style = MaterialTheme.typography.labelMedium, modifier = Modifier.graphicsLayer { alpha = 0.7f })
+                    Text(stringResource(R.string.kone_status_through), style = MaterialTheme.typography.labelMedium, modifier = Modifier.graphicsLayer { alpha = 0.7f })
                     Spacer(Modifier.width(6.dp))
                     io.nekohasekai.sfa.compose.util.FlagIcons.codeFor(via.icon, via.name)?.let {
                         io.nekohasekai.sfa.compose.util.FlagGlyph(it, size = 14.dp)
@@ -153,14 +153,14 @@ private fun LiveTraffic(live: io.nekohasekai.sfa.compose.screen.dashboard.Dashbo
             }
         }
         Row(Modifier.fillMaxWidth().padding(top = 22.dp)) {
-            Speed("Down", live.downlink, Modifier.weight(1f))
-            Speed("Up", live.uplink, Modifier.weight(1f))
+            Speed(stringResource(R.string.download), live.downlink, Modifier.weight(1f))
+            Speed(stringResource(R.string.upload), live.uplink, Modifier.weight(1f))
         }
         TrafficTrace(live.downlinkHistory, live.uplinkHistory, Modifier.fillMaxWidth().height(96.dp).padding(top = 14.dp))
         Row(Modifier.fillMaxWidth().padding(top = 14.dp)) {
-            Detail("Received", live.downlinkTotal, Modifier.weight(1f))
-            Detail("Sent", live.uplinkTotal, Modifier.weight(1f))
-            Detail("Connections", live.connectionsIn, Modifier.weight(1f))
+            Detail(stringResource(R.string.kone_status_received), live.downlinkTotal, Modifier.weight(1f))
+            Detail(stringResource(R.string.kone_status_sent), live.uplinkTotal, Modifier.weight(1f))
+            Detail(stringResource(R.string.title_connections), live.connectionsIn, Modifier.weight(1f))
         }
     }
 }

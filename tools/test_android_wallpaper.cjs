@@ -77,3 +77,62 @@ test('motion off leaves the painting and clock visible while animation stays sto
   assert.equal(p.timers.size,0);
   assert.ok(p.controllers.every(c => !c.visible));
 });
+
+class Container {
+  appendChild() {}
+  getBoundingClientRect() { return {width: 320, height: 640}; }
+}
+
+function checkPulse(cityId, reduced) {
+  const frames = new Map();
+  let next = 0;
+  const gradient = {addColorStop() {}};
+  const drawing = new Proxy({}, {
+    get(target, method) {
+      if (method in target) return target[method];
+      return (...args) => {
+        for (const value of args) {
+          if (typeof value === 'number') assert.ok(Number.isFinite(value), `${cityId}: ${String(method)} received ${value}`);
+        }
+        return gradient;
+      };
+    },
+  });
+  const context = {
+    Element: Container,
+    document: {
+      hidden: false,
+      createElement() { return {style: {}, setAttribute() {}, getContext() { return drawing; }, remove() {}}; },
+      addEventListener() {}, removeEventListener() {},
+    },
+    matchMedia() { return {matches: reduced, addEventListener() {}, removeEventListener() {}}; },
+    requestAnimationFrame(fn) { const id = ++next; frames.set(id, fn); return id; },
+    cancelAnimationFrame(id) { frames.delete(id); },
+    ResizeObserver: class { observe() {} disconnect() {} },
+    devicePixelRatio: 1,
+    Intl, Date, Math,
+  };
+  context.window = context;
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'pulse-v1.js'), 'utf8'), context);
+  const pulse = context.KOnePulseV1.attach(new Container(), {
+    id: cityId + '-test', cityId, cityZone: 'America/New_York', horizonY: .3,
+  });
+  assert.equal(pulse.state.running, !reduced);
+  pulse.setSky({daylight: 0});
+  pulse.setConnected(true);
+  for (let frame = 0; frame < 120; frame++) {
+    const queued = [...frames.values()]; frames.clear();
+    for (const callback of queued) callback(frame * 100);
+  }
+  pulse.setVisible(false);
+  assert.equal(pulse.state.running, false);
+  pulse.destroy();
+  assert.equal(frames.size, 0);
+}
+
+
+test('city pulse keeps finite canvas coordinates and stops for reduced motion and hidden views', () => {
+  for (const reduced of [false, true]) {
+    for (const city of ['new-york', 'los-angeles', 'las-vegas', 'london', 'tokyo', 'unknown']) checkPulse(city, reduced);
+  }
+});

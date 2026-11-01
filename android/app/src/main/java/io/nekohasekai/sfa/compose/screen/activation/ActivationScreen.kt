@@ -1,5 +1,9 @@
 package io.nekohasekai.sfa.compose.screen.activation
 
+import io.nekohasekai.sfa.compose.component.managedDetailText
+import io.nekohasekai.sfa.compose.component.managedFailureText
+import io.nekohasekai.sfa.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -115,7 +119,13 @@ fun ActivationScreen() {
     var busy by remember { mutableStateOf(false) }
     var scanning by remember { mutableStateOf(false) }
     var problem by remember {
-        mutableStateOf(if (state.status == ManagedStatus.Revoked) (state.detail ?: "Access revoked") + ". Enter a new access key." else null)
+        mutableStateOf(
+            if (state.status == ManagedStatus.Revoked) {
+                state.detail?.takeIf { it.isNotBlank() && it != ManagedStatus.Revoked.label }?.let {
+                    "${context.managedDetailText(it)} ${context.getString(R.string.kone_activation_new_key)}"
+                } ?: context.getString(R.string.kone_activation_revoked)
+            } else null,
+        )
     }
 
     fun activate(link: ManagedClaimLink? = null) {
@@ -124,8 +134,8 @@ fun ActivationScreen() {
         val code = found?.code ?: key.trim()
         when {
             busy -> return
-            endpoint == null -> problem = "The service URL must start with https://"
-            !ManagedClaimLink.isInviteCode(code) -> problem = "Incomplete access key"
+            endpoint == null -> problem = context.getString(R.string.kone_activation_invalid_url)
+            !ManagedClaimLink.isInviteCode(code) -> problem = context.getString(R.string.kone_activation_incomplete_key)
             else -> {
                 busy = true
                 problem = null
@@ -134,9 +144,9 @@ fun ActivationScreen() {
                         ManagedSync.claim(context, endpoint, code)
                         // Bound: the App takes over from here as the state changes.
                     } catch (failure: ManagedException) {
-                        problem = failure.shown
+                        problem = failure.detail?.takeIf { it.isNotBlank() && it.length <= 60 }?.let(context::managedDetailText) ?: context.managedFailureText(failure.failure)
                     } catch (_: Exception) {
-                        problem = "Could not activate. Try again."
+                        problem = context.getString(R.string.kone_activation_failed)
                     } finally {
                         busy = false
                     }
@@ -171,17 +181,12 @@ fun ActivationScreen() {
                 verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Bottom),
             ) {
                 Text("KOne", fontSize = 40.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.settle(0))
-                Text(
-                    "Enter an access key to get started",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.settle(1).graphicsLayer { alpha = 0.8f },
-                )
                 Spacer(Modifier.height(4.dp))
                 if (builtIn == null) {
                     OutlinedTextField(
                         value = address,
                         onValueChange = { address = it; problem = null },
-                        label = { Text("Service URL") },
+                        label = { Text(stringResource(R.string.kone_activation_service)) },
                         placeholder = { Text("https://") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
@@ -191,11 +196,11 @@ fun ActivationScreen() {
                 OutlinedTextField(
                     value = key,
                     onValueChange = { key = it; problem = null },
-                    label = { Text("Access key") },
+                    label = { Text(stringResource(R.string.kone_activation_key)) },
                     singleLine = true,
                     trailingIcon = {
                         IconButton(onClick = { scanning = true }) {
-                            Icon(Icons.Outlined.QrCodeScanner, contentDescription = "Scan code")
+                            Icon(Icons.Outlined.QrCodeScanner, contentDescription = stringResource(R.string.kone_activation_scan))
                         }
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
@@ -226,7 +231,7 @@ fun ActivationScreen() {
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 ) {
                     Text(
-                        "Get help",
+                        stringResource(R.string.kone_activation_help),
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
@@ -250,7 +255,7 @@ fun ActivationScreen() {
                         if (builtIn == null) address = link.endpoint.base
                         activate(link)
                     }
-                    else -> Toast.makeText(context, "This is not a KOne access key", Toast.LENGTH_SHORT).show()
+                    else -> Toast.makeText(context, context.getString(R.string.kone_activation_wrong_qr), Toast.LENGTH_SHORT).show()
                 }
             },
         )
@@ -269,8 +274,8 @@ internal fun activationReport(problem: String, now: Date = Date()): String {
 
 private fun shareActivationProblem(context: Context, problem: String) {
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, activationReport(problem))
-    runCatching { context.startActivity(Intent.createChooser(send, "Get help with activation")) }
-        .onFailure { Toast.makeText(context, "No app on this phone can send it", Toast.LENGTH_SHORT).show() }
+    runCatching { context.startActivity(Intent.createChooser(send, context.getString(R.string.kone_activation_help_title))) }
+        .onFailure { Toast.makeText(context, context.getString(R.string.kone_activation_no_share), Toast.LENGTH_SHORT).show() }
 }
 
 /**
@@ -306,7 +311,7 @@ private fun StartPill(busy: Boolean, enabled: Boolean, modifier: Modifier = Modi
             label = "pillLabel",
         ) { checking ->
             androidx.compose.material3.Text(
-                if (checking) "Verifying" else "Get started",
+                stringResource(if (checking) R.string.endpoint_verifying else R.string.kone_activation_start),
                 color = lerp(ink.copy(alpha = 0.55f), tone, fill),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,

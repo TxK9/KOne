@@ -240,9 +240,9 @@ fun AppSettingsScreen(
             SettingsPickRow(
                 title = stringResource(R.string.kone_app_wallpaper),
                 icon = Icons.Outlined.Wallpaper,
-                options = modes.map { if (it == WallpaperMode.City) cityName else it.label },
+                options = modes.map { if (it == WallpaperMode.City) cityName else stringResource(it.labelRes) },
                 selected = modes.indexOf(currentMode),
-                value = if (currentMode == WallpaperMode.City) listOfNotNull(cityName, currentCity).joinToString(" · ") else currentMode.label,
+                value = if (currentMode == WallpaperMode.City) listOfNotNull(cityName, currentCity).joinToString(" · ") else stringResource(currentMode.labelRes),
                 onSelect = { index ->
                     val mode = modes[index]
                     val pickNew = mode == WallpaperMode.Photo &&
@@ -258,7 +258,7 @@ fun AppSettingsScreen(
             SettingsPickRow(
                 title = stringResource(R.string.kone_app_appearance),
                 icon = Icons.Outlined.DarkMode,
-                options = KnineThemeMode.entries.map { it.label },
+                options = KnineThemeMode.entries.map { stringResource(it.labelRes) },
                 selected = KnineThemeMode.entries.indexOf(KnineAppearance.theme),
                 onSelect = { KnineAppearance.theme = KnineThemeMode.entries[it] },
             )
@@ -266,7 +266,7 @@ fun AppSettingsScreen(
             SettingsPickRow(
                 title = stringResource(R.string.kone_app_category_navigation),
                 icon = Icons.Outlined.Category,
-                options = KnineSwitcherStyle.entries.map { it.label },
+                options = KnineSwitcherStyle.entries.map { stringResource(it.labelRes) },
                 selected = KnineSwitcherStyle.entries.indexOf(KnineAppearance.switcher),
                 onSelect = { KnineAppearance.switcher = KnineSwitcherStyle.entries[it] },
             )
@@ -485,7 +485,7 @@ private fun serviceNotificationSettings(context: Context): Intent =
 private const val SERVICE_CHANNEL = "service"
 
 private fun localeName(locale: Locale): String =
-    locale.getDisplayName(Locale.ENGLISH).replaceFirstChar { it.uppercase(Locale.ENGLISH) }
+    locale.getDisplayName(locale).replaceFirstChar { it.uppercase(locale) }
 
 private fun calculateDirSize(dir: File?): Long {
     if (dir == null || !dir.exists()) return 0
@@ -499,8 +499,10 @@ private fun calculateDirSize(dir: File?): Long {
 private fun getSupportedLocales(context: Context): List<Locale> {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val localeConfig = LocaleConfig(context)
-        val localeList = localeConfig.supportedLocales ?: return emptyList()
-        return (0 until localeList.size()).map { localeList.get(it) }
+        val localeList = runCatching { localeConfig.supportedLocales }.getOrNull()
+        if (localeList != null && !localeList.isEmpty) {
+            return (0 until localeList.size()).map { localeList.get(it) }
+        }
     }
     return parseLocalesConfig(context)
 }

@@ -1,6 +1,7 @@
 package io.nekohasekai.sfa.compose.screen.account
 
-import android.text.format.DateUtils
+import io.nekohasekai.sfa.compose.component.managedDetailText
+import io.nekohasekai.sfa.compose.component.managedStatusText
 import android.text.format.Formatter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -194,8 +195,9 @@ internal fun ManagedAccountContent(
 /** The binding's state with its weather; when it last synced on the right; why, a tap below. */
 @Composable
 private fun AccountStatus(state: ManagedSnapshot, now: Long) {
+    val context = LocalContext.current
     var open by remember(state.status, state.detail) { mutableStateOf(false) }
-    val ago = if (state.syncedAt > 0L) DateUtils.getRelativeTimeSpanString(state.syncedAt, now, DateUtils.MINUTE_IN_MILLIS).toString() else null
+    val ago = if (state.syncedAt > 0L) io.nekohasekai.sfa.compose.util.RelativeTimeFormatter.format(context, java.util.Date(state.syncedAt), now) else null
     val healthy = state.status == ManagedStatus.Synced
     val hint = when (state.status) {
         ManagedStatus.Offline -> stringResource(R.string.kone_account_offline_hint)
@@ -206,10 +208,10 @@ private fun AccountStatus(state: ManagedSnapshot, now: Long) {
     // While all is well the row reads "Synced · 3 minutes ago"; otherwise the state stands alone
     // and the console's reason, what it means here, and the last sync wait a tap below.
     TestRow(
-        state.status.label,
+        context.managedStatusText(state.status),
         accountWeather(state.status),
         value = if (healthy) ago else null,
-        detail = if (healthy) null else listOfNotNull(state.detail?.takeIf { it.isNotBlank() && it != state.status.label }, hint, synced).joinToString("\n"),
+        detail = if (healthy) null else listOfNotNull(state.detail?.takeIf { it.isNotBlank() && it != state.status.label }?.let(context::managedDetailText), hint, synced).joinToString("\n"),
         open = open,
         onToggle = { open = !open },
     )

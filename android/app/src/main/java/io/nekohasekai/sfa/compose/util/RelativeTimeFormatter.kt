@@ -11,15 +11,14 @@ object RelativeTimeFormatter {
      * Formats a date as relative time for recent dates (within 7 days)
      * or as full date/time for older dates.
      */
-    fun format(context: Context, date: Date?): String {
+    fun format(context: Context, date: Date?, now: Long = System.currentTimeMillis()): String {
         if (date == null) return ""
 
-        val now = System.currentTimeMillis()
         val diff = now - date.time
 
         // Handle negative differences (future dates)
         if (diff < 0) {
-            return DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(date)
+            return DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, context.resources.configuration.locales[0]).format(date)
         }
 
         val seconds = TimeUnit.MILLISECONDS.toSeconds(diff)
@@ -48,7 +47,7 @@ object RelativeTimeFormatter {
                     days.toInt(),
                     days,
                 )
-            else -> DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(date)
+            else -> DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, context.resources.configuration.locales[0]).format(date)
         }
     }
 

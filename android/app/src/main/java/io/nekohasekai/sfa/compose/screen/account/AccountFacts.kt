@@ -2,6 +2,8 @@ package io.nekohasekai.sfa.compose.screen.account
 
 import io.nekohasekai.sfa.compose.screen.dashboard.NodeWeather
 import io.nekohasekai.sfa.managed.ManagedStatus
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -40,22 +42,33 @@ internal enum class TermState { Active, EndingSoon, Ended }
 /** When the service's terms end, as a date on this phone, and how near that is. */
 internal data class AccountExpiry(val date: LocalDate, val state: TermState)
 
+/** JSON numbers may reach optString in decimal or exponent notation, including fractional seconds. */
+private fun epochExpiry(text: String): Instant? = runCatching {
+    if (text.length > 64) return null
+    val value = text.toBigDecimalOrNull() ?: return null
+    // Bound scale before decimal arithmetic, so hostile exponents cannot allocate huge powers.
+    if (value.scale() !in -18..18 || value.signum() <= 0 || value > BigDecimal.valueOf(Instant.MAX.epochSecond)) return null
+    val seconds = value.setScale(0, RoundingMode.DOWN).longValueExact()
+    val nanos = value.subtract(BigDecimal.valueOf(seconds)).movePointRight(9).setScale(0, RoundingMode.DOWN).longValueExact()
+    Instant.ofEpochSecond(seconds, nanos)
+}.getOrNull()
+
 /** Ending within this long is said as ending soon, as subscriptions say it. */
 internal val ENDING_SOON: Duration = Duration.ofDays(3)
 
 /**
- * Reads the console's `expiresAt`: an instant (with or without an offset) or a bare date, which
- * lasts through that day. Anything else is not shown rather than guessed at.
+ * Reads the console's Unix-seconds `expiresAt`, also accepting older ISO instants and bare
+ * dates. A bare date lasts through that day. Invalid values are not shown.
  */
 internal fun accountExpiry(expiresAt: String?, now: Instant, zone: ZoneId): AccountExpiry? {
     val text = expiresAt?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-    val instant = runCatching { Instant.parse(text) }.getOrNull()
+    val instant = epochExpiry(text) ?: runCatching { Instant.parse(text) }.getOrNull()
         ?: runCatching { OffsetDateTime.parse(text).toInstant() }.getOrNull()
         ?: runCatching { LocalDateTime.parse(text).atZone(zone).toInstant() }.getOrNull()
     val date: LocalDate
     val end: Instant
     if (instant != null) {
-        date = instant.atZone(zone).toLocalDate()
+        date = runCatching { instant.atZone(zone).toLocalDate() }.getOrNull() ?: return null
         end = instant
     } else {
         date = runCatching { LocalDate.parse(text) }.getOrNull() ?: return null

@@ -305,7 +305,7 @@ private fun pickName(pick: String, country: Boolean): String = stringResource(
 
 /** Where a rule goes as its row says it: the node, straight out, blocked, or a country with its flag. */
 @Composable
-private fun actionName(action: String): String = Rules.via(action)?.let(::countryName) ?: stringResource(
+private fun actionName(action: String): String = Rules.via(action)?.let { countryName(it) } ?: stringResource(
     when (action) {
         "direct" -> R.string.knine_routing_action_direct
         "block" -> R.string.knine_routing_action_block
@@ -313,7 +313,11 @@ private fun actionName(action: String): String = Rules.via(action)?.let(::countr
     },
 )
 
-private fun countryName(code: String): String = Countries.byCode(code)?.let { "${it.flag} ${it.label}" } ?: code
+@Composable
+private fun countryName(code: String): String {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    return Countries.byCode(code)?.let { "${it.flag} ${java.util.Locale("", code).getDisplayCountry(locale)}" } ?: code
+}
 
 @Composable
 private fun kindHint(kind: String): String = stringResource(
@@ -465,7 +469,7 @@ private fun CountryPicker(countries: List<String>, picked: String?, onPick: (Str
         Text(stringResource(R.string.knine_routing_through_no_countries), style = MaterialTheme.typography.bodyMedium)
         return
     }
-    SettingsChips(options = countries.map(::countryName), selected = countries.indexOf(picked), onSelect = { onPick(countries[it]) })
+    SettingsChips(options = countries.map { countryName(it) }, selected = countries.indexOf(picked), onSelect = { onPick(countries[it]) })
 }
 
 /** The common category lists by group; the one picked fills in the rule's value. Any other SagerNet list can be typed. */

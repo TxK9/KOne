@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="kone_import_file_nodes">
+        <item quantity="other">此文件包含 %d 个节点，请复制内容后从剪贴板导入</item>
+    </plurals>
+    <plurals name="kone_qr_several_links">
+        <item quantity="other">二维码包含 %d 个节点链接，请复制为文本后从剪贴板导入</item>
+    </plurals>
+    <string name="kone_import_file_unreadable">无法读取文件，请选择 sing-box 配置或 KOne 导出的配置</string>
+    <string name="kone_import_file_unopened">文件打开失败，请保存到本机后重试</string>
+    <string name="kone_import_file_too_large">文件超过 16 MB</string>
+    <string name="kone_import_config_invalid">配置无效，请检查后重试</string>
+    <string name="kone_import_remote_link_unreadable">远程配置链接不完整</string>
+    <string name="kone_subscription_already_added">此订阅已添加为 %1$s</string>
+    <string name="kone_subscription_unusable">订阅已获取，但无法生成可用配置</string>
+    <string name="kone_profile_create_failed">配置创建失败，请检查链接或文件后重试</string>
+</resources>

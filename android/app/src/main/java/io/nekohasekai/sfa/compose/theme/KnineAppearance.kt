@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.compose.theme
 
+import io.nekohasekai.sfa.R
+import androidx.annotation.StringRes
 import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.mutableStateOf
@@ -7,11 +9,11 @@ import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.database.Settings
 
 /** How the categories lay out when the current category is tapped again. */
-enum class KnineSwitcherStyle(val id: String, val label: String) {
-    Dial("dial", "Dial"),
-    Wheel("wheel", "Wheel"),
-    Floating("float", "Floating"),
-    Cards("cards", "Cards"),
+enum class KnineSwitcherStyle(val id: String, @StringRes val labelRes: Int) {
+    Dial("dial", R.string.kone_switcher_dial),
+    Wheel("wheel", R.string.kone_switcher_wheel),
+    Floating("float", R.string.kone_switcher_float),
+    Cards("cards", R.string.kone_switcher_cards),
     ;
 
     companion object {
@@ -23,11 +25,11 @@ enum class KnineSwitcherStyle(val id: String, val label: String) {
  * Which ink paintings take turns when there is no wallpaper: those of where the phone is (by its
  * time zone, as the sun and the moon are), all of them, or one set.
  */
-enum class KnineInkStyle(val id: String, val label: String) {
-    Local("local", "Local scenes"),
-    All("all", "All"),
-    China("china", "Mountain landscapes"),
-    America("america", "American landmarks"),
+enum class KnineInkStyle(val id: String, @StringRes val labelRes: Int) {
+    Local("local", R.string.kone_ink_local),
+    All("all", R.string.kone_ink_all),
+    China("china", R.string.kone_ink_china),
+    America("america", R.string.kone_ink_america),
     ;
 
     companion object {
@@ -37,10 +39,10 @@ enum class KnineInkStyle(val id: String, val label: String) {
 
 /** Appearance preferences for the dashboard; Compose readers recompose when they change. */
 /** Light or dark: as the phone is set, or KOne's own choice. */
-enum class KnineThemeMode(val id: String, val label: String, val nightMode: Int) {
-    System("system", "System default", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM),
-    Light("light", "Light", AppCompatDelegate.MODE_NIGHT_NO),
-    Dark("dark", "Dark", AppCompatDelegate.MODE_NIGHT_YES),
+enum class KnineThemeMode(val id: String, @StringRes val labelRes: Int, val nightMode: Int) {
+    System("system", R.string.system_default, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM),
+    Light("light", R.string.kone_appearance_light, AppCompatDelegate.MODE_NIGHT_NO),
+    Dark("dark", R.string.kone_appearance_dark, AppCompatDelegate.MODE_NIGHT_YES),
     ;
 
     companion object {

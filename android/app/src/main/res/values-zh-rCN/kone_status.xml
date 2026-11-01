@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="kone_status_connections">
+        <item quantity="other">%d 条连接</item>
+    </plurals>
+    <string name="kone_status_app_system">Android 系统</string>
+    <string name="kone_status_app_unknown">未知应用</string>
+    <string name="kone_status_route_direct">直连</string>
+    <string name="kone_status_route_blocked">已拦截</string>
+    <string name="kone_status_route_home">家庭网络</string>
+    <string name="kone_status_route_node">节点</string>
+    <string name="kone_status_rule_default">默认规则</string>
+    <string name="kone_status_rule_private">局域网</string>
+    <string name="kone_status_rule_domain">域名规则</string>
+    <string name="kone_status_rule_address">地址规则</string>
+    <string name="kone_status_rule_port">端口规则</string>
+    <string name="kone_status_rule_app">应用规则</string>
+    <string name="kone_status_rule_protocol">%1$s 规则</string>
+    <string name="kone_status_rule_network">%1$s 规则</string>
+    <string name="kone_status_rule_mode">%1$s 模式</string>
+    <string name="kone_status_rule_wifi">Wi-Fi 规则</string>
+    <string name="kone_status_rule_other">规则</string>
+    <string name="kone_status_close">关闭连接</string>
+    <string name="kone_status_close_all">关闭全部连接</string>
+    <string name="kone_status_speed">%1$s/秒</string>
+</resources>

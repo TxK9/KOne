@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kone_routing_kind_url">订阅地址</string>
+    <string name="kone_routing_rule_hint_url">https://example.com/list.yaml，支持 Clash 或 sing-box 规则集</string>
+    <string name="kone_routing_pick_in_use">当前节点</string>
+    <string name="kone_routing_pick_fastest">最快节点</string>
+    <string name="kone_routing_pick_fallback">首个可用节点</string>
+    <string name="kone_routing_send_direct">直连</string>
+    <string name="kone_routing_send_proxy">代理</string>
+    <string name="kone_routing_sent">规则已添加</string>
+</resources>
