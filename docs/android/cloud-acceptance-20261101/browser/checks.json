@@ -1,0 +1,42 @@
+[
+  {
+    "name": "original-day-320",
+    "passed": true
+  },
+  {
+    "name": "original-night-320",
+    "passed": true
+  },
+  {
+    "name": "tokyo-bay-day-320",
+    "passed": true
+  },
+  {
+    "name": "tokyo-bay-night-320",
+    "passed": true
+  },
+  {
+    "name": "las-vegas-strip-day-320",
+    "passed": true
+  },
+  {
+    "name": "las-vegas-strip-night-320",
+    "passed": true
+  },
+  {
+    "name": "host-pause-survives-browser-visibility",
+    "passed": true
+  },
+  {
+    "name": "reduced-motion-query",
+    "passed": true
+  },
+  {
+    "name": "reduced-motion-system",
+    "passed": true
+  },
+  {
+    "name": "bundled-assets-only",
+    "passed": true
+  }
+]
