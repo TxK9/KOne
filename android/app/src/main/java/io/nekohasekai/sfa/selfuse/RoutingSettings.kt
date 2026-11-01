@@ -49,6 +49,18 @@ object RoutingSettings {
         Countries.all.map { it.code }.filter { it in said }
     }
 
+    /** Whether a saved KOne profile chooses between two nodes or more, so a rule can pick among them. */
+    suspend fun picksMatter(): Boolean = withContext(Dispatchers.IO) {
+        ProfileManager.list().any { profile -> runCatching { Routing.nodeCount(File(profile.typed.path).readText()) >= 2 }.getOrDefault(false) }
+    }
+
+    /** From the Status tab: [host] straight out or through the node ([Routing.send]), saved and applied at once. */
+    suspend fun send(host: String, direct: Boolean): Boolean {
+        val next = Routing.send(current(), host, direct) ?: return false
+        save(next)
+        return true
+    }
+
     /** Fixed answers as kept and shown: "name address", one a line, cleaned and bounded. */
     fun hostLines(hosts: List<Host>): String = Hosts.flatten(Hosts.clean(hosts)).joinToString("\n") { "${it.name} ${it.address}" }
 

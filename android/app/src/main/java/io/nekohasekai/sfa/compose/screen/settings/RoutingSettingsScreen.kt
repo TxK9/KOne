@@ -47,8 +47,10 @@ import cc.txwd.kone.shared.Countries
 import cc.txwd.kone.shared.Hosts
 import cc.txwd.kone.shared.ListStatus
 import cc.txwd.kone.shared.NameServers
+import cc.txwd.kone.shared.Policies
 import cc.txwd.kone.shared.Rule
 import cc.txwd.kone.shared.RuleExport
+import cc.txwd.kone.shared.RuleProviders
 import cc.txwd.kone.shared.Rules
 import cc.txwd.kone.shared.Region
 import io.nekohasekai.sfa.selfuse.CategoryListKeeper
@@ -66,7 +68,7 @@ import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 private val REMOTE_NAMES = listOf("Cloudflare", "Google", "Quad9")
 /** What each direct preset is called on screen. */
 private val DIRECT_NAMES = mapOf("alidns" to "AliDNS", "dnspod" to "DNSPod", "cloudflare" to "Cloudflare", "google" to "Google", "quad9" to "Quad9")
-private val KINDS = listOf("domain", "suffix", "keyword", "cidr", "app", "port", "set")
+private val KINDS = listOf("domain", "suffix", "keyword", "cidr", "app", "port", "set", "url")
 
 /**
  * Settings → Routing: sites straight out or through the node, Block ads, what nothing matches,
@@ -103,6 +105,9 @@ fun RoutingSettingsScreen(navController: NavController) {
     // The countries the profiles' nodes say, which a rule can go through.
     var countries by remember { mutableStateOf<List<String>>(emptyList()) }
     LaunchedEffect(Unit) { countries = RoutingSettings.countries() }
+    // Whether there are two nodes or more, so a rule can pick among them.
+    var picks by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { picks = RoutingSettings.picksMatter() }
 
     fun keep(next: Routing.Choices) {
         choices = next
@@ -156,14 +161,14 @@ fun RoutingSettingsScreen(navController: NavController) {
         Spacer(Modifier.height(16.dp))
         KnineSectionLabel(text = stringResource(R.string.knine_routing_rules))
         KnineRowGroup {
-            RulesEditor(choices.rules, lists, countries, onImport = {
+            RulesEditor(choices.rules, lists, countries, picks, onImport = {
                 // Another client's rules, from the clipboard: Clash's rules: lines or v2rayN's JSON.
                 val imported = Routing.importRules(choices, clipboardText.orEmpty())
                 if (imported.choices != choices) keep(imported.choices)
                 imported.said
             }) { keep(choices.copy(rules = it)) }
             // The category lists the rules name, downloaded again now if they changed (otherwise once a day).
-            if (choices.rules.any { it.kind == "set" }) {
+            if (choices.rules.any { it.kind == "set" || it.kind == "url" }) {
                 var updatingLists by remember { mutableStateOf(false) }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
                     TextButton(enabled = !updatingLists, onClick = {
@@ -283,7 +288,18 @@ private fun kindName(kind: String): String = stringResource(
         "cidr" -> R.string.knine_routing_kind_cidr
         "app" -> R.string.knine_routing_kind_app
         "set" -> R.string.knine_routing_kind_set
+        "url" -> R.string.kone_routing_kind_url
         else -> R.string.knine_routing_kind_port
+    },
+)
+
+/** How a rule's node is picked, as its row and chips say it; a country's default is its fastest. */
+@Composable
+private fun pickName(pick: String, country: Boolean): String = stringResource(
+    when (pick) {
+        Policies.FASTEST -> R.string.kone_routing_pick_fastest
+        Policies.FALLBACK -> R.string.kone_routing_pick_fallback
+        else -> if (country) R.string.kone_routing_pick_fastest else R.string.kone_routing_pick_in_use
     },
 )
 
@@ -308,17 +324,19 @@ private fun kindHint(kind: String): String = stringResource(
         "cidr" -> R.string.knine_routing_rule_hint_cidr
         "app" -> R.string.knine_routing_rule_hint_app
         "set" -> R.string.knine_routing_rule_hint_set
+        "url" -> R.string.kone_routing_rule_hint_url
         else -> R.string.knine_routing_rule_hint_port
     },
 )
 
 /**
  * The person's rules in order, each movable up and removable, and a form to add one at the end.
- * A rule on a category list says when its list is not on the phone yet ([lists]), and why; one
- * through a country, when no node there is among the profiles' ([countries]).
+ * A rule on a list says when its list is not on the phone yet ([lists]), and why; one through a
+ * country, when no node there is among the profiles' ([countries]). With two nodes or more
+ * ([picks]), a rule through the node or a country says how its node is picked.
  */
 @Composable
-private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, countries: List<String>, onImport: () -> String, onChange: (List<Rule>) -> Unit) {
+private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, countries: List<String>, picks: Boolean, onImport: () -> String, onChange: (List<Rule>) -> Unit) {
     val context = LocalContext.current
     var said by remember { mutableStateOf<String?>(null) }
     // The rule whose way is being changed, by its place.
@@ -335,10 +353,16 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, count
         rules.forEachIndexed { index, rule ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).clickable { changing = if (changing == index) null else index }) {
-                    val shown = if (rule.kind == "set") Categories.title(rule.value) ?: rule.value else rule.value
-                    Text("${kindName(rule.kind)} · $shown → ${actionName(rule.action)}", style = MaterialTheme.typography.bodyLarge)
+                    // An own list by its file's name: the rest of its address is never shown.
+                    val shown = when (rule.kind) {
+                        "set" -> Categories.title(rule.value) ?: rule.value
+                        "url" -> RuleProviders.title(rule.value)
+                        else -> rule.value
+                    }
+                    val picked = if (picks && rule.pick.isNotEmpty()) " · ${pickName(rule.pick, Rules.via(rule.action) != null)}" else ""
+                    Text("${kindName(rule.kind)} · $shown → ${actionName(rule.action)}$picked", style = MaterialTheme.typography.bodyLarge)
                     val status = lists[rule.value]
-                    if (rule.kind == "set" && status?.kept != true) {
+                    if ((rule.kind == "set" || rule.kind == "url") && status?.kept != true) {
                         val waiting = status?.error?.let { stringResource(R.string.knine_routing_list_failed, it) } ?: stringResource(R.string.knine_routing_list_waiting)
                         Text(waiting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -357,9 +381,10 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, count
                 }
             }
             AnimatedVisibility(changing == index, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
-                RuleWay(rule.action, countries) { way ->
-                    changing = null
-                    if (way != rule.action) onChange(OwnRules.clean(rules.toMutableList().also { it[index] = rule.copy(action = way) }))
+                RuleWay(rule, countries, picks) { next ->
+                    // A new way through a node stays open for its pick; anything else is done.
+                    if (!(picks && Rules.throughNode(next.action) && next.action != rule.action)) changing = null
+                    if (next != rule) onChange(OwnRules.clean(rules.toMutableList().also { it[index] = next }))
                 }
             }
         }
@@ -401,19 +426,35 @@ private fun RulesEditor(rules: List<Rule>, lists: Map<String, ListStatus>, count
 
 /**
  * Where a rule goes, changed where it stands: the node, straight out, blocked, or a country
- * ([countries], and the one it goes through now). [onPick] takes the new way.
+ * ([countries], and the one it goes through now); and through the node or a country, with two
+ * nodes or more ([picks]), how its node is picked ([Policies]). [onPick] takes the rule as changed.
  */
 @Composable
-private fun RuleWay(action: String, countries: List<String>, onPick: (String) -> Unit) {
+private fun RuleWay(rule: Rule, countries: List<String>, picks: Boolean, onPick: (Rule) -> Unit) {
+    val action = rule.action
     val now = Rules.via(action)
     var country by remember { mutableStateOf(now != null) }
     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         SettingsChips(
             options = OwnRules.ACTIONS.map { actionName(it) } + stringResource(R.string.knine_routing_action_country),
             selected = if (country) OwnRules.ACTIONS.size else OwnRules.ACTIONS.indexOf(action).coerceAtLeast(0),
-            onSelect = { picked -> if (picked == OwnRules.ACTIONS.size) country = true else onPick(OwnRules.ACTIONS[picked]) },
+            onSelect = { picked ->
+                if (picked == OwnRules.ACTIONS.size) country = true else {
+                    country = false
+                    onPick(rule.copy(action = OwnRules.ACTIONS[picked]))
+                }
+            },
         )
-        if (country) CountryPicker((countries + listOfNotNull(now)).distinct(), now) { onPick(Rules.through(it)) }
+        if (country) CountryPicker((countries + listOfNotNull(now)).distinct(), now) { onPick(rule.copy(action = Rules.through(it))) }
+        // Shown once the way is through the node, or a country already picked.
+        if (picks && Rules.throughNode(action) && (country == (now != null))) {
+            val options = if (now == null) listOf("", Policies.FASTEST, Policies.FALLBACK) else listOf("", Policies.FALLBACK)
+            SettingsChips(
+                options = options.map { pickName(it, now != null) },
+                selected = options.indexOf(rule.pick).coerceAtLeast(0),
+                onSelect = { onPick(rule.copy(pick = options[it])) },
+            )
+        }
     }
 }
 

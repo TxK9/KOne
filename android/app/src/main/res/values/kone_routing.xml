@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A rule on a list of the person's own, by its address: a Clash rule provider or a sing-box rule set. -->
+    <string name="kone_routing_kind_url">URL</string>
+    <string name="kone_routing_rule_hint_url">https://example.com/list.yaml, a Clash or sing-box list</string>
+    <!-- How a rule through the node or a country picks its node. -->
+    <string name="kone_routing_pick_in_use">Node in use</string>
+    <string name="kone_routing_pick_fastest">Fastest</string>
+    <string name="kone_routing_pick_fallback">First that answers</string>
+    <!-- Status tab: a host's route changed where it stands. -->
+    <string name="kone_routing_send_direct">Straight out</string>
+    <string name="kone_routing_send_proxy">Through the node</string>
+    <string name="kone_routing_sent">Rule added</string>
+</resources>

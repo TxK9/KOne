@@ -5,7 +5,9 @@ import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.util.LruCache
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,8 +33,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -44,6 +49,10 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import cc.txwd.kone.shared.Categories
+import cc.txwd.kone.shared.Names
+import cc.txwd.kone.shared.RuleProviders
+import cc.txwd.kone.shared.Rules
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.screen.connections.AppKind
@@ -54,7 +63,10 @@ import io.nekohasekai.sfa.compose.screen.connections.RouteLabels
 import io.nekohasekai.sfa.compose.screen.connections.RuleKind
 import io.nekohasekai.sfa.compose.theme.KnineMotion
 import io.nekohasekai.sfa.selfuse.PairedProfile
+import io.nekohasekai.sfa.selfuse.RoutingSettings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
@@ -152,15 +164,75 @@ private fun HostRow(host: HostTraffic, names: RouteNames, onClose: (List<String>
     val why = ruleName(host.rule)
     val many = if (host.count > 1) pluralStringResource(R.plurals.kone_status_connections, host.count, host.count) else null
     val route = listOfNotNull(where, why, many).joinToString(" · ")
-    Row(Modifier.fillMaxWidth().padding(start = GLYPH + 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(host.host, style = MaterialTheme.typography.bodyMedium)
-            Text(route, style = MaterialTheme.typography.labelSmall, modifier = Modifier.graphicsLayer { alpha = 0.7f })
+    // The other way this host can go from here (either, when it is blocked); Home's addresses stay as they are.
+    val ways = remember(host.host, host.outbound, host.outboundType) {
+        if (Names.site(host.host) == null && Names.network(host.host) == null) emptyList()
+        else when (RouteLabels.kind(host.outbound, host.outboundType, PairedProfile.HOME_TAG)) {
+            RouteKind.Direct -> listOf(false)
+            RouteKind.Node -> listOf(true)
+            RouteKind.Blocked -> listOf(true, false)
+            RouteKind.Home -> emptyList()
         }
-        Spacer(Modifier.width(8.dp))
-        Rate(host.download, host.upload, host.total, compact = true)
-        Box(Modifier.size(40.dp).clickable { onClose(host.ids) }, contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.kone_status_close), modifier = Modifier.size(16.dp), tint = ink.copy(alpha = 0.5f))
+    }
+    var acting by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(start = GLYPH + 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).then(if (ways.isNotEmpty()) Modifier.clickable { acting = !acting } else Modifier)) {
+                Text(host.host, style = MaterialTheme.typography.bodyMedium)
+                Text(route, style = MaterialTheme.typography.labelSmall, modifier = Modifier.graphicsLayer { alpha = 0.7f })
+            }
+            Spacer(Modifier.width(8.dp))
+            Rate(host.download, host.upload, host.total, compact = true)
+            Box(Modifier.size(40.dp).clickable { onClose(host.ids) }, contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.kone_status_close), modifier = Modifier.size(16.dp), tint = ink.copy(alpha = 0.5f))
+            }
+        }
+        AnimatedVisibility(acting, enter = KnineMotion.reveal(), exit = KnineMotion.conceal()) {
+            HostWays(host.host, ways) { acting = false }
+        }
+    }
+}
+
+/**
+ * Where a host goes, changed from its row: straight out or through the node, written as an own
+ * rule first among them ([RoutingSettings.send]) and applied at once; the service reloads, and
+ * the host's next connections show the new way. Said in place, then folded away.
+ */
+@Composable
+private fun HostWays(host: String, ways: List<Boolean>, onDone: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var sent by remember { mutableStateOf(false) }
+    var sending by remember { mutableStateOf(false) }
+    Crossfade(sent, animationSpec = tween(240), label = "host way") { done ->
+        Row(Modifier.fillMaxWidth().padding(start = GLYPH + 12.dp, bottom = 6.dp), horizontalArrangement = Arrangement.End) {
+            if (done) {
+                Text(
+                    stringResource(R.string.kone_routing_sent),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp).graphicsLayer { alpha = 0.75f },
+                )
+            } else {
+                ways.forEach { direct ->
+                    Text(
+                        stringResource(if (direct) R.string.kone_routing_send_direct else R.string.kone_routing_send_proxy),
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier
+                            .clickable(enabled = !sending) {
+                                sending = true
+                                scope.launch {
+                                    if (RoutingSettings.send(host, direct)) {
+                                        sent = true
+                                        delay(1200)
+                                    }
+                                    sending = false
+                                    sent = false
+                                    onDone()
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -205,9 +277,10 @@ private fun routeName(host: HostTraffic, names: RouteNames): String = when (Rout
 private fun ruleName(rule: String): String {
     val parsed = remember(rule) { RouteLabels.rule(rule) }
     val detail = parsed.detail
+    val lists = remember(rule) { detail?.takeIf { parsed.kind == RuleKind.RuleSet }?.let(::listNames) }
     return when (parsed.kind) {
         RuleKind.Default -> stringResource(R.string.kone_status_rule_default)
-        RuleKind.RuleSet -> detail ?: stringResource(R.string.kone_status_rule_other)
+        RuleKind.RuleSet -> lists ?: stringResource(R.string.kone_status_rule_other)
         RuleKind.Private -> stringResource(R.string.kone_status_rule_private)
         RuleKind.Domain -> stringResource(R.string.kone_status_rule_domain)
         RuleKind.Address -> stringResource(R.string.kone_status_rule_address)
@@ -218,6 +291,17 @@ private fun ruleName(rule: String): String {
         RuleKind.Mode -> detail?.let { stringResource(R.string.kone_status_rule_mode, it.replaceFirstChar(Char::uppercaseChar)) } ?: stringResource(R.string.kone_status_rule_other)
         RuleKind.WiFi -> stringResource(R.string.kone_status_rule_wifi)
         RuleKind.Other -> stringResource(R.string.kone_status_rule_other)
+    }
+}
+
+/**
+ * The lists a rule names as people call them: a category list by its title (Netflix), an own list
+ * by its file's name, found among the person's rules by its tag; any other as it is.
+ */
+private fun listNames(detail: String): String {
+    val own by lazy { Rules.urls(RoutingSettings.current().rules).associateBy(RuleProviders::tag) }
+    return detail.split(", ").joinToString(", ") { name ->
+        Categories.title(name) ?: own[name]?.let(RuleProviders::title) ?: name
     }
 }
 

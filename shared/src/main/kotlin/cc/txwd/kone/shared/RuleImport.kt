@@ -31,8 +31,13 @@ object RuleImport {
         "IP-CIDR" to "cidr", "IP-CIDR6" to "cidr", "PROCESS-NAME" to "program", "DST-PORT" to "port",
     )
 
-    /** [text] read into rules of [kinds] (the App's: [Rules.WINDOWS] or [Rules.ANDROID]). */
-    fun read(text: String, kinds: Set<String>): Read {
+    /**
+     * [text] read into rules of [kinds] (the App's: [Rules.WINDOWS] or [Rules.ANDROID]). Where the
+     * App offers [picks], a rule sent to a profile's url-test or load-balance group goes through the
+     * fastest node, and one sent to a fallback group through the first that answers ([Policies]); a
+     * RULE-SET line becomes a rule on the provider's list, by its address, where "url" is a kind.
+     */
+    fun read(text: String, kinds: Set<String>, picks: Boolean = false): Read {
         val sink = Sink(kinds)
         val trimmed = text.trim().removePrefix("\uFEFF")
         if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
@@ -40,10 +45,22 @@ object RuleImport {
         }
         // A profile's YAML gives its rules and groups as written; lines are read one by one otherwise.
         val profile = if (PROFILE.containsMatchIn(text)) ClashProxies.load(text) else null
-        val groups = (profile?.get("proxy-groups") as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }.mapNotNull { group ->
+        val declared = (profile?.get("proxy-groups") as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }
+        val groups = declared.mapNotNull { group ->
             val name = group["name"]?.toString() ?: return@mapNotNull null
             name to (group["proxies"] as? List<*>).orEmpty().mapNotNull { it?.toString() }
         }.toMap()
+        val groupTypes = declared.mapNotNull { group -> group["name"]?.toString()?.let { it to group["type"]?.toString().orEmpty() } }.toMap()
+        // The profile's rule providers fetched over HTTPS, each name to its address.
+        val providers = (profile?.get("rule-providers") as? Map<*, *>).orEmpty().mapNotNull { (name, provider) ->
+            val url = ((provider as? Map<*, *>)?.get("url") as? String)?.let(RuleProviders::clean) ?: return@mapNotNull null
+            name.toString() to url
+        }.toMap()
+        fun pick(target: String) = if (!picks) "" else when (groupTypes[target]?.lowercase()) {
+            "url-test", "load-balance" -> Policies.FASTEST
+            "fallback" -> Policies.FALLBACK
+            else -> ""
+        }
         val lines = (profile?.get("rules") as? List<*>)?.mapNotNull { it?.toString()?.trim() } ?: text.lines().map { raw ->
             var line = raw.substringBefore('#').trim()
             if (line.startsWith("- ")) line = line.removePrefix("- ").trim()
@@ -57,10 +74,12 @@ object RuleImport {
             if (type == "MATCH" || type == "FINAL") continue
             if (parts.size < 3) { sink.left++; continue }
             val action = action(parts[2], groups)
+            val pick = pick(parts[2])
             when (type) {
-                "GEOSITE" -> sink.add("set", "geosite-" + parts[1].lowercase(), action)
-                "GEOIP" -> sink.add("set", "geoip-" + parts[1].lowercase(), action)
-                else -> CLASH[type]?.let { sink.add(it, parts[1], action) } ?: sink.left++
+                "GEOSITE" -> sink.add("set", "geosite-" + parts[1].lowercase(), action, pick)
+                "GEOIP" -> sink.add("set", "geoip-" + parts[1].lowercase(), action, pick)
+                "RULE-SET" -> providers[parts[1]]?.let { sink.add("url", it, action, pick) } ?: sink.left++
+                else -> CLASH[type]?.let { sink.add(it, parts[1], action, pick) } ?: sink.left++
             }
         }
         return sink.read()
@@ -102,7 +121,7 @@ object RuleImport {
         var left = 0
         var ads = false
 
-        fun add(kind: String, text: String, action: String) {
+        fun add(kind: String, text: String, action: String, pick: String = "") {
             if (kind == "set" && text == Rules.ADS && action == "block") {
                 ads = true
                 return
@@ -110,7 +129,7 @@ object RuleImport {
             // A program on Android is its package, where the client named one; a Windows file (Steam.exe) is not one.
             val fitted = if (kind == "program" && kind !in kinds && "app" in kinds && !Names.isProgram(text)) "app" else kind
             val value = if (fitted in kinds) Rules.value(fitted, text) else null
-            if (value == null) left++ else rules += Rule(fitted, value, action)
+            if (value == null) left++ else rules += Rule(fitted, value, action, pick.takeIf { Rules.throughNode(action) }.orEmpty())
         }
 
         fun read() = Read(rules.distinct(), left, ads)
