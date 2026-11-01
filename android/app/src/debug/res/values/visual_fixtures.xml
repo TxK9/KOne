@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="visual_example_device">KOne Example Phone</string>
+    <string name="visual_example_route">Tokyo Example</string>
+    <string name="visual_example_plan">Standard</string>
+</resources>

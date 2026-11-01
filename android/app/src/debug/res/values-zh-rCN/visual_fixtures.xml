@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="visual_example_device">KOne 示例手机</string>
+    <string name="visual_example_route">东京示例线路</string>
+    <string name="visual_example_plan">标准套餐</string>
+</resources>

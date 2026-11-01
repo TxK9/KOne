@@ -24,7 +24,11 @@ configurations.configureEach {
 
 // Opt-in host rendering keeps Robolectric and Android resources out of the
 // ordinary fast unit-test path. It never starts the production Application.
-val knineVisualTests = providers.gradleProperty("knineVisualTests").map(String::toBoolean).getOrElse(false)
+val koneVisualPreview = providers.gradleProperty("koneVisualPreview").map(String::toBoolean).getOrElse(false)
+require(!koneVisualPreview || gradle.startParameter.taskNames.none { it.contains("release", ignoreCase = true) }) {
+    "KOne visual preview is debug-only. Remove -PkoneVisualPreview for release builds."
+}
+val knineVisualTests = koneVisualPreview || providers.gradleProperty("knineVisualTests").map(String::toBoolean).getOrElse(false)
 // One source, two editions: private builds can include local wallpapers and Home defaults;
 // managed builds omit those assets and require explicit Home configuration.
 // Build the shared one with -PkoneEdition=share; the older -PkninePlain=true means the same.
@@ -71,6 +75,13 @@ fun getVersionProps(propName: String): String {
         }
     }
     return ""
+}
+
+// Aggregate tasks must not create a release APK from the preview manifest either.
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) { variant ->
+        if (koneVisualPreview) variant.enable = false
+    }
 }
 
 android {
@@ -123,6 +134,10 @@ android {
             if (getProps("KEYSTORE_PASS").isNotEmpty()) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            if (koneVisualPreview) {
+                applicationIdSuffix = ".visual"
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
         release {
             isMinifyEnabled = true
@@ -149,6 +164,11 @@ android {
         // The core KOne for Android shares with KOne for Windows (rules, names, imports); its tests run in the Windows build.
         getByName("main").java.srcDir("../../shared/src/main/kotlin")
         if (knineVisualTests) getByName("testOther").java.srcDir("src/testVisual/java")
+        if (koneVisualPreview) {
+            getByName("main").manifest.srcFile("src/debug/preview/AndroidManifest.xml")
+            getByName("debug").manifest.srcFile("src/debug/preview/Overlay.xml")
+            getByName("testOther").java.setSrcDirs(listOf("src/testPreview/java"))
+        }
         getByName("play") {
             java.directories.add("src/minApi24/java")
             aidl.directories.add("src/minApi24/aidl")
@@ -229,7 +249,7 @@ android {
             isIncludeAndroidResources = true
             all {
                 it.maxHeapSize = "2g"
-                it.systemProperty("knine.previewDir", rootProject.file("../delivery-20261011-two-editions/native-previews").absolutePath)
+                it.systemProperty("knine.previewDir", providers.gradleProperty("konePreviewDir").getOrElse(rootProject.file("../delivery-20261011-two-editions/native-previews").absolutePath))
                 it.jvmArgs(
                     "--add-opens=java.base/java.lang=ALL-UNNAMED",
                     "--add-opens=java.base/java.util=ALL-UNNAMED",
