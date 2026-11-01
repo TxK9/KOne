@@ -267,14 +267,17 @@
       ctx.globalCompositeOperation = 'source-over';
     }
 
+    function advanceLift() {
+      const liftDelta = Math.max(0, seconds - liftTime); liftTime = seconds;
+      lift += ((connected ? 1 : 0) - lift) * -Math.expm1(-liftDelta / .18);
+    }
     function render() {
       if (!ctx || !width || !height) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
       const night = clamp(1 - daylight), day = clamp(daylight);
-      // Settle in about half a second at any frame rate; resize/sky redraws consume no motion.
-      const liftDelta = Math.max(0, seconds - liftTime); liftTime = seconds;
-      lift += ((connected ? 1 : 0) - lift) * -Math.expm1(-liftDelta / .18);
+      // Settle in about half a second of animation time; redraws consume no motion.
+      advanceLift();
       drawGlow(night);
       drawSweep(night);
       drawBeams(night);
@@ -284,11 +287,15 @@
 
     const allowed = () => !reducedQuery.matches;
     const shouldRun = () => !destroyed && playing && visible && !document.hidden && allowed() && ctx && width > 0;
+    function advanceClock(now) {
+      if (last !== null) seconds += Math.min(.25, Math.max(0, now - last) / 1000);
+      // A queued rAF timestamp may precede a state event handled in the same browser frame.
+      last = last === null ? now : Math.max(last, now);
+    }
     function frame(now) {
       raf = 0;
       if (!shouldRun()) { last = null; return; }
-      if (last !== null) seconds += Math.min(.25, (now - last) / 1000);
-      last = now;
+      advanceClock(now);
       if (seconds >= nextAir && profile.air > 0) { spawnAir(false); nextAir = seconds + gap(profile.air); }
       if (seconds >= nextHeli && (profile.heli || 0) > 0) { spawnHeli(false); nextHeli = seconds + gap(profile.heli); }
       if (lastPaint === null || now - lastPaint >= 1000 / maxFps) { lastPaint = now; frames++; render(); }
@@ -319,7 +326,11 @@
       setConnected(value) {
         if (destroyed) return;
         const next = Boolean(value);
-        if (next !== connected) liftTime = seconds;
+        if (next !== connected) {
+          // Consume the pending interval under the old target before starting the new one.
+          if (shouldRun()) advanceClock(performance.now());
+          advanceLift();
+        }
         if (next && !connected) sweepAt = seconds;
         connected = next; if (!raf) { lift = next ? 1 : 0; render(); }
       },

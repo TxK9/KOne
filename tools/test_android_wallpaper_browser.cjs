@@ -142,7 +142,7 @@ async function main() {
         await page.waitForFunction(() => window.KOneWallpaper?.state.ready);
         const samples = await page.evaluate(async () => {
           const pulse = () => window.KOneWallpaper.state.layers.find(layer => 'connectionGlow' in layer);
-          const snapshot = () => ({glow:pulse().connectionGlow, frames:pulse().frames, time:window.KOneWallpaper.state.time});
+          const snapshot = () => ({glow:pulse().connectionGlow, frames:pulse().frames, time:window.KOneWallpaper.state.time, wallMs:performance.now()});
           window.KOneWallpaper.connected(true);
           const initial = snapshot();
           const intermediate = await new Promise((resolve, reject) => {
@@ -174,6 +174,42 @@ async function main() {
         });
         assert.ok(complete.frames > samples.pauseEnd.frames);
         progression.connectionGlow = {...samples, complete};
+      } finally { await page.close(); }
+    });
+    await check('delayed-callback-excludes-pre-connection-time', async () => {
+      const page = await context.newPage();
+      try {
+        await page.addInitScript(() => {
+          let now = 0, next = 0;
+          const callbacks = new Map();
+          Object.defineProperty(performance, 'now', {value:() => now});
+          window.requestAnimationFrame = callback => { const id = ++next; callbacks.set(id, callback); return id; };
+          window.cancelAnimationFrame = id => callbacks.delete(id);
+          window.__koneFrames = {
+            now(value) { now = value; },
+            step(value, timestamp = value) {
+              now = value;
+              const queued = [...callbacks.values()]; callbacks.clear();
+              for (const callback of queued) callback(timestamp);
+            },
+          };
+        });
+        await page.goto(origin + '/index.html?scene=original&time=night&motion=on');
+        await page.waitForFunction(() => window.KOneWallpaper?.state.ready, undefined, {polling:20});
+        const values = await page.evaluate(() => {
+          const pulse = () => window.KOneWallpaper.state.layers.find(layer => 'connectionGlow' in layer);
+          const clock = window.__koneFrames;
+          clock.step(0);
+          clock.now(999);
+          window.KOneWallpaper.connected(true);
+          const initial = pulse().connectionGlow;
+          clock.step(1000);
+          return {initial, oneMillisecond:pulse().connectionGlow,
+            eventTimeMs:999, callbackTimeMs:1000};
+        });
+        assert.equal(values.initial, 0);
+        assert.ok(values.oneMillisecond > 0 && values.oneMillisecond < .02);
+        progression.delayedCallback = values;
       } finally { await page.close(); }
     });
     if (output) await fs.writeFile(path.join(output, 'motion-progression.json'), JSON.stringify(progression, null, 2) + '\n');

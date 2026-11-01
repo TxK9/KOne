@@ -118,9 +118,9 @@ class Container {
   getBoundingClientRect() { return {width: 320, height: 640}; }
 }
 
-function checkPulse(cityId, reduced, {step = 100, duration = 12000, connectAt = 0, maxFps = 24} = {}) {
+function pulseFixture(cityId, reduced, {maxFps = 24} = {}) {
   const frames = new Map();
-  let next = 0;
+  let next = 0, wallNow = 0;
   const gradient = {addColorStop() {}};
   const drawing = new Proxy({}, {
     get(target, method) {
@@ -145,6 +145,7 @@ function checkPulse(cityId, reduced, {step = 100, duration = 12000, connectAt = 
     cancelAnimationFrame(id) { frames.delete(id); },
     ResizeObserver: class { observe() {} disconnect() {} },
     devicePixelRatio: 1,
+    performance: {now:() => wallNow},
     Intl, Date, Math,
   };
   context.window = context;
@@ -154,11 +155,20 @@ function checkPulse(cityId, reduced, {step = 100, duration = 12000, connectAt = 
   }, {maxFps});
   assert.equal(pulse.state.running, !reduced);
   pulse.setSky({daylight: 0});
+  return {pulse, frames, setNow(value) { wallNow = value; }, frame(now, timestamp = now) {
+    wallNow = now;
+    const queued = [...frames.values()]; frames.clear();
+    for (const callback of queued) callback(timestamp);
+  }};
+}
+
+function checkPulse(cityId, reduced, {step = 100, duration = 12000, connectAt = 0, maxFps = 24} = {}) {
+  const fixture = pulseFixture(cityId, reduced, {maxFps}), {pulse, frames} = fixture;
   let connected = false;
   for (let frame = 0; frame * step < duration; frame++) {
+    fixture.setNow(frame * step);
     if (!connected && frame * step >= connectAt) { pulse.setConnected(true); connected = true; }
-    const queued = [...frames.values()]; frames.clear();
-    for (const callback of queued) callback(frame * step);
+    fixture.frame(frame * step);
   }
   const state = pulse.state;
   pulse.setVisible(false);
@@ -186,4 +196,45 @@ test('connection glow settles consistently at different frame cadences', () => {
 test('a connection cannot consume time from before it was requested', () => {
   const late = checkPulse('tokyo', false, {step:100, duration:1100, connectAt:900, maxFps:1});
   assert.ok(late.connectionGlow > 0 && late.connectionGlow < .8);
+});
+
+test('a delayed callback includes only time after the connection event', () => {
+  const fixture = pulseFixture('tokyo', false);
+  fixture.frame(0);
+  fixture.setNow(999);
+  fixture.pulse.setConnected(true);
+  assert.equal(fixture.pulse.state.connectionGlow, 0);
+  fixture.frame(1000);
+  const glow = fixture.pulse.state.connectionGlow;
+  assert.ok(glow > 0 && glow < .02, `one post-event millisecond produced ${glow}`);
+  fixture.pulse.destroy();
+  assert.equal(fixture.frames.size, 0);
+});
+
+test('an older queued callback cannot backdate the connection clock', () => {
+  const fixture = pulseFixture('tokyo', false);
+  fixture.frame(0);
+  fixture.setNow(999);
+  fixture.pulse.setConnected(true);
+  fixture.frame(1000, 998);
+  assert.equal(fixture.pulse.state.connectionGlow, 0);
+  fixture.frame(1010);
+  assert.equal(fixture.pulse.state.connectionGlow, 0); // The paint cadence has not admitted another draw.
+  fixture.frame(1050);
+  assert.ok(fixture.pulse.state.connectionGlow > 0 && fixture.pulse.state.connectionGlow < .3);
+  fixture.pulse.destroy();
+});
+
+test('paused and reduced-motion connections settle without starting a clock', () => {
+  for (const reduced of [false, true]) {
+    const fixture = pulseFixture('tokyo', reduced);
+    if (!reduced) { fixture.frame(0); fixture.pulse.setVisible(false); }
+    fixture.setNow(3600000);
+    fixture.pulse.setConnected(true);
+    assert.equal(fixture.pulse.state.connectionGlow, 1);
+    fixture.pulse.setConnected(false);
+    assert.equal(fixture.pulse.state.connectionGlow, 0);
+    assert.equal(fixture.frames.size, 0);
+    fixture.pulse.destroy();
+  }
 });
