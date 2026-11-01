@@ -212,6 +212,43 @@ async function main() {
         progression.delayedCallback = values;
       } finally { await page.close(); }
     });
+    progression.failurePaths = {};
+    for (const fault of ['metadata', 'sky']) {
+      await check('wallpaper-error-' + fault + '-cannot-restart', async () => {
+        const page = await context.newPage();
+        try {
+          if (fault === 'metadata') {
+            await page.route('**/catalog.json', route => route.fulfill({status:503, body:'Unavailable fixture'}));
+          } else {
+            await page.addInitScript(() => {
+              let sky;
+              Object.defineProperty(window, 'NycSkyV5', {configurable:true, get:() => sky, set(api) {
+                sky = {...api, attach:() => ({render() { throw new Error('Synthetic sky render failure'); }})};
+              }});
+            });
+          }
+          await page.goto(origin + '/index.html?scene=original&time=day&motion=on');
+          await page.waitForFunction(() => Boolean(window.KOneWallpaper?.state.error));
+          const before = await page.evaluate(() => {
+            window.KOneWallpaper.active(true);
+            window.KOneWallpaper.connected(true);
+            return window.KOneWallpaper.state;
+          });
+          await page.emulateMedia({reducedMotion:'reduce'});
+          await page.emulateMedia({reducedMotion:'no-preference'});
+          await page.waitForTimeout(120);
+          const after = await page.evaluate(() => window.KOneWallpaper.state);
+          assert.equal(after.ready, false);
+          assert.equal(after.running, false);
+          assert.equal(after.time, before.time);
+          assert.ok(after.layers.every(layer => !layer.running));
+          assert.equal(after.layers.length, fault === 'metadata' ? 0 : 6);
+          progression.failurePaths[fault] = {ready:after.ready, running:after.running,
+            timeBefore:before.time, timeAfter:after.time, layerCount:after.layers.length,
+            runningLayers:after.layers.filter(layer => layer.running).length};
+        } finally { await page.close(); }
+      });
+    }
     if (output) await fs.writeFile(path.join(output, 'motion-progression.json'), JSON.stringify(progression, null, 2) + '\n');
     await check('bundled-assets-only', async () => assert.deepEqual(external, []));
     await context.close();

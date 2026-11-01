@@ -29,7 +29,7 @@
     if (ready && visible && !document.hidden) timer = setTimeout(() => { updateSky(); schedule(); }, 30000);
   }
   function syncActivity() {
-    visible = hostActive && !document.hidden;
+    visible = hostActive && !document.hidden && error === null;
     const next = visible && motionAllowed();
     if (next !== running) { elapsed = clock(); anchor = performance.now(); running = next; }
     document.documentElement.dataset.motion = motionAllowed() ? 'on' : 'off';
@@ -81,7 +81,7 @@
     ready = true; updateSky(); syncActivity(); connected(linked);
     document.documentElement.dataset.ready = 'true';
   }).catch(failure => {
-    error = failure.message; active(false);
+    error = failure.message; ready = false; active(false);
     // Whatever did load stays visible rather than behind the fade.
     document.documentElement.dataset.ready = 'true';
     document.documentElement.dataset.error = 'wallpaper-unavailable';

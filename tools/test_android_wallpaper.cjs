@@ -24,7 +24,7 @@ test('all bundled cities have finite daylight and deterministic weather', () => 
   }
 });
 
-async function page(query, reduced = false) {
+async function page(query, reduced = false, {failRead = null, failAttach = null, failSky = false} = {}) {
   let now = 0;
   const events = {}, controllers = [], timers = new Map();
   const media = {matches:reduced, addEventListener(name, handler) { this.handler = handler; },
@@ -35,21 +35,47 @@ async function page(query, reduced = false) {
     elements.set(id, {style:style(), set src(value) {this.source = value; queueMicrotask(() => this.onload?.());}});
   }
   function attach() {
+    if (controllers.length === failAttach) throw new Error('Synthetic layer initialization failure');
     const controller = {visible:true, playing:true, setVisible(value) {this.visible=value;}, setPlaying(value) {this.playing=value;}, setSky() {}, setLighting() {}, get state() {return {running:this.visible && this.playing};}};
     controllers.push(controller); return controller;
   }
   const document = {hidden:false, documentElement:{dataset:{}}, getElementById:id => elements.get(id), addEventListener:(name, handler) => events[name]=handler};
   const context = {URLSearchParams, console, performance:{now:() => now}, innerWidth:412, innerHeight:892,
-    location:{search:query}, document, matchMedia:() => media, NycSkyV5:{...sky,attach:() => ({render:(instant, zone) => sky.sample(catalog[0], 'day', instant, zone)})},
+    location:{search:query}, document, matchMedia:() => media, NycSkyV5:{...sky,attach:() => ({render:(instant, zone) => {
+      if (failSky) throw new Error('Synthetic sky render failure');
+      return sky.sample(catalog[0], 'day', instant, zone);
+    }})},
     KOneWeatherModelV11:weather, KOneEnvironmentV13:{bind() {}},
     NycMotionV13:{attach}, NycMarineV13:{attach}, NycLightV13:{attach}, KOneCityLifeV13:{attach}, KOneWeatherV13:{attach},
     addEventListener() {}, setTimeout:handler => {const id=timers.size+1;timers.set(id,handler);return id;}, clearTimeout:id => timers.delete(id),
-    fetch:async file => ({ok:true,json:async () => JSON.parse(fs.readFileSync(path.join(root,file)))})};
+    fetch:async file => ({ok:file !== failRead,json:async () => JSON.parse(fs.readFileSync(path.join(root,file)))})};
   context.window=context;
   vm.runInNewContext(fs.readFileSync(path.join(root,'wallpaper.js'),'utf8'),context);
   const settle = async () => {for(let i=0;i<4;i++) await new Promise(setImmediate);};
   return {context,document,controllers,timers,events,elements,media,settle,advance:ms => now+=ms};
 }
+
+async function failedPageStaysStopped(failure, expectedLayers) {
+  const p = await page('?scene=original&time=city&motion=on', false, failure);
+  await p.settle();
+  assert.equal(p.document.documentElement.dataset.error, 'wallpaper-unavailable');
+  assert.equal(p.controllers.length, expectedLayers);
+  p.context.KOneWallpaper.active(true);
+  p.document.hidden = true; p.events.visibilitychange();
+  p.document.hidden = false; p.events.visibilitychange();
+  p.media.change(true); p.media.change(false);
+  const before = p.context.KOneWallpaper.state.time;
+  p.advance(60000);
+  assert.equal(p.context.KOneWallpaper.state.ready, false);
+  assert.equal(p.context.KOneWallpaper.state.running, false);
+  assert.equal(p.context.KOneWallpaper.state.time, before);
+  assert.ok(p.controllers.every(controller => !controller.state.running));
+  assert.equal(p.timers.size, 0);
+}
+
+test('missing bundled metadata remains stopped after host resume', () => failedPageStaysStopped({failRead:'catalog.json'}, 0));
+test('partial layer initialization cannot restart after failure', () => failedPageStaysStopped({failAttach:2}, 2));
+test('sky render failure cannot leave a ready or running wallpaper', () => failedPageStaysStopped({failSky:true}, 5));
 
 test('browser visibility cannot override an explicit Android pause', async () => {
   const p = await page('?scene=original&motion=on');
