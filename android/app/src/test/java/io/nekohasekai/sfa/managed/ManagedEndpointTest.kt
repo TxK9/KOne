@@ -7,6 +7,17 @@ import org.junit.Test
 
 class ManagedEndpointTest {
     @Test
+    fun portsAreValidatedBeforeNetworkSetup() {
+        for (port in listOf("0", "65536", "999999")) {
+            assertNull(ManagedEndpoint.parse("https://console.example:$port"))
+            assertNull(ManagedEndpoint.parse("http://127.0.0.1:$port"))
+            assertNull(ManagedClaimLink.parse("kone://claim?server=https%3A%2F%2Fconsole.example%3A$port&code=invite-code-123"))
+        }
+        assertEquals("https://console.example:65535", ManagedEndpoint.parse("https://console.example:65535")!!.base)
+        assertEquals("http://127.0.0.1:1", ManagedEndpoint.parse("http://127.0.0.1:1")!!.base)
+    }
+
+    @Test
     fun addressesAreHttpsOrThisPhoneItself() {
         assertEquals("https://kone.example.org", ManagedEndpoint.parse(" kone.example.org/ ")!!.base)
         assertEquals("https://kone.example.org:8443/console", ManagedEndpoint.parse("https://kone.example.org:8443/console/")!!.base)

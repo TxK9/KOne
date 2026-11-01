@@ -27,6 +27,7 @@ class ManagedEndpoint private constructor(val base: String, val host: String) {
             val scheme = uri.scheme?.lowercase() ?: return null
             val host = uri.host?.lowercase() ?: return null
             if (uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null) return null
+            if (uri.port != -1 && uri.port !in 1..65535) return null
             val loopback = host in LOOPBACK
             if (scheme != "https" && !(scheme == "http" && loopback)) return null
             val port = if (uri.port == -1) "" else ":${uri.port}"
