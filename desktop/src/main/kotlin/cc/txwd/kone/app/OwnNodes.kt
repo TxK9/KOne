@@ -136,8 +136,10 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
         if (tag !in host.imported) return
         scope.launch {
             withContext(Dispatchers.IO) { imports.remove(tag) }
+            // Asked before the list changes: the choice then leaves the node for Automatic.
+            val used = host.selected == tag
             host.nodesChanged(gone = tag)
-            if (host.selected == tag) host.restart()
+            if (used) host.restart()
         }
     }
 
@@ -227,9 +229,11 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
                 return@launch
             }
             editing = null
+            // Asked before the list changes: a node renamed by the edit takes the choice to its new name.
+            val used = open.tag != null && (host.selected == open.tag || host.inUse() == open.tag)
             host.nodesChanged()
             host.tell(if (open.tag == null) tr("Node added") else tr("Node saved"), error = false)
-            if (open.tag != null && (host.selected == open.tag || host.inUse() == open.tag)) host.restart()
+            if (used) host.restart()
         }
     }
 

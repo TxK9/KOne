@@ -21,6 +21,15 @@ class Health(private val keep: Int = 10) {
         history.keys.retainAll(keepOnly)
     }
 
+    /**
+     * Only the tests of nodes still exactly what was tested, each under its tag now ([carry]: each
+     * tag now to its tag before), namesakes that traded tags included.
+     */
+    @Synchronized
+    fun carry(carry: Map<String, String>) {
+        history.carry(carry)
+    }
+
     /** The recent tests of [tag], oldest first: a delay, or null for no answer. */
     @Synchronized
     fun samples(tag: String): List<Int?> = history[tag]?.toList().orEmpty()

@@ -29,8 +29,10 @@ data class Carried(val down: Long, val up: Long, val connections: List<CoreConne
 /**
  * The running core's clash_api on loopback (see [KoneConfig]): whether it answers, the traffic
  * each second, a node's delay, which node the selector uses, the mode, and the connections.
+ * Nodes are named by the App's tags: [names] turns them into the core's own where they have
+ * changed since it started (see [RunningNames]); a core started from the list as it is needs none.
  */
-class ClashApi(private val api: CoreApi) {
+class ClashApi(private val api: CoreApi, private val names: () -> RunningNames = { RunningNames.SAME }) {
     private val client = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY).connectTimeout(Duration.ofSeconds(2)).build()
 
     private fun request(path: String, timeout: Duration = Duration.ofSeconds(3)) =
@@ -40,25 +42,28 @@ class ClashApi(private val api: CoreApi) {
         client.send(request("/version").GET().build(), HttpResponse.BodyHandlers.discarding()).statusCode() == 200
     }.getOrDefault(false)
 
-    /** The delay through [tag] in milliseconds, or null when it did not answer in time. */
+    /** The delay through [tag] in milliseconds, or null when it did not answer in time (or the core does not carry it). */
     fun delay(tag: String, timeoutMillis: Int = 5_000, url: String = "https://www.gstatic.com/generate_204"): Int? = runCatching {
-        val path = "/proxies/${encode(tag)}/delay?timeout=$timeoutMillis&url=${encode(url)}"
+        val name = names().core(tag) ?: return null
+        val path = "/proxies/${encode(name)}/delay?timeout=$timeoutMillis&url=${encode(url)}"
         val response = client.send(request(path, Duration.ofMillis(timeoutMillis + 2_000L)).GET().build(), HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() != 200) return null
         ((Json.parseToJsonElement(response.body()) as JsonObject)["delay"] as? JsonPrimitive)?.longOrNull?.toInt()?.takeIf { it > 0 }
     }.getOrNull()
 
+    /** Moves the selector to [tag]; false when the core did not take it (or does not carry it). */
     fun select(tag: String): Boolean = runCatching {
-        val body = Json.encodeToString(JsonObject.serializer(), JsonObject(mapOf("name" to JsonPrimitive(tag))))
+        val name = names().core(tag) ?: return false
+        val body = Json.encodeToString(JsonObject.serializer(), JsonObject(mapOf("name" to JsonPrimitive(name))))
         client.send(request("/proxies/${KoneConfig.PROXY_TAG}").PUT(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.discarding())
             .statusCode() in 200..299
     }.getOrDefault(false)
 
-    /** The node a group such as Auto is on now. */
+    /** The node a group such as Auto is on now; null when the App no longer lists it. */
     fun now(group: String): String? = runCatching {
         val response = client.send(request("/proxies/${encode(group)}").GET().build(), HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() != 200) return null
-        ((Json.parseToJsonElement(response.body()) as JsonObject)["now"] as? JsonPrimitive)?.contentOrNull
+        ((Json.parseToJsonElement(response.body()) as JsonObject)["now"] as? JsonPrimitive)?.contentOrNull?.let { names().app(it) }
     }.getOrNull()
 
     /** Switches the running core to [mode] (Rule, Global or Direct). */
@@ -73,6 +78,7 @@ class ClashApi(private val api: CoreApi) {
         val response = client.send(request("/connections").GET().build(), HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() != 200) return null
         val json = Json.parseToJsonElement(response.body()) as JsonObject
+        val running = names()
         fun JsonObject.number(key: String) = (this[key] as? JsonPrimitive)?.longOrNull ?: 0L
         fun JsonObject.word(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
         val list = (json["connections"] as? JsonArray).orEmpty().mapNotNull { item ->
@@ -85,7 +91,8 @@ class ClashApi(private val api: CoreApi) {
                 id = connection.word("id") ?: return@mapNotNull null,
                 program = meta.word("processPath")?.substringAfterLast('\\')?.substringAfterLast('/'),
                 target = if (port != null) "$host:$port" else host,
-                via = chain,
+                // The App's tag for the node; the core's own name for one the App lists no more.
+                via = running.app(chain) ?: chain,
                 down = connection.number("download"),
                 up = connection.number("upload"),
                 rule = connection.word("rule"),
