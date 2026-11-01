@@ -3,7 +3,7 @@
   "error": null,
   "scene": "las-vegas-strip",
   "running": true,
-  "time": 0.961,
+  "time": 1.8787999999998137,
   "layers": [
     {
       "playing": true,
@@ -37,7 +37,7 @@
       ],
       "lightCount": 80,
       "samplingStatus": "sampled",
-      "lightSampleSource": "http://127.0.0.1:34037/images/las-vegas-strip-night.webp|853x1844|0,-0.002288567922050788,320.10626220703125,691.9999384639691|0,-0.002288567922050788,320.10626220703125,691.9999384639691",
+      "lightSampleSource": "http://127.0.0.1:42971/images/las-vegas-strip-night.webp|853x1844|0,-0.002288567922050788,320.10626220703125,691.9999384639691|0,-0.002288567922050788,320.10626220703125,691.9999384639691",
       "roomLightModel": "independent-hold-and-fade",
       "lightPeriodSeconds": [
         54,
@@ -51,12 +51,12 @@
       "environmentStatus": "provided",
       "environmentSamples": 3,
       "environment": {
-        "wind": 0.8988356178110355,
-        "advection": 0.8064720664831676,
-        "gust": 0.27713089878390856,
-        "cloudCover": 0.21856971616853182,
-        "waveGroup": 0.39850200333861063,
-        "shimmer": 0.6958395174797756,
+        "wind": 0.9533510945368672,
+        "advection": 1.6496147654337647,
+        "gust": 0.30741727474270397,
+        "cloudCover": 0.21730500294527333,
+        "waveGroup": 0.4674803050675302,
+        "shimmer": 0.5657527056242132,
         "rain": 0,
         "snow": 0,
         "fog": 0.025,
@@ -138,12 +138,12 @@
         "boatPace": 1.2
       },
       "environment": {
-        "wind": 0.8961214768813829,
-        "advection": 0.7677024986285758,
-        "gust": 0.2756230427118794,
-        "cloudCover": 0.21862595959643547,
-        "waveGroup": 0.3952198980052297,
-        "shimmer": 0.6952744987716288,
+        "wind": 0.9293600667997626,
+        "advection": 1.2593299501646897,
+        "gust": 0.2940889259998681,
+        "cloudCover": 0.2178998476402345,
+        "waveGroup": 0.43636648670694944,
+        "shimmer": 0.6545577586981838,
         "activity": 0.9825,
         "rain": 0,
         "snow": 0
@@ -190,19 +190,19 @@
       "sunInFrame": false,
       "moonReflectionStrength": 0,
       "environment": {
-        "wind": 0.896178066529385,
-        "advection": 0.7685090107095223,
-        "gust": 0.27565448140521387,
-        "cloudCover": 0.2186247914633933,
-        "waveGroup": 0.395288192119036,
-        "shimmer": 0.6952934634986828,
+        "wind": 0.9295998927241862,
+        "advection": 1.263046620225464,
+        "gust": 0.29422216262454787,
+        "cloudCover": 0.21789425545207797,
+        "waveGroup": 0.4366712127965966,
+        "shimmer": 0.6538988755840376,
         "rain": 0,
         "snow": 0,
         "fog": 0.025,
         "wetness": 0,
         "temperature": 23,
         "activity": 0.9825,
-        "transmission": 0.8013601835122139,
+        "transmission": 0.8020030552021714,
         "fogVisibility": 1,
         "directVisibility": 0.8688,
         "source": "manual"
@@ -269,9 +269,9 @@
         "directVisibility": 0.8688,
         "wetness": 0,
         "wind": 0.78,
-        "windPhase": 0.8062024325582852,
+        "windPhase": 1.6490429695473359,
         "windX": 0.65,
-        "gust": 0.27712043661630337,
+        "gust": 0.3073987960786688,
         "cloudCover": 0.16,
         "temperatureC": 23
       },
@@ -303,7 +303,7 @@
       "running": true,
       "frames": 3,
       "time": 0.1,
-      "sampleTime": 0.9265999999999767,
+      "sampleTime": 1.8385,
       "intensity": "expressive",
       "maxFps": 24,
       "reducedMotion": false,
@@ -363,6 +363,6 @@
       "connectionGlow": 0
     }
   ],
-  "original_runtime_state_sha256": "8d0f6994040c6caae55629a02f23deefea1fbd8f8103c9c1fc9186393a0aca1f",
+  "original_runtime_state_sha256": "4cf22b7dd3352cac9cc8bacd0e90adfe186ca6915996ae268199f9b4db9998f4",
   "summary_note": "Decorative prose captions omitted; original bundled assets are unchanged."
 }

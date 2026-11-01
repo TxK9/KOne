@@ -36,6 +36,14 @@
     "passed": true
   },
   {
+    "name": "opening-fade-intermediate-and-completion",
+    "passed": true
+  },
+  {
+    "name": "connection-glow-progress-pause-and-completion",
+    "passed": true
+  },
+  {
     "name": "bundled-assets-only",
     "passed": true
   }

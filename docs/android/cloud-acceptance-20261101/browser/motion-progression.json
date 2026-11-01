@@ -1,0 +1,34 @@
+{
+  "fade": {
+    "duration": 480,
+    "initial": 0,
+    "intermediate": 0.88676,
+    "complete": 1
+  },
+  "connectionGlow": {
+    "initial": {
+      "glow": 0,
+      "frames": 1,
+      "time": 0.43680000000004654
+    },
+    "intermediate": {
+      "glow": 0.7506477912227038,
+      "frames": 2,
+      "time": 0.43769999999995346
+    },
+    "pauseStart": {
+      "glow": 0.7506477912227038,
+      "frames": 2,
+      "time": 0.43769999999995346
+    },
+    "pauseEnd": {
+      "glow": 0.7506477912227038,
+      "frames": 2,
+      "time": 0.43769999999995346
+    },
+    "complete": {
+      "glow": 0.9813454774566318,
+      "frames": 12
+    }
+  }
+}

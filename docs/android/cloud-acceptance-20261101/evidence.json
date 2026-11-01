@@ -7,8 +7,8 @@
   "checks": [
     {
       "name": "toolchain",
-      "cwd": "/workspace",
-      "command": "python3 --version && node --version && npm --version && java -version && javac -version && gradle --version && go version && sdkmanager --version && sdkmanager --list_installed && /workspace/kone-env/node-tools/node_modules/.bin/esbuild --version && sha256sum /workspace/kone-env/downloads/gradle.zip /workspace/kone-env/downloads/jdk.tar.gz",
+      "cwd": "${TASK_WORKSPACE}",
+      "command": "python3 --version && node --version && npm --version && java -version && javac -version && gradle --version && go version && sdkmanager --version && sdkmanager --list_installed && ${CLOUD_RUNTIME}/node-tools/node_modules/.bin/esbuild --version && sha256sum ${CLOUD_RUNTIME}/downloads/gradle.zip ${CLOUD_RUNTIME}/downloads/jdk.tar.gz",
       "started_utc": "2026-11-01T17:58:27.516269+00:00",
       "elapsed_seconds": 3.65,
       "exit_status": 0,
@@ -17,8 +17,8 @@
     },
     {
       "name": "candidate-heads",
-      "cwd": "/workspace/KOne",
-      "command": "git ls-remote origin refs/heads/codex/server-web-collab-20261101 refs/heads/codex/android-ui-20261101 && git -C /workspace/kone-acceptance/server rev-parse HEAD && git -C /workspace/kone-acceptance/android rev-parse HEAD && git status --short",
+      "cwd": "${SOURCE_CHECKOUT}",
+      "command": "git ls-remote origin refs/heads/codex/server-web-collab-20261101 refs/heads/codex/android-ui-20261101 && git -C ${SERVER_ROOT} rev-parse HEAD && git -C ${ANDROID_ROOT} rev-parse HEAD && git status --short",
       "started_utc": "2026-11-01T17:58:31.378026+00:00",
       "elapsed_seconds": 0.57,
       "exit_status": 0,
@@ -27,7 +27,7 @@
     },
     {
       "name": "android-wrapper",
-      "cwd": "/workspace/kone-acceptance/android/android",
+      "cwd": "android",
       "command": "bash ./gradlew --version",
       "started_utc": "2026-11-01T17:59:22.178037+00:00",
       "elapsed_seconds": 8.82,
@@ -37,8 +37,8 @@
     },
     {
       "name": "android-wallpaper-reproduction",
-      "cwd": "/workspace/kone-acceptance/android",
-      "command": "node --test /workspace/kone-acceptance/wallpaper-regression-baseline.cjs",
+      "cwd": ".",
+      "command": "node --test ${TASK_WORKSPACE}/wallpaper-regression-baseline.cjs",
       "started_utc": "2026-11-01T18:01:31.066150+00:00",
       "elapsed_seconds": 1.28,
       "exit_status": 1,
@@ -48,7 +48,7 @@
     },
     {
       "name": "android-endpoint-reproduction-final",
-      "cwd": "/workspace/kone-acceptance",
+      "cwd": "${TASK_WORKSPACE}",
       "command": "java EndpointProbe.java",
       "started_utc": "2026-11-01T18:03:18.785053+00:00",
       "elapsed_seconds": 0.86,
@@ -59,7 +59,7 @@
     },
     {
       "name": "android-baseline",
-      "cwd": "/workspace/kone-acceptance/android/android",
+      "cwd": "android",
       "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest",
       "started_utc": "2026-11-01T17:59:47.468673+00:00",
       "elapsed_seconds": 401.47,
@@ -69,8 +69,8 @@
     },
     {
       "name": "android-browser-baseline",
-      "cwd": "/workspace/kone-acceptance/android",
-      "command": "KONE_TEST_NODE_MODULES=/workspace/kone-acceptance/browser-tools/node_modules KONE_TEST_BROWSER=/usr/bin/chromium KONE_WALLPAPER_EVIDENCE_DIR=/workspace/kone-acceptance/renders/browser-baseline node /workspace/kone-acceptance/wallpaper-browser.cjs /workspace/kone-acceptance/android/android/app/src/main/assets/wallpaper",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-baseline node ${TASK_WORKSPACE}/wallpaper-browser.cjs ${ANDROID_ROOT}/android/app/src/main/assets/wallpaper",
       "started_utc": "2026-11-01T18:07:21.958884+00:00",
       "elapsed_seconds": 14.0,
       "exit_status": 1,
@@ -80,7 +80,7 @@
     },
     {
       "name": "android-endpoint-red",
-      "cwd": "/workspace/kone-acceptance/android/android",
+      "cwd": "android",
       "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:testOtherDebugUnitTest --tests '*.ManagedEndpointTest'",
       "started_utc": "2026-11-01T18:07:45.542345+00:00",
       "elapsed_seconds": 38.67,
@@ -91,7 +91,7 @@
     },
     {
       "name": "android-wallpaper-final",
-      "cwd": "/workspace/kone-acceptance/android",
+      "cwd": ".",
       "command": "node --test tools/test_android_wallpaper.cjs",
       "started_utc": "2026-11-01T18:09:01.919359+00:00",
       "elapsed_seconds": 1.18,
@@ -101,8 +101,8 @@
     },
     {
       "name": "android-browser-final",
-      "cwd": "/workspace/kone-acceptance/android",
-      "command": "KONE_TEST_NODE_MODULES=/workspace/kone-acceptance/browser-tools/node_modules KONE_TEST_BROWSER=/usr/bin/chromium KONE_WALLPAPER_EVIDENCE_DIR=/workspace/kone-acceptance/renders/browser-final node tools/test_android_wallpaper_browser.cjs",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-final node tools/test_android_wallpaper_browser.cjs",
       "started_utc": "2026-11-01T18:09:03.169127+00:00",
       "elapsed_seconds": 18.38,
       "exit_status": 0,
@@ -111,8 +111,8 @@
     },
     {
       "name": "android-wrapper-integrity",
-      "cwd": "/workspace/kone-acceptance/android",
-      "command": "curl -fSL --max-time 30 https://services.gradle.org/distributions/gradle-9.7.0-wrapper.jar.sha256 -o /workspace/kone-acceptance/gradle-wrapper.sha256 && python3 -c 'import pathlib,hashlib; p=pathlib.Path(\"android/gradle/wrapper/gradle-wrapper.jar\"); actual=hashlib.sha256(p.read_bytes()).hexdigest(); expected=pathlib.Path(\"/workspace/kone-acceptance/gradle-wrapper.sha256\").read_text().strip(); print(\"actual=\"+actual); print(\"official=\"+expected); assert actual==expected'",
+      "cwd": ".",
+      "command": "curl -fSL --max-time 30 https://services.gradle.org/distributions/gradle-9.7.0-wrapper.jar.sha256 -o ${TASK_WORKSPACE}/gradle-wrapper.sha256 && python3 -c 'import pathlib,hashlib; p=pathlib.Path(\"android/gradle/wrapper/gradle-wrapper.jar\"); actual=hashlib.sha256(p.read_bytes()).hexdigest(); expected=pathlib.Path(\"${TASK_WORKSPACE}/gradle-wrapper.sha256\").read_text().strip(); print(\"actual=\"+actual); print(\"official=\"+expected); assert actual==expected'",
       "started_utc": "2026-11-01T18:10:25.959435+00:00",
       "elapsed_seconds": 0.59,
       "exit_status": 1,
@@ -122,7 +122,7 @@
     },
     {
       "name": "android-final",
-      "cwd": "/workspace/kone-acceptance/android/android",
+      "cwd": "android",
       "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest",
       "started_utc": "2026-11-01T18:09:32.524382+00:00",
       "elapsed_seconds": 63.83,
@@ -132,8 +132,8 @@
     },
     {
       "name": "android-wrapper-provenance",
-      "cwd": "/workspace/kone-acceptance/android",
-      "command": "curl -fsSL --max-time 30 https://services.gradle.org/distributions/gradle-9.6.1-wrapper.jar.sha256 -o /workspace/kone-acceptance/gradle-wrapper-9.6.1.sha256 && python3 -c 'import pathlib,hashlib; actual=hashlib.sha256(pathlib.Path(\"android/gradle/wrapper/gradle-wrapper.jar\").read_bytes()).hexdigest(); expected=pathlib.Path(\"/workspace/kone-acceptance/gradle-wrapper-9.6.1.sha256\").read_text().strip(); print(\"actual=\"+actual); print(\"official_9.6.1=\"+expected); assert actual==expected'",
+      "cwd": ".",
+      "command": "curl -fsSL --max-time 30 https://services.gradle.org/distributions/gradle-9.6.1-wrapper.jar.sha256 -o ${TASK_WORKSPACE}/gradle-wrapper-9.6.1.sha256 && python3 -c 'import pathlib,hashlib; actual=hashlib.sha256(pathlib.Path(\"android/gradle/wrapper/gradle-wrapper.jar\").read_bytes()).hexdigest(); expected=pathlib.Path(\"${TASK_WORKSPACE}/gradle-wrapper-9.6.1.sha256\").read_text().strip(); print(\"actual=\"+actual); print(\"official_9.6.1=\"+expected); assert actual==expected'",
       "started_utc": "2026-11-01T18:10:53.139316+00:00",
       "elapsed_seconds": 0.62,
       "exit_status": 0,
@@ -142,7 +142,7 @@
     },
     {
       "name": "android-linux-core",
-      "cwd": "/workspace/kone-acceptance/android/core",
+      "cwd": "core",
       "command": "go test -mod=readonly -p 2 -count=1 -v ./experimental/locale ./dns/transport/hosts",
       "started_utc": "2026-11-01T18:11:39.122228+00:00",
       "elapsed_seconds": 15.25,
@@ -152,8 +152,8 @@
     },
     {
       "name": "android-native-preview",
-      "cwd": "/workspace/kone-acceptance/android/android",
-      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PkoneVisualPreview=true -PkonePreviewDir=/workspace/kone-acceptance/renders/native :app:testOtherDebugUnitTest --tests '*.VisualChannelTest.accountEnglishLight' --tests '*.VisualChannelTest.accountEnglishDark' --tests '*.VisualChannelTest.accountExpired' --tests '*.VisualChannelTest.settingsEnglish' --tests '*.VisualChannelTest.longNetworkValues'",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PkoneVisualPreview=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/native :app:testOtherDebugUnitTest --tests '*.VisualChannelTest.accountEnglishLight' --tests '*.VisualChannelTest.accountEnglishDark' --tests '*.VisualChannelTest.accountExpired' --tests '*.VisualChannelTest.settingsEnglish' --tests '*.VisualChannelTest.longNetworkValues'",
       "started_utc": "2026-11-01T18:11:05.297753+00:00",
       "elapsed_seconds": 112.94,
       "exit_status": 1,
@@ -163,8 +163,8 @@
     },
     {
       "name": "android-native-preview-local-cache",
-      "cwd": "/workspace/kone-acceptance/android/android",
-      "command": "KONE_ROBOLECTRIC_CACHE=/workspace/kone-acceptance/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PkoneVisualPreview=true -PkonePreviewDir=/workspace/kone-acceptance/renders/native :app:testOtherDebugUnitTest --tests '*.VisualChannelTest.accountEnglishLight' --tests '*.VisualChannelTest.accountEnglishDark' --tests '*.VisualChannelTest.accountExpired' --tests '*.VisualChannelTest.settingsEnglish' --tests '*.VisualChannelTest.longNetworkValues'",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PkoneVisualPreview=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/native :app:testOtherDebugUnitTest --tests '*.VisualChannelTest.accountEnglishLight' --tests '*.VisualChannelTest.accountEnglishDark' --tests '*.VisualChannelTest.accountExpired' --tests '*.VisualChannelTest.settingsEnglish' --tests '*.VisualChannelTest.longNetworkValues'",
       "started_utc": "2026-11-01T18:14:27.866095+00:00",
       "elapsed_seconds": 47.13,
       "exit_status": 0,
@@ -173,39 +173,112 @@
     },
     {
       "name": "android-final-inputs",
-      "cwd": "/workspace/kone-acceptance/android",
-      "command": "sha256sum dependencies/libbox.aar dependencies/libbox-legacy.aar android/app/libs/libbox.aar android/app/libs/libbox-legacy.aar && git diff --exit-code 0dd7a9ff0d78743d8910e05041bcbb07c7d598a5 -- dependencies android/gradle android/kone-version.properties android/app/src/main/assets/wallpaper/images android/app/src/main/res shared desktop && git -C /workspace/KOne diff --exit-code && git -C /workspace/KOne diff --cached --exit-code",
+      "cwd": ".",
+      "command": "sha256sum dependencies/libbox.aar dependencies/libbox-legacy.aar android/app/libs/libbox.aar android/app/libs/libbox-legacy.aar && git diff --exit-code 0dd7a9ff0d78743d8910e05041bcbb07c7d598a5 -- dependencies android/gradle android/kone-version.properties android/app/src/main/assets/wallpaper/images android/app/src/main/res shared desktop && git -C ${SOURCE_CHECKOUT} diff --exit-code && git -C ${SOURCE_CHECKOUT} diff --cached --exit-code",
       "started_utc": "2026-11-01T18:17:36.649116+00:00",
       "elapsed_seconds": 0.21,
       "exit_status": 0,
       "log": "android-final-inputs.log",
       "local_log_sha256": "fde2aa48e9f351003d6038e973c0d105e1b139133a26e1359acf6eb7dd64da5d"
+    },
+    {
+      "name": "android-browser-progression",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-progression node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:24:48.809858+00:00",
+      "elapsed_seconds": 46.11,
+      "exit_status": 1,
+      "log": "android-browser-progression.log",
+      "local_log_sha256": "83b20057cad0c1654706f0249f527a1725aa389148a32470d1a8ab6ed47085d5",
+      "outcome_context": "First fade instrumentation observed the document element before it existed. Corrected document observer passes; no production fade defect."
+    },
+    {
+      "name": "android-browser-progression-final",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-progression-final node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:26:34.710402+00:00",
+      "elapsed_seconds": 11.45,
+      "exit_status": 0,
+      "log": "android-browser-progression-final.log",
+      "local_log_sha256": "2ef3e6a9229a6dc29bd80d06439cda994d938b805f62f881c676c2c19e14561a"
+    },
+    {
+      "name": "android-glow-timing-red",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:28:41.756728+00:00",
+      "elapsed_seconds": 0.98,
+      "exit_status": 1,
+      "log": "android-glow-timing-red.log",
+      "local_log_sha256": "b28e2fe6ef0bdb1a78dafa3e65323d42379b040c44e365d4db9735992a004a84",
+      "outcome_context": "Expected throttled-paint regression: glow consumed time before the request. Elapsed-time origin reset fixes it."
+    },
+    {
+      "name": "saved-client-server-contract",
+      "cwd": "server-web",
+      "command": "python3 tools/check_android_contract.py --server-root . --classes ${ANDROID_API_CLASSES} --stdlib ${KOTLIN_STDLIB_JAR} --json-jar ${JSON_JAR}",
+      "started_utc": "2026-11-01T18:29:25.660108+00:00",
+      "elapsed_seconds": 3.59,
+      "exit_status": 0,
+      "log": "saved-client-server-contract.log",
+      "local_log_sha256": "5cec11745507fa9accff1330c1674800f485edcd052989dd7aae31b9f8a55e21"
+    },
+    {
+      "name": "android-wallpaper-progression-final",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:29:42.166134+00:00",
+      "elapsed_seconds": 0.92,
+      "exit_status": 0,
+      "log": "android-wallpaper-progression-final.log",
+      "local_log_sha256": "7ba2b15de2abfd0880d3fe0042b415f2debed04b84a4c7e2d78d811a495f5c9d"
+    },
+    {
+      "name": "android-final-assets",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:mergeOtherDebugAssets",
+      "started_utc": "2026-11-01T18:29:43.378438+00:00",
+      "elapsed_seconds": 28.5,
+      "exit_status": 0,
+      "log": "android-final-assets.log",
+      "local_log_sha256": "8b4f41099ff98af1651fbc248d6d0bdcc1d202084771ac8a64f3c5ace488c9d3"
+    },
+    {
+      "name": "android-browser-final-refined",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-final-refined node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:29:43.129328+00:00",
+      "elapsed_seconds": 30.67,
+      "exit_status": 0,
+      "log": "android-browser-final-refined.log",
+      "local_log_sha256": "2ba21c66b8fe6446a42d1023b6ba1508558dda763cfacd475ca99a3144029a10"
     }
   ],
   "artifacts": {
     "android-baseline-junit.json": "ff2984310a36d868c48b52c2b7d5b7168e2d567c066671201aa601af61d473be",
     "android-final-junit.json": "88ecbf83b49507c8c1a64d27cf621446ce6acae27ad23f3329aaf33cf375540d",
     "android-native-preview-junit.json": "70bba3ef08a70fa75f436d83a86280336ac82680d674fef8c557f9a08a1fdc1f",
-    "browser/checks.json": "0bf2115007084d63c5d8bb2e40516b5cfba203f9c0814064e075c00b166ff73f",
-    "browser/las-vegas-strip-day-320.json": "375406b91cb68b2a0ced755545b24f851e1c5098d2f88c3598b90e5c49debbc6",
-    "browser/las-vegas-strip-day-320.png": "e7943baaccd8457c3bcccd9f2606696ee206a78ed5f9c0c131fc16bfd5562fdc",
-    "browser/las-vegas-strip-night-320.json": "f435de92dd14a1faf84bcb4bfa92d0ecf0a92d1802b8e2566d3d898b050167f4",
-    "browser/las-vegas-strip-night-320.png": "d4c694d27af969797fe0a412edcdb7804bd1a7367528c9358535fc103a78d64b",
-    "browser/original-day-320.json": "dbe4857b99944ef421647bd2d361a57c7178ca7a338c709dc404739cc5b2ba22",
-    "browser/original-day-320.png": "95a3780d0659243c2b016f9760106d123a9ac1cc2f8b88f84d63b4c9f258121e",
-    "browser/original-night-320.json": "57f24b9dbb3f62232b38b48266bdf2ac7cb8974bc2345d7b04279989bb90db3a",
-    "browser/original-night-320.png": "64e2602a27204c986fbd56c7946fb943bb50758d4137c2f568071f2880ed1950",
-    "browser/tokyo-bay-day-320.json": "af1a8314494179cc319d6009f3cfaf1fc08497d2aa770a28edcbacb103c7020d",
-    "browser/tokyo-bay-day-320.png": "b8c6a7bf1120976732b872b3f915cc1066650ea1f0b62acd8999735b99e389c8",
-    "browser/tokyo-bay-night-320.json": "dc314709a9f3785514c10ea1be2c75252b68c3c0f7f0c56d1d99003d2bebc1de",
-    "browser/tokyo-bay-night-320.png": "8f836ce5496e26c896d5a6dda2b56b1cf758e92de2ccc1f87f56967ba67e3dfc",
+    "browser/checks.json": "b00aaca5a9d04e9d86defb4319a94f204ecb6a8bc9f35791ee34780559125419",
+    "browser/las-vegas-strip-day-320.json": "e128c7cbd17c2211d33dc335a9745a5c4b5d37d8d8e5b36b4ccad2a9fd75e743",
+    "browser/las-vegas-strip-day-320.png": "c0689a527d57de476a36629b413e52e5373bc3a4870de1b7aed8ac7e52191b0f",
+    "browser/las-vegas-strip-night-320.json": "8a7f8f10c3e11d9a6778784b637079c2209d974af492397902f79ab6986da5d1",
+    "browser/las-vegas-strip-night-320.png": "a8dca52602ecf805eda81fa9099878f960fca71e4338728ef5b8e16c10acd36d",
+    "browser/motion-progression.json": "2cfefc7b080a9988231b3b080af47dd269609c4235c4384d76c9a533d9311896",
+    "browser/original-day-320.json": "a0e3d6f09f3de625ca09cda975232571d0ea664800a7f2049c9d14921eb228e8",
+    "browser/original-day-320.png": "7c4f904aa11f4875567d4aaae1eea221f02223f724af69ffe197248a5f9b03f6",
+    "browser/original-night-320.json": "7a70c59dcee4597ecd0ba809bb04c7e2948f6664881cbce2f4ee3d96ea744e0e",
+    "browser/original-night-320.png": "85335ed31ea0e5445a3aaff6c622640756b4353514f0e71a0c5fa7a719389468",
+    "browser/tokyo-bay-day-320.json": "e020287a8411d389ed713cc53229590c191ff1cab832cdf06ce72acffa2965be",
+    "browser/tokyo-bay-day-320.png": "bbabadb8aab620eb12130e18f13f58b264dc914c1f00ad5b3a44aae7cdd2ff32",
+    "browser/tokyo-bay-night-320.json": "e51f1fb4bad4d5c1511e9618422ac39be7b53e2067035d021969abeb15042a91",
+    "browser/tokyo-bay-night-320.png": "c229069049bdeca2b97e026595efe8975cf5d74c3971ea2338986f8f4f2d2198",
     "native/account-en-dark-320.png": "1afc5ab638f900b2a5baff6dba2434c10050a2206fb1949c395b49540abcf117",
     "native/account-en-light-320.png": "fb07e272624766ee180b0cf3d06356b6672dbd423ce91618e150a9d4f5c1e956",
     "native/account-expired-en-light-320.png": "cb0f8647237c0b75ca964f33d78d4ce2e10e7f844f365f0c1c9c95b70967b066",
     "native/network-long-en-light-320.png": "ea454f4a3d1fc0634db4c1a104e7ce0a3e48e37ced92efe867a16eb92172cdf5",
     "native/settings-en-light-320.png": "95824126fcb51e6fd347d7666901d110b2ddcdb30420827ec9505a392903f317",
     "native-render-cache.init.gradle": "92f215316d4c24853dc93ef6e3976962073c86079bed816f4903f674351c3364",
-    "wallpaper-source-sha256.json": "327125798f40b64a84b530239abaa2399467eb429379ecde7a3de8e2fe67d688"
+    "wallpaper-source-sha256.json": "4a8b562b6c1a6a3ee3a23605d1ba03ec20d945b5080d0d8e42e060e659b24478"
   },
   "limits": [
     "No Windows compilation or tests",
@@ -214,5 +287,13 @@
     "No live service or customer data",
     "No credential grant, production deployment or merge",
     "No remote CI run dispatched"
-  ]
+  ],
+  "command_convention": "Commands are reproducible path templates. Resolve named candidate/runtime/output placeholders to the selected local inputs. Original commands and precise environment receipts remain outside Git.",
+  "refined_wallpaper_commit": "e0da5853e69f9da210d54118599ec0d891564942",
+  "followup_counts": {
+    "wallpaper_host_passed": 8,
+    "browser_passed": 12,
+    "android_debug_asset_merge": "passed",
+    "actual_client_contract_scenarios_passed": 12
+  }
 }

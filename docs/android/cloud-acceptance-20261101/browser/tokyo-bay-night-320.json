@@ -3,7 +3,7 @@
   "error": null,
   "scene": "tokyo-bay",
   "running": true,
-  "time": 0.7261999999999534,
+  "time": 1.2001999999999535,
   "layers": [
     {
       "playing": true,
@@ -37,7 +37,7 @@
       ],
       "lightCount": 18,
       "samplingStatus": "sampled",
-      "lightSampleSource": "http://127.0.0.1:34037/images/tokyo-bay-night.webp|853x1844|0,-0.002288567922050788,320.10626220703125,691.9999384639691|0,-0.002288567922050788,320.10626220703125,691.9999384639691",
+      "lightSampleSource": "http://127.0.0.1:42971/images/tokyo-bay-night.webp|853x1844|0,-0.002288567922050788,320.10626220703125,691.9999384639691|0,-0.002288567922050788,320.10626220703125,691.9999384639691",
       "roomLightModel": "independent-hold-and-fade",
       "lightPeriodSeconds": [
         54,
@@ -51,12 +51,12 @@
       "environmentStatus": "provided",
       "environmentSamples": 3,
       "environment": {
-        "wind": 0.8701164607723167,
-        "advection": 0.61928165588137,
-        "gust": 0.26117581154017594,
-        "cloudCover": 0.18430093774291262,
-        "waveGroup": 0.27201355500978275,
-        "shimmer": 0.706326348663554,
+        "wind": 0.8640071867935555,
+        "advection": 1.006853032068293,
+        "gust": 0.25778177044086414,
+        "cloudCover": 0.18413110279890668,
+        "waveGroup": 0.23286389204617733,
+        "shimmer": 0.6698184419167086,
         "rain": 0,
         "snow": 0,
         "fog": 0.025,
@@ -184,12 +184,12 @@
         "boatPace": 1.2
       },
       "environment": {
-        "wind": 0.8701334590532518,
-        "advection": 0.6182374992567317,
-        "gust": 0.2611852550295843,
-        "cloudCover": 0.1843014428526111,
-        "waveGroup": 0.27212173720470867,
-        "shimmer": 0.7063209720142125,
+        "wind": 0.8640550074018835,
+        "advection": 1.0036560287578484,
+        "gust": 0.2578083374454908,
+        "cloudCover": 0.184132357712746,
+        "waveGroup": 0.23317659260617485,
+        "shimmer": 0.6704303740910275,
         "activity": 0.9825,
         "rain": 0,
         "snow": 0
@@ -236,19 +236,19 @@
       "sunInFrame": false,
       "moonReflectionStrength": 0,
       "environment": {
-        "wind": 0.8708045517009516,
-        "advection": 0.5770641634913817,
-        "gust": 0.26155808427830646,
-        "cloudCover": 0.18432156088275564,
-        "waveGroup": 0.2763959697792856,
-        "shimmer": 0.7056718911213302,
+        "wind": 0.867411992039831,
+        "advection": 0.7869572802014588,
+        "gust": 0.2596733289110172,
+        "cloudCover": 0.18422311421029747,
+        "waveGroup": 0.25480329779463895,
+        "shimmer": 0.6999671710009379,
         "rain": 0,
         "snow": 0,
         "fog": 0.025,
         "wetness": 0,
         "temperature": 23,
         "activity": 0.9825,
-        "transmission": 0.831547026423175,
+        "transmission": 0.8316336594949383,
         "fogVisibility": 1,
         "directVisibility": 0.8688,
         "source": "manual"
@@ -315,9 +315,9 @@
         "directVisibility": 0.8688,
         "wetness": 0,
         "wind": 0.78,
-        "windPhase": 0.6202387816761736,
+        "windPhase": 1.0066802254814768,
         "windX": 0.65,
-        "gust": 0.2611671557597235,
+        "gust": 0.25778320562733936,
         "cloudCover": 0.16,
         "temperatureC": 23
       },
@@ -349,7 +349,7 @@
       "running": true,
       "frames": 3,
       "time": 0.1,
-      "sampleTime": 0.7087999999999302,
+      "sampleTime": 1.150600000000093,
       "intensity": "expressive",
       "maxFps": 24,
       "reducedMotion": false,
@@ -409,6 +409,6 @@
       "connectionGlow": 0
     }
   ],
-  "original_runtime_state_sha256": "9ddf015111db46ea4a8ce034efb6b5eb4c3e5a380ccf403f53d6a9b80c4c83f3",
+  "original_runtime_state_sha256": "0a3b220644d34dd7c615f5b2569123ca04a3a0c7c7959830ea835ea4d0b395e4",
   "summary_note": "Decorative prose captions omitted; original bundled assets are unchanged."
 }

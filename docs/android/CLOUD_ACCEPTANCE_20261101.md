@@ -9,9 +9,8 @@ The website/backend baseline was independently checked at
 
 ## Fresh execution
 
-The published environment version was
-`16baad87-4a9f-4117-8815-e6f385322ec3~cecfgver_6ae77c0f6e7881a0826b2b400af1de1a`.
-Instance: `ccarenv_b64_Y2NhcmVudl8xYTcwMjhmOTY2NTg4MTkxOWQ2ZTQ4ODUwNjVmYTNlNQ`.
+This check ran in a fresh instance of the selected published KOne cloud environment.
+Exact environment identifiers are retained only in the internal task receipt.
 Execution used its restored workspace-local JDK 21.0.12, Gradle 9.7.0, Android 37.1 SDK,
 NDK 28.0.13004108, Go 1.26.10, Node 24.19.0 and Python 3.12.14. The wrapper actually
 downloaded and ran its pinned Gradle distribution. SDK listing succeeded with a warning about
@@ -69,8 +68,8 @@ bash ./gradlew --no-daemon --console=plain --max-workers=2 \
 | --- | --- | --- |
 | Unsigned Kotlin/Java/resource compilation and unit task | Exit 0; 416 tests, 0 failures/errors/skips | Exit 0; 417 tests, 0 failures/errors/skips |
 | Invalid-port regression alone | 3 tests, 1 expected failure before the fix | Included in the passing 417-test run |
-| `node --test tools/test_android_wallpaper.cjs` | Four existing tests; extra pause reproduction failed | Seven passed |
-| Real Chromium wallpaper fixtures | 7 of 10 passed; pause and two reduced-motion cases failed | 10 of 10 passed |
+| `node --test tools/test_android_wallpaper.cjs` | Four existing tests; extra pause reproduction failed | Eight passed after follow-up |
+| Real Chromium wallpaper fixtures | 7 of 10 passed; pause and two reduced-motion cases failed | 12 of 12 passed after follow-up |
 | Isolated native Compose preview | Not credited from earlier local reports | Five selected English cases passed under Robolectric API 35 native graphics |
 | Selected Linux core packages | Not credited from setup-task history | Three top-level tests passed across two packages; five locale subtests also passed |
 
@@ -84,12 +83,13 @@ from `core/`. No aggregate containing Windows checks was invoked.
 
 The browser tool uses an ephemeral loopback static fixture and blocks all external page
 requests. Install the reviewed `playwright@1.62.1` test dependency outside the checkout, then
-run from the repository root with its module directory and local Chromium selected:
+run from the repository root with `$TEST_MODULES` selecting its module directory,
+`$BROWSER` the local Chromium executable and `$EVIDENCE_DIR` a disposable output directory:
 
 ```sh
-KONE_TEST_NODE_MODULES=/workspace/kone-acceptance/browser-tools/node_modules \
-KONE_TEST_BROWSER=/usr/bin/chromium \
-KONE_WALLPAPER_EVIDENCE_DIR=/workspace/kone-acceptance/renders/browser-final \
+KONE_TEST_NODE_MODULES="$TEST_MODULES" \
+KONE_TEST_BROWSER="$BROWSER" \
+KONE_WALLPAPER_EVIDENCE_DIR="$EVIDENCE_DIR" \
 node tools/test_android_wallpaper_browser.cjs
 ```
 
@@ -124,6 +124,31 @@ Reviewed artifacts, all synthetic:
 complete the selected native matrix. Runtime evidence summaries omit decorative prose captions;
 the original bundled localization/artwork is untouched. The JSON evidence manifest records
 full commands, statuses, durations, source/image/log digests and the separate JUnit totals.
+
+### Follow-up motion progression and integration checks
+
+The browser harness now has 12 checks. It scrubs the actual browser opacity transition's
+animation clock through initial, intermediate and completed positions, verifies its 480 ms
+duration, and samples the actual pulse controller through connection, intermediate glow,
+host pause, unchanged paused state and resumed completion. This uses browser transition/state
+sampling; it is not a pixel-based Android animation or physical-device benchmark.
+
+An additional throttled-paint host regression exposed a timing edge case in the first glow
+implementation: a late connection could consume elapsed time from before the request. It
+failed before the refinement. The glow's elapsed-time origin now resets on a connection-state
+change. All eight host checks and all 12 browser checks pass after that refinement, and the
+Android debug asset merge succeeds. The progression samples are saved beside the earlier
+frames. The native Kotlin/presentation code is unchanged; the earlier 417 unit and five native
+render results remain separate evidence and were not rerun for this asset-only refinement.
+
+The server handoff now includes a saved host-JVM harness that drives the actual compiled
+Android API classes against the real disposable backend: 12 client contract scenarios and
+backend lifecycle assertions pass. No concrete schema/auth incompatibility was found. It
+does not exercise the native keystore, service reload, real origin/proxy routing or VPN.
+
+Current checked-in evidence uses source-relative paths or named runtime/input/output templates.
+Opaque environment identifiers and precise host paths remain only in internal task receipts.
+This is a forward cleanup; existing candidate history has not been rewritten.
 
 ## Supply-chain and trust-boundary observations
 
