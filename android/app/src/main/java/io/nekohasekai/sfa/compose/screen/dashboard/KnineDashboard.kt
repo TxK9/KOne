@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
@@ -33,6 +34,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -1107,6 +1109,11 @@ private fun StatusTile(spec: TileSpec, order: Int, clear: Boolean, modifier: Mod
     }
 }
 
+/**
+ * One node: flag, name, latency, the check when in use and its edit button. A long press starts
+ * selecting; while [marked] is not null, a tap marks the row and a ring in the edit button's place says so.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun NodeRow(
     profile: Profile,
@@ -1115,8 +1122,11 @@ internal fun NodeRow(
     onSelect: () -> Unit,
     onEdit: () -> Unit,
     modifier: Modifier = Modifier,
+    marked: Boolean? = null,
+    onLongPress: (() -> Unit)? = null,
 ) {
     val ink = LocalContentColor.current
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val background by animateColorAsState(
         if (selected && !clear) ink.copy(alpha = 0.07f) else Color.Transparent,
         tween(300),
@@ -1130,7 +1140,17 @@ internal fun NodeRow(
             .heightIn(min = 44.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(background)
-            .clickable(onClick = onSelect)
+            .combinedClickable(
+                onClick = onSelect,
+                onLongClickLabel = if (onLongPress != null) stringResource(R.string.kone_nodes_select) else null,
+                onLongClick = onLongPress?.let { press ->
+                    {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        press()
+                    }
+                },
+            )
+            .semantics { if (marked != null) this.selected = marked }
             .padding(start = 12.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1170,8 +1190,29 @@ internal fun NodeRow(
         }
         Spacer(Modifier.width(6.dp))
         AnimatedCheck(selected)
-        IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Default.MoreHoriz, contentDescription = "Edit node", modifier = Modifier.size(18.dp))
+        if (marked != null) {
+            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { SelectMark(marked) }
+        } else {
+            IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Default.MoreHoriz, contentDescription = "Edit node", modifier = Modifier.size(18.dp))
+            }
         }
+    }
+}
+
+/** A selected row's mark: a hairline ring that fills with ink and draws its check. */
+@Composable
+private fun SelectMark(marked: Boolean) {
+    val ink = LocalContentColor.current
+    val fill by animateFloatAsState(if (marked) 1f else 0f, tween(200), label = "selectMark")
+    Box(
+        Modifier
+            .size(20.dp)
+            .clip(CircleShape)
+            .background(ink.copy(alpha = fill))
+            .border(1.2.dp, ink.copy(alpha = 0.5f + 0.5f * fill), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedCheck(marked, Modifier.size(14.dp), color = knineTone())
     }
 }

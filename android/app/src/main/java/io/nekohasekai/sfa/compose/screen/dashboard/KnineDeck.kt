@@ -73,6 +73,30 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
+import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Deselect
+import androidx.compose.material.icons.outlined.FilterNone
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.SortByAlpha
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -173,12 +197,108 @@ internal fun NodeDeck(
     val edit = steady(onEdit)
     val delete = steady<Long> { onDelete?.invoke(it) }.takeIf { onDelete != null }
     val import = steady<Offset> { onImport?.invoke(it) }.takeIf { onImport != null }
+    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
-    // The lifted list stops a third of the way up, so the city stays in view above even with many nodes.
-    val listMax = (LocalConfiguration.current.screenHeightDp * if (floating) 0.34f else 0.42f).dp
-    // With many nodes from several countries, a line of flags narrows the lifted list to one country.
+    // With many nodes from several countries, a line of flags narrows the list to one country.
     var country by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(pagerState.currentPage) { country = null }
+    // A long category can be searched; a long press marks nodes to move or delete together.
+    var searching by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var marks by remember { mutableStateOf<Set<Long>?>(null) }
+    var moving by remember { mutableStateOf(false) }
+    // Test all: the run, how far it has come, and how many it covers.
+    var testing by remember { mutableStateOf<Job?>(null) }
+    var tested by remember { mutableIntStateOf(0) }
+    var testTotal by remember { mutableIntStateOf(0) }
+    // Fastest first is worked out at set moments, so rows never jump while being read.
+    var sortStamp by remember { mutableIntStateOf(0) }
+    var toTop by remember { mutableIntStateOf(0) }
+    val sort = NodeCategoryStore.sort
+    fun endSelecting() {
+        marks = null
+        moving = false
+    }
+    LaunchedEffect(pagerState.currentPage) {
+        country = null
+        searching = false
+        query = ""
+        endSelecting()
+        testing?.cancel()
+        testing = null
+    }
+    LaunchedEffect(editing) { if (editing != null) endSelecting() }
+    // Fastest first sorts again once the first check after it was chosen has come in.
+    LaunchedEffect(sort) {
+        if (sort != NodeSort.Latency) return@LaunchedEffect
+        val start = NodeLatency.round
+        snapshotFlow { NodeLatency.round }.first { it != start }
+        sortStamp++
+    }
+    BackHandler(enabled = marks != null || searching) {
+        if (marks != null) {
+            endSelecting()
+        } else {
+            searching = false
+            query = ""
+        }
+    }
+    val sorted = remember(groups, sort, sortStamp) {
+        // Read without watching, so a new latency does not reorder the list by itself.
+        Snapshot.withoutReadObservation {
+            groups.associate { group ->
+                group.id to NodeListing.sort(group.profiles, sort, { it.name }) { NodeListing.rank(NodeLatency[it.id]) }
+            }
+        }
+    }
+    val current = groups.getOrNull(pagerState.currentPage)
+    val currentSorted = current?.let { sorted[it.id] }.orEmpty()
+    val filtering = country != null || query.isNotBlank()
+    val currentShown = remember(currentSorted, country, query) {
+        if (!filtering) {
+            currentSorted
+        } else {
+            currentSorted.filter { profile ->
+                val flag = FlagIcons.codeFor(profile.icon, profile.name)
+                (country == null || flag == country) && NodeListing.matches(profile.name, flag, query)
+            }
+        }
+    }
+    // Copies of one node in this category, worked out off the main thread from the saved configs.
+    val copies by produceState(emptySet<Long>(), current?.profiles, selectedId) {
+        val profiles = current?.profiles.orEmpty()
+        val managed = profiles.map { it.id }.filterTo(HashSet()) { io.nekohasekai.sfa.managed.ManagedState.isManaged(it) }
+        value = withContext(Dispatchers.IO) {
+            val prints = profiles.associate { it.id to NodeFingerprints.of(it) }
+            NodeListing.duplicates(profiles.map { it.id }, { prints[it] }, selectedId) { it in managed }
+        }
+    }
+    val all = floating || expanded
+    val many = current != null && current.profiles.size > MANY_NODES
+    val toolsShown = all && current != null && editing == null && (marks != null || many || copies.isNotEmpty() || searching)
+    // The lifted list stops a third of the way up, so the city stays in view above even with many nodes.
+    val listMax = (LocalConfiguration.current.screenHeightDp * if (floating) 0.34f else 0.42f).dp - if (toolsShown && floating) 44.dp else 0.dp
+    fun startTest() {
+        val nodes = currentShown
+        testing?.cancel()
+        testTotal = nodes.size
+        tested = 0
+        testing = scope.launch {
+            NodeLatency.sweep(context, nodes) { tested = it }
+            testing = null
+            if (NodeCategoryStore.sort == NodeSort.Latency) {
+                sortStamp++
+                toTop++
+            }
+        }
+    }
+    // The last mark taken off ends selecting.
+    fun toggleMark(id: Long) {
+        marks = marks?.let { if (id in it) it - id else it + id }?.takeIf { it.isNotEmpty() }
+    }
+    fun markAll(ids: Collection<Long>) {
+        marks = ids.toSet().takeIf { it.isNotEmpty() }
+        if (!floating) expanded = true
+    }
 
     // Every page is composed, so the tallest is known before anyone swipes to it.
     val heights = remember { mutableStateMapOf<String, Int>() }
@@ -236,16 +356,66 @@ internal fun NodeDeck(
                 key(group.id) { CategoryEditor(group = group, onDone = { onEditingChange(null) }) }
             }
         }
-        val current = groups.getOrNull(pagerState.currentPage)
         val flags = remember(current?.profiles) {
             current?.profiles.orEmpty().groupingBy { FlagIcons.codeFor(it.icon, it.name) }.eachCount()
         }
         AnimatedVisibility(
-            visible = floating && current != null && current.profiles.size > MANY_NODES && flags.keys.count { it != null } >= 2,
+            visible = toolsShown,
             enter = io.nekohasekai.sfa.compose.theme.KnineMotion.reveal(),
             exit = io.nekohasekai.sfa.compose.theme.KnineMotion.conceal(),
         ) {
-            CountryFilter(flags = flags, picked = country, onPick = { country = if (country == it) null else it })
+            val selection = marks
+            AnimatedContent(
+                targetState = selection != null,
+                transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(140)) },
+                label = "nodeTools",
+            ) { selecting ->
+                if (selecting && selection != null) {
+                    val deletable = if (onDelete == null) 0 else selection.count { !io.nekohasekai.sfa.managed.ManagedState.isManaged(it) }
+                    SelectionBar(
+                        count = selection.size,
+                        allMarked = currentShown.all { it.id in selection },
+                        deletable = deletable,
+                        moving = moving,
+                        targets = groups.filter { it.id != current?.id },
+                        onClose = ::endSelecting,
+                        onMarkAll = { markAll(if (currentShown.all { it.id in selection }) emptySet() else currentShown.map { it.id }) },
+                        onToggleMove = { moving = !moving },
+                        onMove = { target ->
+                            NodeCategoryStore.assignAll(selection, target.id)
+                            endSelecting()
+                        },
+                        onDelete = {
+                            selection.filterNot { io.nekohasekai.sfa.managed.ManagedState.isManaged(it) }.forEach { delete?.invoke(it) }
+                            endSelecting()
+                        },
+                    )
+                } else {
+                    NodeTools(
+                        searchable = searching || (current?.profiles?.size ?: 0) > LONG_NODES,
+                        searching = searching,
+                        query = query,
+                        onQuery = { query = it },
+                        onSearch = { open ->
+                            searching = open
+                            if (!open) query = ""
+                        },
+                        flags = if (many && flags.keys.count { it != null } >= 2) flags else emptyMap(),
+                        country = country,
+                        onCountry = { country = if (country == it) null else it },
+                        copies = copies.size,
+                        onCopies = { markAll(copies) },
+                        sortable = many,
+                        sort = sort,
+                        onSort = {
+                            NodeCategoryStore.sort = sort.next()
+                            toTop++
+                        },
+                        progress = if (testing != null) tested.toFloat() / testTotal.coerceAtLeast(1) else null,
+                        onTest = if (many) ({ if (testing == null) startTest() else { testing?.cancel(); testing = null } }) else null,
+                    )
+                }
+            }
         }
         HorizontalPager(
             state = pagerState,
@@ -256,14 +426,12 @@ internal fun NodeDeck(
             verticalAlignment = Alignment.Top,
             pageSpacing = 16.dp,
             beyondViewportPageCount = groups.size,
-            userScrollEnabled = editing == null,
+            userScrollEnabled = editing == null && marks == null,
             key = { groups.getOrNull(it)?.id ?: it },
         ) { index ->
             val group = groups.getOrNull(index) ?: return@HorizontalPager
-            val all = floating || expanded
-            val filtered = if (floating && country != null && index == pagerState.currentPage) {
-                group.copy(profiles = group.profiles.filter { FlagIcons.codeFor(it.icon, it.name) == country })
-            } else group
+            val isCurrent = index == pagerState.currentPage
+            val filtered = group.copy(profiles = if (isCurrent) currentShown else sorted[group.id] ?: group.profiles)
             // Only a list too long for the screen scrolls; a short one leaves the swipe that folds the panel alone.
             val long = all && filtered.profiles.size * NODE_ROW_DP > listMax.value
             val list = rememberLazyListState()
@@ -274,12 +442,24 @@ internal fun NodeDeck(
                 all = all,
                 fromBottom = floating,
                 rise = { rise.value },
-                onToggleAll = if (floating) null else ({ expanded = !expanded }),
+                onToggleAll = if (floating) null else ({
+                    expanded = !expanded
+                    if (!expanded) {
+                        endSelecting()
+                        searching = false
+                        query = ""
+                    }
+                }),
                 onSelect = select,
                 onEdit = edit,
                 onDelete = delete,
                 onImport = import,
                 list = if (long) list else null,
+                marks = if (isCurrent) marks else null,
+                onMark = ::toggleMark,
+                onLongPress = { id -> if (marks != null) toggleMark(id) else markAll(listOf(id)) },
+                top = if (isCurrent) toTop else 0,
+                filtering = isCurrent && filtering,
                 modifier = Modifier
                     .naturalHeight { if (heights[group.id] != it) heights[group.id] = it }
                     .graphicsLayer {
@@ -293,8 +473,11 @@ internal fun NodeDeck(
     }
 }
 
-/** More nodes than this in one category, from more than one country, bring out the line of flags. */
+/** More nodes than this in one category bring out the tools above them: order, Test all, and flags from more than one country. */
 private const val MANY_NODES = 8
+
+/** More nodes than this in one category can be searched. */
+private const val LONG_NODES = 16
 
 /**
  * A scrolling list dissolves at the edge that has more beyond it, so rows ease into the city
@@ -345,10 +528,10 @@ private fun <T> steady(action: (T) -> Unit): (T) -> Unit {
 
 /** The countries of a long list as flags with their counts; tapping one shows only its nodes, tapping it again shows all. */
 @Composable
-private fun CountryFilter(flags: Map<String?, Int>, picked: String?, onPick: (String) -> Unit) {
+private fun CountryFilter(flags: Map<String?, Int>, picked: String?, onPick: (String) -> Unit, modifier: Modifier = Modifier) {
     val ink = LocalContentColor.current
     LazyRow(
-        Modifier.fillMaxWidth().padding(bottom = 6.dp),
+        modifier,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         contentPadding = PaddingValues(horizontal = 6.dp),
     ) {
@@ -666,11 +849,14 @@ private fun RepeatingAction(icon: ImageVector, label: String, onStep: () -> Unit
 }
 
 @Composable
-private fun EditorAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun EditorAction(icon: ImageVector, label: String, on: Boolean = false, onClick: () -> Unit) {
+    val ink = LocalContentColor.current
+    val lit by animateFloatAsState(if (on) 1f else 0f, tween(200), label = "actionOn")
     Box(
         Modifier
             .size(34.dp)
             .clip(CircleShape)
+            .background(ink.copy(alpha = 0.1f * lit))
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -793,8 +979,20 @@ private fun NodePage(
     onImport: ((Offset) -> Unit)?,
     modifier: Modifier,
     list: LazyListState? = null,
+    marks: Set<Long>? = null,
+    onMark: (Long) -> Unit = {},
+    onLongPress: (Long) -> Unit = {},
+    top: Int = 0,
+    filtering: Boolean = false,
 ) {
+    // A new order starts from its first row.
+    if (list != null) LaunchedEffect(top) { if (top > 0) list.animateScrollToItem(0) }
     if (group.profiles.isEmpty()) {
+        // A search that finds nothing leaves the list empty; the field above says why.
+        if (filtering) {
+            Spacer(modifier.fillMaxWidth().height(NODE_ROW_DP.dp))
+            return
+        }
         Column(modifier.fillMaxWidth()) {
             if (onImport != null) {
                 // Nothing here yet at all: the one thing to do is to bring a node in.
@@ -834,14 +1032,15 @@ private fun NodePage(
         // A list longer than the screen composes only the rows in view, however many nodes it holds.
         LazyColumn(modifier.fillMaxWidth(), state = list) {
             itemsIndexed(shown, key = { _, profile -> profile.id }) { i, profile ->
-                NodeItem(profile, order(i), selectedId, clear, rise, onSelect, onEdit, onDelete)
+                // A new order or a filter moves the rows to their places rather than redrawing them there.
+                NodeItem(profile, order(i), selectedId, clear, rise, onSelect, onEdit, onDelete, marks?.contains(profile.id), onMark, onLongPress, Modifier.animateItem())
             }
             if (toggle) item(key = "all") { AllNodesToggle(group, all, onToggleAll) }
         }
     } else {
         Column(modifier.fillMaxWidth()) {
             shown.forEachIndexed { i, profile ->
-                key(profile.id) { NodeItem(profile, order(i), selectedId, clear, rise, onSelect, onEdit, onDelete) }
+                key(profile.id) { NodeItem(profile, order(i), selectedId, clear, rise, onSelect, onEdit, onDelete, marks?.contains(profile.id), onMark, onLongPress) }
             }
             if (toggle) AllNodesToggle(group, all, onToggleAll)
         }
@@ -858,22 +1057,35 @@ private fun NodeItem(
     onSelect: (Long) -> Unit,
     onEdit: (Long) -> Unit,
     onDelete: ((Long) -> Unit)?,
+    marked: Boolean? = null,
+    onMark: (Long) -> Unit = {},
+    onLongPress: (Long) -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val shareContext = LocalContext.current
     val shareScope = rememberCoroutineScope()
+    // A long list checks by itself only the rows in view.
+    DisposableEffect(profile.id) {
+        NodeLatency.show(profile.id)
+        onDispose { NodeLatency.hide(profile.id) }
+    }
     SwipeNode(
         deletable = onDelete != null && !io.nekohasekai.sfa.managed.ManagedState.isManaged(profile.id),
         onDelete = { onDelete?.invoke(profile.id) },
         onShare = if (io.nekohasekai.sfa.compose.component.canShareNode(profile)) ({
             shareScope.launch { io.nekohasekai.sfa.compose.component.shareNodeAsText(shareContext, profile) }
         }) else null,
+        modifier = modifier,
+        enabled = marked == null,
     ) {
         NodeRow(
             profile = profile,
             selected = profile.id == selectedId,
             clear = clear,
-            onSelect = { onSelect(profile.id) },
+            onSelect = { if (marked != null) onMark(profile.id) else onSelect(profile.id) },
             onEdit = { onEdit(profile.id) },
+            marked = marked,
+            onLongPress = { onLongPress(profile.id) },
             modifier = Modifier.graphicsLayer {
                 val p = FastOutSlowInEasing.transform(((rise() - order * 0.07f) / 0.5f).coerceIn(0f, 1f))
                 alpha = p
@@ -904,3 +1116,338 @@ private fun AllNodesToggle(group: NodeGroup, all: Boolean, onToggleAll: () -> Un
 private fun flagName(code: String): String =
     java.util.Locale("", code).displayCountry.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
         ?: Countries.byCode(code)?.en ?: code
+
+/** The longest search kept. */
+private const val MAX_QUERY = 40
+
+/**
+ * The line over a long category: search, the countries in it, copies of one node, the order and
+ * Test all. Each shows only when it has something to do; search takes the whole line while open.
+ */
+@Composable
+private fun NodeTools(
+    searchable: Boolean,
+    searching: Boolean,
+    query: String,
+    onQuery: (String) -> Unit,
+    onSearch: (Boolean) -> Unit,
+    flags: Map<String?, Int>,
+    country: String?,
+    onCountry: (String) -> Unit,
+    copies: Int,
+    onCopies: () -> Unit,
+    sortable: Boolean,
+    sort: NodeSort,
+    onSort: () -> Unit,
+    progress: Float?,
+    onTest: (() -> Unit)?,
+) {
+    AnimatedContent(
+        targetState = searching,
+        transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(140)) },
+        label = "nodeSearch",
+    ) { open ->
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(44.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (open) {
+                SearchField(query, onQuery, onClose = { onSearch(false) }, modifier = Modifier.weight(1f))
+            } else {
+                if (searchable) EditorAction(Icons.Outlined.Search, stringResource(R.string.kone_nodes_search)) { onSearch(true) }
+                if (flags.isNotEmpty()) {
+                    CountryFilter(flags = flags, picked = country, onPick = onCountry, modifier = Modifier.weight(1f))
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+                if (copies > 0) CopiesChip(copies, onCopies)
+                if (sortable) SortButton(sort, onSort)
+                if (onTest != null) TestButton(progress, onTest)
+            }
+        }
+    }
+}
+
+/** The search, typed into a pill like a category's name; closing it shows every node again. */
+@Composable
+private fun SearchField(query: String, onQuery: (String) -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
+    val ink = LocalContentColor.current
+    val focusManager = LocalFocusManager.current
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    val label = stringResource(R.string.kone_nodes_search)
+    val pill = RoundedCornerShape(18.dp)
+    Row(
+        modifier
+            .height(36.dp)
+            .clip(pill)
+            .background(ink.copy(alpha = 0.08f))
+            .border(0.7.dp, ink.copy(alpha = 0.2f), pill)
+            .padding(start = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(16.dp).graphicsLayer { alpha = 0.7f })
+        Spacer(Modifier.width(8.dp))
+        BasicTextField(
+            value = query,
+            onValueChange = { onQuery(it.replace('\n', ' ').take(MAX_QUERY)) },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = ink),
+            cursorBrush = SolidColor(ink),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(focus)
+                .semantics { contentDescription = label },
+        )
+        EditorAction(Icons.Default.Close, stringResource(R.string.kone_nodes_close_search), onClick = onClose)
+    }
+}
+
+/** Copies of one node in this category, counted; tapping marks them, ready to delete. */
+@Composable
+private fun CopiesChip(count: Int, onClick: () -> Unit) {
+    val ink = LocalContentColor.current
+    val label = pluralStringResource(R.plurals.kone_nodes_copies, count, count)
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        Modifier
+            .padding(horizontal = 2.dp)
+            .clip(shape)
+            .border(0.8.dp, ink.copy(alpha = 0.3f), shape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label }
+            .padding(horizontal = 9.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.FilterNone, contentDescription = null, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(4.dp))
+        BText(count.toString(), style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"))
+    }
+}
+
+/** The order, as saved, fastest first or by name; each tap moves to the next and the rows glide there. */
+@Composable
+private fun SortButton(sort: NodeSort, onSort: () -> Unit) {
+    val ink = LocalContentColor.current
+    fun labelOf(of: NodeSort) = when (of) {
+        NodeSort.Saved -> R.string.kone_nodes_sort_saved
+        NodeSort.Latency -> R.string.kone_nodes_sort_latency
+        NodeSort.Name -> R.string.kone_nodes_sort_name
+    }
+    val label = stringResource(labelOf(sort))
+    val next = stringResource(labelOf(sort.next()))
+    // A chosen order stays lit, so a list out of its saved order says so.
+    val lit by animateFloatAsState(if (sort == NodeSort.Saved) 0f else 1f, tween(200), label = "sortLit")
+    Box(
+        Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(ink.copy(alpha = 0.1f * lit))
+            .clickable(role = Role.Button, onClickLabel = next, onClick = onSort)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedContent(
+            targetState = sort,
+            transitionSpec = {
+                (fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.7f)) togetherWith
+                    (fadeOut(tween(120)) + scaleOut(tween(120), targetScale = 0.7f))
+            },
+            label = "sortIcon",
+        ) { shown ->
+            val icon = when (shown) {
+                NodeSort.Saved -> Icons.AutoMirrored.Outlined.Sort
+                NodeSort.Latency -> Icons.Outlined.Speed
+                NodeSort.Name -> Icons.Outlined.SortByAlpha
+            }
+            Icon(icon, contentDescription = null, modifier = Modifier.size(19.dp))
+        }
+    }
+}
+
+/** Test all: a bolt at rest; while testing, a ring filling as results come in, which stops the test when tapped. */
+@Composable
+private fun TestButton(progress: Float?, onTap: () -> Unit) {
+    val ink = LocalContentColor.current
+    val label = stringResource(if (progress == null) R.string.kone_nodes_test else R.string.kone_nodes_stop_test)
+    val filled by animateFloatAsState(progress ?: 0f, tween(240), label = "testProgress")
+    Box(
+        Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClick = onTap)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedContent(
+            targetState = progress != null,
+            transitionSpec = { fadeIn(tween(200, delayMillis = 40)) togetherWith fadeOut(tween(120)) },
+            label = "testState",
+        ) { running ->
+            Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                if (running) {
+                    Canvas(Modifier.size(22.dp)) {
+                        val stroke = 2.dp.toPx()
+                        val inset = stroke / 2
+                        val arc = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
+                        drawCircle(ink.copy(alpha = 0.18f), radius = size.minDimension / 2 - inset, style = Stroke(stroke))
+                        drawArc(ink, -90f, 360f * filled, useCenter = false, topLeft = Offset(inset, inset), size = arc, style = Stroke(stroke, cap = StrokeCap.Round))
+                    }
+                    Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(12.dp))
+                } else {
+                    Icon(Icons.Outlined.Bolt, contentDescription = null, modifier = Modifier.size(19.dp))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * In place of the tools while nodes are marked: close, how many, mark all or none, move to
+ * another category (its names unfold below) and delete. Managed nodes move but are never deleted.
+ */
+@Composable
+private fun SelectionBar(
+    count: Int,
+    allMarked: Boolean,
+    deletable: Int,
+    moving: Boolean,
+    targets: List<NodeGroup>,
+    onClose: () -> Unit,
+    onMarkAll: () -> Unit,
+    onToggleMove: () -> Unit,
+    onMove: (NodeGroup) -> Unit,
+    onDelete: () -> Unit,
+) {
+    val counted = pluralStringResource(R.plurals.kone_nodes_selected, count, count)
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(44.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            EditorAction(Icons.Default.Close, stringResource(R.string.kone_nodes_clear_selection), onClick = onClose)
+            Spacer(Modifier.width(4.dp))
+            AnimatedContent(
+                targetState = count,
+                transitionSpec = {
+                    val more = targetState > initialState
+                    (slideInVertically(tween(240)) { if (more) it else -it } + fadeIn(tween(240))) togetherWith
+                        (slideOutVertically(tween(200)) { if (more) -it else it } + fadeOut(tween(160)))
+                },
+                modifier = Modifier.semantics { contentDescription = counted },
+                label = "markedCount",
+            ) { shown ->
+                BText(
+                    shown.toString(),
+                    style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            EditorAction(
+                if (allMarked) Icons.Outlined.Deselect else Icons.Outlined.SelectAll,
+                stringResource(if (allMarked) R.string.kone_nodes_select_none else R.string.kone_nodes_select_all),
+                onClick = onMarkAll,
+            )
+            if (targets.isNotEmpty()) {
+                EditorAction(Icons.AutoMirrored.Outlined.DriveFileMove, stringResource(R.string.kone_nodes_move), on = moving, onClick = onToggleMove)
+            }
+            if (deletable > 0) DeleteMarked(deletable, onDelete)
+        }
+        AnimatedVisibility(
+            visible = moving && targets.isNotEmpty(),
+            enter = io.nekohasekai.sfa.compose.theme.KnineMotion.reveal(),
+            exit = io.nekohasekai.sfa.compose.theme.KnineMotion.conceal(),
+        ) {
+            MoveTargets(targets, onMove)
+        }
+    }
+}
+
+/** Delete, asked twice in place: the bin turns into the words, which delete; left alone, they turn back. */
+@Composable
+private fun DeleteMarked(count: Int, onDelete: () -> Unit) {
+    val danger = dangerInk(LocalContentColor.current)
+    var armed by remember { mutableStateOf(false) }
+    LaunchedEffect(armed) {
+        if (armed) {
+            delay(3_000)
+            armed = false
+        }
+    }
+    val label = pluralStringResource(R.plurals.kone_nodes_delete, count, count)
+    AnimatedContent(
+        targetState = armed,
+        transitionSpec = { fadeIn(tween(200, delayMillis = 60)) togetherWith fadeOut(tween(120)) },
+        label = "deleteMarked",
+    ) { asking ->
+        if (asking) {
+            val pill = RoundedCornerShape(17.dp)
+            Box(
+                Modifier
+                    .padding(start = 2.dp)
+                    .height(34.dp)
+                    .clip(pill)
+                    .border(1.dp, danger.copy(alpha = 0.6f), pill)
+                    .clickable(role = Role.Button) {
+                        armed = false
+                        onDelete()
+                    }
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                BText(label, style = MaterialTheme.typography.labelLarge, color = danger, maxLines = 1, softWrap = false)
+            }
+        } else {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .clickable(role = Role.Button) { armed = true }
+                    .semantics { contentDescription = label },
+                contentAlignment = Alignment.Center,
+            ) {
+                androidx.compose.material3.Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = danger, modifier = Modifier.size(19.dp))
+            }
+        }
+    }
+}
+
+/** The other categories as names in a line; tapping one moves the marked nodes there. */
+@Composable
+private fun MoveTargets(targets: List<NodeGroup>, onMove: (NodeGroup) -> Unit) {
+    val ink = LocalContentColor.current
+    val shape = RoundedCornerShape(16.dp)
+    LazyRow(
+        Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(horizontal = 6.dp),
+    ) {
+        itemsIndexed(targets, key = { _, group -> group.id }) { _, group ->
+            Row(
+                Modifier
+                    .clip(shape)
+                    .border(0.8.dp, ink.copy(alpha = 0.3f), shape)
+                    .clickable(role = Role.Button) { onMove(group) }
+                    .padding(horizontal = 11.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                group.flag?.let {
+                    FlagGlyph(it, size = 16.dp)
+                    Spacer(Modifier.width(6.dp))
+                }
+                BText(group.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+            }
+        }
+    }
+}
