@@ -14,7 +14,8 @@ Exact environment identifiers are retained only in the internal task receipt.
 Execution used its restored workspace-local JDK 21.0.12, Gradle 9.7.0, Android 37.1 SDK,
 NDK 28.0.13004108, Go 1.26.10, Node 24.19.0 and Python 3.12.14. The wrapper actually
 downloaded and ran its pinned Gradle distribution. SDK listing succeeded with a warning about
-newer metadata XML. No dependency/version/network policy or environment configuration changed.
+newer metadata XML. Dependency versions, network policy and environment configuration are unchanged.
+The later source-only follow-up adds reviewed distribution checksum enforcement.
 
 The existing core AARs were verified against the committed snapshot before copying them
 into ignored `android/app/libs/`:
@@ -49,6 +50,14 @@ and unit tasks do not produce a signed installation candidate. Build/version met
    in about half a second without advancing on resize/sky-only redraws. Host checks compare
    12 Hz and 60 Hz callback cadences and verify finite coordinates and cleanup.
 
+6. Failed wallpaper initialization/rendering could be restarted by later host callbacks,
+   and render failure could retain readiness. Three new regressions failed before the fix.
+   Error state now gates activity and clears readiness; attached layers stay stopped.
+7. The existing optional native visual source set had obsolete dashboard calls and an
+   offline-label selector. Test fixtures now match the current API and localized resources.
+8. The pinned Gradle distribution now enforces its reviewed official checksum; two isolated
+   real-wrapper cases prove rejection of a wrong hash and acceptance of the reviewed archive.
+
 City identities, original images, traffic profiles, artwork placement, authentication, routing,
 native core, localization resources and the existing connection sweep are preserved. This is
 focused motion/lifecycle polish, not a claim that the full client UI has reached final visual
@@ -68,9 +77,11 @@ bash ./gradlew --no-daemon --console=plain --max-workers=2 \
 | --- | --- | --- |
 | Unsigned Kotlin/Java/resource compilation and unit task | Exit 0; 416 tests, 0 failures/errors/skips | Exit 0; 417 tests, 0 failures/errors/skips |
 | Invalid-port regression alone | 3 tests, 1 expected failure before the fix | Included in the passing 417-test run |
-| `node --test tools/test_android_wallpaper.cjs` | Four existing tests; extra pause reproduction failed | 11 passed after delayed-callback correction |
-| Real Chromium wallpaper fixtures | 7 of 10 passed; pause and two reduced-motion cases failed | 13 of 13 passed after delayed-callback correction |
+| `node --test tools/test_android_wallpaper.cjs` | Four existing tests; extra pause reproduction failed | 14 passed after terminal-error correction |
+| Real Chromium wallpaper fixtures | 7 of 10 passed; pause and two reduced-motion cases failed | 15 of 15 passed after terminal-error correction |
 | Isolated native Compose preview | Not credited from earlier local reports | Five selected English cases passed under Robolectric API 35 native graphics |
+| Additional selected native states/assets/drafts | Not credited from setup reports | 18 tests passed, zero failures/errors/skips; four new synthetic renders reviewed |
+| Real-wrapper checksum guard | No enforcement pin | Both cases passed: wrong hash rejected, reviewed archive accepted |
 | Selected Linux core packages | Not credited from setup-task history | Three top-level tests passed across two packages; five locale subtests also passed |
 
 The original compile/unit run executed 36 Gradle tasks in 401.47 seconds. The final run executed
@@ -125,7 +136,7 @@ complete the selected native matrix. Runtime evidence summaries omit decorative 
 the original bundled localization/artwork is untouched. The JSON evidence manifest records
 full commands, statuses, durations, source/image/log digests and the separate JUnit totals.
 
-### Follow-up motion progression and integration checks
+### Earlier motion progression and integration checks
 
 The browser harness now has 12 checks. It scrubs the actual browser opacity transition's
 animation clock through initial, intermediate and completed positions, verifies its 480 ms
@@ -150,7 +161,7 @@ Current checked-in evidence uses source-relative paths or named runtime/input/ou
 Opaque environment identifiers and precise host paths remain only in internal task receipts.
 This is a forward cleanup; existing candidate history has not been rewritten.
 
-### Delayed-callback correction
+### Earlier delayed-callback correction
 
 Independent review found that resetting the glow origin to the last callback's `seconds`
 still inherited the pre-event interval when the next callback was delayed. Two new strict
@@ -180,6 +191,26 @@ the latest clock correction has separate source fingerprints and progression sam
 Kotlin/presentation code, the 417-unit/five-native evidence and the server candidate are
 unchanged. No new native/device, signing, Windows, production or access check is claimed.
 
+## Accessible-state reassessment
+
+[The follow-up report](ACCESSIBLE_REVIEW_20261101.md) records the reproduced terminal-error
+fix, repaired optional visual fixtures, selected native checks and evaluated backlog.
+Current totals are 14 host tests, 15 Chromium checks and 18 additional selected native tests,
+all passed. Four new account/settings renders were reviewed, including offline/syncing and
+200% font states. The final native run also merges the updated assets; `wallpaper.js` source
+and merged SHA-256 match `2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18`.
+Earlier 417 ordinary unit tests and five preview renders remain separate results; the full
+optional visual suite was not run. Native product Kotlin/presentation code is unchanged.
+
+Three error-path host tests failed before the runtime correction. The optional visual source
+set initially failed compilation at obsolete calls; after those were fixed, a stale English
+selector failed one of 15 selected tests. The final resource-based selector run passes all
+18 selected cases. These failures and their corrected outcomes are retained in the manifest.
+No new speculative product change was justified by the inspected activation/feedback states.
+The backlog separates source-only findings, executed synthetic checks, further feasible
+source/test work, device-only evidence and access decisions; it is not classified as wholly
+blocked on Claude access.
+
 ## Supply-chain and trust-boundary observations
 
 The restored Gradle 9.7.0 ZIP matched its official SHA-256
@@ -193,8 +224,12 @@ hash for 9.5.x and 9.6.x. This is an older official launcher targeting the pinne
 distribution, not evidence of an unknown JAR. Both the failed comparison and the successful
 provenance check remain in the evidence record.
 
-Reviewed wrapper distribution checksum enforcement and dependency verification/locking remain
-follow-up work; no newly downloaded hash was blindly made trusted metadata. A mutable
+The reviewed official distribution hash is now enforced by `distributionSha256Sum`.
+`tools/test_gradle_distribution_checksum.py` uses independent fresh caches with the actual
+wrapper and a reviewed local official archive: a wrong hash is rejected (child exit 1),
+and the pinned hash is accepted (child exit 0). This is not a fresh remote download test.
+Dependency verification/locking remain follow-up work; no newly generated dependency hash
+was blindly trusted. A mutable
 `libghostty` snapshot remains in the existing dependency declarations. The Android workflow is
 manual-only with mutable major-version action refs; it was neither dispatched nor edited.
 Exact-head remote CI absence must not be described as a green check.

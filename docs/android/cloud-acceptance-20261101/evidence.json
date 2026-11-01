@@ -326,18 +326,105 @@
       "exit_status": 0,
       "log": "android-delayed-callback-assets.log",
       "local_log_sha256": "208c8803ec68d25499d0ea1c9859af4964822292b806551bbd5a20767db6edaa"
+    },
+    {
+      "name": "android-wallpaper-errors-red",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:30:13.347639+00:00",
+      "elapsed_seconds": 1.41,
+      "exit_status": 1,
+      "log": "android-wallpaper-errors-red.log",
+      "local_log_sha256": "0c38ce1a61639098279262b19af45ae44191fb0c790c07e5f1fc1444fc73b10d",
+      "outcome_context": "Expected reproduction: three new metadata/partial-attach/render error tests fail because host callbacks restart failed controllers."
+    },
+    {
+      "name": "android-wallpaper-errors-host-final",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:32:50.752606+00:00",
+      "elapsed_seconds": 2.32,
+      "exit_status": 0,
+      "log": "android-wallpaper-errors-host-final.log",
+      "local_log_sha256": "2052b1b65e1a54d552148440305a7121cb546ff916b65c41e68d869af220ce85"
+    },
+    {
+      "name": "android-wallpaper-errors-browser-final",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-errors-final node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T19:32:53.143950+00:00",
+      "elapsed_seconds": 34.28,
+      "exit_status": 0,
+      "log": "android-wallpaper-errors-browser-final.log",
+      "local_log_sha256": "2317dd99c4a6d578506eb21a0e8af309774fdd5f6175d88853b1114c0d446ee0"
+    },
+    {
+      "name": "android-accessible-account-native",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/account-states :app:testOtherDebugUnitTest --tests '*.AccountVisualTest'",
+      "started_utc": "2026-11-01T19:32:52.505840+00:00",
+      "elapsed_seconds": 142.55,
+      "exit_status": 1,
+      "log": "android-accessible-account-native.log",
+      "local_log_sha256": "b762c7be25ecb4b2d41e9060de5e207bcf5fda46a5e530140f1ea89089cba0d1",
+      "outcome_context": "Optional visual source set failed compilation at obsolete CollapsedPanel fixture calls; no tests executed."
+    },
+    {
+      "name": "android-accessible-account-native-current-api",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/account-states :app:testOtherDebugUnitTest --tests '*.AccountVisualTest' --tests '*.DashboardSemanticsTest' --tests '*.PrivacyUiTest.addressNamedNodeUsesAGlobeInsteadOfVisibleAddressText' --tests '*.FeedbackDraftTest'",
+      "started_utc": "2026-11-01T19:37:28.671363+00:00",
+      "elapsed_seconds": 95.34,
+      "exit_status": 1,
+      "log": "android-accessible-account-native-current-api.log",
+      "local_log_sha256": "b7266f2aff34e02642698b746fc5bf608026c8dd5b6072aac46f921fd3219250",
+      "outcome_context": "After fixture-call repair, 15 selected tests ran: 14 passed, one failed because its hardcoded offline label was stale. Resource-based selector fixes the fixture."
+    },
+    {
+      "name": "android-accessible-native-and-assets-final",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/account-states :app:testOtherDebugUnitTest --tests '*.AccountVisualTest' --tests '*.DashboardSemanticsTest' --tests '*.PrivacyUiTest.addressNamedNodeUsesAGlobeInsteadOfVisibleAddressText' --tests '*.FeedbackDraftTest' --tests '*.WallpaperAssetClientTest'",
+      "started_utc": "2026-11-01T19:40:54.828904+00:00",
+      "elapsed_seconds": 81.77,
+      "exit_status": 0,
+      "log": "android-accessible-native-and-assets-final.log",
+      "local_log_sha256": "019e7b1afea2b8c9d4cdc2dfe618c7c77ad1587bc396e3ee5d2691a1ec452f48",
+      "outcome_context": "All 18 selected native tests passed; includes merged updated assets. Separate from the retained earlier 417 ordinary tests and five preview cases."
+    },
+    {
+      "name": "android-wrapper-checksum-guard",
+      "cwd": ".",
+      "command": "python3 tools/test_gradle_distribution_checksum.py ${CLOUD_RUNTIME}/downloads/gradle.zip",
+      "started_utc": "2026-11-01T19:44:27.997225+00:00",
+      "elapsed_seconds": 3.88,
+      "exit_status": 0,
+      "log": "android-wrapper-checksum-guard.log",
+      "local_log_sha256": "ca788e512a4876e8a1da2c2c25ab37694b3fdbc2f35f84efe4bd49fea97b538e",
+      "outcome_context": "Two isolated real-wrapper cases pass using the reviewed local official archive: wrong hash rejected with child exit 1, reviewed hash accepted with child exit 0."
+    },
+    {
+      "name": "android-wrapper-checksum-guard-final",
+      "cwd": ".",
+      "command": "python3 tools/test_gradle_distribution_checksum.py ${CLOUD_RUNTIME}/downloads/gradle.zip",
+      "started_utc": "2026-11-01T19:45:22.058381+00:00",
+      "elapsed_seconds": 4.18,
+      "exit_status": 0,
+      "log": "android-wrapper-checksum-guard-final.log",
+      "local_log_sha256": "02f9b6826b45e0ac85208206cdb16c73ee5b953c5cf915c8037d05550e19d0fb",
+      "outcome_context": "Same two cases pass after closing the archive file handle with a context manager; no wrapper version or distribution URL change."
     }
   ],
   "artifacts": {
+    "accessible-native-junit.json": "e1f4d28dd3e6916fd2bf7682a288aa1644b8f594b81c7913a64b0a3520f1fb1c",
     "android-baseline-junit.json": "ff2984310a36d868c48b52c2b7d5b7168e2d567c066671201aa601af61d473be",
     "android-final-junit.json": "88ecbf83b49507c8c1a64d27cf621446ce6acae27ad23f3329aaf33cf375540d",
     "android-native-preview-junit.json": "70bba3ef08a70fa75f436d83a86280336ac82680d674fef8c557f9a08a1fdc1f",
-    "browser/checks.json": "d752b3eb952d2862f021e85fadaaa65bb186f907ba48012c14c1569c044c3243",
+    "browser/checks.json": "957d57ba6f2bf00b9c6fe148bb6a78a074a174e09694d81f95e6d2ef7d15df40",
     "browser/las-vegas-strip-day-320.json": "e128c7cbd17c2211d33dc335a9745a5c4b5d37d8d8e5b36b4ccad2a9fd75e743",
     "browser/las-vegas-strip-day-320.png": "c0689a527d57de476a36629b413e52e5373bc3a4870de1b7aed8ac7e52191b0f",
     "browser/las-vegas-strip-night-320.json": "8a7f8f10c3e11d9a6778784b637079c2209d974af492397902f79ab6986da5d1",
     "browser/las-vegas-strip-night-320.png": "a8dca52602ecf805eda81fa9099878f960fca71e4338728ef5b8e16c10acd36d",
-    "browser/motion-progression.json": "14828d8a1566de57a53f51e5b5179afbf2acd7163248a9e1e1f11cc2ab090072",
+    "browser/motion-progression.json": "fcc9b3bd62a0b0838dff4cf71523dd28fbc4238fb7c29c78566e9655d0717a78",
     "browser/original-day-320.json": "a0e3d6f09f3de625ca09cda975232571d0ea664800a7f2049c9d14921eb228e8",
     "browser/original-day-320.png": "7c4f904aa11f4875567d4aaae1eea221f02223f724af69ffe197248a5f9b03f6",
     "browser/original-night-320.json": "7a70c59dcee4597ecd0ba809bb04c7e2948f6664881cbce2f4ee3d96ea744e0e",
@@ -349,10 +436,14 @@
     "native/account-en-dark-320.png": "1afc5ab638f900b2a5baff6dba2434c10050a2206fb1949c395b49540abcf117",
     "native/account-en-light-320.png": "fb07e272624766ee180b0cf3d06356b6672dbd423ce91618e150a9d4f5c1e956",
     "native/account-expired-en-light-320.png": "cb0f8647237c0b75ca964f33d78d4ce2e10e7f844f365f0c1c9c95b70967b066",
+    "native/account-offline-dark.png": "f764ecd1f0b014f51d2c557490fa4486fcb0a5ed5079e93cd909198219b6fab3",
+    "native/account-paused-font200.png": "21a00f00c36d0ded276949a1fa909fffe35944410f4ccb5f2c25b87d1233b56b",
+    "native/account-synced-light.png": "77bfe2d422d3556f81424c919ea7f64bc3e32ebb577582085df2784bbff46b40",
     "native/network-long-en-light-320.png": "ea454f4a3d1fc0634db4c1a104e7ce0a3e48e37ced92efe867a16eb92172cdf5",
     "native/settings-en-light-320.png": "95824126fcb51e6fd347d7666901d110b2ddcdb30420827ec9505a392903f317",
+    "native/settings-hub-light.png": "60cb141d16717e5089c65d72c2a30f55620faf669064ab12538545dd4322e246",
     "native-render-cache.init.gradle": "92f215316d4c24853dc93ef6e3976962073c86079bed816f4903f674351c3364",
-    "wallpaper-source-sha256.json": "d7b06e1073a793c112e2ae3618c9ea63f0bd8feae94e92e72f1f46e077eac88b"
+    "wallpaper-source-sha256.json": "49d1f17addf00cf1d8529ece2b952ff569b3233cb9a6b263c6a9bf8361c49def"
   },
   "limits": [
     "No Windows compilation or tests",
@@ -365,15 +456,43 @@
   "command_convention": "Commands are reproducible path templates. Resolve named candidate/runtime/output placeholders to the selected local inputs. Original commands and precise environment receipts remain outside Git.",
   "refined_wallpaper_commit": "e0da5853e69f9da210d54118599ec0d891564942",
   "followup_counts": {
-    "wallpaper_host_passed": 11,
-    "browser_passed": 13,
-    "android_debug_asset_merge": "passed after delayed-callback correction",
-    "actual_client_contract_scenarios_passed": 12
+    "wallpaper_host_passed": 14,
+    "browser_passed": 15,
+    "android_debug_asset_merge": "passed during selected native run; wallpaper.js source and merged hashes match",
+    "actual_client_contract_scenarios_passed": 12,
+    "accessible_native_tests_passed": 18,
+    "wrapper_checksum_probe_cases_passed": 2
   },
   "delayed_callback_commit": "87a66a3a636cc6aa90251ff57851f6ec254a2461",
   "merged_pulse_asset": {
     "path": "android/app/build/intermediates/assets/otherDebug/mergeOtherDebugAssets/wallpaper/pulse-v1.js",
     "source_sha256": "241412e5642394d2dac69bd53fc1b6fe7c54ccc602f3d7a7e69adc3329e4f190",
     "merged_sha256": "241412e5642394d2dac69bd53fc1b6fe7c54ccc602f3d7a7e69adc3329e4f190"
+  },
+  "failed_wallpaper_commit": "0665a9dd2e53c403d18e2ac674dfbeaa99a10744",
+  "visual_fixture_commit": "1c23f76a1fecb68700fdb7f384fb38532740db80",
+  "distribution_checksum_commit": "47f5ced3ad33f9971e4aeca225f030d171608912",
+  "merged_wallpaper_asset": {
+    "path": "android/app/build/intermediates/assets/otherDebug/mergeOtherDebugAssets/wallpaper/wallpaper.js",
+    "source_sha256": "2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18",
+    "merged_sha256": "2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18"
+  },
+  "gradle_distribution_checksum": {
+    "version": "9.7.0",
+    "source": "https://gradle.org/release-checksums/",
+    "sha256": "84fbba45c7f4c64abc77460e1c00f541e9f960e3c7ed2538f1ede19eacd873ae",
+    "input": "Reviewed local official archive; isolated fresh cache for each real-wrapper case.",
+    "cases": [
+      {
+        "name": "reject-mismatch",
+        "child_exit_status": 1,
+        "passed": true
+      },
+      {
+        "name": "accept-reviewed",
+        "child_exit_status": 0,
+        "passed": true
+      }
+    ]
   }
 }

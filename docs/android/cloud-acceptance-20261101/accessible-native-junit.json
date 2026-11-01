@@ -1,0 +1,78 @@
+{
+  "suites": [
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.account.AccountVisualTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "anEndWithinTheHourTurnsToEndedOnTheMinuteTick",
+        "theEndDateFollowsTheAppLocale",
+        "offlineAccountKeepsItsReasonOneTapAway",
+        "syncedAccountShowsItsTermsAndActions",
+        "accountRowsWrapAtDoubleFontSize",
+        "hubRowsShareOneCardAndTheirBadges",
+        "theEndDateFollowsTheZoneReadWithTheClock"
+      ],
+      "xml_sha256": "117a077fd46e8684e679c6089e05b8fb7f348eb6d064c88e8d7d521f988c33e5"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.DashboardSemanticsTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "theFoldedPanelIsAButtonThatSaysItChoosesANode"
+      ],
+      "xml_sha256": "43278b58cef8a9d6ff106b20ee387d0f0bc91577b41cb316cfa834bcce1d3016"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.WallpaperAssetClientTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "requestsCannotEscapeTheBundledWallpaperDirectoryOrUseTheNetwork",
+        "rendererLoadsLocalEntryAndDependenciesWithTheirMimeTypes",
+        "packagedLibraryContainsEveryApprovedDayAndNightImage"
+      ],
+      "xml_sha256": "d2bd36d325824a71a7e9174648e318f08b218e9164cca9bc5a469dd24249ef75"
+    },
+    {
+      "name": "io.nekohasekai.sfa.feedback.FeedbackDraftTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "textAndThreeMaximumSizeImagesStayFrozenAcrossAFailedUpload",
+        "olderUploadReceiptPreservesANewerDraftAndItsRequestAcrossScreenReentry",
+        "readyIsNotPresentedAsPublished",
+        "draftsDoNotLeakBetweenBindingsAndClearAfterSuccess",
+        "completedMatchingDraftClearsAndReopeningRestoresOnlyItsSafeReceipt",
+        "failedSubmissionKeepsIdenticalPayloadAcrossRestartAndNetworkChanges"
+      ],
+      "xml_sha256": "6486df64af8e2835c1e71078618d2162793f281624f8738a4cbed779877cdc69"
+    },
+    {
+      "name": "io.nekohasekai.sfa.privacy.PrivacyUiTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "addressNamedNodeUsesAGlobeInsteadOfVisibleAddressText"
+      ],
+      "xml_sha256": "4a3dfd9b55bfdaf981ed01c186dbe42dcd1622b956e783d738a8659c760f836a"
+    }
+  ],
+  "totals": {
+    "tests": 18,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

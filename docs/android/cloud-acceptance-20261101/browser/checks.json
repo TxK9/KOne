@@ -48,6 +48,14 @@
     "passed": true
   },
   {
+    "name": "wallpaper-error-metadata-cannot-restart",
+    "passed": true
+  },
+  {
+    "name": "wallpaper-error-sky-cannot-restart",
+    "passed": true
+  },
+  {
     "name": "bundled-assets-only",
     "passed": true
   }

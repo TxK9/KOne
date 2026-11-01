@@ -8,30 +8,30 @@
   "connectionGlow": {
     "initial": {
       "glow": 0,
-      "frames": 1,
-      "time": 0.6671999999997206,
-      "wallMs": 958.6000000000931
+      "frames": 2,
+      "time": 1.2759000000003726,
+      "wallMs": 2048.5
     },
     "intermediate": {
-      "glow": 0.779947448101295,
-      "frames": 3,
-      "time": 1.0676999999997205,
-      "wallMs": 1359
+      "glow": 0.2203334018042425,
+      "frames": 4,
+      "time": 1.3220999999996275,
+      "wallMs": 2094.5999999996275
     },
     "pauseStart": {
-      "glow": 0.779947448101295,
-      "frames": 3,
-      "time": 1.0676999999997205,
-      "wallMs": 1362.7000000001863
+      "glow": 0.2203334018042425,
+      "frames": 4,
+      "time": 1.3222000000001863,
+      "wallMs": 2095.0999999996275
     },
     "pauseEnd": {
-      "glow": 0.779947448101295,
-      "frames": 3,
-      "time": 1.0676999999997205,
-      "wallMs": 1543.4000000003725
+      "glow": 0.2203334018042425,
+      "frames": 4,
+      "time": 1.3222000000001863,
+      "wallMs": 2277.7000000001863
     },
     "complete": {
-      "glow": 0.9819369865802094,
+      "glow": 0.9807773626664085,
       "frames": 13
     }
   },
@@ -40,5 +40,23 @@
     "oneMillisecond": 0.005540151995103254,
     "eventTimeMs": 999,
     "callbackTimeMs": 1000
+  },
+  "failurePaths": {
+    "metadata": {
+      "ready": false,
+      "running": false,
+      "timeBefore": 0.042399999999441204,
+      "timeAfter": 0.042399999999441204,
+      "layerCount": 0,
+      "runningLayers": 0
+    },
+    "sky": {
+      "ready": false,
+      "running": false,
+      "timeBefore": 0.378,
+      "timeAfter": 0.378,
+      "layerCount": 6,
+      "runningLayers": 0
+    }
   }
 }
