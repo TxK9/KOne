@@ -8,7 +8,7 @@
   "checks": [
     {
       "name": "server-node",
-      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "cwd": "server-web",
       "command": "node --test backend/tests/i18n.test.mjs backend/tests/owner-download.test.mjs && node backend/tests/audit-catalog.cjs && node website-tests/test-site.mjs",
       "started_utc": "2026-11-01T17:58:15.702669+00:00",
       "elapsed_seconds": 1.33,
@@ -18,8 +18,8 @@
     },
     {
       "name": "toolchain",
-      "cwd": "/workspace",
-      "command": "python3 --version && node --version && npm --version && java -version && javac -version && gradle --version && go version && sdkmanager --version && sdkmanager --list_installed && /workspace/kone-env/node-tools/node_modules/.bin/esbuild --version && sha256sum /workspace/kone-env/downloads/gradle.zip /workspace/kone-env/downloads/jdk.tar.gz",
+      "cwd": "${TASK_WORKSPACE}",
+      "command": "python3 --version && node --version && npm --version && java -version && javac -version && gradle --version && go version && sdkmanager --version && sdkmanager --list_installed && ${CLOUD_RUNTIME}/node-tools/node_modules/.bin/esbuild --version && sha256sum ${CLOUD_RUNTIME}/downloads/gradle.zip ${CLOUD_RUNTIME}/downloads/jdk.tar.gz",
       "started_utc": "2026-11-01T17:58:27.516269+00:00",
       "elapsed_seconds": 3.65,
       "exit_status": 0,
@@ -28,8 +28,8 @@
     },
     {
       "name": "candidate-heads",
-      "cwd": "/workspace/KOne",
-      "command": "git ls-remote origin refs/heads/codex/server-web-collab-20261101 refs/heads/codex/android-ui-20261101 && git -C /workspace/kone-acceptance/server rev-parse HEAD && git -C /workspace/kone-acceptance/android rev-parse HEAD && git status --short",
+      "cwd": "${SOURCE_CHECKOUT}",
+      "command": "git ls-remote origin refs/heads/codex/server-web-collab-20261101 refs/heads/codex/android-ui-20261101 && git -C ${SERVER_ROOT} rev-parse HEAD && git -C ${ANDROID_ROOT} rev-parse HEAD && git status --short",
       "started_utc": "2026-11-01T17:58:31.378026+00:00",
       "elapsed_seconds": 0.57,
       "exit_status": 0,
@@ -38,7 +38,7 @@
     },
     {
       "name": "server-python",
-      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "cwd": "server-web",
       "command": "python3 -B -m unittest discover -s tests -v && python3 -B -m unittest discover -s backend/tests -p 'test_*.py' -v",
       "started_utc": "2026-11-01T17:58:15.723169+00:00",
       "elapsed_seconds": 46.74,
@@ -48,8 +48,8 @@
     },
     {
       "name": "server-build",
-      "cwd": "/workspace/kone-acceptance/server/server-web",
-      "command": "python3 backend/deploy/build_web.py --esbuild /workspace/kone-env/node-tools/node_modules/.bin/esbuild && git diff --exit-code -- backend/web",
+      "cwd": "server-web",
+      "command": "python3 backend/deploy/build_web.py --esbuild ${CLOUD_RUNTIME}/node-tools/node_modules/.bin/esbuild && git diff --exit-code -- backend/web",
       "started_utc": "2026-11-01T17:59:10.188603+00:00",
       "elapsed_seconds": 0.52,
       "exit_status": 0,
@@ -58,8 +58,8 @@
     },
     {
       "name": "server-lifecycle",
-      "cwd": "/workspace/kone-acceptance/server/server-web",
-      "command": "python3 /workspace/kone-acceptance/start-smoke.py",
+      "cwd": "server-web",
+      "command": "python3 ${TASK_WORKSPACE}/start-smoke.py",
       "started_utc": "2026-11-01T17:59:10.802094+00:00",
       "elapsed_seconds": 1.64,
       "exit_status": 0,
@@ -68,8 +68,8 @@
     },
     {
       "name": "server-browser",
-      "cwd": "/workspace/kone-acceptance/server/server-web",
-      "command": "KONE_TEST_NODE_MODULES=/workspace/kone-acceptance/browser-tools/node_modules KONE_TEST_BROWSER=/usr/bin/chromium python3 -B backend/tests/run_ui.py",
+      "cwd": "server-web",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} python3 -B backend/tests/run_ui.py",
       "started_utc": "2026-11-01T17:59:20.758680+00:00",
       "elapsed_seconds": 50.3,
       "exit_status": 0,
@@ -78,7 +78,7 @@
     },
     {
       "name": "server-role-boundaries",
-      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "cwd": "server-web",
       "command": "python3 -B -m unittest discover -s backend/tests -p test_role_boundaries.py -v",
       "started_utc": "2026-11-01T18:02:35.812670+00:00",
       "elapsed_seconds": 3.5,
@@ -88,8 +88,8 @@
     },
     {
       "name": "server-packaging",
-      "cwd": "/workspace/kone-acceptance/server",
-      "command": "python3 server-web/tools/export_git_static.py site CLOUD-ACCEPTANCE-20261101 --repo . --source-root server-web --commit b37275d9ec568c73a92b6bc0e7ef6805061b4ed9 --output /workspace/kone-acceptance/exports && python3 server-web/tools/export_git_static.py console CLOUD-ACCEPTANCE-20261101 --repo . --source-root server-web --commit b37275d9ec568c73a92b6bc0e7ef6805061b4ed9 --output /workspace/kone-acceptance/exports && sha256sum /workspace/kone-acceptance/exports/*",
+      "cwd": ".",
+      "command": "python3 server-web/tools/export_git_static.py site CLOUD-ACCEPTANCE-20261101 --repo . --source-root server-web --commit b37275d9ec568c73a92b6bc0e7ef6805061b4ed9 --output ${TASK_WORKSPACE}/exports && python3 server-web/tools/export_git_static.py console CLOUD-ACCEPTANCE-20261101 --repo . --source-root server-web --commit b37275d9ec568c73a92b6bc0e7ef6805061b4ed9 --output ${TASK_WORKSPACE}/exports && sha256sum ${TASK_WORKSPACE}/exports/*",
       "started_utc": "2026-11-01T18:02:52.751779+00:00",
       "elapsed_seconds": 1.18,
       "exit_status": 0,
@@ -98,13 +98,44 @@
     },
     {
       "name": "server-final-python",
-      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "cwd": "server-web",
       "command": "python3 -B -m unittest discover -s tests -v && python3 -B -m unittest discover -s backend/tests -p 'test_*.py' -v",
       "started_utc": "2026-11-01T18:04:28.331179+00:00",
       "elapsed_seconds": 55.1,
       "exit_status": 0,
       "log": "server-final-python.log",
       "local_log_sha256": "618da76be59051c24bba952323f04cd80345dcbf07ab95b4120172fdf30219ae"
+    },
+    {
+      "name": "actual-client-server-contract",
+      "cwd": "${TASK_WORKSPACE}",
+      "command": "python3 check_android_contract.py --server-root ${SERVER_WEB_ROOT} --classes ${ANDROID_API_CLASSES} --stdlib ${KOTLIN_STDLIB_JAR} --json-jar ${JSON_JAR}",
+      "started_utc": "2026-11-01T18:23:54.959293+00:00",
+      "elapsed_seconds": 2.28,
+      "exit_status": 1,
+      "log": "actual-client-server-contract.log",
+      "local_log_sha256": "397f457d6cabd4c2c72079044d6b28ca0157c0afe3897d574468ade6b3e146c6",
+      "outcome_context": "Initial harness sequencing minted a replacement invite before redeeming the first. Corrected harness passes; no product defect."
+    },
+    {
+      "name": "actual-client-server-contract-final",
+      "cwd": "${TASK_WORKSPACE}",
+      "command": "python3 check_android_contract.py --server-root ${SERVER_WEB_ROOT} --classes ${ANDROID_API_CLASSES} --stdlib ${KOTLIN_STDLIB_JAR} --json-jar ${JSON_JAR}",
+      "started_utc": "2026-11-01T18:25:13.000054+00:00",
+      "elapsed_seconds": 3.31,
+      "exit_status": 0,
+      "log": "actual-client-server-contract-final.log",
+      "local_log_sha256": "5429a1c40938edfded2b6eff3df53bbf0ff1079ef57d4fafdf28ef8166928b79"
+    },
+    {
+      "name": "saved-client-server-contract",
+      "cwd": "server-web",
+      "command": "python3 tools/check_android_contract.py --server-root . --classes ${ANDROID_API_CLASSES} --stdlib ${KOTLIN_STDLIB_JAR} --json-jar ${JSON_JAR}",
+      "started_utc": "2026-11-01T18:29:25.660108+00:00",
+      "elapsed_seconds": 3.59,
+      "exit_status": 0,
+      "log": "saved-client-server-contract.log",
+      "local_log_sha256": "5cec11745507fa9accff1330c1674800f485edcd052989dd7aae31b9f8a55e21"
     }
   ],
   "final_counts": {
@@ -132,6 +163,22 @@
     "service_lifecycle": {
       "cycles": 2,
       "passed": 2
+    },
+    "actual_client_contract": {
+      "client_scenarios_passed": 12,
+      "backend_lifecycle_assertions": "passed"
     }
+  },
+  "command_convention": "Commands are reproducible path templates. Resolve named candidate/runtime/output placeholders to the selected local inputs. Original commands and precise environment receipts remain outside Git.",
+  "contract_harness_sha256": {
+    "AndroidContract.java": "31bb0680653b6c70415f60e7e8dc09daecabea1f9a39a4001fc8e51da3456046",
+    "check_android_contract.py": "1486fe9518cfaea65f3997f3c5e9ed7f1c1305fda9f5dbbad38a7f405d0af9cf"
+  },
+  "contract_source_sha256": {
+    "android/ManagedApi.kt": "546900bacbf23b7b23138632a1cbcd8d8ccf27250931ecca55dd7e9a450dc507",
+    "android/FeedbackApi.kt": "a9f6eb92a2d7f9d219eae90fd19e3cda6c2c1dea4eee1bfdca2d7efe0ce180b0",
+    "backend/server.py": "6a9ddad2c50d9a769cc9af0deef5713e01e39f88b11b81ffbbea0277e433610d",
+    "backend/customers.py": "301479d7d195fdf11c8e34f9382d125b992cc0d0b8d8668622ef89e668fd2753",
+    "backend/feedback.py": "5d7d8bc057602bf1a0578541496443466049af62bb0b33995c70c82ef30db864"
   }
 }

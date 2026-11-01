@@ -16,11 +16,9 @@ The candidates were fetched separately and checked out in isolated worktrees. Th
 checkout stayed clean at `180ac16164a75a10b00f887f2d5b48fcbba4ee5f`. No candidate was
 combined with another line. This server candidate changes only `server-web/`.
 
-Environment instance: `ccarenv_b64_Y2NhcmVudl8xYTcwMjhmOTY2NTg4MTkxOWQ2ZTQ4ODUwNjVmYTNlNQ`.
-Published configuration version:
-`16baad87-4a9f-4117-8815-e6f385322ec3~cecfgver_6ae77c0f6e7881a0826b2b400af1de1a`.
-The instance initially reported starting, then running/connected with current observations
-and the restricted HTTP policy enforced. No environment or policy setting was changed.
+The selected published cloud instance reached running/connected with current readiness
+observations and the restricted HTTP policy enforced. No environment or policy setting
+was changed. Exact runtime identifiers are retained only in the internal task receipt.
 
 Actual commands verified Python 3.12.14, Node 24.19.0, npm 11.9.0, JDK/javac 21.0.12,
 Gradle 9.7.0, Go 1.26.10, SDK command-line tools 19.0 and esbuild 0.28.2. SDK listing
@@ -32,7 +30,8 @@ The restored JDK archive SHA-256 is
 
 ## Verified server baseline
 
-Run from `server-web/`, with the restored activation script sourced:
+Run from `server-web/`, with the restored activation script sourced. `$ESBUILD` selects
+the local official esbuild executable; task-specific paths stay in the internal receipt:
 
 | Command or check | Actual result |
 | --- | --- |
@@ -41,7 +40,7 @@ Run from `server-web/`, with the restored activation script sourced:
 | `node --test backend/tests/i18n.test.mjs backend/tests/owner-download.test.mjs` | 12 passed |
 | `node backend/tests/audit-catalog.cjs` | Passed: 562 localized call sites and 725 English catalog entries |
 | `node website-tests/test-site.mjs` | 23 checks passed |
-| `python3 backend/deploy/build_web.py --esbuild /workspace/kone-env/node-tools/node_modules/.bin/esbuild` | Exit 0; rebuilt bundle and fingerprints exactly match Git |
+| `python3 backend/deploy/build_web.py --esbuild "$ESBUILD"` | Exit 0; rebuilt bundle and fingerprints exactly match Git |
 | Two fresh loopback start/request/shutdown cycles | Both passed; auth status and HTML checked; state removed |
 | `python3 -B backend/tests/run_ui.py` | 86 bilingual UI checks passed; four paintings in both themes, reduced motion and compatibility checks passed |
 
@@ -99,8 +98,49 @@ Do not point this command at existing runtime state or expose the loopback port.
 
 The Android nominated source reads these client routes in `ManagedApi.kt` and `FeedbackApi.kt`.
 Source inspection found compatible fields and status semantics, including numeric expiry.
-The server's real HTTP fixtures and Android's stand-in HTTP unit tests are independent checks;
-this handoff does not claim a device-to-server end-to-end run.
+The follow-up below also exercised the actual compiled client API classes against this real
+backend. It does not claim a device-to-server end-to-end run.
+
+### Cross-candidate contract follow-up
+
+`tools/check_android_contract.py` and `tools/AndroidContract.java` run the already compiled
+production `ManagedApi`, `ManagedEndpoint` and `FeedbackApi` classes in a host JVM against a
+new real backend fixture. No response-server stand-in or shared database is used. The
+`ManagedApi.kt`/`FeedbackApi.kt` source and backend runtime modules are byte-identical to their nominated baselines;
+the separate endpoint-port fix does not change their HTTP schemas. The native Application,
+keystore, VPN, engine and installation paths are not invoked.
+
+The saved harness passes 12 client scenarios plus backend acknowledgement/lifecycle assertions:
+
+- Claim, invite replay rejection and device-limit status.
+- Actual configuration envelopes, literal provider names, numeric expiry, quota and period.
+- Received/applied/late-received acknowledgements, retaining the backend's applied state.
+- Client diagnostics filtering accepted by the real backend.
+- Feedback payloads, retry idempotence and cross-device history isolation.
+- Device/admin separation and rejection of a limited-feedback bearer as a device credential.
+- App-only activation followed by an awaiting-route result.
+- Stale acknowledgement tolerance and refresh after an administrator changes policy.
+- Paused and expired account responses, nullable expiry, and configuration/feedback revocation.
+
+The initial draft fixture minted two invitations for one user before redemption; the second
+correctly invalidated the first. The fixture was corrected to issue the next invitation after
+the first claim. The corrected saved harness passes. This was fixture sequencing, not a
+product defect. Synthetic credentials travel only through private process pipes and temporary
+state and are never included in the saved evidence.
+
+From `server-web/`, select the compiled Android candidate classes and the existing test jars:
+
+```sh
+python3 tools/check_android_contract.py --server-root . \
+  --classes "$ANDROID_API_CLASSES" --stdlib "$KOTLIN_STDLIB_JAR" --json-jar "$JSON_JAR"
+```
+
+No concrete schema/auth/lifecycle incompatibility was found in these exercised contracts.
+The existing console browser checks use the real backend with synthetic demo agents, which
+does not establish real-node operation. Source review also confirms that `ManagedSync` treats
+policy-only revisions separately from configuration revisions and preserves its existing
+rollback/revocation paths. Native persistence, actual service reload, a real public origin,
+reverse-proxy prefix mounting and device lifecycle still need their own authorized checks.
 
 Real Claude access still requires an explicit decision about the actor, approved source
 repository access, source-only versus limited-feedback versus admin purpose, exact service
@@ -145,6 +185,20 @@ Review references supplied by the coordinator:
 [Gradle security](https://docs.gradle.org/current/userguide/best_practices_security.html),
 [TUF metadata](https://theupdateframework.io/docs/metadata/).
 These are review guidance, not proof that this candidate is secure or compliant.
+
+### Security priorities and action boundaries
+
+| Priority | Verified finding or remaining decision | Disposition |
+| --- | --- | --- |
+| P0 protocol | Role separation, customer/device isolation, expiry/revocation, strict payload/revision checks | Passing negative and actual-client synthetic checks; no new server runtime defect established |
+| P1 input robustness | Android accepted invalid activation ports | Fixed with a failing-then-passing regression in PR #13; no privilege-escalation claim |
+| P1 evidence | Real engine, device keystore/service reload and live-origin routing | Not exercised; no production-readiness claim |
+| P1 source review | Snapshot dependency, dependency verification/locking and wrapper verification policy | Documented source/build review follow-ups; no blind hash acceptance or dependency rewrite |
+| Approval-gated operations | Claude actor/scope/origin/transport, credentials/grants, production/network/runner/account controls | No grant or setting change attempted; require specific authorization before an operation |
+
+These are scoped findings, not a complete security certification. The safe code-level
+validation fix is separate from infrastructure and access decisions. No additional runtime
+change is justified by the contract checks.
 
 ## Remaining evidence levels
 
