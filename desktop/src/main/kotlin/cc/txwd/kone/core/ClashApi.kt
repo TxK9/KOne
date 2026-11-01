@@ -43,8 +43,8 @@ class ClashApi(private val api: CoreApi, private val names: () -> RunningNames =
     }.getOrDefault(false)
 
     /** The delay through [tag] in milliseconds, or null when it did not answer in time (or the core does not carry it). */
-    fun delay(tag: String, timeoutMillis: Int = 5_000, url: String = "https://www.gstatic.com/generate_204"): Int? = runCatching {
-        val name = names().core(tag) ?: return null
+    fun delay(tag: String, timeoutMillis: Int = 5_000, url: String = "https://www.gstatic.com/generate_204", running: RunningNames = names()): Int? = runCatching {
+        val name = running.core(tag) ?: return null
         val path = "/proxies/${encode(name)}/delay?timeout=$timeoutMillis&url=${encode(url)}"
         val response = client.send(request(path, Duration.ofMillis(timeoutMillis + 2_000L)).GET().build(), HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() != 200) return null

@@ -20,6 +20,7 @@ import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.LocalCore
 import cc.txwd.kone.core.Probe
 import cc.txwd.kone.core.RuleSets
+import cc.txwd.kone.core.RunningNames
 import cc.txwd.kone.core.ServiceLink
 import cc.txwd.kone.core.SourceNode
 import cc.txwd.kone.core.Speed
@@ -125,7 +126,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         override fun accepted(managed: JsonObject, nodes: List<JsonObject>) = acceptedNodes(managed, nodes)
         override fun refresh() = this@AppModel.refresh()
         override fun nodesChanged() = this@AppModel.nodesChanged()
-        override fun reload() = loadNodes()
+        override fun reload() = this@AppModel.nodesChanged()
         override fun restart() = this@AppModel.restart()
         override fun tell(message: String, error: Boolean) = this@AppModel.tell(message, error)
         override fun notice(text: String) = onNotice(text)
@@ -724,12 +725,14 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** Every node's delay, now, several at a time. */
     fun testAll() {
-        val api = clash ?: probeApi?.let(::ClashApi) ?: return
+        val running = clash
+        val probing = probeApi
+        val api = running ?: probing?.let(::ClashApi) ?: return
         if (testing) return
         testing = true
         refresh()
         scope.launch {
-            measure(api) { true }
+            measure(api) { if (running != null) clash === running else probeApi === probing }
             testing = false
             refresh()
         }
@@ -741,13 +744,19 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         val gate = Semaphore(8)
         coroutineScope {
             nodes.map { node ->
+                val tested = continuity.measuring(node.tag)
                 async {
-                    if (!asks(api, node.tag)) return@async
-                    val measured = gate.withPermit { withContext(Dispatchers.IO) { api.delay(node.tag) } }
-                    if (current()) {
-                        health.record(node.tag, measured)
-                        delays[node.tag] = measured
-                        refresh()
+                    gate.withPermit {
+                        val tag = tested() ?: return@withPermit
+                        if (!current() || !asks(api, tag)) return@withPermit
+                        val names = if (api === clash) continuity.running else RunningNames.SAME
+                        val measured = withContext(Dispatchers.IO) { api.delay(tag, running = names) }
+                        val now = tested()
+                        if (current() && now != null) {
+                            health.record(now, measured)
+                            delays[now] = measured
+                            refresh()
+                        }
                     }
                 }
             }.awaitAll()
@@ -1285,10 +1294,13 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** Tests one node through [api] and keeps the result. */
     private suspend fun testOne(api: ClashApi, tag: String) {
         if (!asks(api, tag)) return
-        val measured = withContext(Dispatchers.IO) { api.delay(tag) }
+        val tested = continuity.measuring(tag)
+        val names = continuity.running
+        val measured = withContext(Dispatchers.IO) { api.delay(tag, running = names) }
         if (clash !== api) return
-        health.record(tag, measured)
-        delays[tag] = measured
+        val now = tested() ?: return
+        health.record(now, measured)
+        delays[now] = measured
         refresh()
     }
 
@@ -1334,6 +1346,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** While not connected, the core without TUN carries the nodes so their delays can be tested. */
     private fun startProbe() {
         val probe = probe ?: return
+        probeApi = null
         val source = source() ?: return
         val api = CoreApi(freePort(), token())
         val config = runCatching { KoneConfig.build(source, rules, api, tun = false, region = preferences.region).config.toString() }.getOrNull() ?: return
@@ -1420,7 +1433,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         nodes = built?.nodes.orEmpty()
         // The choice follows its node, what was measured stays with nodes exactly as they were, and
         // a running core that no longer runs what is listed starts afresh (NodeContinuity).
-        continuity.listed(NodeContinuity.Listing.of(built))
+        if (continuity.listed(NodeContinuity.Listing.of(built))) probeApi = null
         health.forget(nodes.mapTo(HashSet()) { it.tag })
         val binding = account.binding
         // The countries rules can go through, in the order the country list keeps them.

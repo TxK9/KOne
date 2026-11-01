@@ -3,6 +3,7 @@ package cc.txwd.kone.app
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.RunningNames
 import cc.txwd.kone.core.SourceNode
+import cc.txwd.kone.i18n.tr
 import cc.txwd.kone.shared.NodeIdentity
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -101,10 +102,10 @@ class NodeContinuity(private val host: Host) {
     }
 
     /** The list now. The first listing only sets the ground; one like the last changes nothing. */
-    fun listed(now: Listing) {
+    fun listed(now: Listing): Boolean {
         val before = listed
+        if (now.sameAs(before)) return false
         listed = now
-        if (now.sameAs(before)) return
         if (before.nodes.isNotEmpty()) {
             host.carry(pairs(before, now).mapNotNull { (tag, was) -> was?.let { tag to it } }.toMap())
             follow(before, now)
@@ -114,6 +115,19 @@ class NodeContinuity(private val host: Host) {
             running = names(pairs)
             // With nothing listed there is nothing to start it with: it carries on as it is.
             if (!same(started, now, pairs) && now.nodes.isNotEmpty()) host.reload()
+        }
+        return true
+    }
+
+    /** Where a test's result belongs when it completes, only while that exact node is still listed. */
+    fun measuring(tag: String): () -> String? {
+        val before = listed
+        return {
+            when {
+                tag !in before.exact -> null
+                listed === before -> tag
+                else -> pairs(before, listed).entries.firstOrNull { it.value == tag }?.key
+            }
         }
     }
 
@@ -133,8 +147,8 @@ class NodeContinuity(private val host: Host) {
     private fun gone(name: String, now: Listing) {
         val instead = (if (now.nodes.size >= 2) KoneConfig.AUTO_TAG else now.nodes.firstOrNull()?.tag) ?: return
         host.keep(instead)
-        val words = if (instead == KoneConfig.AUTO_TAG) "Automatic" else now.nodes.first { it.tag == instead }.name
-        host.tell("$name can no longer be found; using $words")
+        val words = if (instead == KoneConfig.AUTO_TAG) tr("Automatic") else now.nodes.first { it.tag == instead }.name
+        host.tell(tr("{0} can no longer be found; using {1}", name, words))
     }
 
     /**

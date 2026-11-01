@@ -468,5 +468,6 @@
   "Upload": "上传",
   "Download": "下载",
   "All": "全部",
-  "{0} days remaining": "剩余 {0} 天"
+  "{0} days remaining": "剩余 {0} 天",
+  "{0} can no longer be found; using {1}": "找不到 {0}，已改用{1}"
 }

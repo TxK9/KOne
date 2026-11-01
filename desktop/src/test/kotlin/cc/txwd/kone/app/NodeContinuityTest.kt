@@ -3,6 +3,8 @@ package cc.txwd.kone.app
 import cc.txwd.kone.core.CoreApi
 import cc.txwd.kone.core.KoneConfig
 import cc.txwd.kone.core.RuleSets
+import cc.txwd.kone.i18n.Language
+import cc.txwd.kone.i18n.Strings
 import cc.txwd.kone.shared.SubscriptionContent
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -323,5 +325,40 @@ class NodeContinuityTest {
         // Tokyo and Tokyo 2 traded tags; Seoul is as it was; Rome changed, and is not carried.
         delays.carry(mapOf("Tokyo" to "Tokyo 2", "Tokyo 2" to "Tokyo", "Seoul" to "Seoul"))
         assertEquals(mapOf<String, Int?>("Tokyo" to 200, "Tokyo 2" to 100, "Seoul" to null), delays)
+    }
+
+    @Test
+    fun pendingResultsFollowExactNodesAndDropReplacements() {
+        val app = App("Tokyo 2")
+        val continuity = follow(app, listing("trojan://pw@203.0.113.1:443#Tokyo", "trojan://pw@203.0.113.2:443#Tokyo"))
+        val first = continuity.measuring("Tokyo")
+        val second = continuity.measuring("Tokyo 2")
+        continuity.listed(listing("trojan://pw@203.0.113.2:443#Tokyo", "trojan://pw@203.0.113.1:443#Tokyo"))
+        assertEquals("Tokyo 2", first())
+        assertEquals("Tokyo", second())
+        continuity.listed(listing("trojan://pw@198.51.100.9:443#Tokyo", "trojan://pw@203.0.113.1:443#Tokyo"))
+        assertEquals("Tokyo 2", first())
+        assertNull(second(), "The old result must not mark the replacement as healthy or silent")
+        continuity.listed(NodeContinuity.Listing.NONE)
+        assertNull(first())
+    }
+
+    @Test
+    fun fallbackNoticeUsesTheCurrentLanguageAndLeavesProviderNamesIntact() {
+        val language = Strings.language
+        try {
+            Strings.language = Language.SimplifiedChinese
+            val app = App("Automatic {1}")
+            val continuity = follow(app, listing("trojan://pw@203.0.113.1:443#Automatic {1}", "trojan://pw@203.0.113.2:443#Berlin"), running = false)
+            continuity.listed(listing("trojan://pw@203.0.113.2:443#Berlin"))
+            assertEquals(listOf("keep ${KoneConfig.AUTO_TAG}", "tell 找不到 Automatic {1}，已改用自动选择"), app.done)
+
+            val single = App("Paris")
+            val oneLeft = follow(single, listing("trojan://pw@203.0.113.1:443#Paris", "trojan://pw@203.0.113.2:443#Automatic", withConsole = false), running = false)
+            oneLeft.listed(listing("trojan://pw@203.0.113.2:443#Automatic", withConsole = false))
+            assertEquals(listOf("keep Automatic", "tell 找不到 Paris，已改用Automatic"), single.done)
+        } finally {
+            Strings.language = language
+        }
     }
 }
