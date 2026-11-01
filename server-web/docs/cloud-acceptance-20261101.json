@@ -1,0 +1,137 @@
+{
+  "format": 1,
+  "recorded_utc": "2026-11-01",
+  "repository": "TxK9/KOne",
+  "server_baseline": "b37275d9ec568c73a92b6bc0e7ef6805061b4ed9",
+  "android_baseline": "0dd7a9ff0d78743d8910e05041bcbb07c7d598a5",
+  "privacy": "Synthetic loopback state only. Original local logs excluded; digests retained. No production/device acceptance claimed.",
+  "checks": [
+    {
+      "name": "server-node",
+      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "command": "node --test backend/tests/i18n.test.mjs backend/tests/owner-download.test.mjs && node backend/tests/audit-catalog.cjs && node website-tests/test-site.mjs",
+      "started_utc": "2026-11-01T17:58:15.702669+00:00",
+      "elapsed_seconds": 1.33,
+      "exit_status": 0,
+      "log": "server-node.log",
+      "local_log_sha256": "de05c068539854a9e4eb3efdb6d977f4e57b72cfeda6409837ff55e840e3178a"
+    },
+    {
+      "name": "toolchain",
+      "cwd": "/workspace",
+      "command": "python3 --version && node --version && npm --version && java -version && javac -version && gradle --version && go version && sdkmanager --version && sdkmanager --list_installed && /workspace/kone-env/node-tools/node_modules/.bin/esbuild --version && sha256sum /workspace/kone-env/downloads/gradle.zip /workspace/kone-env/downloads/jdk.tar.gz",
+      "started_utc": "2026-11-01T17:58:27.516269+00:00",
+      "elapsed_seconds": 3.65,
+      "exit_status": 0,
+      "log": "toolchain.log",
+      "local_log_sha256": "b26da96d4b6afbf38bea6e729d436d4103322681f928945920f717e1bf33ac2c"
+    },
+    {
+      "name": "candidate-heads",
+      "cwd": "/workspace/KOne",
+      "command": "git ls-remote origin refs/heads/codex/server-web-collab-20261101 refs/heads/codex/android-ui-20261101 && git -C /workspace/kone-acceptance/server rev-parse HEAD && git -C /workspace/kone-acceptance/android rev-parse HEAD && git status --short",
+      "started_utc": "2026-11-01T17:58:31.378026+00:00",
+      "elapsed_seconds": 0.57,
+      "exit_status": 0,
+      "log": "candidate-heads.log",
+      "local_log_sha256": "9d1b480396e401557bfbe279260515ad35e6cedd7efb9967028886c07cfdc481"
+    },
+    {
+      "name": "server-python",
+      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "command": "python3 -B -m unittest discover -s tests -v && python3 -B -m unittest discover -s backend/tests -p 'test_*.py' -v",
+      "started_utc": "2026-11-01T17:58:15.723169+00:00",
+      "elapsed_seconds": 46.74,
+      "exit_status": 0,
+      "log": "server-python.log",
+      "local_log_sha256": "6e837997899e7eb53d9b8e9a1a1cde189e13425ffb5a372384e4c5515442592a"
+    },
+    {
+      "name": "server-build",
+      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "command": "python3 backend/deploy/build_web.py --esbuild /workspace/kone-env/node-tools/node_modules/.bin/esbuild && git diff --exit-code -- backend/web",
+      "started_utc": "2026-11-01T17:59:10.188603+00:00",
+      "elapsed_seconds": 0.52,
+      "exit_status": 0,
+      "log": "server-build.log",
+      "local_log_sha256": "33f21c535e1c9b4a6a5bec1742ab43082c731538fafcf35e395c1dc0e90f29a6"
+    },
+    {
+      "name": "server-lifecycle",
+      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "command": "python3 /workspace/kone-acceptance/start-smoke.py",
+      "started_utc": "2026-11-01T17:59:10.802094+00:00",
+      "elapsed_seconds": 1.64,
+      "exit_status": 0,
+      "log": "server-lifecycle.log",
+      "local_log_sha256": "0719d40ebf1e6c77cd79f41e23cc7c8abad93c4b766c135f0857751da0abcdc1"
+    },
+    {
+      "name": "server-browser",
+      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "command": "KONE_TEST_NODE_MODULES=/workspace/kone-acceptance/browser-tools/node_modules KONE_TEST_BROWSER=/usr/bin/chromium python3 -B backend/tests/run_ui.py",
+      "started_utc": "2026-11-01T17:59:20.758680+00:00",
+      "elapsed_seconds": 50.3,
+      "exit_status": 0,
+      "log": "server-browser.log",
+      "local_log_sha256": "0d3bce5840221e794c9bb4571481c463b8f4129cea65384b733bc214df2d2185"
+    },
+    {
+      "name": "server-role-boundaries",
+      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "command": "python3 -B -m unittest discover -s backend/tests -p test_role_boundaries.py -v",
+      "started_utc": "2026-11-01T18:02:35.812670+00:00",
+      "elapsed_seconds": 3.5,
+      "exit_status": 0,
+      "log": "server-role-boundaries.log",
+      "local_log_sha256": "a2736584d8818a688af56f55823a1f4618b2646ef64e26fcfe00d224f13af6a3"
+    },
+    {
+      "name": "server-packaging",
+      "cwd": "/workspace/kone-acceptance/server",
+      "command": "python3 server-web/tools/export_git_static.py site CLOUD-ACCEPTANCE-20261101 --repo . --source-root server-web --commit b37275d9ec568c73a92b6bc0e7ef6805061b4ed9 --output /workspace/kone-acceptance/exports && python3 server-web/tools/export_git_static.py console CLOUD-ACCEPTANCE-20261101 --repo . --source-root server-web --commit b37275d9ec568c73a92b6bc0e7ef6805061b4ed9 --output /workspace/kone-acceptance/exports && sha256sum /workspace/kone-acceptance/exports/*",
+      "started_utc": "2026-11-01T18:02:52.751779+00:00",
+      "elapsed_seconds": 1.18,
+      "exit_status": 0,
+      "log": "server-packaging.log",
+      "local_log_sha256": "cfcdaddfe6c5cc9efe2993d7b1116caf4c22cc6c9768fc4f5bd73542ce4ed1c3"
+    },
+    {
+      "name": "server-final-python",
+      "cwd": "/workspace/kone-acceptance/server/server-web",
+      "command": "python3 -B -m unittest discover -s tests -v && python3 -B -m unittest discover -s backend/tests -p 'test_*.py' -v",
+      "started_utc": "2026-11-01T18:04:28.331179+00:00",
+      "elapsed_seconds": 55.1,
+      "exit_status": 0,
+      "log": "server-final-python.log",
+      "local_log_sha256": "618da76be59051c24bba952323f04cd80345dcbf07ab95b4120172fdf30219ae"
+    }
+  ],
+  "final_counts": {
+    "exporter": {
+      "run": 18,
+      "passed": 18
+    },
+    "backend": {
+      "run": 94,
+      "passed": 93,
+      "skipped": 1
+    },
+    "node": {
+      "run": 12,
+      "passed": 12
+    },
+    "website": {
+      "run": 23,
+      "passed": 23
+    },
+    "browser_ui": {
+      "checks": 86,
+      "passed": 86
+    },
+    "service_lifecycle": {
+      "cycles": 2,
+      "passed": 2
+    }
+  }
+}
