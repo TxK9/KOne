@@ -319,6 +319,7 @@
       setConnected(value) {
         if (destroyed) return;
         const next = Boolean(value);
+        if (next !== connected) liftTime = seconds;
         if (next && !connected) sweepAt = seconds;
         connected = next; if (!raf) { lift = next ? 1 : 0; render(); }
       },

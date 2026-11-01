@@ -107,6 +107,76 @@ async function main() {
         } finally { await page.close(); }
       });
     }
+    const progression = {};
+    await check('opening-fade-intermediate-and-completion', async () => {
+      const page = await context.newPage();
+      try {
+        await page.addInitScript(() => {
+          new MutationObserver(() => {
+            if (document.documentElement.dataset.ready !== 'true' || window.__koneFade) return;
+            const stage = document.getElementById('stage');
+            getComputedStyle(stage).opacity;
+            const fade = stage.getAnimations().find(animation => animation.transitionProperty === 'opacity');
+            if (fade) { fade.pause(); window.__koneFade = fade; }
+          }).observe(document, {attributes:true, subtree:true, attributeFilter:['data-ready']});
+        });
+        await page.goto(origin + '/index.html?scene=original&time=day&motion=on');
+        await page.waitForFunction(() => Boolean(window.__koneFade));
+        const values = await page.evaluate(() => {
+          const fade = window.__koneFade, stage = document.getElementById('stage');
+          const duration = Number(fade.effect.getTiming().duration);
+          const sample = time => { fade.currentTime = time; return Number(getComputedStyle(stage).opacity); };
+          return {duration, initial:sample(0), intermediate:sample(duration / 3), complete:sample(duration)};
+        });
+        assert.equal(values.duration, 480);
+        assert.ok(values.initial <= .01);
+        assert.ok(values.intermediate > values.initial + .05 && values.intermediate < .999);
+        assert.ok(values.complete >= .999);
+        progression.fade = values;
+      } finally { await page.close(); }
+    });
+    await check('connection-glow-progress-pause-and-completion', async () => {
+      const page = await context.newPage();
+      try {
+        await page.goto(origin + '/index.html?scene=original&time=night&motion=on');
+        await page.waitForFunction(() => window.KOneWallpaper?.state.ready);
+        const samples = await page.evaluate(async () => {
+          const pulse = () => window.KOneWallpaper.state.layers.find(layer => 'connectionGlow' in layer);
+          const snapshot = () => ({glow:pulse().connectionGlow, frames:pulse().frames, time:window.KOneWallpaper.state.time});
+          window.KOneWallpaper.connected(true);
+          const initial = snapshot();
+          const intermediate = await new Promise((resolve, reject) => {
+            let callbacks = 0;
+            function poll() {
+              const value = snapshot();
+              if (value.glow > 0) { resolve(value); return; }
+              if (++callbacks > 240) { reject(new Error('Connection glow did not advance')); return; }
+              requestAnimationFrame(poll);
+            }
+            requestAnimationFrame(poll);
+          });
+          window.KOneWallpaper.active(false);
+          const pauseStart = snapshot();
+          await new Promise(resolve => setTimeout(resolve, 180));
+          const pauseEnd = snapshot();
+          window.KOneWallpaper.active(true);
+          return {initial, intermediate, pauseStart, pauseEnd};
+        });
+        assert.ok(samples.initial.glow <= .01);
+        assert.ok(samples.intermediate.glow > 0 && samples.intermediate.glow < .98);
+        assert.equal(samples.pauseStart.frames, samples.pauseEnd.frames);
+        assert.ok(Math.abs(samples.pauseStart.glow - samples.pauseEnd.glow) < .00001);
+        assert.ok(Math.abs(samples.pauseStart.time - samples.pauseEnd.time) < .00001);
+        await page.waitForFunction(() => window.KOneWallpaper.state.layers.some(layer => layer.connectionGlow > .98));
+        const complete = await page.evaluate(() => {
+          const layer = window.KOneWallpaper.state.layers.find(value => 'connectionGlow' in value);
+          return {glow:layer.connectionGlow, frames:layer.frames};
+        });
+        assert.ok(complete.frames > samples.pauseEnd.frames);
+        progression.connectionGlow = {...samples, complete};
+      } finally { await page.close(); }
+    });
+    if (output) await fs.writeFile(path.join(output, 'motion-progression.json'), JSON.stringify(progression, null, 2) + '\n');
     await check('bundled-assets-only', async () => assert.deepEqual(external, []));
     await context.close();
   } finally {

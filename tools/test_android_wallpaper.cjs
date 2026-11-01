@@ -118,7 +118,7 @@ class Container {
   getBoundingClientRect() { return {width: 320, height: 640}; }
 }
 
-function checkPulse(cityId, reduced, {step = 100, duration = 12000} = {}) {
+function checkPulse(cityId, reduced, {step = 100, duration = 12000, connectAt = 0, maxFps = 24} = {}) {
   const frames = new Map();
   let next = 0;
   const gradient = {addColorStop() {}};
@@ -151,11 +151,12 @@ function checkPulse(cityId, reduced, {step = 100, duration = 12000} = {}) {
   vm.runInNewContext(fs.readFileSync(path.join(root, 'pulse-v1.js'), 'utf8'), context);
   const pulse = context.KOnePulseV1.attach(new Container(), {
     id: cityId + '-test', cityId, cityZone: 'America/New_York', horizonY: .3,
-  });
+  }, {maxFps});
   assert.equal(pulse.state.running, !reduced);
   pulse.setSky({daylight: 0});
-  pulse.setConnected(true);
+  let connected = false;
   for (let frame = 0; frame * step < duration; frame++) {
+    if (!connected && frame * step >= connectAt) { pulse.setConnected(true); connected = true; }
     const queued = [...frames.values()]; frames.clear();
     for (const callback of queued) callback(frame * step);
   }
@@ -180,4 +181,9 @@ test('connection glow settles consistently at different frame cadences', () => {
   assert.ok(Number.isFinite(fast.connectionGlow) && Number.isFinite(slow.connectionGlow));
   assert.ok(fast.connectionGlow > .98 && slow.connectionGlow > .98);
   assert.ok(Math.abs(fast.connectionGlow - slow.connectionGlow) < .02);
+});
+
+test('a connection cannot consume time from before it was requested', () => {
+  const late = checkPulse('tokyo', false, {step:100, duration:1100, connectAt:900, maxFps:1});
+  assert.ok(late.connectionGlow > 0 && late.connectionGlow < .8);
 });
