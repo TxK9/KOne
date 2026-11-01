@@ -7,9 +7,11 @@ import cc.txwd.kone.shared.Hosts
 import cc.txwd.kone.shared.NameServer
 import cc.txwd.kone.shared.NameServers
 import cc.txwd.kone.shared.Names
+import cc.txwd.kone.shared.Policies
 import cc.txwd.kone.shared.Region
 import cc.txwd.kone.shared.Rule
 import cc.txwd.kone.shared.RuleImport
+import cc.txwd.kone.shared.RuleProviders
 import cc.txwd.kone.shared.Rules
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -100,6 +102,35 @@ object Routing {
     /** Sites as the template takes them: each one cleaned, once, [MOST_SITES] at most. */
     fun sites(names: List<String>): List<String> = names.mapNotNull(::site).distinct().take(MOST_SITES)
 
+    /** How many nodes [content] chooses between when it is KOne's template; a pick needs two. */
+    fun nodeCount(content: String): Int {
+        val config = try { JSONObject(content) } catch (_: Exception) { return 0 }
+        return if (isTemplate(config)) nodeChoices(config).size else 0
+    }
+
+    /**
+     * [choices] with [host] (a site or an address, as the Status tab shows it) sent straight out
+     * ([direct]) or through the node, by an own rule first among them; null when [host] is
+     * neither. The site lists come before the own rules, so the same site there leaves them, and
+     * one it is under that goes the other way moves into the own rules just after the new rule,
+     * where it means what it did: the new rule wins and every other site goes as before.
+     */
+    fun send(choices: Choices, host: String, direct: Boolean): Choices? {
+        val action = if (direct) "direct" else "proxy"
+        val site = site(host)
+        val rule = site?.let { Rule("suffix", it, action) } ?: Names.network(host.trim())?.let { Rule("cidr", it, action) } ?: return null
+        val directSites = sites(choices.direct)
+        val proxiedSites = sites(choices.proxied).filter { it !in directSites }
+        fun under(entry: String) = site != null && site.endsWith(".$entry")
+        val moved = if (direct) proxiedSites.filter(::under).map { Rule("suffix", it, "proxy") } else directSites.filter(::under).map { Rule("suffix", it, "direct") }
+        val movedSites = moved.map { it.value }.toSet()
+        return choices.copy(
+            direct = directSites.filter { it != site && it !in movedSites },
+            proxied = proxiedSites.filter { it != site && it !in movedSites },
+            rules = OwnRules.clean(listOf(rule) + moved + choices.rules.filterNot { it.kind == rule.kind && it.value == rule.value }),
+        )
+    }
+
     /** What a paste of another client's rules did: the choices to keep, and a line to say. */
     data class Imported(val choices: Choices, val said: String)
 
@@ -108,7 +139,7 @@ object Routing {
      * person's own, each checked as any rule is; one blocking the ad list turns on Block ads.
      */
     fun importRules(choices: Choices, text: String): Imported {
-        val read = RuleImport.read(text, Rules.ANDROID)
+        val read = RuleImport.read(text, Rules.ANDROID, picks = true)
         val ads = read.blockAds && !choices.blockAds
         val rules = OwnRules.clean(choices.rules + read.rules)
         val added = rules.size - OwnRules.clean(choices.rules).size
@@ -135,9 +166,9 @@ object Routing {
 
     /**
      * [content] with [choices] applied when it is KOne's template; otherwise unchanged. [lists]
-     * are the category lists kept on the phone (each name to its file): a rule naming a list not
-     * kept yet is left out until the list arrives, so a list that cannot be downloaded never
-     * stops KOne from starting.
+     * are the lists kept on the phone, each to its file: category lists by name, own lists by
+     * address. A rule naming a list not kept yet is left out until the list arrives, so a list
+     * that cannot be downloaded never stops KOne from starting.
      */
     fun apply(content: String, choices: Choices, lists: Map<String, String> = emptyMap()): String {
         val config = try { JSONObject(content) } catch (_: Exception) { return content }
@@ -151,10 +182,12 @@ object Routing {
         stripFakeIp(config)
         val direct = sites(choices.direct)
         val proxied = sites(choices.proxied).filter { it !in direct }
-        val own = OwnRules.clean(choices.rules).filter { it.kind != "set" || it.value in lists }
+        val own = OwnRules.clean(choices.rules).filter { (it.kind != "set" && it.kind != "url") || it.value in lists }
         // The countries the rules go through that the nodes here say, each with its nodes.
         val through = throughGroups(config, own)
         val groups = through.keys
+        // The groups the rules' picks go through: the fastest or the first that answers.
+        val picks = picks(config, own, through, choices.automatic)
 
         // Route: the stretch between the leading rules and the Direct mode rule is KOne's.
         val route = config.getJSONObject("route")
@@ -164,7 +197,7 @@ object Routing {
         val ours = buildList {
             if (direct.isNotEmpty()) add(JSONObject().put("domain_suffix", JSONArray(direct)).put("outbound", "direct"))
             if (proxied.isNotEmpty()) add(JSONObject().put("clash_mode", "Rule").put("domain_suffix", JSONArray(proxied)).put("outbound", PROXY))
-            own.forEach { add(OwnRules.route(it, groups)) }
+            own.forEach { add(OwnRules.route(it, groups, picks.via[it])) }
             // Ads after the person's own rules, so a site they let through stays reachable.
             if (choices.blockAds) add(JSONObject().put("rule_set", JSONArray().put(ADS)).put("action", "reject"))
         }
@@ -178,9 +211,10 @@ object Routing {
             ?.put("outbound", if (choices.unmatchedDirect) "direct" else PROXY)
         route.put("rules", JSONArray(routed))
         setAdList(route, choices.blockAds)
-        setCategoryLists(route, Rules.sets(own).associateWith { lists.getValue(it) })
+        setCategoryLists(route, Rules.sets(own).associateWith { lists.getValue(it) }, Rules.urls(own).associateWith { lists.getValue(it) })
         setAutomatic(config, choices.automatic)
         setThrough(config, through)
+        setPicks(config, picks.groups)
 
         // DNS: the same stretch, each list's names answered where its traffic goes.
         val dns = config.getJSONObject("dns")
@@ -308,8 +342,47 @@ object Routing {
     private fun automatic(tag: String) = tag == AUTO || tag.startsWith("$AUTO · ")
 
     /** A group that uses the fastest of [of], tested every few minutes, as Automatic does. */
-    private fun urlTest(tag: String, of: List<String>) = JSONObject().put("type", "urltest").put("tag", tag).put("outbounds", JSONArray(of))
-        .put("url", "https://www.gstatic.com/generate_204").put("interval", "5m").put("tolerance", 50)
+    private fun urlTest(tag: String, of: List<String>) = JSONObject(Policies.group(tag, of, Policies.FASTEST).toString())
+
+    /** The groups the rules' picks need (each tag to its nodes and pick), and the group each such rule goes through. */
+    private class Picks(val groups: Map<String, Pair<List<String>, String>>, val via: Map<Rule, String>)
+
+    /**
+     * The groups for the rules that pick their node ([Policies]): the fastest or the first that
+     * answers, of every node or of a country's ([through]). With one node there is nothing to
+     * pick, and the rule goes as it would without one. The fastest of every node is Automatic
+     * itself when that is on, rather than a second group testing the same nodes.
+     */
+    private fun picks(config: JSONObject, rules: List<Rule>, through: Map<String, List<String>>, automatic: Boolean): Picks {
+        val members = nodeChoices(config)
+        val taken = objects(config.optJSONArray("outbounds")).filterNot { it.optString("type") == "urltest" }.map { it.optString("tag") }.toSet()
+        val groups = LinkedHashMap<String, Pair<List<String>, String>>()
+        val via = HashMap<Rule, String>()
+        for (rule in rules) {
+            if (rule.pick.isEmpty() || !Rules.throughNode(rule.action)) continue
+            val code = Rules.via(rule.action)
+            val nodes = if (code == null) members else through[code] ?: continue
+            if (nodes.size < 2) continue
+            if (code == null && rule.pick == Policies.FASTEST && automatic) {
+                via[rule] = AUTO
+                continue
+            }
+            val tag = if (code == null) (Policies.allTag(rule.pick) ?: continue) else Policies.countryTag(through(code), rule.pick)
+            if (tag in taken) continue
+            groups.getOrPut(tag) { nodes to rule.pick }
+            via[rule] = tag
+        }
+        return Picks(groups, via)
+    }
+
+    /** The picks' groups ([picks]) after the node choices and the countries' groups; gone when no rule picks. */
+    private fun setPicks(config: JSONObject, groups: Map<String, Pair<List<String>, String>>) {
+        val kept = objects(config.optJSONArray("outbounds")).filterNot { it.optString("type") == "urltest" && Policies.isGroup(it.optString("tag")) }.toMutableList()
+        var index = kept.indexOfFirst { it.optString("tag") == PROXY && it.optString("type") == "selector" } + 1
+        while (index < kept.size && kept[index].optString("type") == "urltest" && kept[index].optString("tag").let { automatic(it) || throughOf(it) != null }) index++
+        kept.addAll(index, groups.map { (tag, group) -> JSONObject(Policies.group(tag, group.first, group.second).toString()) })
+        config.put("outbounds", JSONArray(kept))
+    }
 
     /**
      * The Automatic choice ([AUTO]) among the node choices, first and the default, when [on] and
@@ -338,13 +411,20 @@ object Routing {
     }
 
     /**
-     * The category lists the rules name, read from the phone's own copies ([lists], name to file);
-     * the lists no rule names any more are gone. sing-box watches a local list, so a newer copy
-     * takes effect without a restart.
+     * The category lists the rules name ([lists], name to file) and the own lists ([own], address
+     * to file, tagged by [RuleProviders.tag]), read from the phone's own copies; the lists no rule
+     * names any more are gone. sing-box watches a local list, so a newer copy takes effect without
+     * a restart. An own list kept as source JSON says so.
      */
-    private fun setCategoryLists(route: JSONObject, lists: Map<String, String>) {
-        val sets = objects(route.optJSONArray("rule_set")).filterNot { it.optString("type") == "local" && Rules.isSetName(it.optString("tag")) }.toMutableList()
+    private fun setCategoryLists(route: JSONObject, lists: Map<String, String>, own: Map<String, String> = emptyMap()) {
+        val sets = objects(route.optJSONArray("rule_set")).filterNot {
+            it.optString("type") == "local" && it.optString("tag").let { tag -> Rules.isSetName(tag) || RuleProviders.isTag(tag) }
+        }.toMutableList()
         lists.forEach { (name, path) -> sets += JSONObject().put("type", "local").put("tag", name).put("format", "binary").put("path", path) }
+        own.forEach { (url, path) ->
+            val format = if (path.endsWith(".json")) RuleProviders.SOURCE else RuleProviders.BINARY
+            sets += JSONObject().put("type", "local").put("tag", RuleProviders.tag(url)).put("format", format).put("path", path)
+        }
         route.put("rule_set", JSONArray(sets))
     }
 

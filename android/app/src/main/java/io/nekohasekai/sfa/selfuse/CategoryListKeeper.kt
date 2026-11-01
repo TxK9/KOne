@@ -3,6 +3,8 @@ package io.nekohasekai.sfa.selfuse
 import cc.txwd.kone.shared.CategoryLists
 import cc.txwd.kone.shared.ListDownload
 import cc.txwd.kone.shared.ListStatus
+import cc.txwd.kone.shared.OwnLists
+import cc.txwd.kone.shared.RuleProviders
 import cc.txwd.kone.shared.Rules
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.Application
@@ -24,11 +26,13 @@ import java.net.URL
  * from SagerNet's fixed address, checked by the App's own sing-box before it is kept, looked at
  * again once a day. The configurations read them as local lists, so a rule waits for its list
  * rather than a download holding up the start; a list that arrives later rewrites the saved
- * configurations and reloads a running service once.
+ * configurations and reloads a running service once. The person's own lists, by address
+ * ([OwnLists]), are kept the same way beside them.
  */
 object CategoryListKeeper {
     private val folder by lazy { File(Application.application.filesDir, "category-lists") }
-    private val lists by lazy { CategoryLists(folder, ::download, ::parses) }
+    private val lists by lazy { CategoryLists(folder, ::download) { parses(it, RuleProviders.BINARY) } }
+    private val own by lazy { OwnLists(File(Application.application.filesDir, "own-lists"), ::download, ::parses) }
     private val updating = Mutex()
 
     @Volatile private var again = false
@@ -37,11 +41,16 @@ object CategoryListKeeper {
     /** The lists the person's rules name, each once. */
     fun named(): List<String> = Rules.sets(OwnRules.clean(RoutingSettings.current().rules))
 
-    /** The lists kept intact, each name to its file, for [Routing.apply]. */
-    fun ready(): Map<String, String> = named().filter { lists.digest(it) != null }.associateWith { File(folder, "$it.srs").absolutePath }
+    /** The own lists the person's rules name by address, each once. */
+    private fun addresses(): List<String> = Rules.urls(OwnRules.clean(RoutingSettings.current().rules))
 
-    /** How each named list stands, for Settings → Routing. */
-    fun status(): Map<String, ListStatus> = named().associateWith(lists::status)
+    /** The lists kept intact, each name (or own list's address) to its file, for [Routing.apply]. */
+    fun ready(): Map<String, String> =
+        named().filter { lists.digest(it) != null }.associateWith { File(folder, "$it.srs").absolutePath } +
+            addresses().mapNotNull { url -> own.file(url)?.let { url to it.absolutePath } }
+
+    /** How each named list (and own list, by address) stands, for Settings → Routing. */
+    fun status(): Map<String, ListStatus> = named().associateWith(lists::status) + addresses().associateWith(own::status)
 
     /**
      * Downloads each named list that is due (every one, when [force]) and lets go of the rest.
@@ -61,10 +70,13 @@ object CategoryListKeeper {
             do {
                 again = false
                 val names = named()
+                val urls = addresses()
                 lists.keepOnly(names.toSet())
+                own.keepOnly(urls.toSet())
                 val before = ready().keys
                 val now = System.currentTimeMillis()
                 names.filter { forced || lists.due(it, now) }.forEach { lists.update(it, now) }
+                urls.filter { forced || own.due(it, now) }.forEach { own.update(it, now) }
                 forced = againForced
                 againForced = false
                 if (!before.containsAll(ready().keys)) {
@@ -112,9 +124,9 @@ object CategoryListKeeper {
         }
     }
 
-    /** Whether the App's sing-box reads [file] as the configurations will use it. */
-    private fun parses(file: File): Boolean = runCatching {
-        val set = JSONObject().put("type", "local").put("tag", "check").put("format", "binary").put("path", file.absolutePath)
+    /** Whether the App's sing-box reads [file], in [format], as the configurations will use it. */
+    private fun parses(file: File, format: String): Boolean = runCatching {
+        val set = JSONObject().put("type", "local").put("tag", "check").put("format", format).put("path", file.absolutePath)
         Libbox.checkConfig(JSONObject().put("route", JSONObject().put("rule_set", JSONArray().put(set))).toString())
     }.isSuccess
 }
