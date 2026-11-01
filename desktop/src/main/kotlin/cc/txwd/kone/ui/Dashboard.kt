@@ -9,6 +9,16 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.key
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -151,47 +161,81 @@ fun DashboardView(state: DashboardState, actions: DashboardActions, menuOpen: Bo
 @Composable
 private fun BoxScope.Deck(state: DashboardState, actions: DashboardActions, moving: Boolean) {
     val ink = LocalInk.current
-    Column(
-        Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 40.dp, end = 40.dp, bottom = 26.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(22.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            state.categories.forEach { tab ->
-                val on = tab == state.tab
-                Box(
-                    Modifier.height(34.dp).press(bleed = 8.dp, role = Role.Tab, selected = on) { actions.onTab(tab) }
-                        .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
-                        .padding(horizontal = 2.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Label(countryTitle(tab), 14.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
-                }
-            }
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            state.nodes.filter { it.category == state.tab }.forEach { node ->
-                val on = node.id == state.selected
-                val color = if (on) ink.ink else ink.soft
-                Row(
-                    Modifier.height(44.dp).press(bleed = 8.dp, role = Role.RadioButton, selected = on) { actions.onNode(node.id) },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                ) {
-                    Flag(node.country)
-                    Label(node.caption, 15.sp, color, if (on) FontWeight.SemiBold else FontWeight.Normal)
-                    WeatherGlyph(node.weather)
-                    Label(delayText(node.delay), 14.sp, color, tabular = true)
-                    if (on) Glyph(Glyphs.check, color, 18.dp, strokeWidth = 2.2f)
-                    if (on && node.imported) {
-                        Box(Modifier.height(32.dp).press(bleed = 4.dp, label = tr("Remove {0}" , node.name)) { actions.onRemove(node.id) }.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
-                            Label("×", 16.sp, ink.soft)
-                        }
+    BoxWithConstraints(Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
+        val compact = maxWidth < 700.dp
+        val deckHeight = (maxHeight * 0.42f).coerceAtMost(252.dp)
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = if (compact) 20.dp else 40.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(22.dp),
+            ) {
+                state.categories.forEach { tab ->
+                    val on = tab == state.tab
+                    Box(
+                        Modifier.height(38.dp).press(bleed = 4.dp, role = Role.Tab, selected = on) { actions.onTab(tab) }
+                            .drawBehind { if (on) drawRect(ink.ink, Offset(0f, size.height - 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 2.dp.toPx())) }
+                            .padding(horizontal = 2.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Label(countryTitle(tab), 14.sp, if (on) ink.ink else ink.soft, if (on) FontWeight.SemiBold else FontWeight.Normal)
                     }
                 }
             }
+            // Keep the painting and connection actions visible even with thousands of nodes.
+            // Only visible rows are composed; traffic ticks do not rebuild the filtered list.
+            val nodes = remember(state.nodes, state.tab) { state.nodes.filter { it.category == state.tab } }
+            key(state.tab) {
+                val list = rememberLazyListState(
+                    initialFirstVisibleItemIndex = nodes.indexOfFirst { it.id == state.selected }.coerceAtLeast(0),
+                )
+                Box(Modifier.fillMaxWidth().heightIn(max = deckHeight)) {
+                    LazyColumn(
+                        Modifier.fillMaxWidth().testTag("dashboard-nodes"), state = list,
+                        contentPadding = PaddingValues(end = ROOM),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        items(nodes, key = { it.id }) { node ->
+                            NodeChoice(node, node.id == state.selected, actions)
+                        }
+                    }
+                    InkScrollbar(list, Modifier.align(Alignment.TopEnd))
+                }
+            }
+            state.signIn?.let { SignInLine(it, actions) }
+            StatusLine(state, actions.onPower, actions.onPause, moving, compact)
         }
-        state.signIn?.let { SignInLine(it, actions) }
-        StatusLine(state, actions.onPower, actions.onPause, moving)
+    }
+}
+
+/** A stable, readable target with room for long provider names and a separate remove action. */
+@Composable
+private fun NodeChoice(node: Node, selected: Boolean, actions: DashboardActions) {
+    val ink = LocalInk.current
+    val shape = RoundedCornerShape(10.dp)
+    Row(
+        Modifier.fillMaxWidth().clip(shape)
+            .background(ink.paper.copy(alpha = if (selected) 0.96f else 0.78f))
+            .border(1.dp, if (selected) ink.ink.copy(alpha = 0.35f) else ink.hair, shape)
+            .press(role = Role.RadioButton, selected = selected) { actions.onNode(node.id) }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Flag(node.country)
+        Label(node.caption, 15.sp, if (selected) ink.ink else ink.soft,
+            if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f), ellipsis = true)
+        WeatherGlyph(node.weather)
+        Label(delayText(node.delay), 13.sp, ink.soft, tabular = true)
+        if (selected) Glyph(Glyphs.check, ink.ink, 18.dp, strokeWidth = 2.2f)
+        if (selected && node.imported) {
+            Box(Modifier.size(32.dp).press(label = tr("Remove {0}", node.name)) { actions.onRemove(node.id) }, contentAlignment = Alignment.Center) {
+                Label("×", 16.sp, ink.soft)
+            }
+        }
     }
 }
 
@@ -207,9 +251,8 @@ private fun SignInLine(signIn: SignInState, actions: DashboardActions) {
         Label(
             if (signIn.waiting) tr("Waiting for you to sign in; KOne connects again once the network is open")
             else tr("This network needs you to sign in before anything gets through"),
-            14.sp, NodeWeather.Mist.ink(ink.dark),
+            14.sp, NodeWeather.Mist.ink(ink.dark), modifier = Modifier.weight(1f),
         )
-        Spacer(Modifier.weight(1f))
         if (signIn.waiting) {
             Box(Modifier.height(34.dp).press(bleed = 8.dp, onClick = actions.onCancelSignIn), contentAlignment = Alignment.Center) {
                 Label(tr("Cancel"), 14.sp, ink.soft)
@@ -222,17 +265,19 @@ private fun SignInLine(signIn: SignInState, actions: DashboardActions) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -> Unit = {}, moving: Boolean = true) {
+private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -> Unit = {}, moving: Boolean = true, compact: Boolean = false) {
     val ink = LocalInk.current
     val still = LocalStill.current
-    Row(
+    FlowRow(
         Modifier.fillMaxWidth().hairline(ink.hair, top = true).padding(top = 14.dp).heightIn(min = 52.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // What the connection is, in the room the buttons leave: a long exit or category ends in …
         // rather than pushing Disconnect off the window. Connected and not, the two give way softly.
-        Box(Modifier.weight(1f)) {
+        Box(if (compact) Modifier.fillMaxWidth() else Modifier.weight(1f)) {
             AnimatedContent(
                 state, contentKey = { it.connection == Connection.Online },
                 transitionSpec = { fadeIn(Motion.spec(still, Motion.STANDARD)) togetherWith fadeOut(Motion.spec(still, Motion.QUICK)) },
@@ -271,6 +316,7 @@ private fun StatusLine(state: DashboardState, onPower: () -> Unit, onPause: () -
 }
 
 /** The node, its exit and its figures while connected; otherwise its weather and the last word on what happened. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ConnectionInfo(state: DashboardState) {
     val ink = LocalInk.current
@@ -284,7 +330,7 @@ private fun ConnectionInfo(state: DashboardState) {
                     Label(tr("Exit {0}" , state.exit ?: "—"), 18.sp, weight = FontWeight.SemiBold, ellipsis = true)
                     Label(countryTitle(node.category), 18.sp, ink.soft, modifier = Modifier.weight(1f, fill = false), ellipsis = true)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         WeatherTag(weather)
                         Label(delayText(node.delay), 14.sp, ink.ink, tabular = true)
