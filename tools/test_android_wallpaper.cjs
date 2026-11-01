@@ -24,9 +24,11 @@ test('all bundled cities have finite daylight and deterministic weather', () => 
   }
 });
 
-async function page(query) {
+async function page(query, reduced = false) {
   let now = 0;
   const events = {}, controllers = [], timers = new Map();
+  const media = {matches:reduced, addEventListener(name, handler) { this.handler = handler; },
+    change(value) { this.matches = value; this.handler?.(); }};
   const style = () => ({setProperty(key, value) { this[key] = value; }});
   const elements = new Map();
   for (const id of ['stage','day','night','motion','marine','lighting','sky','life','weather']) {
@@ -38,7 +40,7 @@ async function page(query) {
   }
   const document = {hidden:false, documentElement:{dataset:{}}, getElementById:id => elements.get(id), addEventListener:(name, handler) => events[name]=handler};
   const context = {URLSearchParams, console, performance:{now:() => now}, innerWidth:412, innerHeight:892,
-    location:{search:query}, document, NycSkyV5:{...sky,attach:() => ({render:(instant, zone) => sky.sample(catalog[0], 'day', instant, zone)})},
+    location:{search:query}, document, matchMedia:() => media, NycSkyV5:{...sky,attach:() => ({render:(instant, zone) => sky.sample(catalog[0], 'day', instant, zone)})},
     KOneWeatherModelV11:weather, KOneEnvironmentV13:{bind() {}},
     NycMotionV13:{attach}, NycMarineV13:{attach}, NycLightV13:{attach}, KOneCityLifeV13:{attach}, KOneWeatherV13:{attach},
     addEventListener() {}, setTimeout:handler => {const id=timers.size+1;timers.set(id,handler);return id;}, clearTimeout:id => timers.delete(id),
@@ -46,8 +48,41 @@ async function page(query) {
   context.window=context;
   vm.runInNewContext(fs.readFileSync(path.join(root,'wallpaper.js'),'utf8'),context);
   const settle = async () => {for(let i=0;i<4;i++) await new Promise(setImmediate);};
-  return {context,document,controllers,timers,events,elements,settle,advance:ms => now+=ms};
+  return {context,document,controllers,timers,events,elements,media,settle,advance:ms => now+=ms};
 }
+
+test('browser visibility cannot override an explicit Android pause', async () => {
+  const p = await page('?scene=original&motion=on');
+  await p.settle();
+  p.context.KOneWallpaper.active(false);
+  p.document.hidden = true; p.events.visibilitychange();
+  p.advance(3600000);
+  p.document.hidden = false; p.events.visibilitychange();
+  assert.equal(p.context.KOneWallpaper.state.running, false);
+  assert.equal(p.context.KOneWallpaper.state.time, 0);
+  assert.equal(p.timers.size, 0);
+  assert.ok(p.controllers.every(c => !c.state.running));
+  p.context.KOneWallpaper.active(true);
+  p.advance(1000);
+  assert.equal(p.context.KOneWallpaper.state.time, 1);
+});
+
+test('system reduced motion freezes the shared clock and resumes without catching up', async () => {
+  const p = await page('?scene=original&motion=on', true);
+  await p.settle();
+  assert.equal(p.document.documentElement.dataset.motion, 'off');
+  assert.ok(p.controllers.every(c => !c.playing));
+  p.advance(3600000);
+  assert.equal(p.context.KOneWallpaper.state.time, 0);
+  p.media.change(false);
+  p.advance(1000);
+  assert.equal(p.context.KOneWallpaper.state.time, 1);
+  p.media.change(true);
+  p.advance(3600000);
+  assert.equal(p.context.KOneWallpaper.state.time, 1);
+  assert.equal(p.document.documentElement.dataset.motion, 'off');
+  assert.ok(p.controllers.every(c => !c.playing));
+});
 
 test('a page finishing after Android pauses stays paused, then resumes without a time jump', async () => {
   const p=await page('?scene=original&time=city&weather=story');
@@ -83,7 +118,7 @@ class Container {
   getBoundingClientRect() { return {width: 320, height: 640}; }
 }
 
-function checkPulse(cityId, reduced) {
+function checkPulse(cityId, reduced, {step = 100, duration = 12000} = {}) {
   const frames = new Map();
   let next = 0;
   const gradient = {addColorStop() {}};
@@ -120,14 +155,16 @@ function checkPulse(cityId, reduced) {
   assert.equal(pulse.state.running, !reduced);
   pulse.setSky({daylight: 0});
   pulse.setConnected(true);
-  for (let frame = 0; frame < 120; frame++) {
+  for (let frame = 0; frame * step < duration; frame++) {
     const queued = [...frames.values()]; frames.clear();
-    for (const callback of queued) callback(frame * 100);
+    for (const callback of queued) callback(frame * step);
   }
+  const state = pulse.state;
   pulse.setVisible(false);
   assert.equal(pulse.state.running, false);
   pulse.destroy();
   assert.equal(frames.size, 0);
+  return state;
 }
 
 
@@ -135,4 +172,12 @@ test('city pulse keeps finite canvas coordinates and stops for reduced motion an
   for (const reduced of [false, true]) {
     for (const city of ['new-york', 'los-angeles', 'las-vegas', 'london', 'tokyo', 'unknown']) checkPulse(city, reduced);
   }
+});
+
+test('connection glow settles consistently at different frame cadences', () => {
+  const fast = checkPulse('tokyo', false, {step:1000 / 60, duration:1000});
+  const slow = checkPulse('tokyo', false, {step:1000 / 12, duration:1000});
+  assert.ok(Number.isFinite(fast.connectionGlow) && Number.isFinite(slow.connectionGlow));
+  assert.ok(fast.connectionGlow > .98 && slow.connectionGlow > .98);
+  assert.ok(Math.abs(fast.connectionGlow - slow.connectionGlow) < .02);
 });

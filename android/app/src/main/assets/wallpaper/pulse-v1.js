@@ -110,7 +110,7 @@
     let width = 0, height = 0, dpr = 1, raf = 0, last = null, lastPaint = null, seconds = 0, frames = 0;
     let daylight = 1, craft = [], nextAir = 0, nextHeli = 0;
     // Connecting sends one sweep of light along the skyline; while connected the city glows a little warmer.
-    let connected = false, lift = 0, sweepAt = null;
+    let connected = false, lift = 0, liftTime = 0, sweepAt = null;
 
     const zone = scene?.cityZone || 'UTC';
     const localDate = () => {
@@ -272,7 +272,9 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
       const night = clamp(1 - daylight), day = clamp(daylight);
-      lift += ((connected ? 1 : 0) - lift) * .04;
+      // Settle in about half a second at any frame rate; resize/sky redraws consume no motion.
+      const liftDelta = Math.max(0, seconds - liftTime); liftTime = seconds;
+      lift += ((connected ? 1 : 0) - lift) * -Math.expm1(-liftDelta / .18);
       drawGlow(night);
       drawSweep(night);
       drawBeams(night);
@@ -324,7 +326,7 @@
         if (destroyed) return; destroyed = true; if (raf) cancelAnimationFrame(raf); raf = 0;
         observer?.disconnect(); document.removeEventListener('visibilitychange', onChange); reducedQuery.removeEventListener?.('change', onChange); canvas.remove();
       },
-      get state() { return {city: scene?.cityId, profiled: Boolean(CITIES[scene?.cityId]), playing, visible, running: Boolean(raf), craft: craft.length, frames, daylight, tribute}; },
+      get state() { return {city: scene?.cityId, profiled: Boolean(CITIES[scene?.cityId]), playing, visible, running: Boolean(raf), craft: craft.length, frames, daylight, tribute, connectionGlow: lift}; },
     };
   }
   window.KOnePulseV1 = {attach};
