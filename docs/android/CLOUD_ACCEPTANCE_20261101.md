@@ -57,6 +57,9 @@ and unit tasks do not produce a signed installation candidate. Build/version met
    offline-label selector. Test fixtures now match the current API and localized resources.
 8. The pinned Gradle distribution now enforces its reviewed official checksum; two isolated
    real-wrapper cases prove rejection of a wrong hash and acceptance of the reviewed archive.
+9. A sky render or layer sky-update failure after readiness escaped the initialization handler.
+   Four timer/resume regressions failed in both host and Chromium harnesses. The sky-update
+   pipeline now enters terminal cleanup, retains the cause in state and stops rescheduling.
 
 City identities, original images, traffic profiles, artwork placement, authentication, routing,
 native core, localization resources and the existing connection sweep are preserved. This is
@@ -77,8 +80,8 @@ bash ./gradlew --no-daemon --console=plain --max-workers=2 \
 | --- | --- | --- |
 | Unsigned Kotlin/Java/resource compilation and unit task | Exit 0; 416 tests, 0 failures/errors/skips | Exit 0; 417 tests, 0 failures/errors/skips |
 | Invalid-port regression alone | 3 tests, 1 expected failure before the fix | Included in the passing 417-test run |
-| `node --test tools/test_android_wallpaper.cjs` | Four existing tests; extra pause reproduction failed | 14 passed after terminal-error correction |
-| Real Chromium wallpaper fixtures | 7 of 10 passed; pause and two reduced-motion cases failed | 15 of 15 passed after terminal-error correction |
+| `node --test tools/test_android_wallpaper.cjs` | Four existing tests; extra pause reproduction failed | 18 passed after post-ready sky-update correction |
+| Real Chromium wallpaper fixtures | 7 of 10 passed; pause and two reduced-motion cases failed | 19 of 19 passed after post-ready sky-update correction |
 | Isolated native Compose preview | Not credited from earlier local reports | Five selected English cases passed under Robolectric API 35 native graphics |
 | Additional selected native states/assets/drafts | Not credited from setup reports | 18 tests passed, zero failures/errors/skips; four new synthetic renders reviewed |
 | Real-wrapper checksum guard | No enforcement pin | Both cases passed: wrong hash rejected, reviewed archive accepted |
@@ -177,7 +180,7 @@ An additional older-callback assertion waits for the permitted paint cadence bef
 visible progress; it does not weaken the strict delayed-event bound.
 
 The browser harness now has 13 checks. Its controlled callback regression records the event
-at 999 ms and callback at 1000 ms: the corrected glow is 0.005540151995103254. The same current
+at 999 ms and callback at 1000 ms: the corrected glow is 0.005540151995103254. The then-current 13-check
 browser harness against an independent copy containing the previous pulse source fails this
 case (12 passes, one expected failure); the corrected source passes all 13. Existing real-time
 progression also records wall-clock samples, host pause and resumed completion. This supplies
@@ -195,8 +198,8 @@ unchanged. No new native/device, signing, Windows, production or access check is
 
 [The follow-up report](ACCESSIBLE_REVIEW_20261101.md) records the reproduced terminal-error
 fix, repaired optional visual fixtures, selected native checks and evaluated backlog.
-Current totals are 14 host tests, 15 Chromium checks and 18 additional selected native tests,
-all passed. Four new account/settings renders were reviewed, including offline/syncing and
+That reassessment passed 14 host tests, 15 Chromium checks and 18 additional selected native
+tests. The subsequent post-ready correction below passes 18 host tests and 19 Chromium checks. Four new account/settings renders were reviewed, including offline/syncing and
 200% font states. The final native run also merges the updated assets; `wallpaper.js` source
 and merged SHA-256 match `2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18`.
 Earlier 417 ordinary unit tests and five preview renders remain separate results; the full
@@ -210,6 +213,30 @@ No new speculative product change was justified by the inspected activation/feed
 The backlog separates source-only findings, executed synthetic checks, further feasible
 source/test work, device-only evidence and access decisions; it is not classified as wholly
 blocked on Claude access.
+
+### Post-ready sky-update correction
+
+Independent follow-up reproduced four failures on `7fd58e518b639f5e0c46f7bd4a8e12e5851b7492`:
+`sky.render` or a layer's `setSky` throws only after successful readiness, from the registered
+30-second callback or host resume. Both harnesses observed `ready=true`, `error=null` and
+`running=true` after the uncaught exception. The previous initialization-only cases did not
+cover this lifecycle stage.
+
+Commit `0366948015c3a4eb07b41ef630ac5f270ff3a1b2` shares terminal cleanup between initialization
+and the sky-update pipeline. A failed update returns before further initialization or timer
+rescheduling; its original error message remains in controller state and the static painting
+remains visible. The exception boundary is limited to the sky/lighting update operation;
+the existing optional pulse fallback is unchanged. Later host/visibility/motion callbacks
+cannot revive the failed instance.
+
+All 18 host tests and 19 Chromium checks pass. Browser fixtures arm the fault after readiness
+and invoke the actual registered 30000 ms callback directly (without a 30-second wait), or
+pause/resume the host. Four saved samples show zero running layers/timers and an unchanged
+clock through subsequent callbacks. Healthy pages still pass the existing motion checks.
+Android debug asset merge passes; source and merged `wallpaper.js` SHA-256 are
+`cd2edbd8b82cef3b97235f934d931393f16f87c71a39c6c3e8ca2d930afbb111`.
+The native product code and the earlier 417 ordinary, five preview and 18 targeted native
+results are unchanged and were not rerun for this JavaScript-only correction.
 
 ## Supply-chain and trust-boundary observations
 

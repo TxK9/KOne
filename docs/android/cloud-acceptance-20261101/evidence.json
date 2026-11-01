@@ -412,6 +412,72 @@
       "log": "android-wrapper-checksum-guard-final.log",
       "local_log_sha256": "02f9b6826b45e0ac85208206cdb16c73ee5b953c5cf915c8037d05550e19d0fb",
       "outcome_context": "Same two cases pass after closing the archive file handle with a context manager; no wrapper version or distribution URL change."
+    },
+    {
+      "name": "android-post-ready-sky-red",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:53:44.682315+00:00",
+      "elapsed_seconds": 1.12,
+      "exit_status": 1,
+      "log": "android-post-ready-sky-red.log",
+      "local_log_sha256": "d0b649643ddaa9a4708fff5f3c584e7ae35a17bdbc83ce1d23220763525dd33f",
+      "outcome_context": "Expected failure: four new post-readiness timer/resume regressions throw outside initialization error handling; 14 previous tests pass."
+    },
+    {
+      "name": "android-post-ready-sky-red-state",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:54:42.279727+00:00",
+      "elapsed_seconds": 1.59,
+      "exit_status": 1,
+      "log": "android-post-ready-sky-red-state.log",
+      "local_log_sha256": "884bd9245f4cb87be2ef9654fb29d7c78ab7cfdc047da083a4c3c8e9e4eab68d",
+      "outcome_context": "Expected failure with explicit state capture: all four injected post-ready faults leave ready=true, error=null and running=true; 14 previous tests pass."
+    },
+    {
+      "name": "android-post-ready-sky-browser-red",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-post-ready-red node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T19:54:42.267562+00:00",
+      "elapsed_seconds": 28.78,
+      "exit_status": 1,
+      "log": "android-post-ready-sky-browser-red.log",
+      "local_log_sha256": "7563eb6c9a1135482ef00b4b2c4059c25d11e1b527baee9f893b19097fb08164",
+      "outcome_context": "Real Chromium reproduction on pre-fix source: 15 previous checks pass; all four post-ready timer/resume faults leave ready=true, error=null and running=true."
+    },
+    {
+      "name": "android-post-ready-sky-host-final",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:55:28.073508+00:00",
+      "elapsed_seconds": 2.63,
+      "exit_status": 0,
+      "log": "android-post-ready-sky-host-final.log",
+      "local_log_sha256": "ced3c966751e74e1db2998313ce149f04e5c7950c67d6cf0d06c2a98a953b1e2",
+      "outcome_context": "18 host tests pass, including four post-ready faults with observable error and frozen clock, no live layers/timer or revival on later callbacks."
+    },
+    {
+      "name": "android-post-ready-sky-assets",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:mergeOtherDebugAssets",
+      "started_utc": "2026-11-01T19:55:27.783103+00:00",
+      "elapsed_seconds": 43.17,
+      "exit_status": 0,
+      "log": "android-post-ready-sky-assets.log",
+      "local_log_sha256": "5e3f2e679b3f3c1a1e56f70c20da729b3d3cd858ef3e746a929601cd96746fcc",
+      "outcome_context": "Android debug asset merge succeeds; merged wallpaper.js hash matches latest source. No native product or test source change in this follow-up."
+    },
+    {
+      "name": "android-post-ready-sky-browser-final",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-post-ready-final node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T19:55:27.822038+00:00",
+      "elapsed_seconds": 44.85,
+      "exit_status": 0,
+      "log": "android-post-ready-sky-browser-final.log",
+      "local_log_sha256": "e0e2dddd42c844de79b6763ffe002a660e2504010062420beaae062420106de0",
+      "outcome_context": "19 Chromium checks pass. Four post-ready faults arm only after readiness, invoke the actual registered 30000ms callback or host resume, and verify stopped state through later callbacks. The timer callback is invoked directly without waiting 30 seconds."
     }
   ],
   "artifacts": {
@@ -419,12 +485,12 @@
     "android-baseline-junit.json": "ff2984310a36d868c48b52c2b7d5b7168e2d567c066671201aa601af61d473be",
     "android-final-junit.json": "88ecbf83b49507c8c1a64d27cf621446ce6acae27ad23f3329aaf33cf375540d",
     "android-native-preview-junit.json": "70bba3ef08a70fa75f436d83a86280336ac82680d674fef8c557f9a08a1fdc1f",
-    "browser/checks.json": "957d57ba6f2bf00b9c6fe148bb6a78a074a174e09694d81f95e6d2ef7d15df40",
+    "browser/checks.json": "d9a99edf11cecc5baa095127e2816e4664a2925005b8cb58156dfbdd76cb8cb2",
     "browser/las-vegas-strip-day-320.json": "e128c7cbd17c2211d33dc335a9745a5c4b5d37d8d8e5b36b4ccad2a9fd75e743",
     "browser/las-vegas-strip-day-320.png": "c0689a527d57de476a36629b413e52e5373bc3a4870de1b7aed8ac7e52191b0f",
     "browser/las-vegas-strip-night-320.json": "8a7f8f10c3e11d9a6778784b637079c2209d974af492397902f79ab6986da5d1",
     "browser/las-vegas-strip-night-320.png": "a8dca52602ecf805eda81fa9099878f960fca71e4338728ef5b8e16c10acd36d",
-    "browser/motion-progression.json": "fcc9b3bd62a0b0838dff4cf71523dd28fbc4238fb7c29c78566e9655d0717a78",
+    "browser/motion-progression.json": "da1e2ae2c5ff5378f60f39a4b074c625d26b396b1f197b608411f7490c8955f9",
     "browser/original-day-320.json": "a0e3d6f09f3de625ca09cda975232571d0ea664800a7f2049c9d14921eb228e8",
     "browser/original-day-320.png": "7c4f904aa11f4875567d4aaae1eea221f02223f724af69ffe197248a5f9b03f6",
     "browser/original-night-320.json": "7a70c59dcee4597ecd0ba809bb04c7e2948f6664881cbce2f4ee3d96ea744e0e",
@@ -443,7 +509,7 @@
     "native/settings-en-light-320.png": "95824126fcb51e6fd347d7666901d110b2ddcdb30420827ec9505a392903f317",
     "native/settings-hub-light.png": "60cb141d16717e5089c65d72c2a30f55620faf669064ab12538545dd4322e246",
     "native-render-cache.init.gradle": "92f215316d4c24853dc93ef6e3976962073c86079bed816f4903f674351c3364",
-    "wallpaper-source-sha256.json": "49d1f17addf00cf1d8529ece2b952ff569b3233cb9a6b263c6a9bf8361c49def"
+    "wallpaper-source-sha256.json": "9d17b23097bdeb70cfb057a621b7f50d3080e0b80cb7526187d2590558875178"
   },
   "limits": [
     "No Windows compilation or tests",
@@ -456,9 +522,9 @@
   "command_convention": "Commands are reproducible path templates. Resolve named candidate/runtime/output placeholders to the selected local inputs. Original commands and precise environment receipts remain outside Git.",
   "refined_wallpaper_commit": "e0da5853e69f9da210d54118599ec0d891564942",
   "followup_counts": {
-    "wallpaper_host_passed": 14,
-    "browser_passed": 15,
-    "android_debug_asset_merge": "passed during selected native run; wallpaper.js source and merged hashes match",
+    "wallpaper_host_passed": 18,
+    "browser_passed": 19,
+    "android_debug_asset_merge": "passed after post-ready sky-update correction; wallpaper.js source/merged SHA-256 match",
     "actual_client_contract_scenarios_passed": 12,
     "accessible_native_tests_passed": 18,
     "wrapper_checksum_probe_cases_passed": 2
@@ -474,8 +540,8 @@
   "distribution_checksum_commit": "47f5ced3ad33f9971e4aeca225f030d171608912",
   "merged_wallpaper_asset": {
     "path": "android/app/build/intermediates/assets/otherDebug/mergeOtherDebugAssets/wallpaper/wallpaper.js",
-    "source_sha256": "2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18",
-    "merged_sha256": "2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18"
+    "source_sha256": "cd2edbd8b82cef3b97235f934d931393f16f87c71a39c6c3e8ca2d930afbb111",
+    "merged_sha256": "cd2edbd8b82cef3b97235f934d931393f16f87c71a39c6c3e8ca2d930afbb111"
   },
   "gradle_distribution_checksum": {
     "version": "9.7.0",
@@ -494,5 +560,12 @@
         "passed": true
       }
     ]
+  },
+  "post_ready_sky_update_commit": "0366948015c3a4eb07b41ef630ac5f270ff3a1b2",
+  "post_ready_reproduction_baseline": "7fd58e518b639f5e0c46f7bd4a8e12e5851b7492",
+  "earlier_native_merged_wallpaper_asset": {
+    "path": "android/app/build/intermediates/assets/otherDebug/mergeOtherDebugAssets/wallpaper/wallpaper.js",
+    "source_sha256": "2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18",
+    "merged_sha256": "2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18"
   }
 }

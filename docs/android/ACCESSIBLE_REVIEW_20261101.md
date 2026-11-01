@@ -39,6 +39,24 @@ a separate fresh cache accepts the reviewed archive and reports Gradle 9.7.0. Th
 uses the already verified local official archive, not a fresh remote supply-chain test.
 The source for the pin is the [official Gradle checksum reference](https://gradle.org/release-checksums/).
 
+**Post-ready sky-update failure.** Follow-up injection on
+`7fd58e518b639f5e0c46f7bd4a8e12e5851b7492` armed a `sky.render` or layer `setSky` fault
+only after successful readiness, then invoked the actual registered 30-second callback or
+host resume. All four cases failed in both harnesses: the thrown exception left
+`ready=true`, `error=null` and `running=true`. This was a separate lifecycle gap from the
+initialization failures above. Commit `0366948015c3a4eb07b41ef630ac5f270ff3a1b2` limits
+exception handling to the sky-update pipeline and shares terminal cleanup with initialization.
+It preserves the cause in state, clears readiness, freezes the clock, stops layers/timers and
+keeps the static painting visible. A failed update cannot reschedule or continue initialization.
+The optional pulse fallback and unrelated event operations are unchanged.
+
+All **18 host tests and 19 Chromium checks pass** after the correction. Four recorded browser
+samples remain stopped through subsequent host/visibility/reduced-motion callbacks. Healthy
+pages continue to pass the existing checks. The timer probe invokes its captured real callback
+directly without waiting 30 seconds. Android debug asset merge passes and matches source
+SHA-256 `cd2edbd8b82cef3b97235f934d931393f16f87c71a39c6c3e8ca2d930afbb111`.
+Earlier native results below are retained separately and were not rerun for this asset-only fix.
+
 ## Additional executed evidence
 
 The final selected native run passes **18 tests, zero failures/errors/skips** under
@@ -73,7 +91,7 @@ Its path templates resolve to the published cloud runtime and disposable local i
 | --- | --- | --- |
 | Loading, empty and busy states | Source review of `ActivationScreen` and `FeedbackScreen` found endpoint/key validation, a submit busy guard, null-binding refusal and client-instance guards for late completion. Feedback intentionally leaves its brief binding lookup blank, then offers the existing unlinked explanation. No further runtime change was justified by this review. These screens were not exercised end to end by this follow-up. | Add focused navigation/binding-change UI fixtures if changing those flows; do not infer complete UI acceptance from source inspection. |
 | Local draft isolation and stale completion | Six executed synthetic draft tests pass. Existing binding-derived storage and upload identity checks preserve another binding or a newer draft. | Device process recreation and keystore-backed binding changes remain unverified. |
-| Motion and cleanup | 14 host and 15 real-browser checks cover host pause, reduced motion, elapsed-time glow, delayed callbacks, failed initialization/rendering and stopped clocks/layers. | Real Android WebView process loss/recreation, repeated navigation, background resource use and GPU/frame timing need instrumentation or a device. |
+| Motion and cleanup | 18 host and 19 real-browser checks cover host pause, reduced motion, elapsed-time glow, delayed callbacks, initialization and post-ready sky-update failures, and stopped clocks/layers. | Real Android WebView process loss/recreation, repeated navigation, background resource use and GPU/frame timing need instrumentation or a device. |
 | Accessibility and presentation | Selected semantics, 200% font wrapping and four account/settings renders pass and were reviewed. Existing city artwork/localization is preserved. | Actual TalkBack traversal, hardware keyboard behavior, platform font/contrast settings, all city/UI combinations and WebView error appearance remain unverified. |
 | Input and logging boundaries | The endpoint port regression is fixed; earlier parser/API tests remain recorded. This review found no additional managed/feedback runtime logging call requiring token redaction. No token or customer input was introduced into checked-in evidence. | Broader log sinks and every external input path require a separate systematic audit; absence of a call in these inspected files is not proof of complete redaction. |
 | Local wallpaper resource boundary | Three executed asset-client tests reject nonlocal/network/traversal paths and verify the complete approved image set. The native component has no JavaScript bridge. | Browser and JVM fixtures do not establish behavior of every OEM WebView or a compromised Android process. |

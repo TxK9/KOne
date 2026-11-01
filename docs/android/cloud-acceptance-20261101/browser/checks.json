@@ -56,6 +56,22 @@
     "passed": true
   },
   {
+    "name": "post-ready-sky-render-timer-stays-stopped",
+    "passed": true
+  },
+  {
+    "name": "post-ready-sky-render-host-resume-stays-stopped",
+    "passed": true
+  },
+  {
+    "name": "post-ready-layer-setSky-timer-stays-stopped",
+    "passed": true
+  },
+  {
+    "name": "post-ready-layer-setSky-host-resume-stays-stopped",
+    "passed": true
+  },
+  {
     "name": "bundled-assets-only",
     "passed": true
   }
