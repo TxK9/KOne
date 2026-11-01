@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="knine_connect" translatable="false">Connect</string>
-    <string name="knine_disconnect" translatable="false">Close</string>
-    <string name="knine_proxy_started" translatable="false">Connected</string>
-    <string name="knine_home_online" translatable="false">Home online</string>
-    <string name="knine_home_connecting" translatable="false">Home connecting</string>
-    <string name="knine_home_login" translatable="false">Home sign-in required</string>
-    <string name="knine_home_auth" translatable="false">Home authorization required</string>
-    <string name="knine_home_stopped" translatable="false">Home stopped</string>
-    <string name="knine_home_unconfigured" translatable="false">Home not configured</string>
-    <string name="knine_home_pending" translatable="false">Syncing Home status</string>
-    <string name="knine_current_profile" translatable="false">Current profile</string>
-    <string name="knine_current_mode" translatable="false">Routing mode</string>
-    <string name="knine_total" translatable="false">Total %1$s</string>
+    <string name="knine_connect">Connect</string>
+    <string name="knine_disconnect">Disconnect</string>
+    <string name="knine_proxy_started">Connected</string>
+    <string name="knine_home_online">Home online</string>
+    <string name="knine_home_connecting">Home connecting</string>
+    <string name="knine_home_login">Home sign-in required</string>
+    <string name="knine_home_auth">Home authorization required</string>
+    <string name="knine_home_stopped">Home stopped</string>
+    <string name="knine_home_unconfigured">Home not configured</string>
+    <string name="knine_home_pending">Syncing Home status</string>
+    <string name="knine_current_profile">Current profile</string>
+    <string name="knine_current_mode">Routing mode</string>
+    <string name="knine_total">Total %1$s</string>
 </resources>

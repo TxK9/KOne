@@ -6,7 +6,9 @@ The candidate continues local development commit `8014f6a66af2f1e20d120294058d8a
 
 ## Changes
 
-- Fill 311 missing Simplified Chinese resource entries, including plurals and errors.
+- Fill 324 missing Simplified Chinese resource entries, including plurals and errors.
+  Thirteen visible connection/Home labels had incorrectly been marked nontranslatable;
+  the real city preview exposed the remaining English Connect action.
 - Move appearance, dashboard, status, activation, node editing and sharing labels into
   paired resources. Show language names in their own language. Keep generated locale
   discovery so a new resource locale does not require a separate hardcoded picker list.
@@ -27,7 +29,7 @@ to the published baseline (`14c4e2cdc42e21641e62349ed943baf8796b2b0a346feb5dfd3a
 
 ## Validation
 
-All 1,046 translatable default entries have a Simplified Chinese counterpart. XML parsing,
+All 1,059 translatable default entries have a Simplified Chinese counterpart. XML parsing,
 duplicate-key checks and format-placeholder parity pass. The baseline native rendering
 suite passes five cases; the localized working preview passes nine. Eleven focused account
 tests pass, including Unix-seconds precision, time zones and the expiry boundary. Four host
@@ -44,3 +46,8 @@ completed in this patch; other existing packs retain English fallback.
 The isolated visual app uses synthetic data and its own package. It provides evidence
 for production Compose components, not physical-phone, VPN, account or server acceptance.
 No production package has been installed or cleared.
+
+The final preview checks both connection-action states in English/Chinese. Its Android
+three-button navigation icons still appear gray after clearing the legacy light-navigation
+flag; this is recorded as an emulator/SystemUI appearance limit, not a confirmed production
+MainActivity defect.

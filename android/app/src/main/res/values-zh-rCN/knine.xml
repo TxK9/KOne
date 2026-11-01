@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_connect">连接</string>
+    <string name="knine_disconnect">断开</string>
+    <string name="knine_proxy_started">已连接</string>
+    <string name="knine_home_online">Tailscale 已连接</string>
+    <string name="knine_home_connecting">Tailscale 连接中</string>
+    <string name="knine_home_login">Tailscale 待登录</string>
+    <string name="knine_home_auth">Tailscale 待授权</string>
+    <string name="knine_home_stopped">Tailscale 已停止</string>
+    <string name="knine_home_unconfigured">Tailscale 未配置</string>
+    <string name="knine_home_pending">同步 Tailscale 状态</string>
+    <string name="knine_current_profile">当前配置</string>
+    <string name="knine_current_mode">路由模式</string>
+    <string name="knine_total">累计 %1$s</string>
+</resources>
