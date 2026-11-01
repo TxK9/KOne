@@ -249,6 +249,93 @@ async function main() {
         } finally { await page.close(); }
       });
     }
+    progression.postReadyFailures = {};
+    for (const fault of ['sky-render', 'layer-setSky']) {
+      for (const trigger of ['timer', 'host-resume']) {
+        await check('post-ready-' + fault + '-' + trigger + '-stays-stopped', async () => {
+          const page = await context.newPage(), errors = [];
+          page.on('pageerror', error => errors.push(error.message));
+          try {
+            await page.addInitScript(() => {
+              window.__koneFault = null;
+              const timers = new Map(), set = window.setTimeout.bind(window), clear = window.clearTimeout.bind(window);
+              window.setTimeout = (callback, delay, ...args) => {
+                const id = set(callback, delay, ...args);
+                if (delay === 30000) timers.set(id, () => {timers.delete(id);clear(id);callback(...args);});
+                return id;
+              };
+              window.clearTimeout = id => {timers.delete(id);clear(id);};
+              window.__koneSkyTimer = {get count() {return timers.size;}, fire() {
+                if (timers.size !== 1) throw new Error('Expected one wallpaper sky timer');
+                timers.values().next().value();
+              }};
+              for (const [name, method, fault] of [['NycSkyV5', 'render', 'sky-render'], ['NycMarineV13', 'setSky', 'layer-setSky']]) {
+                let wrapped;
+                Object.defineProperty(window, name, {configurable:true, get:() => wrapped, set(api) {
+                  wrapped = {...api, attach(...args) {
+                    const controller = api.attach(...args), original = controller[method].bind(controller);
+                    controller[method] = (...values) => {
+                      if (window.__koneFault === fault) throw new Error('Synthetic post-ready ' + fault + ' failure');
+                      return original(...values);
+                    };
+                    return controller;
+                  }};
+                }});
+              }
+            });
+            await page.goto(origin + '/index.html?scene=original&time=day&motion=on');
+            await page.waitForFunction(() => window.KOneWallpaper?.state.ready);
+            const observed = await page.evaluate(({fault, trigger}) => {
+              const healthy = window.KOneWallpaper.state;
+              if (trigger === 'host-resume') window.KOneWallpaper.active(false);
+              window.__koneFault = fault; // Arm only after successful initialization.
+              let thrown = null;
+              try {
+                if (trigger === 'timer') window.__koneSkyTimer.fire();
+                else window.KOneWallpaper.active(true);
+              } catch (failure) {thrown = failure.message;}
+              return {healthy:{ready:healthy.ready,error:healthy.error,running:healthy.running},
+                failed:window.KOneWallpaper.state,thrown,timers:window.__koneSkyTimer.count};
+            }, {fault, trigger});
+            assert.deepEqual(observed.healthy, {ready:true,error:null,running:true});
+            assert.equal(observed.failed.ready, false, JSON.stringify({ready:observed.failed.ready,
+              error:observed.failed.error,running:observed.failed.running,thrown:observed.thrown}));
+            assert.equal(observed.thrown, null);
+            assert.match(observed.failed.error, /Synthetic post-ready .* failure/);
+            assert.equal(observed.failed.running, false);
+            assert.ok(observed.failed.layers.every(layer => !layer.running));
+            assert.equal(observed.timers, 0);
+            await page.evaluate(() => {
+              window.KOneWallpaper.active(true);window.KOneWallpaper.connected(true);
+              for (const hidden of [true, false]) {
+                Object.defineProperty(document, 'hidden', {configurable:true,value:hidden});
+                document.dispatchEvent(new Event('visibilitychange'));
+              }
+            });
+            await page.emulateMedia({reducedMotion:'reduce'});
+            await page.emulateMedia({reducedMotion:'no-preference'});
+            await page.waitForTimeout(120);
+            const final = await page.evaluate(() => ({state:window.KOneWallpaper.state,
+              timers:window.__koneSkyTimer.count,error:document.documentElement.dataset.error,
+              paintingVisible:document.documentElement.dataset.ready === 'true'}));
+            assert.equal(final.state.ready, false);
+            assert.equal(final.state.error, observed.failed.error);
+            assert.equal(final.state.running, false);
+            assert.equal(final.state.time, observed.failed.time);
+            assert.ok(final.state.layers.every(layer => !layer.running));
+            assert.equal(final.timers, 0);
+            assert.equal(final.error, 'wallpaper-unavailable');
+            assert.equal(final.paintingVisible, true);
+            assert.deepEqual(errors, []);
+            progression.postReadyFailures[fault + ':' + trigger] = {healthy:observed.healthy,
+              ready:final.state.ready,error:final.state.error,running:final.state.running,
+              timeBefore:observed.failed.time,timeAfter:final.state.time,
+              runningLayers:final.state.layers.filter(layer => layer.running).length,
+              timers:final.timers,paintingVisible:final.paintingVisible};
+          } finally {await page.close();}
+        });
+      }
+    }
     if (output) await fs.writeFile(path.join(output, 'motion-progression.json'), JSON.stringify(progression, null, 2) + '\n');
     await check('bundled-assets-only', async () => assert.deepEqual(external, []));
     await context.close();

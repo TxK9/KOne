@@ -16,17 +16,27 @@
     }
     return Date.now();
   };
+  function fail(failure) {
+    error = failure?.message || 'Wallpaper unavailable'; ready = false; active(false);
+    // Whatever did load stays visible rather than behind the fade.
+    document.documentElement.dataset.ready = 'true';
+    document.documentElement.dataset.error = 'wallpaper-unavailable';
+  }
   function updateSky() {
-    if (!sky) return;
-    const sample = sky.render(time(), scene.cityLocation);
-    const daylight = params.get('time') === 'day' ? 1 : params.get('time') === 'night' ? 0 : sample.daylight;
-    const visual = {...sample, daylight};
-    stage.style.setProperty('--daylight', String(daylight));
-    for (const layer of layers) { layer.setSky?.(visual); layer.setLighting?.(visual); }
+    if (error !== null) return false;
+    if (!sky) return true;
+    try {
+      const sample = sky.render(time(), scene.cityLocation);
+      const daylight = params.get('time') === 'day' ? 1 : params.get('time') === 'night' ? 0 : sample.daylight;
+      const visual = {...sample, daylight};
+      stage.style.setProperty('--daylight', String(daylight));
+      for (const layer of layers) { layer.setSky?.(visual); layer.setLighting?.(visual); }
+      return true;
+    } catch (failure) { fail(failure); return false; }
   }
   function schedule() {
     clearTimeout(timer);
-    if (ready && visible && !document.hidden) timer = setTimeout(() => { updateSky(); schedule(); }, 30000);
+    if (ready && visible && !document.hidden) timer = setTimeout(() => { if (updateSky()) schedule(); }, 30000);
   }
   function syncActivity() {
     visible = hostActive && !document.hidden && error === null;
@@ -34,7 +44,7 @@
     if (next !== running) { elapsed = clock(); anchor = performance.now(); running = next; }
     document.documentElement.dataset.motion = motionAllowed() ? 'on' : 'off';
     for (const layer of layers) { layer.setVisible?.(visible); layer.setPlaying?.(next); }
-    if (visible) updateSky();
+    if (visible && !updateSky()) return;
     schedule();
   }
   function active(value) { hostActive = Boolean(value); syncActivity(); }
@@ -78,12 +88,7 @@
     // The city's own sky is an extra: if it cannot start, the artwork still runs.
     try { if (window.KOnePulseV1) layers.push(KOnePulseV1.attach(document.getElementById('pulse'), scene, options)); } catch (_) {}
     sky = NycSkyV5.attach(document.getElementById('sky'), scene, 'day', {zone:scene.cityLocation, instant:time()});
-    ready = true; updateSky(); syncActivity(); connected(linked);
+    ready = true; if (!updateSky()) return; syncActivity(); connected(linked);
     document.documentElement.dataset.ready = 'true';
-  }).catch(failure => {
-    error = failure.message; ready = false; active(false);
-    // Whatever did load stays visible rather than behind the fade.
-    document.documentElement.dataset.ready = 'true';
-    document.documentElement.dataset.error = 'wallpaper-unavailable';
-  });
+  }).catch(fail);
 })();

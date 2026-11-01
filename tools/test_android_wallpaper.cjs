@@ -36,7 +36,10 @@ async function page(query, reduced = false, {failRead = null, failAttach = null,
   }
   function attach() {
     if (controllers.length === failAttach) throw new Error('Synthetic layer initialization failure');
-    const controller = {visible:true, playing:true, setVisible(value) {this.visible=value;}, setPlaying(value) {this.playing=value;}, setSky() {}, setLighting() {}, get state() {return {running:this.visible && this.playing};}};
+    const controller = {visible:true, playing:true, failSky:false,
+      setVisible(value) {this.visible=value;}, setPlaying(value) {this.playing=value;},
+      setSky() {if (this.failSky) throw new Error('Synthetic layer sky update failure');},
+      setLighting() {}, get state() {return {running:this.visible && this.playing};}};
     controllers.push(controller); return controller;
   }
   const document = {hidden:false, documentElement:{dataset:{}}, getElementById:id => elements.get(id), addEventListener:(name, handler) => events[name]=handler};
@@ -52,7 +55,11 @@ async function page(query, reduced = false, {failRead = null, failAttach = null,
   context.window=context;
   vm.runInNewContext(fs.readFileSync(path.join(root,'wallpaper.js'),'utf8'),context);
   const settle = async () => {for(let i=0;i<4;i++) await new Promise(setImmediate);};
-  return {context,document,controllers,timers,events,elements,media,settle,advance:ms => now+=ms};
+  return {context,document,controllers,timers,events,elements,media,settle,advance:ms => now+=ms,
+    failSky() {failSky=true;}, fireTimer() {
+      assert.equal(timers.size,1);
+      const [id,callback]=timers.entries().next().value;timers.delete(id);callback();
+    }};
 }
 
 async function failedPageStaysStopped(failure, expectedLayers) {
@@ -76,6 +83,41 @@ async function failedPageStaysStopped(failure, expectedLayers) {
 test('missing bundled metadata remains stopped after host resume', () => failedPageStaysStopped({failRead:'catalog.json'}, 0));
 test('partial layer initialization cannot restart after failure', () => failedPageStaysStopped({failAttach:2}, 2));
 test('sky render failure cannot leave a ready or running wallpaper', () => failedPageStaysStopped({failSky:true}, 5));
+
+for (const source of ['sky-render', 'layer-setSky']) {
+  for (const trigger of ['timer', 'host-resume']) {
+    test(`post-ready ${source} failure on ${trigger} stops the controller and remains observable`, async () => {
+      const p=await page('?scene=original&time=city&motion=on');
+      await p.settle();
+      assert.equal(p.context.KOneWallpaper.state.ready,true);
+      assert.equal(p.context.KOneWallpaper.state.error,null);
+      assert.ok(p.controllers.every(controller => controller.state.running));
+      if (trigger === 'host-resume') p.context.KOneWallpaper.active(false);
+      p.advance(30000);
+      if (source === 'sky-render') p.failSky(); else p.controllers[1].failSky=true;
+      let thrown=null;
+      try {if (trigger === 'timer') p.fireTimer(); else p.context.KOneWallpaper.active(true);} catch (failure) {thrown=failure.message;}
+      const failed=p.context.KOneWallpaper.state;
+      assert.equal(failed.ready,false,JSON.stringify({ready:failed.ready,error:failed.error,running:failed.running,thrown}));
+      assert.equal(thrown,null);
+      assert.match(failed.error,/Synthetic .* (render|update) failure/);
+      assert.equal(failed.running,false);
+      assert.equal(p.document.documentElement.dataset.error,'wallpaper-unavailable');
+      assert.equal(p.document.documentElement.dataset.ready,'true'); // Retain the static painting.
+      assert.ok(p.controllers.every(controller => !controller.state.running));
+      assert.equal(p.timers.size,0);
+      p.context.KOneWallpaper.active(true);
+      p.document.hidden=true;p.events.visibilitychange();
+      p.document.hidden=false;p.events.visibilitychange();
+      p.media.change(true);p.media.change(false);
+      p.advance(60000);
+      assert.equal(p.context.KOneWallpaper.state.error,failed.error);
+      assert.equal(p.context.KOneWallpaper.state.time,failed.time);
+      assert.ok(p.controllers.every(controller => !controller.state.running));
+      assert.equal(p.timers.size,0);
+    });
+  }
+}
 
 test('browser visibility cannot override an explicit Android pause', async () => {
   const p = await page('?scene=original&motion=on');
