@@ -1,0 +1,45 @@
+# Shared node + App API template. Include within the Nginx http context.
+# Replace certificates before use and validate existing Nginx configuration.
+# This direct-origin example limits requests by TCP peer IP. Behind a CDN,
+# configure trusted proxy addresses before using a forwarded client address.
+limit_req_zone $binary_remote_addr zone=kone_public_api:10m rate=10r/s;
+limit_conn_zone $binary_remote_addr zone=kone_public_clients:10m;
+
+server {
+    listen 443 ssl;
+    server_name api.qingwanli.com;
+    ssl_certificate /etc/letsencrypt/live/api.qingwanli.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.qingwanli.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 1m;
+    client_body_timeout 15s;
+    limit_req zone=kone_public_api burst=40 nodelay;
+    limit_req_status 429;
+    limit_conn kone_public_clients 20;
+    access_log off;
+
+    proxy_set_header Host api.qingwanli.com;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 30s;
+    proxy_send_timeout 30s;
+
+    location ~ ^/api/(node/(register|poll|result|usage)|client/(claim|ack|diagnostics))$ {
+        limit_except POST { deny all; }
+        proxy_pass http://127.0.0.1:8768;
+    }
+    location = /api/client/feedback {
+        limit_except GET POST { deny all; }
+        proxy_pass http://127.0.0.1:8768;
+    }
+    location = /api/client/config {
+        limit_except GET { deny all; }
+        proxy_pass http://127.0.0.1:8768;
+    }
+    location ~ ^/downloads/(install-node\.sh|kone-node\.py)$ {
+        limit_except GET { deny all; }
+        proxy_pass http://127.0.0.1:8768;
+    }
+    # No administrator pages, login, backups, arbitrary files or other APIs.
+    location / { return 404; }
+}

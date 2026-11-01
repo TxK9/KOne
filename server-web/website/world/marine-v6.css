@@ -1,0 +1,17 @@
+/* The parent marine layer is ordered below sunlight, sky and all controls. */
+.marine-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.marine-layer > .nyc-marine-canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

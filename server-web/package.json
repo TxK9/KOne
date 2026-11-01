@@ -1,0 +1,17 @@
+{
+  "name": "kone-web-development",
+  "version": "2026.11.1",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test:website": "node website-tests/test-site.mjs",
+    "test:backend-js": "node --test backend/tests/i18n.test.mjs backend/tests/owner-download.test.mjs",
+    "test:catalog": "node backend/tests/audit-catalog.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "1.62.1"
+  }
+}

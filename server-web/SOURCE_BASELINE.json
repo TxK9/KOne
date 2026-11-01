@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "service_source_commit": "558f3e00eaba82e3412d7eb28e2047f59f5819e8",
+  "service_version": "0.3.8",
+  "runtime_source_preserved": [
+    "website/",
+    "backend/web/",
+    "backend/*.py",
+    "backend/node/",
+    "backend/deploy/"
+  ],
+  "website_locales": [
+    "en",
+    "zh-CN",
+    "ja",
+    "fr"
+  ],
+  "console_locales": [
+    "en",
+    "zh-CN"
+  ],
+  "immutable_manifest_sha256": {
+    "release.json": "93bf59c47e40d49bcb3303b9b23d11f2047842daf05494e64d2b57110f64e279",
+    "windows-release.json": "baa07187ee97665be6d17c56e535fb1c9f471c6d3d89b8906d7da9f72620690b"
+  },
+  "candidate_path": "server-web/",
+  "target_repository": "TxK9/KOne",
+  "proposed_branch": "codex/server-web-collab-20261101",
+  "remote_publication": "pending-coordinator-review",
+  "excluded": [
+    "runtime state",
+    "credentials",
+    "old verification reports",
+    "root publisher implementation",
+    "working-tree packer"
+  ],
+  "changes_to_source": [
+    "English development references",
+    "neutral synthetic fixture CPU/laptop labels",
+    "Git-object exporter and tests",
+    "Desktop/Cloud candidate handoff"
+  ]
+}

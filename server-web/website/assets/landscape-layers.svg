@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2172 724" fill="none" aria-hidden="true">
+  <defs>
+    <image id="scroll-paint" href="assets/landscape-scroll-v1.png" width="2172" height="724"/>
+    <filter id="depth-feather" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="7"/></filter>
+    <filter id="ink-feather" x="-15%" y="-80%" width="130%" height="260%"><feGaussianBlur stdDeviation="22"/></filter>
+    <!-- Masks follow the painted banks. They separate the existing artwork,
+         rather than inventing new mountain geometry. -->
+    <path id="near-banks" d="M-50 285 C45 273 109 285 171 313 C210 340 237 347 245 367 C272 407 334 418 372 431 C431 462 484 502 547 516 C615 531 692 551 771 589 L872 640 L900 774 H-50 Z M1455 660 C1544 616 1622 579 1717 555 C1788 524 1836 497 1876 462 C1938 427 1992 400 2049 419 C2102 409 2140 399 2222 415 V774 H1455 Z"/>
+    <path id="distant-range" d="M595 -50 H2222 V421 C2071 450 1969 425 1871 414 C1741 419 1708 409 1620 429 C1490 456 1388 443 1279 431 C1142 431 1056 432 959 423 C826 414 726 423 651 388 C638 347 622 318 595 303 Z"/>
+    <mask id="near-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="2172" height="724"><use href="#near-banks" fill="white" filter="url(#depth-feather)"/></mask>
+    <mask id="far-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="2172" height="724"><use href="#distant-range" fill="white" filter="url(#depth-feather)"/><use href="#near-banks" fill="black" filter="url(#depth-feather)"/></mask>
+    <mask id="middle-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="2172" height="724"><path fill="white" d="M0 0H2172V724H0Z"/><use href="#distant-range" fill="black" filter="url(#depth-feather)"/><use href="#near-banks" fill="black" filter="url(#depth-feather)"/></mask>
+    <mask id="brush-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="2172" height="724">
+      <g stroke="white" stroke-linecap="round" stroke-linejoin="round">
+        <path class="brush-path brush-ridge" pathLength="100" stroke-width="19" d="M-10 209 C40 181 65 183 98 162 C128 154 161 158 184 145 C212 132 211 119 248 119 C275 122 290 107 315 124 C337 149 356 141 373 154 C399 177 421 168 442 188 C471 191 480 210 514 216 C556 230 550 270 580 283 C615 294 640 310 668 299 C707 276 733 281 753 293 C795 333 820 318 851 313 C876 297 899 299 924 316 C955 339 977 325 1004 338 C1088 330 1121 372 1183 373 C1254 406 1278 389 1328 383 C1380 389 1409 367 1456 365 C1541 361 1573 339 1619 329 C1644 306 1681 302 1715 311 C1742 329 1772 322 1804 330 C1836 340 1867 310 1906 318 C1968 327 2002 287 2041 287 C2076 273 2116 282 2179 275"/>
+        <path class="brush-path brush-bank" pathLength="100" stroke-width="23" d="M-10 350 C59 327 69 360 116 362 C176 351 207 381 228 417 C269 458 318 464 362 492 C401 519 441 503 485 529 C563 535 574 549 629 555 C698 555 735 576 810 588 M1499 614 C1548 595 1593 589 1623 570 C1680 546 1730 550 1787 523 C1857 486 1885 468 1924 462 C1986 421 2024 437 2067 459 C2117 434 2140 446 2180 451"/>
+        <path class="brush-path brush-texture" pathLength="100" stroke-width="12" d="M265 137 C252 185 220 199 211 245 M330 171 C302 203 311 224 288 271 M418 220 C436 257 426 290 452 315 M492 266 C480 310 514 336 505 369 M157 386 C157 411 181 442 185 477 M2046 452 C2013 483 2037 506 2010 540"/>
+      </g>
+    </mask>
+    <mask id="wash-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="2172" height="724">
+      <path class="wash-path" pathLength="100" stroke="white" stroke-width="1400" stroke-linecap="round" filter="url(#ink-feather)" d="M-850 405 C0 292 690 372 1086 402 C1495 429 2110 320 3022 405"/>
+    </mask>
+  </defs>
+  <g class="brush-reveal" mask="url(#brush-mask)"><use href="#scroll-paint"/></g>
+  <g class="paint-reveal" mask="url(#wash-mask)">
+    <g data-depth="far" mask="url(#far-mask)"><use href="#scroll-paint"/></g>
+    <g data-depth="middle" mask="url(#middle-mask)"><use href="#scroll-paint"/></g>
+    <g data-depth="near" mask="url(#near-mask)"><use href="#scroll-paint"/></g>
+  </g>
+</svg>
