@@ -252,18 +252,92 @@
       "exit_status": 0,
       "log": "android-browser-final-refined.log",
       "local_log_sha256": "2ba21c66b8fe6446a42d1023b6ba1508558dda763cfacd475ca99a3144029a10"
+    },
+    {
+      "name": "android-delayed-callback-red",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:40:24.371297+00:00",
+      "elapsed_seconds": 0.97,
+      "exit_status": 1,
+      "log": "android-delayed-callback-red.log",
+      "local_log_sha256": "0e91a1388a3b7b25a36aaa7c99d08e40132e6f0f950d1522ad0881bed3c856d6",
+      "outcome_context": "Expected failure: both delayed-event and older-timestamp regressions exposed inherited pre-event glow."
+    },
+    {
+      "name": "android-delayed-callback-host-final",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:41:12.402005+00:00",
+      "elapsed_seconds": 0.87,
+      "exit_status": 1,
+      "log": "android-delayed-callback-host-final.log",
+      "local_log_sha256": "288041e43c026bb97a032d63409bf24fd7a8a6a14b42ce042409c0d249849f68",
+      "outcome_context": "Strict delayed-event check passed; extra older-timestamp fixture expected progress before the paint cadence admitted another draw. Fixture sequencing corrected without weakening delayed-event bound."
+    },
+    {
+      "name": "android-delayed-callback-browser-final",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-delayed-callback-final node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:41:13.336134+00:00",
+      "elapsed_seconds": 13.67,
+      "exit_status": 1,
+      "log": "android-delayed-callback-browser-final.log",
+      "local_log_sha256": "5361381b25c80585c680d1034d880271128df7982bf94b2ba434bbdbf6c7e792",
+      "outcome_context": "Initial combined older-callback fixture tested progress inside the paint-throttle interval. Corrected browser regression isolates the delayed event; older timestamps remain covered by host regression."
+    },
+    {
+      "name": "android-delayed-callback-host-corrected",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:42:20.970926+00:00",
+      "elapsed_seconds": 0.62,
+      "exit_status": 0,
+      "log": "android-delayed-callback-host-corrected.log",
+      "local_log_sha256": "48c0432f806217ec39eb1a55bcf9b2fdf102d5f9eab9e9f1afe728187f1f30ba"
+    },
+    {
+      "name": "android-delayed-callback-browser-corrected",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-delayed-callback-corrected node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:42:21.633441+00:00",
+      "elapsed_seconds": 18.39,
+      "exit_status": 0,
+      "log": "android-delayed-callback-browser-corrected.log",
+      "local_log_sha256": "62fdd4c6ece981cef668b5595572071f0e9660d1057135287fbdd7c2f5d9e6ef"
+    },
+    {
+      "name": "android-delayed-callback-browser-old-source",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-delayed-callback-old-source node tools/test_android_wallpaper_browser.cjs ${TASK_WORKSPACE}/counterfactual-delayed-callback",
+      "started_utc": "2026-11-01T18:43:29.955408+00:00",
+      "elapsed_seconds": 29.01,
+      "exit_status": 1,
+      "log": "android-delayed-callback-browser-old-source.log",
+      "local_log_sha256": "b0bab80ba61f72f63121e7171277f31cf4ad70e4ffc6bdd8270a59813b64dcd9",
+      "outcome_context": "Expected counterfactual failure using the previous pulse source in an independent asset copy: 12 passed, delayed-event check failed."
+    },
+    {
+      "name": "android-delayed-callback-assets",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:mergeOtherDebugAssets",
+      "started_utc": "2026-11-01T18:43:30.575931+00:00",
+      "elapsed_seconds": 32.37,
+      "exit_status": 0,
+      "log": "android-delayed-callback-assets.log",
+      "local_log_sha256": "208c8803ec68d25499d0ea1c9859af4964822292b806551bbd5a20767db6edaa"
     }
   ],
   "artifacts": {
     "android-baseline-junit.json": "ff2984310a36d868c48b52c2b7d5b7168e2d567c066671201aa601af61d473be",
     "android-final-junit.json": "88ecbf83b49507c8c1a64d27cf621446ce6acae27ad23f3329aaf33cf375540d",
     "android-native-preview-junit.json": "70bba3ef08a70fa75f436d83a86280336ac82680d674fef8c557f9a08a1fdc1f",
-    "browser/checks.json": "b00aaca5a9d04e9d86defb4319a94f204ecb6a8bc9f35791ee34780559125419",
+    "browser/checks.json": "d752b3eb952d2862f021e85fadaaa65bb186f907ba48012c14c1569c044c3243",
     "browser/las-vegas-strip-day-320.json": "e128c7cbd17c2211d33dc335a9745a5c4b5d37d8d8e5b36b4ccad2a9fd75e743",
     "browser/las-vegas-strip-day-320.png": "c0689a527d57de476a36629b413e52e5373bc3a4870de1b7aed8ac7e52191b0f",
     "browser/las-vegas-strip-night-320.json": "8a7f8f10c3e11d9a6778784b637079c2209d974af492397902f79ab6986da5d1",
     "browser/las-vegas-strip-night-320.png": "a8dca52602ecf805eda81fa9099878f960fca71e4338728ef5b8e16c10acd36d",
-    "browser/motion-progression.json": "2cfefc7b080a9988231b3b080af47dd269609c4235c4384d76c9a533d9311896",
+    "browser/motion-progression.json": "14828d8a1566de57a53f51e5b5179afbf2acd7163248a9e1e1f11cc2ab090072",
     "browser/original-day-320.json": "a0e3d6f09f3de625ca09cda975232571d0ea664800a7f2049c9d14921eb228e8",
     "browser/original-day-320.png": "7c4f904aa11f4875567d4aaae1eea221f02223f724af69ffe197248a5f9b03f6",
     "browser/original-night-320.json": "7a70c59dcee4597ecd0ba809bb04c7e2948f6664881cbce2f4ee3d96ea744e0e",
@@ -278,7 +352,7 @@
     "native/network-long-en-light-320.png": "ea454f4a3d1fc0634db4c1a104e7ce0a3e48e37ced92efe867a16eb92172cdf5",
     "native/settings-en-light-320.png": "95824126fcb51e6fd347d7666901d110b2ddcdb30420827ec9505a392903f317",
     "native-render-cache.init.gradle": "92f215316d4c24853dc93ef6e3976962073c86079bed816f4903f674351c3364",
-    "wallpaper-source-sha256.json": "4a8b562b6c1a6a3ee3a23605d1ba03ec20d945b5080d0d8e42e060e659b24478"
+    "wallpaper-source-sha256.json": "d7b06e1073a793c112e2ae3618c9ea63f0bd8feae94e92e72f1f46e077eac88b"
   },
   "limits": [
     "No Windows compilation or tests",
@@ -291,9 +365,15 @@
   "command_convention": "Commands are reproducible path templates. Resolve named candidate/runtime/output placeholders to the selected local inputs. Original commands and precise environment receipts remain outside Git.",
   "refined_wallpaper_commit": "e0da5853e69f9da210d54118599ec0d891564942",
   "followup_counts": {
-    "wallpaper_host_passed": 8,
-    "browser_passed": 12,
-    "android_debug_asset_merge": "passed",
+    "wallpaper_host_passed": 11,
+    "browser_passed": 13,
+    "android_debug_asset_merge": "passed after delayed-callback correction",
     "actual_client_contract_scenarios_passed": 12
+  },
+  "delayed_callback_commit": "87a66a3a636cc6aa90251ff57851f6ec254a2461",
+  "merged_pulse_asset": {
+    "path": "android/app/build/intermediates/assets/otherDebug/mergeOtherDebugAssets/wallpaper/pulse-v1.js",
+    "source_sha256": "241412e5642394d2dac69bd53fc1b6fe7c54ccc602f3d7a7e69adc3329e4f190",
+    "merged_sha256": "241412e5642394d2dac69bd53fc1b6fe7c54ccc602f3d7a7e69adc3329e4f190"
   }
 }

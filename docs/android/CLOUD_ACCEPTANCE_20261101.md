@@ -68,8 +68,8 @@ bash ./gradlew --no-daemon --console=plain --max-workers=2 \
 | --- | --- | --- |
 | Unsigned Kotlin/Java/resource compilation and unit task | Exit 0; 416 tests, 0 failures/errors/skips | Exit 0; 417 tests, 0 failures/errors/skips |
 | Invalid-port regression alone | 3 tests, 1 expected failure before the fix | Included in the passing 417-test run |
-| `node --test tools/test_android_wallpaper.cjs` | Four existing tests; extra pause reproduction failed | Eight passed after follow-up |
-| Real Chromium wallpaper fixtures | 7 of 10 passed; pause and two reduced-motion cases failed | 12 of 12 passed after follow-up |
+| `node --test tools/test_android_wallpaper.cjs` | Four existing tests; extra pause reproduction failed | 11 passed after delayed-callback correction |
+| Real Chromium wallpaper fixtures | 7 of 10 passed; pause and two reduced-motion cases failed | 13 of 13 passed after delayed-callback correction |
 | Isolated native Compose preview | Not credited from earlier local reports | Five selected English cases passed under Robolectric API 35 native graphics |
 | Selected Linux core packages | Not credited from setup-task history | Three top-level tests passed across two packages; five locale subtests also passed |
 
@@ -149,6 +149,36 @@ does not exercise the native keystore, service reload, real origin/proxy routing
 Current checked-in evidence uses source-relative paths or named runtime/input/output templates.
 Opaque environment identifiers and precise host paths remain only in internal task receipts.
 This is a forward cleanup; existing candidate history has not been rewritten.
+
+### Delayed-callback correction
+
+Independent review found that resetting the glow origin to the last callback's `seconds`
+still inherited the pre-event interval when the next callback was delayed. Two new strict
+host regressions failed on the previous implementation: connecting at 999 ms after a callback
+at zero, then delivering the callback at 1000 ms, produced a 0.7506478 glow even though only
+one millisecond followed the event. An older queued timestamp also advanced the glow.
+
+The clock now advances to the actual connection event's `performance.now()` under the old
+target before switching targets. Queued timestamps cannot move the clock backward. Paused
+and reduced-motion changes keep their deterministic settled state without starting a clock.
+All 11 host checks pass, including the unchanged strict one-millisecond bound below 0.02.
+An additional older-callback assertion waits for the permitted paint cadence before requiring
+visible progress; it does not weaken the strict delayed-event bound.
+
+The browser harness now has 13 checks. Its controlled callback regression records the event
+at 999 ms and callback at 1000 ms: the corrected glow is 0.005540151995103254. The same current
+browser harness against an independent copy containing the previous pulse source fails this
+case (12 passes, one expected failure); the corrected source passes all 13. Existing real-time
+progression also records wall-clock samples, host pause and resumed completion. This supplies
+both a strict delayed-event check and normal browser progression evidence.
+
+The Android debug asset merge passes and its pulse asset SHA-256 matches source:
+`241412e5642394d2dac69bd53fc1b6fe7c54ccc602f3d7a7e69adc3329e4f190`.
+Source/test correction commit: `87a66a3a636cc6aa90251ff57851f6ec254a2461`.
+The six previously reviewed city frames are retained with their earlier source fingerprints;
+the latest clock correction has separate source fingerprints and progression samples. Native
+Kotlin/presentation code, the 417-unit/five-native evidence and the server candidate are
+unchanged. No new native/device, signing, Windows, production or access check is claimed.
 
 ## Supply-chain and trust-boundary observations
 

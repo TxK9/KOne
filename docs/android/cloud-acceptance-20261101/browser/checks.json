@@ -44,6 +44,10 @@
     "passed": true
   },
   {
+    "name": "delayed-callback-excludes-pre-connection-time",
+    "passed": true
+  },
+  {
     "name": "bundled-assets-only",
     "passed": true
   }
