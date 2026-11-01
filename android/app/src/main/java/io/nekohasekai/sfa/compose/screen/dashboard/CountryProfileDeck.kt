@@ -231,7 +231,7 @@ internal fun CountryProfileDeck(
             text = {
                 if (showCustomName) OutlinedTextField(
                     value = customName,
-                    onValueChange = { customName = it.take(24).replace("\n", "") },
+                    onValueChange = { customName = CountryProfileGrouping.sanitizeCustomName(it) },
                     label = { Text(stringResource(R.string.knine_country_custom_name)) },
                     singleLine = true,
                 ) else Column {
