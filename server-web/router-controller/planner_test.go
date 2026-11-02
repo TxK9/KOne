@@ -185,13 +185,13 @@ func TestManagedRejectRulesStayAheadOfStubRoutes(t *testing.T) {
 	}
 }
 func TestCanonicalJSONHandlesCultureAndLiteralEscapes(t *testing.T) {
-	value := map[string]any{"label": "美国<&>\u2028", "literal": `\u2028`}
+	value := map[string]any{"label": "\u7f8e\u56fd<&>\u2028", "literal": `\u2028`}
 	data, err := canonicalJSON(value)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var decoded map[string]any
 	if json.Unmarshal(data, &decoded) != nil || decoded["label"] != value["label"] || decoded["literal"] != value["literal"] {
-		t.Fatalf("canonical encoding changed data: %q", data)
+		t.Fatal("canonical encoding changed data")
 	}
 }

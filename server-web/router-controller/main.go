@@ -219,6 +219,7 @@ func mainAction(ctx context.Context, args []string) error {
 	resolver := flags.String("resolver", "", "")
 	mark := flags.Uint("control-mark", 0, "")
 	online := flags.Bool("online", false, "")
+	nodes := flags.String("nodes", "", "")
 	if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || uint64(*mark) > uint64(^uint32(0)) {
 		return errors.New("invalid_command_options")
 	}
@@ -285,6 +286,37 @@ func mainAction(ctx context.Context, args []string) error {
 		now, clockErr := bootNow()
 		valid := c.Enabled && live && clockErr == nil && now < time.Duration(status.LeaseDeadlineBoot) && status.CoreReportedRunning
 		return output(map[string]any{"enabled": c.Enabled, "daemonLive": live, "state": status.State, "authorizationValid": valid, "coreReportedRunning": status.CoreReportedRunning && live, "stopConfirmed": status.StopConfirmed, "authGeneration": status.Generation, "authorizedRoots": status.AuthorizedRoots, "retainedInactiveStubs": status.RetainedInactiveStubs, "error": status.Error})
+	case "publish":
+		if err := rootLinux(); err != nil {
+			return err
+		}
+		selected, err := selectedOriginalIDs(*nodes)
+		if err != nil {
+			return err
+		}
+		api, err := newClient(c)
+		if err != nil {
+			return err
+		}
+		publishCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		defer cancel()
+		reply, err := publishSelected(publishCtx, c, api, func() ([]byte, error) {
+			readCtx, stop := context.WithTimeout(publishCtx, 2*time.Second)
+			defer stop()
+			return readOriginalUCI(readCtx, c.PassWallPath)
+		}, selected)
+		if err != nil {
+			return err
+		}
+		unique := map[string]bool{}
+		canonicalIDs := []string{}
+		for _, node := range reply.Nodes {
+			if !unique[node.ID] {
+				canonicalIDs = append(canonicalIDs, node.ID)
+				unique[node.ID] = true
+			}
+		}
+		return output(map[string]any{"published": reply.Imported, "canonicalNodeIds": canonicalIDs, "automaticallyGranted": false, "libraryScope": "server", "conversionWarningCount": len(reply.Warnings)})
 	case "serve":
 		return serve(ctx, *configPath, c)
 	case "check", "activate":

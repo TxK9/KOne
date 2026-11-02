@@ -106,6 +106,9 @@ func (c *Client) call(ctx context.Context, method, path string, body any, out an
 		if err != nil {
 			return errors.New("request_encoding_failed")
 		}
+		if len(b) > 1<<20 {
+			return errors.New("control_request_too_large")
+		}
 		reader = strings.NewReader(string(b))
 	}
 	request, err := http.NewRequestWithContext(ctx, method, c.origin.String()+path, reader)

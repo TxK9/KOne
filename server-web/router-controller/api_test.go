@@ -152,3 +152,14 @@ func TestPrivateConfigurationValidationRejectsDuplicateKeysAndUnsafeOrigins(t *t
 	}
 
 }
+func TestOversizedPrivateRequestIsRejectedBeforeTransmission(t *testing.T) {
+	requests := 0
+	client, _ := mockClient(t, func(w http.ResponseWriter, r *http.Request) { requests++; respondJSON(w, map[string]any{"ok": true}) })
+	var reply struct {
+		OK bool `json:"ok"`
+	}
+	err := client.call(context.Background(), "POST", "/api/client/controller/nodes/publish", map[string]any{"configText": strings.Repeat("<", 250000)}, &reply)
+	if err == nil || err.Error() != "control_request_too_large" || requests != 0 {
+		t.Fatal("oversized private publication was transmitted")
+	}
+}
