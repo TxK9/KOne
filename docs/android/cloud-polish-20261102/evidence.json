@@ -105,6 +105,17 @@
       "log": "android-polish-final-unit-lock-read.log",
       "local_log_sha256": "007e504c4e861ac194213dc9c55004bbdc59f22e84465aa9de17979fdd3b9c11",
       "outcome_context": "Final unsigned compilation, all 421 ordinary tests and runtime dependency inventory passed with the temporary strict lock and restored offline cache. Before/final module coordinates and artifact observations are identical."
+    },
+    {
+      "name": "android-polish-client-contract",
+      "cwd": "${SERVER_ROOT}/server-web",
+      "command": "python3 tools/check_android_contract.py --server-root . --classes ${ANDROID_ROOT}/android/app/build/tmp/kotlin-classes/otherDebug --stdlib ${CLOUD_RUNTIME}/gradle-home/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.4.10/8943c84ddc6d5cc00a10dbc3736c397066eeaab5/kotlin-stdlib-2.4.10.jar --json-jar ${CLOUD_RUNTIME}/gradle-home/caches/modules-2/files-2.1/org.json/json/20250517/d67181bbd819ccceb929b580a4e2fcb0c8b17cd8/json-20250517.jar",
+      "started_utc": "2026-11-02T03:11:51.848690+00:00",
+      "elapsed_seconds": 2.32,
+      "exit_status": 0,
+      "log": "android-polish-client-contract.log",
+      "local_log_sha256": "b562540f5e169cd113394c75d58b9a6d9d628ffbab82aa10f8b1a88a65983b83",
+      "outcome_context": "Newly compiled production Android API classes pass all 12 saved synthetic client/backend scenarios plus backend acknowledgement/lifecycle assertions. No live service, customer data or native keystore/service execution."
     }
   ],
   "counts": {
@@ -112,7 +123,8 @@
     "final_native_tests_passed": 13,
     "initial_selected_passed": 24,
     "new_api_security_regressions": 4,
-    "before_after_frames_reviewed": 10
+    "before_after_frames_reviewed": 10,
+    "actual_client_contract_scenarios_passed": 12
   },
   "source_fingerprints": {
     "android/app/src/main/java/io/nekohasekai/sfa/compose/component/KnineRows.kt": {
@@ -175,5 +187,10 @@
     "final-native-junit.json": "ff8df7b2a0f39d93820dc6dffef846cd6a70183852467d2ef792dffe78c5b678",
     "final-unit-junit.json": "acf8d7b9825a3354363083c9b726e8f8aa738f6dbeacc421900d0cd2a45d4fd8",
     "first-selected-pass-junit.json": "03153b11a2087b50b7728795630975c3d0ca43f39341833a26fd8e66ee44bf8a"
+  },
+  "contract_class_sha256": {
+    "managed/ManagedApi.class": "bec1c602319ade5cbd0c3de3a1a9802f0a9f9d3290dbef456d58cfb882ef8cb0",
+    "managed/ManagedEndpoint.class": "e20905c557674a6412020ed980d6098e86a2fbcf4ce58d2fc38da0906b4dfe5b",
+    "feedback/FeedbackApi.class": "18ed9d9d8287ed46facb05f432271ea329b1f88625c85592286fa21bf010c99a"
   }
 }

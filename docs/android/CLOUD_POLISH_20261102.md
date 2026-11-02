@@ -76,6 +76,7 @@ policy and credentials are unchanged.
 | First implementation compile/selected checks | Passed: 24 tests, zero failures/errors/skips (13 native UI and 11 API tests) |
 | Final refined UI compile/native checks | Passed: 13 tests, zero failures/errors/skips (five new hub/selector, seven account, one dashboard semantics) |
 | Final ordinary unit suite and unsigned compilation | Passed: 421 tests, zero failures/errors/skips |
+| Updated compiled client / disposable backend contract | Passed: 12 client scenarios plus backend acknowledgement/lifecycle assertions |
 | Dependency lock write/read feasibility | Both passed using a temporary external lock and strict readback; no active lockfile or generated trust metadata committed |
 | Before/final dependency inventory | Identical: 265 modules, 190 artifact observations, three changing snapshot modules |
 
@@ -87,7 +88,9 @@ deprecations remain. No release, signing, installation or Windows task was invok
 
 [The new evidence directory](cloud-polish-20261102/) contains sanitized commands, outcomes,
 log digests, source/image hashes, selected JUnit cases, aggregate counts and dependency
-observations. Original logs and exact runtime receipts stay outside Git. Previous wallpaper
+observations. Original logs and exact runtime receipts stay outside Git. The updated compiled production client also passes the existing disposable backend harness,
+including paused/expired/revoked states and wrong-audience rejection. It does not exercise
+native keystore, service reload or real-origin/proxy routing. Previous wallpaper
 18-host/19-browser evidence is retained separately and was not rerun: those JavaScript
 assets are byte-identical to the preceding candidate.
 
