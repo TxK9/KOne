@@ -1,5 +1,7 @@
 # Accessible-state and security follow-up
 
+A later bounded native UI/security pass is recorded in [the November 2 follow-up](CLOUD_POLISH_20261102.md). Results below remain the earlier dated evidence.
+
 This records the independently feasible follow-up after the initial cloud acceptance.
 It does not depend on Claude access or a physical device. The nominated source remains
 `0dd7a9ff0d78743d8910e05041bcbb07c7d598a5`; implementation and evidence are in

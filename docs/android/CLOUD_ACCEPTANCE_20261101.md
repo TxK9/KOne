@@ -1,5 +1,7 @@
 # Cloud acceptance and city-motion candidate
 
+A later bounded native UI/security pass is recorded in [the November 2 follow-up](CLOUD_POLISH_20261102.md). Results below remain the earlier dated evidence.
+
 This independent candidate starts from the nominated Android build 10056 source,
 `codex/android-ui-20261101` at `0dd7a9ff0d78743d8910e05041bcbb07c7d598a5`.
 Remote branch readback and the initial isolated worktree HEAD matched exactly.

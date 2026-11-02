@@ -1,0 +1,80 @@
+[
+  {
+    "suite": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+    "tests": 5,
+    "failures": 3,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "hubLightHasReadableHierarchy",
+        "failure": null
+      },
+      {
+        "name": "emptySelectorKeepsItsActionAndTouchTarget",
+        "failure": "java.lang.AssertionError: Selector has a 48dp minimum target"
+      },
+      {
+        "name": "hubDarkHasReadableHierarchy",
+        "failure": null
+      },
+      {
+        "name": "hubLargeTextKeepsCompleteNavigationLabels",
+        "failure": "java.lang.AssertionError: Navigation text exceeds line limit: [Privileged Enhancement]"
+      },
+      {
+        "name": "loadingSettlesIntoTheEmptySelector",
+        "failure": "java.lang.AssertionError: Assert failed: The component with Text + InputText + EditableText contains 'Loading\u2026' (ignoreCase: false) is not displayed!"
+      }
+    ]
+  },
+  {
+    "suite": "io.nekohasekai.sfa.managed.ManagedApiTest",
+    "tests": 10,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "reflectedClaimCodesNeverEnterFailureText",
+        "failure": null
+      },
+      {
+        "name": "claimSendsTheCodeAndReadsTheCredential",
+        "failure": null
+      },
+      {
+        "name": "claimFailuresHaveTheirOwnMeaning",
+        "failure": null
+      },
+      {
+        "name": "reflectedDeviceCredentialsNeverEnterFailureText",
+        "failure": "java.lang.AssertionError: expected null, but was:<Denied: synthetic-device-secret-12345678>"
+      },
+      {
+        "name": "diagnosticsSendOnlyKnownEvents",
+        "failure": null
+      },
+      {
+        "name": "configRefusalsMapToStatesAndKeepTheConsolesWords",
+        "failure": null
+      },
+      {
+        "name": "configIsFetchedWithTheBearerCredentialOnly",
+        "failure": null
+      },
+      {
+        "name": "aStaleAckIsNotAnErrorButARevokedOneIs",
+        "failure": null
+      },
+      {
+        "name": "serverFailureReasonsAreBoundedPlainText",
+        "failure": "java.lang.AssertionError: expected null, but was:<Waiting\nAuthorization: Bearer synthetic>"
+      },
+      {
+        "name": "anUnreachableConsoleIsOffline",
+        "failure": null
+      }
+    ]
+  }
+]
