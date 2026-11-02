@@ -90,9 +90,11 @@ import io.nekohasekai.sfa.managed.ManagedClaimLink
 import io.nekohasekai.sfa.managed.ManagedEndpoint
 import io.nekohasekai.sfa.managed.ManagedException
 import io.nekohasekai.sfa.managed.ManagedState
+import io.nekohasekai.sfa.managed.ManagedSnapshot
 import io.nekohasekai.sfa.managed.ManagedStatus
 import io.nekohasekai.sfa.managed.ManagedSync
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -110,10 +112,22 @@ import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 @Composable
 fun ActivationScreen() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val state = ManagedState.snapshot
     // A console address built into this copy spares typing it; otherwise it is asked for.
     val builtIn = remember { ManagedEndpoint.parse(BuildConfig.KONE_CONSOLE) }
+    ActivationScreenContent(ManagedState.snapshot, builtIn) { endpoint, code ->
+        ManagedSync.claim(context, endpoint, code)
+    }
+}
+
+/** Actual activation interaction with a platform binding supplied by the public screen. */
+@Composable
+internal fun ActivationScreenContent(
+    state: ManagedSnapshot,
+    builtIn: ManagedEndpoint?,
+    claim: suspend (ManagedEndpoint, String) -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var address by remember { mutableStateOf(state.endpoint.orEmpty()) }
     var key by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
@@ -141,8 +155,10 @@ fun ActivationScreen() {
                 problem = null
                 scope.launch {
                     try {
-                        ManagedSync.claim(context, endpoint, code)
+                        claim(endpoint, code)
                         // Bound: the App takes over from here as the state changes.
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
                     } catch (failure: ManagedException) {
                         problem = failure.detail?.takeIf { it.isNotBlank() && it.length <= 60 }?.let(context::managedDetailText) ?: context.managedFailureText(failure.failure)
                     } catch (_: Exception) {

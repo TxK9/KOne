@@ -5,13 +5,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.assertTextContains
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.compose.screen.feedback.FeedbackScreenContent
 import io.nekohasekai.sfa.compose.topbar.LocalTopBarController
@@ -26,6 +35,8 @@ import java.net.URL
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Rule
@@ -124,6 +135,111 @@ class FeedbackSubmissionTest {
             attempts.forEach { it.release.countDown() }
             draft.clear()
             draft.clearReceipt()
+        }
+    }
+
+    @Test fun replacingTheBindingDoesNotLetTheOldCompletionOverwriteTheNewForm() {
+        val context = RuntimeEnvironment.getApplication()
+        val endpoint = requireNotNull(ManagedEndpoint.parse("https://feedback.example.invalid"))
+        val oldDraft = FeedbackDraft(context, endpoint.base, "synthetic-old-credential")
+        val newDraft = FeedbackDraft(context, endpoint.base, "synthetic-new-credential")
+        for (draft in listOf(oldDraft, newDraft)) { draft.clear(); draft.clearReceipt() }
+        oldDraft.save("other", "Synthetic original account draft")
+        newDraft.save("other", "Synthetic replacement account draft")
+        val attempts = CopyOnWriteArrayList<Pending>()
+        val newRequests = AtomicInteger()
+        val oldApi = FeedbackApi(endpoint, "synthetic-old-credential") { url -> Pending(url, 201).also(attempts::add) }
+        val newApi = FeedbackApi(endpoint, "synthetic-new-credential") { _ ->
+            newRequests.incrementAndGet()
+            error("Replacement binding has not submitted")
+        }
+        var binding by mutableStateOf(Triple("synthetic-old-binding", oldDraft, oldApi))
+        var snapshot by mutableStateOf(ManagedSnapshot(endpoint.base, "Old phone", true, -1, "", "", null,
+            0, ManagedStatus.Synced, null, false))
+        try {
+            compose.setContent {
+                val topBar = remember { TopBarController(mutableStateOf(emptyList())) }
+                CompositionLocalProvider(LocalTopBarController provides topBar) {
+                    MaterialTheme { FeedbackScreenContent(remember { NavController(context) }, snapshot) { binding } }
+                }
+            }
+            compose.waitUntil(10_000) { compose.onAllNodes(androidx.compose.ui.test.hasText("Send")).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Send").performClick()
+            compose.waitUntil(10_000) { attempts.size == 1 && attempts[0].entered.count == 0L }
+            compose.runOnIdle {
+                binding = Triple("synthetic-new-binding", newDraft, newApi)
+                snapshot = snapshot.copy(deviceName = "Replacement phone")
+            }
+            compose.waitUntil(10_000) {
+                compose.onAllNodes(androidx.compose.ui.test.hasText(newDraft.description)).fetchSemanticsNodes().isNotEmpty()
+            }
+            attempts[0].release.countDown()
+            compose.waitUntil(10_000) { oldDraft.receipt != null }
+            compose.waitForIdle()
+            compose.onNodeWithText(context.getString(R.string.kone_feedback_description)).assertTextContains(newDraft.description)
+            compose.onNodeWithText("Send").assertIsEnabled()
+            compose.onNodeWithText("FB-202611020001").assertDoesNotExist()
+            assertNull(newDraft.receipt)
+            assertEquals("Synthetic replacement account draft", newDraft.description)
+            assertEquals(0, newRequests.get())
+            assertEquals(1, attempts.size)
+        } finally {
+            attempts.forEach { it.release.countDown() }
+            for (draft in listOf(oldDraft, newDraft)) { draft.clear(); draft.clearReceipt() }
+        }
+    }
+
+    @Test fun navigatingBackPreservesNewerEditsWhenTheOldSubmissionIsAcknowledged() {
+        val context = RuntimeEnvironment.getApplication()
+        val endpoint = requireNotNull(ManagedEndpoint.parse("https://feedback.example.invalid"))
+        val draft = FeedbackDraft(context, endpoint.base, "synthetic-navigation-credential")
+        draft.clear(); draft.clearReceipt(); draft.save("other", "Synthetic original report")
+        val attempts = CopyOnWriteArrayList<Pending>()
+        val api = FeedbackApi(endpoint, "synthetic-navigation-credential") { url -> Pending(url, 201).also(attempts::add) }
+        val snapshot = ManagedSnapshot(endpoint.base, "Synthetic phone", true, -1, "", "", null,
+            0, ManagedStatus.Synced, null, false)
+        val disposed = AtomicBoolean()
+        lateinit var navigation: NavHostController
+        try {
+            compose.setContent {
+                val topBar = remember { TopBarController(mutableStateOf(emptyList())) }
+                CompositionLocalProvider(LocalTopBarController provides topBar) {
+                    MaterialTheme {
+                        navigation = rememberNavController()
+                        NavHost(navigation, startDestination = "home") {
+                            composable("home") { androidx.compose.material3.Text("Synthetic home") }
+                            composable("feedback") {
+                                DisposableEffect(Unit) { onDispose { disposed.set(true) } }
+                                FeedbackScreenContent(navigation, snapshot) { Triple("synthetic-navigation", draft, api) }
+                            }
+                        }
+                    }
+                }
+            }
+            compose.runOnIdle { navigation.navigate("feedback") }
+            compose.waitUntil(10_000) { compose.onAllNodes(androidx.compose.ui.test.hasText("Send")).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Send").performClick()
+            compose.waitUntil(10_000) { attempts.size == 1 && attempts[0].entered.count == 0L }
+            compose.runOnIdle { assertTrue(navigation.popBackStack()) }
+            compose.waitForIdle()
+            assertTrue(disposed.get())
+            draft.save("other", "Synthetic newer edit after leaving")
+            attempts[0].release.countDown()
+            compose.waitUntil(10_000) { draft.receipt != null }
+            assertEquals("Synthetic newer edit after leaving", draft.description)
+            compose.runOnIdle { navigation.navigate("feedback") }
+            compose.waitUntil(10_000) {
+                compose.onAllNodes(androidx.compose.ui.test.hasText("FB-202611020001")).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("FB-202611020001").assertIsDisplayed()
+            compose.onNodeWithText(context.getString(R.string.kone_feedback_new)).performClick()
+            compose.onNodeWithText(context.getString(R.string.kone_feedback_description))
+                .assertTextContains("Synthetic newer edit after leaving")
+            compose.onNodeWithText("Send").assertIsEnabled()
+            assertEquals(1, attempts.size)
+        } finally {
+            attempts.forEach { it.release.countDown() }
+            draft.clear(); draft.clearReceipt()
         }
     }
 }
