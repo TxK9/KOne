@@ -145,3 +145,12 @@ changed in this pass.
 [Commands, failed/pass cases and hashes](cloud-cancellation-diagnostics-20261102/evidence.json)
 provide reproducible evidence. The exact final published head is recorded in the PR body
 and cloud task result rather than embedded as a self-referential commit.
+
+The final remote concurrency readback on 2026-11-02 found server acceptance branch
+`codex/server-cloud-acceptance-20261101` at `d3349bd8eabdab4530b854bfa8916c128b6910ea`
+and `codex/server-web-collab-20261101` at `54cddb15d10664bfde1c373eff09537a35d6b771`.
+These differ from the server worktree/language-audit snapshot `7f8cead2323276304979bfa0a61fe705a7f76f70`
+and original nominated baseline `b37275d9ec568c73a92b6bc0e7ef6805061b4ed9`.
+Those concurrent heads were not modified or retested here; earlier server results and this
+scan must not be attributed to them. Android's nominated base and remote starting head
+were unchanged before its additive push. Server reconciliation/review remains with its owner.
