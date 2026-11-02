@@ -1,5 +1,5 @@
 import {t, number, count, listText, groupName} from '../i18n.js';
-// 线路: each route as a bridge from tower to tower, out to its exit.
+// Routes: bridges between towers and their exits.
 
 import {h, fill, when} from '../core.js';
 import {post} from '../api.js';

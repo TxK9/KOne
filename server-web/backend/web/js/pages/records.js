@@ -1,5 +1,5 @@
 import {t, number, count, systemText, recordTitle, recordDetail, timeText} from '../i18n.js';
-// 记录: what was done, day by day, and what the servers did with it.
+// Records: daily actions and server results.
 
 import {h, fill, when, day, toDate} from '../core.js';
 import {data, server as findServer} from '../store.js';

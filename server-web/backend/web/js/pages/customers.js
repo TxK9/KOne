@@ -1,5 +1,5 @@
 import {t, number, count, eventText, ackText, locale, groupName} from '../i18n.js';
-// 客户: the people KOne is shared with — their group, config, key (密钥), devices and use.
+// Customers: groups, configurations, keys, devices and usage.
 
 import {h, fill, matches, when, ago, bytes} from '../core.js';
 import {get, post, download} from '../api.js';

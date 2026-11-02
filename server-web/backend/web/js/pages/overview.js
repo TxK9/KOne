@@ -1,5 +1,5 @@
 import {t, number, systemText, recordTitle, recordDetail} from '../i18n.js';
-// 总览: the paintings, your servers as a skyline in the mist, and what needs a look.
+// Overview: paintings, the server skyline and items needing attention.
 
 import {h, fill, ago} from '../core.js';
 import {data} from '../store.js';
