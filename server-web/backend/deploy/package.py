@@ -10,8 +10,8 @@ import tarfile
 import zipfile
 
 BASE = Path(__file__).resolve().parents[1]
-VERSION = "0.3.9"
-FILES = ["server.py", "config_import.py", "fleet.py", "customers.py", "feedback.py", "owner_updates.py", "README.md",
+VERSION = "0.3.10"
+FILES = ["server.py", "node_controller.py", "config_import.py", "fleet.py", "customers.py", "feedback.py", "owner_updates.py", "README.md",
          "web/index.html", "web/app.css", "web/app.js", "web/app.bundle.js", "web/theme.js", "web/favicon.svg",
          "web/js/api.js", "web/js/core.js", "web/js/icons.js", "web/js/ink.js", "web/js/layer.js", "web/js/owner-download.js",
          "web/js/i18n.js", "web/js/store.js", "web/js/weather.js", "web/js/widgets.js",

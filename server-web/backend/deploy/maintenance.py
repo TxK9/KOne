@@ -24,6 +24,8 @@ FLEET = {"fleet_servers", "fleet_enrollments", "fleet_nodes", "fleet_exits", "fl
          "fleet_assignments", "fleet_credentials", "fleet_jobs", "fleet_probes"}
 CUSTOMERS = {"customer_groups", "customer_accounts", "customer_invites", "customer_devices",
              "customer_deliveries", "customer_events", "customer_usage", "customer_node_counters"}
+CONTROLLER = {"controller_nodes", "controller_dependencies", "controller_devices", "controller_grants",
+              "controller_publish_requests", "controller_lease_nonces"}
 MAX_DATABASE = 4 * 1024 * 1024 * 1024
 
 
@@ -46,7 +48,7 @@ def inspect_database(path):
         if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
             raise ValueError("数据库关联检查失败")
         version = connection.execute("PRAGMA user_version").fetchone()[0]
-        if version > 5:
+        if version > 6:
             raise ValueError("备份来自较新版本，请先更新程序")
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if not CORE.issubset(tables) or (tables & FLEET and not FLEET.issubset(tables)):
@@ -57,7 +59,7 @@ def inspect_database(path):
             actual = {row[1] for row in connection.execute('PRAGMA table_info("' + table + '")')}
             if not required.issubset(actual):
                 raise ValueError("数据库结构不兼容")
-        selected = (CORE | FLEET | CUSTOMERS | {"fleet_host_metrics","customer_service_actions"}) & tables
+        selected = (CORE | FLEET | CUSTOMERS | CONTROLLER | {"profile_revisions", "profile_subscriptions"} | {"fleet_host_metrics","customer_service_actions"}) & tables
         if version >= 2 and "fleet_host_metrics" not in tables:
             raise ValueError("服务器信息表缺失")
         if (version>=3 and not CUSTOMERS.issubset(tables)) or (tables & CUSTOMERS and not CUSTOMERS.issubset(tables)):
@@ -68,6 +70,8 @@ def inspect_database(path):
                 raise ValueError('客户收回权限结构缺失')
             if version>=5 and 'app_only' not in account_columns:
                 raise ValueError('App 开通权限结构缺失')
+        if version >= 6 and not CONTROLLER.issubset(tables):
+            raise ValueError("The node controller security schema is incomplete")
         counts = {table: connection.execute('SELECT COUNT(*) FROM "' + table + '"').fetchone()[0]
                   for table in sorted(selected)}
         return {"user_version": version, "counts": counts}
@@ -146,30 +150,56 @@ def restore(path, data_dir):
     with verified_snapshot(path) as (manifest, snapshot), DataLock(data_dir):
         if any(item.name != ".center.lock" for item in data_dir.iterdir()):
             raise ValueError("恢复只接受空数据目录，不会覆盖已有数据")
-        pending = data_dir / ".restore.sqlite3"
-        descriptor = os.open(str(pending), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        try:
+        backup_version = manifest["user_version"]
+        with tempfile.TemporaryDirectory(prefix=".restore-", dir=data_dir) as staged:
+            staged_dir = Path(staged)
+            pending = staged_dir / "console.sqlite3"
+            descriptor = os.open(str(pending), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
             with os.fdopen(descriptor, "wb") as output, snapshot.open("rb") as source:
                 shutil.copyfileobj(source, output, length=1024 * 1024)
                 output.flush()
                 os.fsync(output.fileno())
+            # Migrate only the verified staged copy. No server or listener is started.
+            from server import ConsoleStore, parse_json_text
+            from fleet import Fleet
+            from customers import Customers
+            from node_controller import NodeController
+            store = ConsoleStore(staged_dir)
+            fleet = Fleet(store)
+            customers = Customers(store, fleet)
+            NodeController(store, customers, parse_json_text)
+            epoch = time.time()
+            with store.connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                devices = [row[0] for row in connection.execute("SELECT id FROM customer_devices ORDER BY id")]
+                recovery = json.dumps({"format": 1, "cutoff": epoch, "deviceIds": devices}, separators=(",", ":"))
+                connection.execute("INSERT INTO settings VALUES('controller_recovery_epoch',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (recovery,))
+                connection.execute("UPDATE customer_invites SET used=1 WHERE used=0")
+                connection.execute("UPDATE controller_grants SET active=0,updated=?", (epoch,))
+                connection.execute("UPDATE controller_devices SET mode='revoked',owner_publish=0,auth_generation=auth_generation+1,ack_generation=NULL,ack_status=NULL,ack_revision=NULL,ack_config_revision=NULL,ack_at=NULL,selected_node_id=NULL,lease_generation=NULL,lease_config_revision=NULL,lease_not_after=NULL,updated=?", (epoch,))
+                connection.execute("DELETE FROM controller_lease_nonces")
+            metadata = inspect_database(pending)
+            if metadata["user_version"] != 6:
+                raise ValueError("The restored security schema was not upgraded")
+            restored_hash = digest(pending)
             os.replace(str(pending), str(data_dir / "console.sqlite3"))
             os.chmod(str(data_dir / "console.sqlite3"), 0o600)
-        finally:
-            pending.unlink(missing_ok=True)
-        return manifest
+        return {**manifest, **metadata, "backupSchemaVersion": backup_version,
+                "restoredSchemaVersion": 6, "controllerAuthorizationReset": bool(devices),
+                "controllerRecoveryEpoch": epoch, "restoredDatabaseSha256": restored_hash}
+
 
 
 def main():
-    parser = argparse.ArgumentParser(description="KOne 备份、校验和迁移恢复")
+    parser = argparse.ArgumentParser(description="KOne backup, verification and recovery")
     parser.add_argument("action", choices=["backup", "verify", "restore"])
     parser.add_argument("--settings", type=Path, default=BASE.parent / "settings.json")
-    parser.add_argument("--data-dir", type=Path, help="维护已有部署时直接指定数据目录")
+    parser.add_argument("--data-dir", type=Path, help="Data directory of the existing deployment")
     parser.add_argument("--archive", type=Path)
     args = parser.parse_args()
     if args.action == "verify":
         if not args.archive:
-            parser.error("verify 需要 --archive")
+            parser.error("verify requires --archive")
         manifest = verify(args.archive)
     else:
         directory = args.data_dir if args.data_dir is not None else load_settings(args.settings)["data_dir"]
@@ -177,12 +207,14 @@ def main():
             stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
             archive = args.archive or directory.parent / "backups" / ("kone-" + stamp + "-" + secrets.token_hex(3) + ".zip")
             manifest = backup(directory, archive)
-            print("备份位置：" + str(archive.resolve()))
+            print("Backup: " + str(archive.resolve()))
         else:
             if not args.archive:
-                parser.error("restore 需要 --archive")
+                parser.error("restore requires --archive")
             manifest = restore(args.archive, directory)
-    print("完成：" + args.action + "；数据库校验通过；" + str(manifest["counts"].get("users", 0)) + " 位用户")
+    print("Completed " + args.action + "; database verified; " + str(manifest["counts"].get("users", 0)) + " users")
+    if "controllerAuthorizationReset" in manifest:
+        print("controllerAuthorizationReset=" + str(manifest["controllerAuthorizationReset"]))
 
 
 if __name__ == "__main__":
@@ -190,5 +222,5 @@ if __name__ == "__main__":
         main()
     except (OSError, ValueError, sqlite3.Error, zipfile.BadZipFile, RuntimeError) as error:
         # Do not print database contents, credentials, or JSON parser context.
-        print("维护操作未完成，请检查备份格式、目标目录及运行状态。", file=sys.stderr)
+        print("Maintenance failed. Check the archive, destination and service state.", file=sys.stderr)
         sys.exit(1)
