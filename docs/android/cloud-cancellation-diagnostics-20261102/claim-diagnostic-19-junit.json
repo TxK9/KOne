@@ -1,0 +1,108 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportRedactionTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "unterminatedQuotedValuesDoNotExposeSecretsOrRemoveFrames",
+        "failure": null
+      },
+      {
+        "name": "httpUserInfoAndTokenQueryAreRemovedWhileTheFailureLocationRemains",
+        "failure": null
+      },
+      {
+        "name": "longQuotedSecretsAndAdversarialEscapesStayBounded",
+        "failure": null
+      },
+      {
+        "name": "authorizationAndCookieHeadersDoNotConsumeTheNextDiagnosticLine",
+        "failure": null
+      },
+      {
+        "name": "bearerAndAssignmentValuesAreRemovedWithoutHidingStackFrames",
+        "failure": null
+      },
+      {
+        "name": "largeSyntheticNestedTraceRetainsFramesWithoutRecognizedSecrets",
+        "failure": null
+      },
+      {
+        "name": "quotedJsonSecretsAreRemovedAndOrdinaryFieldsRemainValid",
+        "failure": null
+      },
+      {
+        "name": "benignDiagnosticsAndNonSecretFieldNamesRemainUnchanged",
+        "failure": null
+      },
+      {
+        "name": "repeatedRedactionIsStable",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "9081d16fe943d589520943313ec1d2352d4bdb55b9f10a1460d07c5ddbb16e2a"
+  },
+  {
+    "name": "io.nekohasekai.sfa.bg.DiagnosticArchiveTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "ordinaryDebugTextIsNotModified",
+        "failure": null
+      },
+      {
+        "name": "metadataOnlyExportRedactsHistoricalReasonAndOmitsOptOutFiles",
+        "failure": null
+      },
+      {
+        "name": "explicitConfigurationInclusionPreservesTheRestorableBytes",
+        "failure": null
+      },
+      {
+        "name": "includedDiagnosticLogsAreRedactedWithoutRewritingOriginals",
+        "failure": null
+      },
+      {
+        "name": "malformedMetadataIsReplacedByAnExplicitSafeDiagnostic",
+        "failure": null
+      },
+      {
+        "name": "generatedDebugTextExcludesRecognizedCredentialsAndKeepsContext",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "7af3e88490d8e1d178d376d4d19e09ec0674074853ace01e230db5c0d705cbc2"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ManagedClaimCancellationTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "cancellationDuringRemovalCannotRebindOrSchedule",
+        "failure": null
+      },
+      {
+        "name": "cancelledRequestCannotBindAfterTheBlockingApiReturns",
+        "failure": null
+      },
+      {
+        "name": "failedClaimReleasesTheLockAndRetryCommitsExactlyOnceInOrder",
+        "failure": null
+      },
+      {
+        "name": "aCancelledQueuedClaimNeverStartsItsRequest",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "b0f5f9717b6ad8cd15548b75cf5f91c34c5f789cea394036e38f2f6afd17a5e8"
+  }
+]

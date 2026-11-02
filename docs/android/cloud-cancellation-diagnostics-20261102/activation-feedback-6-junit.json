@@ -1,0 +1,46 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.feedback.FeedbackSubmissionTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "immediateDuplicateCallbacksSendOnceAndFailureCanRetryTheSavedPayload",
+        "failure": null
+      },
+      {
+        "name": "navigatingBackPreservesNewerEditsWhenTheOldSubmissionIsAcknowledged",
+        "failure": null
+      },
+      {
+        "name": "replacingTheBindingDoesNotLetTheOldCompletionOverwriteTheNewForm",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "fe92f235061c735406b6046cec5007f20b99c607bbe06665d7d1ccc2b8db8223"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ActivationFlowTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "duplicateActivationIsSingleFlightAndFailurePreservesFieldsForRetry",
+        "failure": null
+      },
+      {
+        "name": "navigatingBackCancelsTheClaimAndReentryDoesNotRestoreTheInvite",
+        "failure": null
+      },
+      {
+        "name": "operationCancellationDoesNotBecomeAnActivationFailureMessage",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "2cca1c5b46acf1c5edae31dc6dcbcf8b19ec64976513e3b549b1a5b52bb54f19"
+  }
+]

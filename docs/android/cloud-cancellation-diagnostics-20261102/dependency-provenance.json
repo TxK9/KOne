@@ -1,0 +1,106 @@
+{
+  "format": 1,
+  "observed_at_utc": "2026-11-02T04:47:50.346759+00:00",
+  "runtime_inventory_reference": "../cloud-polish-20261102/dependency-observations.json",
+  "inventory_is_prior_dated_observation_not_full_verification": true,
+  "modules": 265,
+  "artifact_observations": 190,
+  "special_observed_artifacts": [
+    {
+      "coordinate": "com.github.jeziellago:Markwon:58aa5aba6a",
+      "file": "Markwon-58aa5aba6a.aar",
+      "observed_sha256": "765985e2e159bcf9676c98b4d442924f6a94f3e333090f1e2d616aaff5e62072"
+    },
+    {
+      "coordinate": "com.github.jeziellago:compose-markdown:0.7.2",
+      "file": "compose-markdown-0.7.2.aar",
+      "observed_sha256": "0c9d76505c7863ffe20c58dbf7ad8a0c7503da0bdd3343b547991be5fe62ac9a"
+    },
+    {
+      "coordinate": "com.github.topjohnwu.libsu:core:6.0.0",
+      "file": "core-6.0.0.aar",
+      "observed_sha256": "a1ca5a8adb9ab11c42b71fc2d2a61b5a95cb4cdd06df0eb8c204c06813c2bb5b"
+    },
+    {
+      "coordinate": "com.github.topjohnwu.libsu:service:6.0.0",
+      "file": "service-6.0.0.aar",
+      "observed_sha256": "528bbcc3f057e8b5ea6f69a2deea1e0ff536880602e99e98763d7b74cf1d0659"
+    },
+    {
+      "coordinate": "io.github.sagernet:libghostty-android-compose:0.1.0-SNAPSHOT",
+      "file": "libghostty-android-compose-0.1.0-SNAPSHOT.aar",
+      "observed_sha256": "4470a5849193db4e7a74b1077ba8a03b5155192c48cf76cd3db8648fb1632710"
+    },
+    {
+      "coordinate": "io.github.sagernet:libghostty-android-extras:0.1.0-SNAPSHOT",
+      "file": "libghostty-android-extras-0.1.0-SNAPSHOT.aar",
+      "observed_sha256": "bf02f7f324fd7543ed5d82baf83899419fa250c7ad9ee1b455634af4d7f8bfff"
+    },
+    {
+      "coordinate": "io.github.sagernet:libghostty-android:0.1.0-SNAPSHOT",
+      "file": "libghostty-android-0.1.0-SNAPSHOT.aar",
+      "observed_sha256": "321761a01f4bace9b87fe1d53c55637279f5e602cc128bc9f5dc07194c75485e"
+    },
+    {
+      "coordinate": "de.robv.android.xposed:api:82",
+      "file": "api-82.pom",
+      "observed_sha256": "0e0daea8a0f99e385d9027bfe000528ec28a88008867f8e27b6baef2d3184bf4"
+    },
+    {
+      "coordinate": "de.robv.android.xposed:api:82",
+      "file": "api-82.jar",
+      "observed_sha256": "f48c635f1c7469fdec0e00ad2ea0b7a6b2f5b55065784a35b7ca3a84615e8e25"
+    }
+  ],
+  "declared_not_in_other_debug_inventory": [
+    "io.github.sagernet:libghostty-android-compose-legacy:0.1.0-SNAPSHOT"
+  ],
+  "upstream_refs": [
+    {
+      "coordinate": "com.github.jeziellago:compose-markdown:0.7.2",
+      "source_commit": "587e4129c6d3b7a3b31876a5c49e69cd75838df6",
+      "url": "https://github.com/jeziellago/compose-markdown/commit/587e4129c6d3b7a3b31876a5c49e69cd75838df6"
+    },
+    {
+      "coordinate": "com.github.jeziellago:Markwon:58aa5aba6a",
+      "source_commit": "58aa5aba6a979a3a9374099c97f9365b09852ba2",
+      "url": "https://github.com/jeziellago/Markwon/commit/58aa5aba6a979a3a9374099c97f9365b09852ba2"
+    },
+    {
+      "coordinates": [
+        "com.github.topjohnwu.libsu:core:6.0.0",
+        "com.github.topjohnwu.libsu:service:6.0.0"
+      ],
+      "source_commit": "8c3e80ffe466b89ff875471e542d77e6a1b480c5",
+      "url": "https://github.com/topjohnwu/libsu/commit/8c3e80ffe466b89ff875471e542d77e6a1b480c5"
+    }
+  ],
+  "snapshot_source": "https://github.com/SagerNet/libghostty-android",
+  "snapshot_status": "Publishing commit/timestamp/independent attestation not authenticated for cached bytes",
+  "official_release_option_not_selected": "0.1.0-alpha02 per upstream README; compatibility not tested",
+  "vendored_api_tree": "18013dfb2c3416ebe01951ca6f920e25e6783c10",
+  "core_aars": [
+    {
+      "file": "dependencies/libbox.aar",
+      "observed_sha256": "14c4e2cdc42e21641e62349ed943baf8796b2b0a346feb5dfd3a62fb0bcc21cf",
+      "status": "Matches committed baseline; upstream source/build attestation not independently established"
+    },
+    {
+      "file": "dependencies/libbox-legacy.aar",
+      "observed_sha256": "3a9ccd47f73fc779aa311e062b6ab57fac599186404808b26bbb804ed418b804",
+      "status": "Matches committed baseline; upstream source/build attestation not independently established"
+    }
+  ],
+  "not_changed": [
+    "Dependency versions",
+    "Repository policy",
+    "Lockfiles",
+    "Verification metadata",
+    "Trust keys"
+  ],
+  "remaining_evidence": [
+    "Independent artifact-to-reviewed-source/publisher correspondence",
+    "All actual compile/test/plugin/legacy/Play/release graphs and metadata",
+    "Reviewed snapshot/legacy compatibility decision"
+  ]
+}

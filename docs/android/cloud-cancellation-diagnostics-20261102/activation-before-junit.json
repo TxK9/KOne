@@ -1,0 +1,24 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.managed.ActivationFlowTest",
+    "tests": 3,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "duplicateActivationIsSingleFlightAndFailurePreservesFieldsForRetry",
+        "failure": null
+      },
+      {
+        "name": "navigatingBackCancelsTheClaimAndReentryDoesNotRestoreTheInvite",
+        "failure": null
+      },
+      {
+        "name": "operationCancellationDoesNotBecomeAnActivationFailureMessage",
+        "failure": "java.lang.AssertionError: Failed: assertDoesNotExist.\nReason: Did not expect any node but found '1' node that satisfies: (Text + InputText + EditableText contains 'Could not activate. Try again.' (ignoreCase: false))\nNode found:\nNode #172 at (l=108.0, t=1056.0, r=480.0, b=1096.0)px\nText = '[Could not activate. Try again.]'\nActions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]\n"
+      }
+    ],
+    "xml_sha256": "d5bf73e9b0bbe9d4370033838c429f18863cc30e531277546913e2dde939fe6c"
+  }
+]

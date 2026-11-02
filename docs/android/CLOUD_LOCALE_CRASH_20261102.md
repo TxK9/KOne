@@ -121,3 +121,8 @@ was performed. A successful unsigned compile does not publish or install build 1
 [Sanitized commands, JUnit cases and hashes](cloud-locale-crash-20261102/evidence.json)
 support this checkpoint. [The collaboration handoff](CLOUD_COLLABORATION_HANDOFF_20261102.md)
 contains language coverage and the source-only website download finding.
+
+The subsequent [cancellation/diagnostic matrix](CLOUD_CANCELLATION_DIAGNOSTICS_20261102.md)
+adds the defined navigation/binding checks, bounded crash-input regression and redaction of
+historical diagnostic copies. Original historical files and explicit configuration inclusion
+remain unchanged; its final counts supersede this earlier checkpoint's totals.
