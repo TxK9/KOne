@@ -131,10 +131,13 @@ of those 418 custom keys; Traditional Chinese defines 577 stock keys and zero of
 Missing values fall back to English. These are string-key counts, not proof of complete UI
 translation or every plural/array. A system-following default is not a forced-English UI.
 
-API 33+ locale persistence is platform-handled. Source/generated-manifest inspection did
-not find the explicit AppCompat automatic-storage opt-in for older APIs or a custom locale
-restore call. This is a persistence test priority, not a completed process-restart result.
-See the [official AppCompat locale API](https://developer.android.com/reference/androidx/appcompat/app/AppCompatDelegate#setApplicationLocales(androidx.core.os.LocaleListCompat)).
+API 33+ locale persistence is platform-handled. The earlier checkpoint found no explicit
+AppCompat storage opt-in for older APIs. The follow-up reproduced missing API 32 persistence,
+enabled the documented private automatic storage, and verified writing, restoration in a
+separate host test JVM, and returning to the system default. This is synthetic framework
+evidence, not an OEM/device restart result. See the
+[locale/crash follow-up](CLOUD_LOCALE_CRASH_20261102.md) and the
+[official AppCompat locale API](https://developer.android.com/reference/androidx/appcompat/app/AppCompatDelegate#setApplicationLocales(androidx.core.os.LocaleListCompat)).
 
 The reviewed website source pins Android **1.0.0, build 10041**, arm64-v8a, in both
 `website/release.json` and the HTML fallback. The manifest also says invite-client,

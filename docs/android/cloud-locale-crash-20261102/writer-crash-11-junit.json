@@ -1,0 +1,76 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportPersistenceTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "pendingReportsExcludeBearerAndNestedCauseSecrets",
+        "failure": null
+      },
+      {
+        "name": "pendingMetadataStaysValidJsonWithoutJsonOrUrlCredentials",
+        "failure": null
+      },
+      {
+        "name": "ordinaryFailureContextAndHandlerDelegationRemainIntact",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "944020281ab03f1e3f89a6927a5f23e164949836ba0600d35b371c9df1571025"
+  },
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportRedactionTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "unterminatedQuotedValuesDoNotExposeSecretsOrRemoveFrames",
+        "failure": null
+      },
+      {
+        "name": "httpUserInfoAndTokenQueryAreRemovedWhileTheFailureLocationRemains",
+        "failure": null
+      },
+      {
+        "name": "authorizationAndCookieHeadersDoNotConsumeTheNextDiagnosticLine",
+        "failure": null
+      },
+      {
+        "name": "bearerAndAssignmentValuesAreRemovedWithoutHidingStackFrames",
+        "failure": null
+      },
+      {
+        "name": "quotedJsonSecretsAreRemovedAndOrdinaryFieldsRemainValid",
+        "failure": null
+      },
+      {
+        "name": "benignDiagnosticsAndNonSecretFieldNamesRemainUnchanged",
+        "failure": null
+      },
+      {
+        "name": "repeatedRedactionIsStable",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "86388ab533a9678599c27150d5d836e5b635fad0f10b54c4e667bff32e7dc37f"
+  },
+  {
+    "name": "io.nekohasekai.sfa.locale.LocalePersistenceWriteTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "api32WritesTheSelectionToPrivateStorage",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "8e45868ce465c8041bf29b899614b632706f62a2e71769152235de26ed142680"
+  }
+]
