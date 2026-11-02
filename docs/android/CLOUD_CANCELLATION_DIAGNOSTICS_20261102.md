@@ -76,6 +76,31 @@ removed. Flat crash metadata remains valid JSON. Device/system logcat contents t
 are not rewritten; the text boundary applies to copies exported through this diagnostic path.
 Explicit configuration exports still require careful handling. No real logs were collected.
 
+### Escaped-value truncation follow-up
+
+Independent review identified one missing boundary: a valid JSON secret whose escaped quote
+is split exactly after its backslash at the 32,768-character cap. The retained prefix ends
+in an unmatched escape, so the previous quoted-value expression failed and disclosed the
+secret prefix. Actual Kotlin tests reproduced that leak and the equivalent direct dangling
+quoted-value gap: 16 focused cases ran, with two failed tests and 14 passing tests.
+
+Commit `486d7cbf47837593afcad04b14f229e8adb29fc0` permits an optional dangling escape only
+at the existing line-end alternative for recognized JSON/assignment secrets. Possessive
+matching and the stream line cap remain unchanged. New cases check password/credential JSON
+at offsets -1/0/+1 around the split, double/single-quoted assignments, LF/CRLF/EOF, retained
+following frames and exact non-secret `passwordPolicy` prefix preservation. The source JSON
+is parsed before truncation to confirm the reproducer is a valid complete input.
+
+The final ordinary suite now passes **453 tests** plus unsigned Kotlin compilation, and
+the three actual crash-handler/file checks were rerun successfully. All have zero failures,
+errors and skips. The full 28-case UI/file matrix below remains earlier evidence for its
+unchanged UI code; it was not rerun wholesale for this text-only correction. Explicit
+configuration and binary preservation checks pass in the ordinary suite. No backup/export
+selection, configuration bytes, city assets, dependency, PR #12 or device action was changed.
+The [boundary evidence](cloud-cancellation-diagnostics-20261102/escape-boundary/evidence.json)
+retains failed/pass cases, command templates and source/log hashes. Existing privacy and
+crash-time memory limitations still apply.
+
 ## Finite acceptance matrix
 
 | Defined item | Actual outcome |
@@ -86,8 +111,8 @@ Explicit configuration exports still require careful handling. No real logs were
 | Actual feedback content | Three native cases pass: duplicate/retry, binding replacement and back/newer-edit preservation |
 | Diagnostic files and streams | Ten cases pass, including explicit configuration and binary preservation |
 | Long/adversarial crash input | Two focused bounded host cases pass after one reproduced stack overflow |
-| Ordinary suite + unsigned Kotlin compilation | **450 tests pass**, zero failures/errors/skips |
-| Final selected Robolectric suite | **28 pass**: 25 native UI plus three actual crash-handler/file cases; zero failures/errors/skips |
+| Ordinary suite + unsigned Kotlin compilation | Latest **453 tests pass**, zero failures/errors/skips; the preceding checkpoint passed 450 |
+| Selected Robolectric suite | Earlier complete matrix: **28 pass** (25 native UI plus three crash-handler/file cases). After the boundary correction, the affected three file cases pass again; unchanged UI was not rerun. All recorded runs have zero failures/errors/skips |
 | Dependency provenance | Exact special cases and official-source options recorded below; no new trust metadata, lock or version change |
 | Physical device/OEM/process/keystore behavior | Not run: no authorized attached device/emulator; synthetic tests do not establish these outcomes |
 | Native ZIP/age and live collector execution | Not run in host fixtures; no native engine/root collector invoked |

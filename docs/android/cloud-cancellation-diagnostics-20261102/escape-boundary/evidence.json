@@ -1,0 +1,87 @@
+{
+  "format": 1,
+  "provenance": "Published KOne cloud runtime; synthetic boundary data only",
+  "baseline_head": "4c72b9f5a33cd5983e610cb9fc759efe00dceb1a",
+  "fix_commit": "486d7cbf47837593afcad04b14f229e8adb29fc0",
+  "line_cap_chars_unchanged": 32768,
+  "boundary_cases": {
+    "json_secret_fields": [
+      "password",
+      "credential"
+    ],
+    "escape_offsets": [
+      -1,
+      0,
+      1
+    ],
+    "direct_quoted_styles": [
+      "JSON double quote",
+      "Assignment double quote",
+      "Assignment single quote"
+    ],
+    "line_endings": [
+      "LF",
+      "CRLF",
+      "EOF"
+    ],
+    "negative_case": "Non-secret passwordPolicy prefix remains exact at the same cutoff and EOF"
+  },
+  "checks": [
+    {
+      "name": "android-escape-boundary-red",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:testOtherDebugUnitTest --tests '*.DiagnosticTextTest' --tests '*.CrashReportRedactionTest'",
+      "started_utc": "2026-11-02T04:53:22.011631+00:00",
+      "elapsed_seconds": 22.64,
+      "exit_status": 1,
+      "log": "android-escape-boundary-red.log",
+      "local_log_sha256": "337fc0c7e32308c14f206237d9b72f35f14b87d0686595ce56c9ec3158ec4aaf"
+    },
+    {
+      "name": "android-escape-boundary-full-unit",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest",
+      "started_utc": "2026-11-02T04:54:10.113649+00:00",
+      "elapsed_seconds": 28.18,
+      "exit_status": 0,
+      "log": "android-escape-boundary-full-unit.log",
+      "local_log_sha256": "feaa650a9327ff533f45de972d4e8963fa6149052eb2dc45740754b8533eedd0"
+    },
+    {
+      "name": "android-escape-boundary-handler-final",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/escape-boundary :app:testOtherDebugUnitTest --tests '*.CrashReportPersistenceTest'",
+      "started_utc": "2026-11-02T04:55:00.990171+00:00",
+      "elapsed_seconds": 37.07,
+      "exit_status": 0,
+      "log": "android-escape-boundary-handler-final.log",
+      "local_log_sha256": "ba203bc2286c782cb83e7a2fda02c5076981d6f941a59bc6ed51bc0734311e5e"
+    }
+  ],
+  "source_sha256": {
+    "android/app/src/main/java/io/nekohasekai/sfa/bg/CrashReportRedaction.kt": "c1aa8042f27066f9f0f4d000ed57a55581970900f89fc6d01ab7df0d96b1413f",
+    "android/app/src/main/java/io/nekohasekai/sfa/bg/DiagnosticText.kt": "1490b7fafabaa2846b3d1479b260c52e8f2ca8c79ab3771af4f898ff2b6ee93f",
+    "android/app/src/test/java/io/nekohasekai/sfa/bg/CrashReportRedactionTest.kt": "3d5c27217192d23057aeb203e15cc62cfc64d596c68936ed8d888009f7f331e6",
+    "android/app/src/test/java/io/nekohasekai/sfa/bg/DiagnosticTextTest.kt": "b98d2495eb086e5df4adcad17840ca2a89379a91e35731d481a1e11b342b822d"
+  },
+  "evidence_sha256": {
+    "ordinary-453-junit.json": "6713054b3eda25889ebcb912fe50bdb65abc07ba72e2aa9728591e7c80239c9c",
+    "before-16-junit.json": "bdc4e3508ca1795b09386afdd05c1a65793ae2a2758ef24a8afdaaa65e909a24",
+    "handler-3-junit.json": "bd0ad3983fb8d97864b9044a16733ed22268df48c75a9d64a328b7ef00c624eb"
+  },
+  "outcomes": {
+    "before_tests": 16,
+    "before_failed": 2,
+    "ordinary_passed": 453,
+    "affected_handler_file_cases_passed": 3,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "earlier_28_case_matrix_not_rerun": true
+  },
+  "limits": [
+    "Recognized credential syntax only, not universal privacy/crash-time OOM guarantees",
+    "No backup/configuration/binary selection changes",
+    "No PR12,Windows,device,installation,production or permission actions"
+  ]
+}

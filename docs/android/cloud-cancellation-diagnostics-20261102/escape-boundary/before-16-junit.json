@@ -1,0 +1,86 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportRedactionTest",
+    "tests": 10,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "unterminatedQuotedValuesDoNotExposeSecretsOrRemoveFrames",
+        "failure": null
+      },
+      {
+        "name": "httpUserInfoAndTokenQueryAreRemovedWhileTheFailureLocationRemains",
+        "failure": null
+      },
+      {
+        "name": "longQuotedSecretsAndAdversarialEscapesStayBounded",
+        "failure": null
+      },
+      {
+        "name": "authorizationAndCookieHeadersDoNotConsumeTheNextDiagnosticLine",
+        "failure": null
+      },
+      {
+        "name": "bearerAndAssignmentValuesAreRemovedWithoutHidingStackFrames",
+        "failure": null
+      },
+      {
+        "name": "largeSyntheticNestedTraceRetainsFramesWithoutRecognizedSecrets",
+        "failure": null
+      },
+      {
+        "name": "quotedJsonSecretsAreRemovedAndOrdinaryFieldsRemainValid",
+        "failure": null
+      },
+      {
+        "name": "benignDiagnosticsAndNonSecretFieldNamesRemainUnchanged",
+        "failure": null
+      },
+      {
+        "name": "repeatedRedactionIsStable",
+        "failure": null
+      },
+      {
+        "name": "danglingQuotedEscapesAreRedactedWithoutConsumingTheNextFrame",
+        "failure": "java.lang.AssertionError"
+      }
+    ],
+    "xml_sha256": "28c46bd18faa8df7bd02ccf009ffb6120ce4f3f27ba29bcc77ef51d4154d569f"
+  },
+  {
+    "name": "io.nekohasekai.sfa.bg.DiagnosticTextTest",
+    "tests": 6,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "frameworkBinaryCopyRemainsByteExact",
+        "failure": null
+      },
+      {
+        "name": "credentialSyntaxIsRedactedEvenWhenInputChunksSplitItsBoundaries",
+        "failure": null
+      },
+      {
+        "name": "oversizedLinesHaveAnExplicitBoundAndDoNotLoseTheFollowingFrame",
+        "failure": null
+      },
+      {
+        "name": "jsonSecretsStayRedactedWhenTheLineCapSplitsAnEscape",
+        "failure": "java.lang.AssertionError: Secret retained at escape offset 0"
+      },
+      {
+        "name": "ordinaryQuotedFieldsKeepTheirRetainedPrefixAtTheSameBoundary",
+        "failure": null
+      },
+      {
+        "name": "ordinaryUtf8DiagnosticsAndEmptyLinesRoundTrip",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "f5705fdd848fa4dd25de73ebb2c56481265c0e728a12118e39490df38b98497e"
+  }
+]
