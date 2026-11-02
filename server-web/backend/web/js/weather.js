@@ -1,6 +1,6 @@
 import {t} from './i18n.js';
-// 天气印: health told as weather, the same seals as KOne on the phone.
-// 晴 works, 雾 is on its way or slow, 断 is down, 歇 is resting (not connected, not started).
+// Weather seals show health using the same states as the KOne client.
+// Clear is working, fog is pending or slow, down is unavailable, rest is idle.
 
 import {h} from './core.js';
 
@@ -20,7 +20,7 @@ const GLYPHS = {
 
 const RANK = {qing: 0, xie: 1, wu: 2, duan: 3};
 
-/** The worse of two weathers: 断 over 雾 over 歇 over 晴. */
+/** Severity order: down, fog, rest, clear. */
 export const worse = (a, b) => (RANK[b] > RANK[a] ? b : a);
 
 /** The seal: the character cut into a square of the pigment. */

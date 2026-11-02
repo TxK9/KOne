@@ -141,7 +141,7 @@ export function activity(server) {
 
 /**
  * One building as an SVG group, base at (x, base). `look` is 'lit' (online), 'dark' (down),
- * 'site' (being built: not yet enrolled) or 'ghost' (revoked); `fog` veils it (雾).
+ * 'site' (not yet enrolled) or 'ghost' (revoked); `fog` veils it.
  */
 export function building(id, {x = 0, base = 0, width = 40, height = 120, look = 'lit', lit = 0.4, fog = false}) {
   const seed = hash(String(id));
@@ -325,7 +325,7 @@ export function bridge(stations, exit, weatherKey, {onStation} = {}) {
 
 // ---- People --------------------------------------------------------------------------------
 
-/** A name seal (白文印): the first character of a name cut white into a square of ink. */
+/** A name seal: the first character cut white into a square of ink. */
 export function nameSeal(name, size = 'm') {
   const char = Array.from(String(name || '').trim())[0] || t('客');
   return h('span', {class: 'name-seal name-seal-' + size, 'aria-hidden': 'true'}, char.toUpperCase());

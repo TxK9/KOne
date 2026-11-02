@@ -146,7 +146,7 @@ export const sheetOpen = () => current !== null;
 // ---- Two-step confirm ------------------------------------------------------------------------
 
 /**
- * Turns a button into a two-step one: the first press asks ("确认收回"), the second does it.
+ * Turns a button into a two-step action: the first press asks for confirmation.
  * It quietly goes back after a few seconds. No dialog.
  */
 export function twoStep(button, {ask, run}) {

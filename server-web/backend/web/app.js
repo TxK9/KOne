@@ -1,5 +1,5 @@
 import {t, locale, setLocale, number} from './js/i18n.js';
-// KOne 管理中心: login, the frame around the pages, the theme, and moving between pages.
+// KOne management center: login, page frame, theme and navigation.
 
 import {h, fill, prefs} from './js/core.js';
 import * as api from './js/api.js';
@@ -37,7 +37,7 @@ function languageControl(className = '') {
   return h('div', {class: 'language-control ' + className}, icon('globe'), control);
 }
 
-// ---- Theme: follows the system unless chosen, like 外观 on the phone --------------------------
+// Theme follows the system unless explicitly selected.
 
 const THEMES = [['system', t('跟随系统')], ['light', t('浅色')], ['dark', t('深色')]];
 const systemDark = window.matchMedia('(prefers-color-scheme: dark)');

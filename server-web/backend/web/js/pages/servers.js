@@ -1,5 +1,5 @@
 import {t, number, count} from '../i18n.js';
-// 服务器: every server as a building. Pick one to see its load, protocols and routes.
+// Servers: select a building to inspect load, protocols and routes.
 
 import {h, s, fill, matches, ago, when, bytes, rate, duration, percent} from '../core.js';
 import {post} from '../api.js';
@@ -172,7 +172,7 @@ function routeChips(srv) {
 }
 
 // The detail is drawn in parts, each redrawn only when its own facts change, so a menu left open
-// or a button half-way through "确认停用" survives the five-second refresh.
+// or a pending disable confirmation survives the five-second refresh.
 const parts = {id: null, keys: {}};
 
 const SLOTS = ['head', 'resource', 'nodes', 'routes'];

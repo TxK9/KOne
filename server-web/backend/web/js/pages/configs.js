@@ -1,5 +1,5 @@
 import {t, count, systemText, listText, groupName} from '../i18n.js';
-// 配置: the sing-box configs on hand — imported ones and the ones routes made for each person.
+// Configs: imported sing-box configurations and route-generated configurations.
 
 import {h, fill, when} from '../core.js';
 import {post, download} from '../api.js';
