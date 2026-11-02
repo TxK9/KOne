@@ -69,7 +69,7 @@ internal fun KnineNavRow(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = { if (enabled) onClick() })
             .then(if (badge != null && badgeDescription != null) Modifier.semantics { stateDescription = badgeDescription } else Modifier)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
