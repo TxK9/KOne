@@ -62,4 +62,29 @@ class CrashReportRedactionTest {
         val first = CrashReportRedaction.text("Bearer synthetic-token; credential=synthetic-value https://user:pass@example.invalid")
         assertEquals(first, CrashReportRedaction.text(first))
     }
+
+    @Test(timeout = 5_000) fun longQuotedSecretsAndAdversarialEscapesStayBounded() {
+        val secret = "synthetic\\\"chunk".repeat(2_000)
+        val input = JSONObject().put("password", secret).put("stage", "connect").toString()
+        val output = CrashReportRedaction.text(input)
+        assertFalse(output.contains("synthetic"))
+        assertEquals("connect", JSONObject(output).getString("stage"))
+        val unfinished = "credential=\"" + "\\\"synthetic".repeat(2_000)
+        assertFalse(CrashReportRedaction.text(unfinished).contains("synthetic"))
+    }
+
+    @Test(timeout = 5_000) fun largeSyntheticNestedTraceRetainsFramesWithoutRecognizedSecrets() {
+        var failure: Throwable = IllegalStateException("credential=synthetic-root")
+        repeat(80) { index ->
+            failure = IllegalStateException("Stage $index password=synthetic-$index", failure).apply {
+                stackTrace = Array(8) { StackTraceElement("example.Loader", "read", "Loader.kt", it + 1) }
+            }
+        }
+        val writer = java.io.StringWriter()
+        failure.printStackTrace(java.io.PrintWriter(writer))
+        val output = CrashReportRedaction.text(writer.toString())
+        assertFalse(output.contains("synthetic-"))
+        assertTrue(output.contains("Loader.kt:1"))
+        assertTrue(output.contains("Caused by:"))
+    }
 }

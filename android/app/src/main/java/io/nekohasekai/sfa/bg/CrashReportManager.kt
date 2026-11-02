@@ -206,6 +206,13 @@ object CrashReportManager {
         val zipFile = File(cacheDir, if (useAgeEncryption) "${report.id}.zip.age" else "${report.id}.zip")
         zipFile.delete()
         val strippedDir = File(cacheDir, report.id)
+        prepareArchiveFiles(report, strippedDir, includeConfig, includeLog)
+        Libbox.createZipArchive(strippedDir.path, zipFile.path, useAgeEncryption)
+        zipFile
+    }
+
+    /** Prepare diagnostic copies without modifying the original report or restorable backups. */
+    internal fun prepareArchiveFiles(report: CrashReport, strippedDir: File, includeConfig: Boolean, includeLog: Boolean) {
         strippedDir.deleteRecursively()
         report.directory.copyRecursively(strippedDir, overwrite = true)
         File(strippedDir, READ_MARKER_FILE_NAME).delete()
@@ -216,8 +223,14 @@ object CrashReportManager {
             File(strippedDir, GO_LOG_FILE_NAME).delete()
             File(strippedDir, JVM_LOG_FILE_NAME).delete()
         }
-        Libbox.createZipArchive(strippedDir.path, zipFile.path, useAgeEncryption)
-        zipFile
+        File(strippedDir, METADATA_FILE_NAME).takeIf { it.isFile }?.let {
+            it.writeText(CrashReportRedaction.metadata(it.readText()))
+        }
+        for (name in listOf(GO_LOG_FILE_NAME, JVM_LOG_FILE_NAME)) {
+            File(strippedDir, name).takeIf { it.isFile }?.let {
+                it.writeText(CrashReportRedaction.text(it.readText()))
+            }
+        }
     }
 
     private fun nextAvailableReportDir(date: Date): File {
