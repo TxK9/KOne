@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-VERSION = "0.3.8"
+VERSION = "0.3.9"
 
 
 def load_settings(path):

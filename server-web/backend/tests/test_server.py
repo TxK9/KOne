@@ -149,7 +149,7 @@ class ConsoleAPITest(unittest.TestCase):
             "name": "重复字段", "configText": config_text, "source": "paste", "userIds": [user_id],
             "config": {"outbounds": [{"type": "direct"}]}})
         self.assertEqual(status, 400)
-        self.assertIn("重复字段", data["error"])
+        self.assertIn("duplicate keys", data["error"])
         self.assertEqual(self.server.app.store.state(), baseline)
         for numeric_text in ("NaN", "Infinity", "-Infinity", "1e309"):
             status, _, _ = self.request("POST", "/api/profiles", {

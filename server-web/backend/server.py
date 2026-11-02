@@ -2,6 +2,7 @@
 """Local KOne console: static UI, authenticated API, and SQLite storage."""
 
 import argparse
+import base64
 import gzip
 from functools import lru_cache
 from contextlib import contextmanager
@@ -29,13 +30,15 @@ from customers import Customers, CustomerError, DEFAULT_GROUP
 from feedback import Feedback
 from owner_updates import OwnerUpdates, APK_PATH as OWNER_APK_PATH
 from deploy.center_common import DataLock
-from config_import import ConfigImportError, parse_node_links
+from config_import import ConfigImportError
+from portable_import import parse_import_text, portable_config, merge_config_nodes, export_node_links
 
 
 BASE_DIR = Path(__file__).resolve().parent
 MAX_BODY_BYTES = 1024 * 1024
 SESSION_SECONDS = 24 * 60 * 60
 COOKIE_NAME = "kone_session"
+SUBSCRIPTION_PATH = re.compile(r"/api/client/subscriptions/([A-Za-z0-9_-]{43})/(sing-box\.json|nodes\.txt)")
 
 
 @lru_cache(maxsize=32)
@@ -202,6 +205,15 @@ class ConsoleStore:
                     dns_count INTEGER NOT NULL, rule_count INTEGER NOT NULL,
                     updated TEXT NOT NULL, source TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS profile_revisions (
+                    profile_id TEXT NOT NULL REFERENCES profiles(id), revision TEXT NOT NULL,
+                    config_json TEXT NOT NULL, created TEXT NOT NULL,
+                    PRIMARY KEY(profile_id, revision)
+                );
+                CREATE TABLE IF NOT EXISTS profile_subscriptions (
+                    profile_id TEXT PRIMARY KEY REFERENCES profiles(id), token_hash TEXT UNIQUE NOT NULL,
+                    created TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS users (
                     id TEXT PRIMARY KEY, name TEXT NOT NULL,
                     profile_id TEXT REFERENCES profiles(id), created TEXT NOT NULL
@@ -263,6 +275,8 @@ class ConsoleStore:
                     "nodes": row["nodes"], "protocols": json.loads(row["protocols_json"]),
                     "regions": [], "dnsCount": row["dns_count"], "ruleCount": row["rule_count"],
                     "updated": row["updated"], "source": row["source"],
+                    "revision": hashlib.sha256(row["config_json"].encode("utf-8")).hexdigest(),
+                    "subscriptionEnabled": bool(connection.execute("SELECT 1 FROM profile_subscriptions WHERE profile_id=?", (row["id"],)).fetchone()),
                 })
             has_customers = connection.execute("SELECT 1 FROM sqlite_master WHERE name='customer_accounts'").fetchone()
             if has_customers:
@@ -278,6 +292,68 @@ class ConsoleStore:
                 "SELECT id, time, title, detail, result FROM records ORDER BY id DESC LIMIT 300")]
             return {"profiles": profiles, "users": users, "records": records}
 
+    def preview_profile(self, payload):
+        try:
+            config, warnings, format_ = parse_import_text(payload.get("configText"), parse_json_text)
+        except ConfigImportError as error:
+            raise APIError(400, str(error)) from None
+        metadata = validate_config(config)
+        if not metadata["nodes"]:
+            raise APIError(400, "The configuration has no portable proxy nodes.")
+        added = metadata["nodes"]
+        if payload.get("profileId"):
+            with self.connect() as connection:
+                row = self.profile_for_update(connection, payload["profileId"], payload.get("expectedRevision"))
+                try:
+                    config, added = merge_config_nodes(json.loads(row["config_json"]), config)
+                except ConfigImportError as error:
+                    raise APIError(400, str(error)) from None
+                metadata = validate_config(config)
+        return {"ok": True, "format": format_, **metadata, "addedNodes": added, "warnings": warnings}
+
+    @staticmethod
+    def profile_for_update(connection, identifier, expected):
+        if not isinstance(identifier, str) or not re.fullmatch(r"[0-9a-f-]{36}", identifier):
+            raise APIError(400, "请选择配置")
+        row = connection.execute("SELECT * FROM profiles WHERE id=?", (identifier,)).fetchone()
+        if row is None:
+            raise APIError(404, "配置不存在")
+        if row["source"] == "线路生成":
+            raise APIError(409, "Route-generated configurations must be changed through their route.")
+        current = hashlib.sha256(row["config_json"].encode("utf-8")).hexdigest()
+        if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected) or not hmac.compare_digest(expected, current):
+            raise APIError(409, "This configuration changed. Refresh it before adding nodes.")
+        return row
+
+    def update_profile(self, identifier, payload):
+        if payload.get("mode", "merge") != "merge":
+            raise APIError(400, "Only additive node updates are supported here.")
+        try:
+            incoming, warnings, _ = parse_import_text(payload.get("configText"), parse_json_text)
+        except ConfigImportError as error:
+            raise APIError(400, str(error)) from None
+        with self.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = self.profile_for_update(connection, identifier, payload.get("expectedRevision"))
+            try:
+                config, added = merge_config_nodes(json.loads(row["config_json"]), incoming)
+            except ConfigImportError as error:
+                raise APIError(400, str(error)) from None
+            metadata = validate_config(config)
+            serialized = json.dumps(config, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+            if len(serialized.encode("utf-8")) > MAX_BODY_BYTES:
+                raise APIError(413, "配置过大，请控制在 1 MB 内")
+            if json.loads(row["config_json"]) == config:
+                return {"ok": True, "id": identifier, "addedNodes": 0, "warnings": warnings}
+            old_revision = hashlib.sha256(row["config_json"].encode("utf-8")).hexdigest()
+            connection.execute("INSERT OR IGNORE INTO profile_revisions VALUES(?,?,?,?)", (identifier, old_revision, row["config_json"], timestamp()))
+            connection.execute("DELETE FROM profile_revisions WHERE profile_id=? AND rowid NOT IN (SELECT rowid FROM profile_revisions WHERE profile_id=? ORDER BY rowid DESC LIMIT 10)", (identifier, identifier))
+            version = connection.execute("SELECT COALESCE(MAX(version_number),0)+1 FROM profiles").fetchone()[0]
+            connection.execute("UPDATE profiles SET version_number=?,config_json=?,nodes=?,protocols_json=?,dns_count=?,rule_count=?,updated=? WHERE id=?", (version, serialized, metadata["nodes"], json.dumps(metadata["protocols"]), metadata["dnsCount"], metadata["ruleCount"], timestamp(), identifier))
+            self.record(connection, "导入配置", row["name"])
+        self.restrict_files()
+        return {"ok": True, "id": identifier, "addedNodes": added, "warnings": warnings}
+
     def import_profile(self, payload):
         name = clean_name(payload.get("name"))
         warnings = []
@@ -285,17 +361,10 @@ class ConsoleStore:
             config_text = payload["configText"]
             if not isinstance(config_text, str):
                 raise APIError(400, "配置文本须为字符串")
-            config_text = config_text.lstrip("\ufeff")
-            if re.match(r"\s*[A-Za-z][A-Za-z0-9+.-]*://", config_text):
-                try:
-                    config, warnings = parse_node_links(config_text)
-                except ConfigImportError as error:
-                    raise APIError(400, str(error)) from None
-            else:
-                try:
-                    config = parse_json_text(config_text)
-                except (ValueError, RecursionError):
-                    raise APIError(400, "配置 JSON 格式有误、含重复字段或无效数值")
+            try:
+                config, warnings, _ = parse_import_text(config_text, parse_json_text)
+            except ConfigImportError as error:
+                raise APIError(400, str(error)) from None
         else:
             config = payload.get("config")
         metadata = validate_config(config)
@@ -334,6 +403,54 @@ class ConsoleStore:
                 self.record(connection, "分配配置", "%s → %s" % (name, "、".join(user_names[:8])))
         self.restrict_files()
         return {"ok": True, "id": profile_id, "warnings": warnings}
+
+    def create_subscription(self, identifier):
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
+        with self.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT * FROM profiles WHERE id=?", (identifier,)).fetchone()
+            if not row:
+                raise APIError(404, "配置不存在")
+            if row["source"] == "线路生成":
+                raise APIError(409, "Route-generated configurations must use customer enrollment.")
+            if connection.execute("SELECT 1 FROM profile_subscriptions WHERE profile_id=?", (identifier,)).fetchone():
+                raise APIError(409, "A subscription already exists. Revoke it before creating another link.")
+            config = json.loads(row["config_json"])
+            try:
+                portable_config(config)
+            except ConfigImportError as error:
+                raise APIError(400, str(error)) from None
+            links_error = None
+            try:
+                export_node_links(config)
+            except ConfigImportError as error:
+                links_error = str(error)
+            connection.execute("INSERT INTO profile_subscriptions VALUES(?,?,?)", (identifier, token_hash, timestamp()))
+        self.restrict_files()
+        return {"token": token, "linksError": links_error}
+
+    def revoke_subscription(self, identifier):
+        with self.connect() as connection:
+            connection.execute("DELETE FROM profile_subscriptions WHERE profile_id=?", (identifier,))
+        return {"ok": True}
+
+    def subscription(self, token, format_):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
+            raise APIError(404, "Subscription not found.")
+        token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
+        with self.connect() as connection:
+            row = connection.execute("SELECT p.config_json,s.token_hash FROM profile_subscriptions s JOIN profiles p ON p.id=s.profile_id WHERE s.token_hash=?", (token_hash,)).fetchone()
+            if row is None or not hmac.compare_digest(row["token_hash"], token_hash):
+                raise APIError(404, "Subscription not found.")
+            config = json.loads(row["config_json"])
+        try:
+            if format_ == "sing-box.json":
+                return (json.dumps(portable_config(config), ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n").encode("utf-8"), "application/json; charset=utf-8"
+            links = export_node_links(config)
+            return base64.b64encode(links.encode("utf-8")) + b"\n", "text/plain; charset=utf-8"
+        except ConfigImportError as error:
+            raise APIError(409, str(error)) from None
 
     def config(self, profile_id):
         with self.connect() as connection:
@@ -449,7 +566,7 @@ class ConsoleApplication:
         if authority == self.public_api_authority:
             target = urlsplit(handler.path)
             methods = PUBLIC_API_ROUTES.get(target.path)
-            if OWNER_APK_PATH.fullmatch(target.path): methods = {"GET", "HEAD"}
+            if OWNER_APK_PATH.fullmatch(target.path) or SUBSCRIPTION_PATH.fullmatch(target.path): methods = {"GET", "HEAD"}
             if methods is None or target.query or target.fragment:
                 raise APIError(404, "接口不存在")
             if handler.command not in methods:
@@ -567,12 +684,13 @@ class ConsoleHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", cache)
+        response_headers = dict(headers or {})
+        self.send_header("Cache-Control", response_headers.pop("Cache-Control", cache))
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header("Referrer-Policy", response_headers.pop("Referrer-Policy", "same-origin"))
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
-        for key, value in (headers or {}).items():
+        for key, value in response_headers.items():
             self.send_header(key, value)
         self.end_headers()
         if not head:
@@ -718,6 +836,13 @@ class ConsoleHandler(BaseHTTPRequestHandler):
         if path == "/api/feedback/inbox":
             self._json(200, self.app.feedback.listing(urlsplit(self.path).query, bearer=self.headers.get("Authorization", "")), head=head)
             return
+        subscription = SUBSCRIPTION_PATH.fullmatch(path)
+        if subscription:
+            if urlsplit(self.path).query:
+                raise APIError(404, "Subscription not found.")
+            body, content_type = self.app.store.subscription(subscription[1], subscription[2])
+            self._send(200, body, content_type, headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"}, head=head)
+            return
         if path == "/api/client/config":
             identifier = self.app.customers.authenticate(self.headers.get("Authorization", ""))
             if head:raise APIError(405,"请使用 GET 领取配置")
@@ -765,9 +890,15 @@ class ConsoleHandler(BaseHTTPRequestHandler):
                 result["installOrigin"] = getattr(self.app, "node_origin", None)
                 self._json(200, result, head=head)
                 return
-            match = re.fullmatch(r"/api/profiles/([0-9a-f-]{36})/config", path)
+            match = re.fullmatch(r"/api/profiles/([0-9a-f-]{36})/(config|portable)", path)
             if match:
                 name, config = self.app.store.config(match.group(1))
+                if match.group(2) == "portable":
+                    try:
+                        config = portable_config(config)
+                    except ConfigImportError as error:
+                        raise APIError(400, str(error)) from None
+                    name += "-nodes"
                 body = (json.dumps(config, ensure_ascii=False, allow_nan=False, indent=2) + "\n").encode("utf-8")
                 self._send(200, body, headers={"Content-Disposition": "attachment; filename=\"config.json\"; filename*=UTF-8''" + quote(name + ".json", safe="")}, head=head)
                 return
@@ -903,6 +1034,18 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             else:
                 result = {"retry": self.app.fleet.retry, "renew": self.app.fleet.renew_enrollment,
                           "revoke": self.app.fleet.revoke}[action](identifier)
+        elif re.fullmatch(r"/api/profiles/[0-9a-f-]{36}/subscription", path):
+            if not self.app.public_api_authority:
+                raise APIError(503, "The public subscription endpoint is not configured.")
+            created = self.app.store.create_subscription(path.split("/")[-2])
+            base = "https://" + self.app.public_api_authority + "/api/client/subscriptions/" + created["token"]
+            result = {"ok": True, "singBoxUrl": base + "/sing-box.json", "shareLinksUrl": None if created["linksError"] else base + "/nodes.txt", "linksError": created["linksError"]}
+        elif re.fullmatch(r"/api/profiles/[0-9a-f-]{36}/subscription/revoke", path):
+            result = self.app.store.revoke_subscription(path.split("/")[-3])
+        elif re.fullmatch(r"/api/profiles/[0-9a-f-]{36}/update", path):
+            result = self.app.store.update_profile(path.split("/")[-2], payload)
+        elif path == "/api/profiles/preview":
+            result = self.app.store.preview_profile(payload)
         elif path == "/api/profiles":
             result = self.app.store.import_profile(payload)
         elif path == "/api/users":

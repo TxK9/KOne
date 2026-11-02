@@ -10,7 +10,7 @@ import tarfile
 import zipfile
 
 BASE = Path(__file__).resolve().parents[1]
-VERSION = "0.3.8"
+VERSION = "0.3.9"
 FILES = ["server.py", "config_import.py", "fleet.py", "customers.py", "feedback.py", "owner_updates.py", "README.md",
          "web/index.html", "web/app.css", "web/app.js", "web/app.bundle.js", "web/theme.js", "web/favicon.svg",
          "web/js/api.js", "web/js/core.js", "web/js/icons.js", "web/js/ink.js", "web/js/layer.js", "web/js/owner-download.js",
@@ -25,6 +25,8 @@ FILES = ["server.py", "config_import.py", "fleet.py", "customers.py", "feedback.
          "deploy/package.py", "deploy/build_web.py", "deploy/install-center.py", "deploy/run-center.py", "deploy/update-center.py", "deploy/windows-update.cmd",
          "deploy/center_common.py", "deploy/maintenance.py", "deploy/nginx-node.conf.example",
          "deploy/cloudflared-api.yml.example", "docs/public-api.md", "docs/feedback-api.md", "deploy/feedback_agent.py"]
+
+FILES += ['portable_import.py', 'passwall_import.py', 'vendor/__init__.py', 'vendor/PyYAML-LICENSE.txt', 'vendor/PyYAML-PROVENANCE.json', 'vendor/yaml/__init__.py', 'vendor/yaml/composer.py', 'vendor/yaml/constructor.py', 'vendor/yaml/cyaml.py', 'vendor/yaml/dumper.py', 'vendor/yaml/emitter.py', 'vendor/yaml/error.py', 'vendor/yaml/events.py', 'vendor/yaml/loader.py', 'vendor/yaml/nodes.py', 'vendor/yaml/parser.py', 'vendor/yaml/reader.py', 'vendor/yaml/representer.py', 'vendor/yaml/resolver.py', 'vendor/yaml/scanner.py', 'vendor/yaml/serializer.py', 'vendor/yaml/tokens.py']
 
 
 def build(output):
@@ -45,7 +47,7 @@ def build(output):
     archive = output / ("kone-console-" + VERSION + ".tar.gz")
     portable = output / ("kone-console-" + VERSION + ".zip")
     if archive.exists() or portable.exists():
-        raise ValueError("这个版本的代码发布包已存在，不会覆盖")
+        raise ValueError("This release archive already exists and will not be overwritten")
     with archive.open("wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as gz:
         with tarfile.open(fileobj=gz, mode="w") as tar:
             for name in sorted(payloads):
@@ -63,7 +65,7 @@ def build(output):
             info.compress_type = zipfile.ZIP_DEFLATED
             bundle.writestr(info, payloads[name])
     portable.with_suffix(".zip.sha256").write_text(hashlib.sha256(portable.read_bytes()).hexdigest() + "  " + portable.name + "\n")
-    print("已生成代码发布包：" + str(portable))
+    print("Created source release: " + str(portable))
     return archive, manifest
 
 

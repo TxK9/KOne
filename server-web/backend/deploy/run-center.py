@@ -25,7 +25,7 @@ def main():
         threading.Thread(target=server.shutdown, daemon=True).start()
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    print("KOne 管理中心已启动（本机监听）", flush=True)
+    print("KOne management center started (loopback only)", flush=True)
     try:
         server.serve_forever()
     finally:
@@ -36,5 +36,8 @@ if __name__ == "__main__":
     try:
         main()
     except (OSError, ValueError, KeyError) as error:
-        print("管理中心未启动：" + str(error), file=sys.stderr)
+        detail = str(error)
+        if any("\u3400" <= char <= "\u9fff" for char in detail):
+            detail = "Invalid service configuration (" + type(error).__name__ + ")"
+        print("Management center could not start: " + detail, file=sys.stderr)
         sys.exit(1)
