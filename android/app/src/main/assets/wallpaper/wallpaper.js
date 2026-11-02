@@ -2,7 +2,11 @@
 (() => {
   'use strict';
   const params = new URLSearchParams(location.search), layers = [], stage = document.getElementById('stage');
-  let visible = !document.hidden, running = params.get('motion') !== 'off' && visible, elapsed = 0, anchor = performance.now();
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  const motionAllowed = () => params.get('motion') !== 'off' && !reducedMotion?.matches;
+  // Browser visibility can hide the page, but only the host can resume its own pause.
+  let hostActive = true, visible = !document.hidden, running = motionAllowed() && visible, elapsed = 0, anchor = performance.now();
+  document.documentElement.dataset.motion = motionAllowed() ? 'on' : 'off';
   let sky = null, scene = null, timer = null, ready = false, error = null;
   const clock = () => elapsed + (running ? (performance.now() - anchor) / 1000 : 0);
   const time = () => {
@@ -12,26 +16,38 @@
     }
     return Date.now();
   };
+  function fail(failure) {
+    error = failure?.message || 'Wallpaper unavailable'; ready = false; active(false);
+    // Whatever did load stays visible rather than behind the fade.
+    document.documentElement.dataset.ready = 'true';
+    document.documentElement.dataset.error = 'wallpaper-unavailable';
+  }
   function updateSky() {
-    if (!sky) return;
-    const sample = sky.render(time(), scene.cityLocation);
-    const daylight = params.get('time') === 'day' ? 1 : params.get('time') === 'night' ? 0 : sample.daylight;
-    const visual = {...sample, daylight};
-    stage.style.setProperty('--daylight', String(daylight));
-    for (const layer of layers) { layer.setSky?.(visual); layer.setLighting?.(visual); }
+    if (error !== null) return false;
+    if (!sky) return true;
+    try {
+      const sample = sky.render(time(), scene.cityLocation);
+      const daylight = params.get('time') === 'day' ? 1 : params.get('time') === 'night' ? 0 : sample.daylight;
+      const visual = {...sample, daylight};
+      stage.style.setProperty('--daylight', String(daylight));
+      for (const layer of layers) { layer.setSky?.(visual); layer.setLighting?.(visual); }
+      return true;
+    } catch (failure) { fail(failure); return false; }
   }
   function schedule() {
     clearTimeout(timer);
-    if (ready && visible && !document.hidden) timer = setTimeout(() => { updateSky(); schedule(); }, 30000);
+    if (ready && visible && !document.hidden) timer = setTimeout(() => { if (updateSky()) schedule(); }, 30000);
   }
-  function active(value) {
-    visible = Boolean(value) && !document.hidden;
-    const next = visible && params.get('motion') !== 'off';
+  function syncActivity() {
+    visible = hostActive && !document.hidden && error === null;
+    const next = visible && motionAllowed();
     if (next !== running) { elapsed = clock(); anchor = performance.now(); running = next; }
+    document.documentElement.dataset.motion = motionAllowed() ? 'on' : 'off';
     for (const layer of layers) { layer.setVisible?.(visible); layer.setPlaying?.(next); }
-    if (visible) updateSky();
+    if (visible && !updateSky()) return;
     schedule();
   }
+  function active(value) { hostActive = Boolean(value); syncActivity(); }
   // No JavaScript-to-native bridge. Android only supplies visibility to this local page.
   let linked = false;
   // The app says when KOne connects; the city answers with a sweep of light (see pulse-v1.js).
@@ -44,7 +60,8 @@
     connected,
     get state() { return {ready, error, scene: scene?.id, running, time:clock(), layers:layers.map(layer => layer.state)}; },
   };
-  document.addEventListener('visibilitychange', () => active(!document.hidden));
+  document.addEventListener('visibilitychange', syncActivity);
+  reducedMotion?.addEventListener?.('change', syncActivity);
   const read = name => fetch(name).then(response => { if (!response.ok) throw Error('Missing bundled resource'); return response.json(); });
   Promise.all([read('catalog.json'), read('motion.json'), read('life.json')]).then(async ([catalog, motion, life]) => {
     scene = catalog.find(item => item.id === params.get('scene')) || catalog[0];
@@ -71,12 +88,7 @@
     // The city's own sky is an extra: if it cannot start, the artwork still runs.
     try { if (window.KOnePulseV1) layers.push(KOnePulseV1.attach(document.getElementById('pulse'), scene, options)); } catch (_) {}
     sky = NycSkyV5.attach(document.getElementById('sky'), scene, 'day', {zone:scene.cityLocation, instant:time()});
-    ready = true; updateSky(); active(visible); connected(linked);
+    ready = true; if (!updateSky()) return; syncActivity(); connected(linked);
     document.documentElement.dataset.ready = 'true';
-  }).catch(failure => {
-    error = failure.message; active(false);
-    // Whatever did load stays visible rather than behind the fade.
-    document.documentElement.dataset.ready = 'true';
-    document.documentElement.dataset.error = 'wallpaper-unavailable';
-  });
+  }).catch(fail);
 })();

@@ -100,17 +100,18 @@ class PrivacyUiTest {
         compose.onNodeWithText(secretTag, substring = true).assertDoesNotExist()
     }
 
-    @Test fun collapsedDashboardDoesNotRevealDetectedExitAddress() {
+    @Test fun addressNamedNodeUsesAGlobeInsteadOfVisibleAddressText() {
+        val profile = Profile(name = secretIp).apply { id = 41L }
         compose.setContent {
             MaterialTheme {
                 CollapsedPanel(
-                    DashboardUiState(), Status.Started, ExitIpUi(ExitInfo(secretIp, "US")),
+                    DashboardUiState(profiles = listOf(profile), selectedProfileId = profile.id), Status.Started,
                     KnineHost(), {}, Modifier,
                 )
             }
         }
-        compose.onNodeWithText("No node selected").assertIsDisplayed()
         compose.onNodeWithText(secretIp, substring = true).assertDoesNotExist()
+        compose.onNodeWithContentDescription(secretIp).assertIsDisplayed()
     }
 
     @Test fun groupsUsePublicAliasesAndStillSelectTheCorrectInternalRoute() {

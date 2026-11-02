@@ -1,0 +1,118 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.feedback.FeedbackApiTest",
+    "tests": 9,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "distinguishesServiceAndSizeFailuresFromIncompleteSubmission",
+        "failure": null
+      },
+      {
+        "name": "sendsFeedbackOnlyToTheBoundEndpointWithHeaderAuthentication",
+        "failure": null
+      },
+      {
+        "name": "malformedCredentialsFailBeforeCreatingAConnectionAndDoNotEchoTheirValue",
+        "failure": "java.lang.AssertionError: Unexpected failure type: AssertionError"
+      },
+      {
+        "name": "aSuccessStatusRequiresAValidReceiptBeforeTheDraftCanBeCleared",
+        "failure": null
+      },
+      {
+        "name": "rejectedPayloadExplainsTheActionWithoutEchoingServerDetails",
+        "failure": null
+      },
+      {
+        "name": "permissionFailuresAndMissingBackendAreVisible",
+        "failure": null
+      },
+      {
+        "name": "refusesRedirectsInsteadOfForwardingCredentials",
+        "failure": null
+      },
+      {
+        "name": "theWholeRequestDeadlineDisconnectsAStalledImageUpload",
+        "failure": null
+      },
+      {
+        "name": "readsPublishedAndPendingStatusesWithoutPretendingSuccess",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "7ba003d83ac75c12e8865df990cd8b3b97d341ca071768af3dd753a9d8e8cfdd"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ManagedApiTest",
+    "tests": 15,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "reflectedClaimCodesNeverEnterFailureText",
+        "failure": null
+      },
+      {
+        "name": "errorDetailPreservesTheExactLengthBoundary",
+        "failure": null
+      },
+      {
+        "name": "serverFailureReasonsAreBounded",
+        "failure": null
+      },
+      {
+        "name": "claimSendsTheCodeAndReadsTheCredential",
+        "failure": null
+      },
+      {
+        "name": "claimFailuresHaveTheirOwnMeaning",
+        "failure": null
+      },
+      {
+        "name": "reflectedDeviceCredentialsNeverEnterFailureText",
+        "failure": null
+      },
+      {
+        "name": "diagnosticsSendOnlyKnownEvents",
+        "failure": null
+      },
+      {
+        "name": "configRefusalsMapToStatesAndKeepTheConsolesWords",
+        "failure": null
+      },
+      {
+        "name": "configIsFetchedWithTheBearerCredentialOnly",
+        "failure": null
+      },
+      {
+        "name": "unmappedServerErrorsDoNotReflectRequestSecrets",
+        "failure": null
+      },
+      {
+        "name": "aStaleAckIsNotAnErrorButARevokedOneIs",
+        "failure": null
+      },
+      {
+        "name": "malformedStoredCredentialFailsWithoutAnArgumentExceptionOrRequest",
+        "failure": "java.lang.AssertionError: Unexpected failure type: IllegalArgumentException"
+      },
+      {
+        "name": "invalidClaimCredentialsAreRejectedBeforeTheyCanBeStored",
+        "failure": "java.lang.AssertionError: Accepted invalid claim credential cases: [0, 1, 2, 3]"
+      },
+      {
+        "name": "anUnreachableConsoleIsOffline",
+        "failure": null
+      },
+      {
+        "name": "serverFailureReasonsCannotContainControlCharacters",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "36dd02568283f1d76b4180cf5775af14b196e3a55f95e564ca341060420bad5f"
+  }
+]

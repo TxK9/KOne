@@ -1,0 +1,174 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportPersistenceTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "pendingReportsExcludeBearerAndNestedCauseSecrets",
+        "failure": null
+      },
+      {
+        "name": "pendingMetadataStaysValidJsonWithoutJsonOrUrlCredentials",
+        "failure": null
+      },
+      {
+        "name": "ordinaryFailureContextAndHandlerDelegationRemainIntact",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "182f859a6209d3c3f886a2b44a2b0463e3318709b2c708b11916bc41f0249148"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "hubLightHasReadableHierarchy",
+        "failure": null
+      },
+      {
+        "name": "badgeAndTextStaySeparateAtLargeFontInBothDirectionsAndThemes",
+        "failure": null
+      },
+      {
+        "name": "emptySelectorKeepsItsActionAndTouchTarget",
+        "failure": null
+      },
+      {
+        "name": "rtlFeedbackPreservesDraftAndRetryAcrossBusyAndErrorStates",
+        "failure": null
+      },
+      {
+        "name": "hubDarkHasReadableHierarchy",
+        "failure": null
+      },
+      {
+        "name": "rtlFeedbackImageActionsKeepTheirIndicesAtLargeFont",
+        "failure": null
+      },
+      {
+        "name": "rtlReasonsFollowTheirContentDirectionWithoutMovingLatinPunctuation",
+        "failure": null
+      },
+      {
+        "name": "hubLargeTextKeepsCompleteNavigationLabels",
+        "failure": null
+      },
+      {
+        "name": "rtlDashboardLoadingSettlesAndKeepsItsNodeActionAtLargeFont",
+        "failure": null
+      },
+      {
+        "name": "disabledNavigationRejectsBothPointerAndSemanticClicks",
+        "failure": null
+      },
+      {
+        "name": "loadingSettlesIntoTheEmptySelector",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "aa7dc6cf723c75ae3c3127dc53d7210f30cfa20ae67e6540ef9e0a4e7aaa0834"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.account.AccountVisualTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "anEndWithinTheHourTurnsToEndedOnTheMinuteTick",
+        "failure": null
+      },
+      {
+        "name": "theEndDateFollowsTheAppLocale",
+        "failure": null
+      },
+      {
+        "name": "offlineAccountKeepsItsReasonOneTapAway",
+        "failure": null
+      },
+      {
+        "name": "syncedAccountShowsItsTermsAndActions",
+        "failure": null
+      },
+      {
+        "name": "accountRowsWrapAtDoubleFontSize",
+        "failure": null
+      },
+      {
+        "name": "hubRowsShareOneCardAndTheirBadges",
+        "failure": null
+      },
+      {
+        "name": "theEndDateFollowsTheZoneReadWithTheClock",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "22dcec53c00deaceb664409a0cd8ada0bf12ff24739d43306985b41cb28bcfab"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.DashboardSemanticsTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "theFoldedPanelIsAButtonThatSaysItChoosesANode",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "308233da501a782e728c220944c9ba22a74bcbc0ae10c727dea6b445e7ffcdab"
+  },
+  {
+    "name": "io.nekohasekai.sfa.feedback.FeedbackSubmissionTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "immediateDuplicateCallbacksSendOnceAndFailureCanRetryTheSavedPayload",
+        "failure": null
+      },
+      {
+        "name": "navigatingBackPreservesNewerEditsWhenTheOldSubmissionIsAcknowledged",
+        "failure": null
+      },
+      {
+        "name": "replacingTheBindingDoesNotLetTheOldCompletionOverwriteTheNewForm",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "cf0a5d5005c514d7adf74bb0fdf36d5a9571c11a26b2e5b1407ade8252087fb1"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ActivationFlowTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "duplicateActivationIsSingleFlightAndFailurePreservesFieldsForRetry",
+        "failure": null
+      },
+      {
+        "name": "navigatingBackCancelsTheClaimAndReentryDoesNotRestoreTheInvite",
+        "failure": null
+      },
+      {
+        "name": "operationCancellationDoesNotBecomeAnActivationFailureMessage",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "cf86884b221343ad463eb383741d6970ec1cae32577151ae35edcf0b18ea1cc7"
+  }
+]

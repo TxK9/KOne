@@ -1,0 +1,16 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.locale.LocalePersistenceRestoreTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "freshApi32ProcessRestoresTheSelectionAndCanReturnToSystem",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "0e6253b9c42c3984e9ae303f1f4fef612511400cca9c0cff4abdf8427c5cd48f"
+  }
+]

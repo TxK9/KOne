@@ -1,0 +1,28 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.DiagnosticTextTest",
+    "tests": 4,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "frameworkBinaryCopyRemainsByteExact",
+        "failure": null
+      },
+      {
+        "name": "credentialSyntaxIsRedactedEvenWhenInputChunksSplitItsBoundaries",
+        "failure": "java.lang.AssertionError"
+      },
+      {
+        "name": "oversizedLinesHaveAnExplicitBoundAndDoNotLoseTheFollowingFrame",
+        "failure": "java.lang.AssertionError"
+      },
+      {
+        "name": "ordinaryUtf8DiagnosticsAndEmptyLinesRoundTrip",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "8d09d5cfb4fbfdb81cd73600441d6d670b0456e7dbefbf6d2e93f0e9df1eb75f"
+  }
+]

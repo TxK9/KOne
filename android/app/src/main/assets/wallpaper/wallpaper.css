@@ -1,7 +1,9 @@
 * { box-sizing:border-box; }
 html,body { width:100%; height:100%; margin:0; overflow:hidden; background:#182020; pointer-events:none; }
-#stage { position:absolute; overflow:hidden; transform-origin:0 0; opacity:0; transition:opacity .9s ease-out; }
+#stage { position:absolute; overflow:hidden; transform-origin:0 0; opacity:0; transition:opacity .48s cubic-bezier(.05,.7,.1,1); }
 html[data-ready] #stage { opacity:1; }
+html[data-motion="off"] #stage { transition:none; }
+@media (prefers-reduced-motion:reduce) { #stage { transition:none; } }
 .wallpaper,.layer,.layer canvas { position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; }
 .wallpaper { object-fit:fill; }
 #day { opacity:var(--daylight,1); }

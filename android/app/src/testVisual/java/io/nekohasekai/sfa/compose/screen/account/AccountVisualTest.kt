@@ -161,17 +161,21 @@ class AccountVisualTest {
     }
 
     @Test fun offlineAccountKeepsItsReasonOneTapAway() {
+        val context: Application = org.robolectric.RuntimeEnvironment.getApplication()
+        val offline = context.getString(io.nekohasekai.sfa.R.string.kone_status_offline)
+        val hint = context.getString(io.nekohasekai.sfa.R.string.kone_account_offline_hint)
+        val syncing = context.getString(io.nekohasekai.sfa.R.string.kone_account_syncing)
         compose.setContent {
             Page(dark = true) {
                 ManagedAccountContent(snapshot(ManagedStatus.Offline, diagnostics = true), clock, syncing = true, unlinking = false, unlinkFailed = false,
                     onSync = {}, onFeedback = {}, onUnlink = {})
             }
         }
-        compose.onNodeWithText("KOne keeps using the last configuration it received.", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("Cannot reach the service").performClick()
+        compose.onNodeWithText(hint, substring = true).assertDoesNotExist()
+        compose.onNodeWithText(offline).performClick()
         compose.waitForIdle()
-        compose.onNodeWithText("KOne keeps using the last configuration it received.", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("Syncing").assertIsDisplayed()
+        compose.onNodeWithText(hint, substring = true).assertIsDisplayed()
+        compose.onNodeWithText(syncing).assertIsDisplayed()
         capture("account-offline-dark.png")
     }
 

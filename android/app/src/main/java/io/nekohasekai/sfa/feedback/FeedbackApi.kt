@@ -1,6 +1,7 @@
 package io.nekohasekai.sfa.feedback
 
 import io.nekohasekai.sfa.managed.ManagedEndpoint
+import io.nekohasekai.sfa.managed.ManagedCredential
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
@@ -45,6 +46,7 @@ class FeedbackApi(
     }
 
     private fun call(payload: JSONObject?): JSONObject {
+        if (!ManagedCredential.valid(credential)) throw FeedbackFailure("This device is not authorized to submit feedback. Contact the administrator.")
         val connection = connectionFactory(URL(endpoint.url("/api/client/feedback")))
         val timedOut = AtomicBoolean(false)
         // HttpURLConnection has no write timeout. Closing the connection also releases a

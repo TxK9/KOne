@@ -1,0 +1,53 @@
+{
+  "suites": [
+    {
+      "name": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "hubLightHasReadableHierarchy",
+        "emptySelectorKeepsItsActionAndTouchTarget",
+        "hubDarkHasReadableHierarchy",
+        "hubLargeTextKeepsCompleteNavigationLabels",
+        "loadingSettlesIntoTheEmptySelector"
+      ],
+      "xml_sha256": "0a59b20062cbb7a220bc1cac953ab117b448480cd7a24c38dc914add111ae63b"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.account.AccountVisualTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "anEndWithinTheHourTurnsToEndedOnTheMinuteTick",
+        "theEndDateFollowsTheAppLocale",
+        "offlineAccountKeepsItsReasonOneTapAway",
+        "syncedAccountShowsItsTermsAndActions",
+        "accountRowsWrapAtDoubleFontSize",
+        "hubRowsShareOneCardAndTheirBadges",
+        "theEndDateFollowsTheZoneReadWithTheClock"
+      ],
+      "xml_sha256": "f027a5602d33586d8ac9cd84853c03149bc7a7cbe16445ce3b3c6be7f9b5548a"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.DashboardSemanticsTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "theFoldedPanelIsAButtonThatSaysItChoosesANode"
+      ],
+      "xml_sha256": "6e76b268de3a31d03f28a3a48db91d499dad396bf0d3cd1a6300a7bf09d33469"
+    }
+  ],
+  "totals": {
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

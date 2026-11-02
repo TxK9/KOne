@@ -18,6 +18,8 @@ import io.nekohasekai.sfa.database.TypedProfile
 import io.nekohasekai.sfa.selfuse.HomeSettings
 import io.nekohasekai.sfa.selfuse.InitialRuleSets
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -34,16 +36,38 @@ object ManagedSync {
     private val lock = Mutex()
 
     /** Binds this phone with an invite code, then fetches its configuration. */
-    suspend fun claim(context: Context, endpoint: ManagedEndpoint, code: String) = withContext(Dispatchers.IO) {
+    suspend fun claim(context: Context, endpoint: ManagedEndpoint, code: String) {
+        val name = "KOne · " + Build.MODEL
+        claimTransaction(
+            request = {
+                ManagedState.rememberEndpoint(endpoint)
+                ManagedApi(endpoint).claim(code.trim(), name)
+            },
+            removeProfile = { removeManagedProfile() },
+            bind = { ManagedState.bind(endpoint, name, it) },
+            schedule = { ManagedWork.schedule(context) },
+            synchronize = { sync(context) },
+        )
+    }
+
+    /** The production claim boundary, separated from platform storage and scheduling for synthetic checks. */
+    internal suspend fun claimTransaction(
+        request: () -> ManagedClaim,
+        removeProfile: suspend () -> Unit,
+        bind: (ManagedClaim) -> Unit,
+        schedule: () -> Unit,
+        synchronize: suspend () -> Unit,
+    ) = withContext(Dispatchers.IO) {
         lock.withLock {
-            val name = "KOne · " + Build.MODEL
-            ManagedState.rememberEndpoint(endpoint)
-            val claim = ManagedApi(endpoint).claim(code.trim(), name)
-            removeManagedProfile()
-            ManagedState.bind(endpoint, name, claim)
-            ManagedWork.schedule(context)
+            val claim = request()
+            // A blocking response can arrive after its screen/job was cancelled.
+            currentCoroutineContext().ensureActive()
+            removeProfile()
+            currentCoroutineContext().ensureActive()
+            bind(claim)
+            schedule()
         }
-        sync(context)
+        synchronize()
     }
 
     /** Fetches and applies whatever changed; failures end up in [ManagedState], not thrown. */

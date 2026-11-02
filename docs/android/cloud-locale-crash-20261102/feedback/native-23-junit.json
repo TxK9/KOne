@@ -1,0 +1,144 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportPersistenceTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "pendingReportsExcludeBearerAndNestedCauseSecrets",
+        "failure": null
+      },
+      {
+        "name": "pendingMetadataStaysValidJsonWithoutJsonOrUrlCredentials",
+        "failure": null
+      },
+      {
+        "name": "ordinaryFailureContextAndHandlerDelegationRemainIntact",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "a44378de73a36c747d33e7f17aa61f4f6dcccd96e07dd61e1ace271e8533d376"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "hubLightHasReadableHierarchy",
+        "failure": null
+      },
+      {
+        "name": "badgeAndTextStaySeparateAtLargeFontInBothDirectionsAndThemes",
+        "failure": null
+      },
+      {
+        "name": "emptySelectorKeepsItsActionAndTouchTarget",
+        "failure": null
+      },
+      {
+        "name": "rtlFeedbackPreservesDraftAndRetryAcrossBusyAndErrorStates",
+        "failure": null
+      },
+      {
+        "name": "hubDarkHasReadableHierarchy",
+        "failure": null
+      },
+      {
+        "name": "rtlFeedbackImageActionsKeepTheirIndicesAtLargeFont",
+        "failure": null
+      },
+      {
+        "name": "rtlReasonsFollowTheirContentDirectionWithoutMovingLatinPunctuation",
+        "failure": null
+      },
+      {
+        "name": "hubLargeTextKeepsCompleteNavigationLabels",
+        "failure": null
+      },
+      {
+        "name": "rtlDashboardLoadingSettlesAndKeepsItsNodeActionAtLargeFont",
+        "failure": null
+      },
+      {
+        "name": "disabledNavigationRejectsBothPointerAndSemanticClicks",
+        "failure": null
+      },
+      {
+        "name": "loadingSettlesIntoTheEmptySelector",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "21d730d516c37c1822ed985524895993e169a870b69ed854c58eb9a862d4f654"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.account.AccountVisualTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "anEndWithinTheHourTurnsToEndedOnTheMinuteTick",
+        "failure": null
+      },
+      {
+        "name": "theEndDateFollowsTheAppLocale",
+        "failure": null
+      },
+      {
+        "name": "offlineAccountKeepsItsReasonOneTapAway",
+        "failure": null
+      },
+      {
+        "name": "syncedAccountShowsItsTermsAndActions",
+        "failure": null
+      },
+      {
+        "name": "accountRowsWrapAtDoubleFontSize",
+        "failure": null
+      },
+      {
+        "name": "hubRowsShareOneCardAndTheirBadges",
+        "failure": null
+      },
+      {
+        "name": "theEndDateFollowsTheZoneReadWithTheClock",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "5ee56fb357033dca869978b4b343685c45daecc524015086770d6a38ddf95997"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.DashboardSemanticsTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "theFoldedPanelIsAButtonThatSaysItChoosesANode",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "f9fdc62504eab0b2f3be9beeb8a400485eef926327d34677db3c3eef02915427"
+  },
+  {
+    "name": "io.nekohasekai.sfa.feedback.FeedbackSubmissionTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "immediateDuplicateCallbacksSendOnceAndFailureCanRetryTheSavedPayload",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "cdca2639ecf87cf299bb024c93483dbbe720e94114c6289ccb8e38fe51c7bc16"
+  }
+]

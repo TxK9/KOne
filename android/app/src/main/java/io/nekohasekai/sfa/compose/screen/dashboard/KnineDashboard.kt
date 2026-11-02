@@ -68,6 +68,7 @@ import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -713,6 +714,7 @@ internal fun CollapsedPanel(
 ) {
     val started = serviceStatus == Status.Started
     val selected = uiState.profiles.firstOrNull { it.id == uiState.selectedProfileId }
+    val loading = selected == null && uiState.isLoading
     val reading = selected?.let { NodeLatency[it.id] }
     val flag = selected?.let { FlagIcons.codeFor(it.icon, it.name) }
     val type = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum", platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = true))
@@ -720,6 +722,7 @@ internal fun CollapsedPanel(
     val item = Modifier.heightIn(min = 24.dp).padding(vertical = 2.dp)
     FlowRow(
         modifier
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClickLabel = stringResource(R.string.kone_dashboard_choose_node), role = Role.Button, onClick = onSwitch)
             // The flag lines up with the node names lifted above it.
@@ -738,11 +741,17 @@ internal fun CollapsedPanel(
             } else if (addressName) {
                 Icon(Icons.Outlined.Public, contentDescription = null, modifier = Modifier.size(18.dp))
             } else {
-                BText(selected?.name ?: noNode, style = type, fontWeight = FontWeight.SemiBold, emphasized = true, maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis)
+                if (loading) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 1.5.dp)
+                    Spacer(Modifier.width(8.dp))
+                }
+                BText(selected?.name ?: if (loading) stringResource(R.string.loading) else noNode,
+                    style = type, fontWeight = FontWeight.SemiBold, emphasized = true,
+                    maxLines = 2, softWrap = true, overflow = TextOverflow.Ellipsis)
             }
         }
         // Disconnected: the line rests; each node's latency stays in the list above. Changes cross-fade.
-        androidx.compose.animation.AnimatedContent(
+        if (!loading) androidx.compose.animation.AnimatedContent(
             targetState = if (!started) null else reading,
             transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(180)) },
             contentKey = { it?.let { r -> NodeWeather.of(r.health) } ?: NodeWeather.Rest },

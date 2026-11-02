@@ -1,0 +1,626 @@
+{
+  "suites": [
+    {
+      "name": "io.nekohasekai.sfa.bg.NodeWatchProbeTargetTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a738a20ccb48031e6ab6045382b0a17187905329d230ede55574f55fc9bde894"
+    },
+    {
+      "name": "io.nekohasekai.sfa.bg.NotificationTextTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "1f3aeee4b57461323b904e758ea63ddf73d45dd75c445716c7e0e1bcac69d068"
+    },
+    {
+      "name": "io.nekohasekai.sfa.bg.UpdateProfileWorkTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "0c7a1ee2e713e4ee094b55cd6f1babf02ad931befd26d45a4183f03870701779"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.base.PublicErrorMessageTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "7a22e61bfb54591500b8cbc737fd5abfe13921ba243c4140ad5e9a4872057c52"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.base.QuietServiceReloadTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ad316c5e70f267efe0de765305cd1afbb4da05a5a163682c555f2ee44544b29f"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.component.UptimeTickTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "faa31ec304d29a6dd06ca97c1e1c2e4b47e6897a59047cb7b6bf36ac7068021a"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.component.qr.IndexedFrameBufferTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "0b688e9d6fd4e537378761fe683b699ec5f89532c4e75a1e6727999a251b61f3"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.account.AccountFactsTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "604d694d517ad0ea6185c024b44ed97df3f8f4b14ce1ff24dd32200809724e7f"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.configuration.ImportInputTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "12d77d8c8285437e204627942811a7eec483092f79ce57d1a5791e53c43c4185"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.connections.AppTrafficTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "80745c181edcc66efd9fcba514849df1b53b0b8f65579cb0c9cc5b117f90a7e5"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.console.ConsoleAddressTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "be90faa19470d507d012e16ba397ca82dfb521c99098185d6754f63b082c7f21"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.AddressNameTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "db64fe1cc80465e31bfb53c5987fc46c1e33a8b9d9a3bf06fc3324aa5b0f7b7a"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.CountryProfileGroupingTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "8ba05c15e7b3cdd99144517fa23669ba23412fb1339619e7a3a1531ffcf99569"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.DialSpacingTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "5eef7d7fb5a87880f7b315d87623b47033186a5fd473408f04918b8f694135c4"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.ExitIpRetryTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "2d7fbf2b44daf0561f70c1314f388388a134eab3cd99dc8ea8b0e29bfe997c5e"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.ExitIpTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "5a1cf548ffb037d1acb2f696b589ccf5e354585198a0465be1696551666de31e"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.ImportBloomPlacementTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "bf829e18d9d69bf7c6101b57504f73ad32a947767329214bc98d2796e672f6fc"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeCategoriesTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "7146552345f8412b449b7b0e00ae0d92ad490bd020a0caaf8f8f24f1b2a88f9d"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeCategoryGroupingCostTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "67aeb71e07c4425d149ca643ab382401d2644cabae95607f504cc6fc56802f7e"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeEndpointsTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a0b50f782499eba6c14a728e082d8db2bbf649ba0601cb5c74dbb34758f85d10"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeFingerprintsTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "1749d4c42ac865c7e918c58f129e57e6e4c4f54a5cf6d59f5fb61b224c3830e1"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeHealthRulesTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "8206a5b9ce0c00bcb5af02818e88ecf6a2285bdabcbda8c4b6f56c9ef8df899d"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeLatencyInvalidationTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "8159ce8381d65b7690be06fc24a61ee2c36b76855db13e313abfee48b6763d73"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeListingTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "16f37a29f30be2b567dcd9072bd3d033c6eed907cdd4b1d2557158ded838b3df"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeProbeTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b4bbfb7ba5bc87f10f64af0dfbc4180729e2a59b0ddb21f4b6c8bb8d944b0051"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.ProfileSelectionQueueTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b39b885cfea10efe0eb57d043b4c362d98e91f906f032eae0126fb84cb4b2021"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.qrscan.QRCodeDecodeAttemptTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "789fb47e3622db357d8681a759fc5b5af50c752791c8b8ffd2f6b30c4755da49"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.qrscan.QRImageDecoderTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "c3f7be2d02079a0b158fcb512beaeeb1b988266b320dbe272fecd12f324f42d4"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.qrscan.YPlaneReaderTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b70b808ab8861912bff0338a6a555154bf7569e0c82459d324b8270f41cf1d5c"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.router.RouterAddressTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "92bf9e8d29ba2c49c6e1459d35d91afcb48561cd471b7945b27fe148cf26c061"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.settings.InterfacePrefixTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "92d5b4514351a8994ee872c7f0cae59ba15e51dbcdba56172bbffa305f70ee0a"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.tools.NetworkTestTargetTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "16f6faf34e92bc2087cffdc9fc0299f5818c60dd01cf494b56521368bb64893c"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.tools.TailscalePresentationPolicyTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b405160228475cf1ee775f2e75024c5d50bf549a94b2034625805508997ec32f"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.BackdropBusynessTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "1aca093cf57076792d23190cd2e86c7842da450b53968be1eaa6339b67043d1f"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.BackdropFramingTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "609629f07ad8d130772148bd2a4a0bbc253a368203e68d72c93ae3744cc8eba0"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.BrightConnectedReadingSpaceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "4a7c73c360ac92759508ee228cba7336abc2b334f61d3255b78cb55c669eac17"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.BrightSceneGeometryTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "9ad0fa719fc52dc8cda4a3a3d9f452de0a793d9cb0fbe695fd46a44698d24aa0"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.BrightWallpaperPolicyTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "f4cd77d5634aa6303f5635c54630ea44737128ff1cbc23baa341e8c5248c29bf"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.CityCanvasTest",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "c9d25f2aa33cff05951283d5ba631bd75cd2aaed7250303e2b642a8dd8ec2ed1"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.InkStabilityTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "099988c8e636f1646499d5a920715d2685f83a3832dd28dfa6ac138fa9040377"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.KninePaletteTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "9edbb1c44a9ecce56e71bfa23a7edd2dc65965d7ff295ed32cd2fdb5ff8e908e"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.LightFilmMaterialTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "bd265f497c48e831d3948e240365b46736e3a9fff0f8bbac6df0f5072406f001"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.SkyClockTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "0adde5310711e8d78eebae5b827d461966cb44e4bdf2ff903b37f50330a55e6c"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.WallpaperRotationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "9dd817f38f070899014c8caa2cd49e96c5499b36e9d0b01f48cd81006b628330"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.theme.WallpaperThemeTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "fde86a097fb51f3eeaf400597e390781483acfb16ba086dc9ac397bd3368fa1c"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.util.QRCodeGeneratorTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "36b2a1625dbce2f102b1f3d2ef8f9c88f91449ef10d1cc5d8ec0ba1c73a94a75"
+    },
+    {
+      "name": "io.nekohasekai.sfa.connection.CallingOptionApplierTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "9525b251f178d678f33f0121ff598dd501e4536a6367aa65c50e8864ffbc2ddd"
+    },
+    {
+      "name": "io.nekohasekai.sfa.connection.CallingOptionMessagesTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "6229fc1220a71ad90776730a71e597db33cfaefc3be2c6e01959264fbbef81d6"
+    },
+    {
+      "name": "io.nekohasekai.sfa.connection.ConnectionChecksTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "3bfa50f318870d24885dc74bc7bd62cebfb6ced08015eb238c22d7470ce357e4"
+    },
+    {
+      "name": "io.nekohasekai.sfa.connection.ConnectionCompatibilityTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "dcf338e45649e616f536fad035d29f8d2675855c06cfb1aac3c35da58f7de8c7"
+    },
+    {
+      "name": "io.nekohasekai.sfa.connection.GlobalRoutingPolicyTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "d75eb8b2e129722acb74caf860c612f41ee2f771166d45e7e3fccd6851d0d68e"
+    },
+    {
+      "name": "io.nekohasekai.sfa.connection.PreparedRoutingIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "cabd2a0555c4e397f184969286906d92b51c860b9ffea5d4eccb05476264d4a7"
+    },
+    {
+      "name": "io.nekohasekai.sfa.connection.RuntimeConnectionConfigTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "271c11f10007a041164ec17b46fea950410b29ddbc9856eb55c0e4f13bd195ca"
+    },
+    {
+      "name": "io.nekohasekai.sfa.connection.VideoCompatibilityTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "2fdd7ff37101c3a3236869362490e3e9af77f1bc8d56cc0533012eb261fa7655"
+    },
+    {
+      "name": "io.nekohasekai.sfa.devices.DeviceIntegrationsTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "cccbb7b1e7ced6ff037f74f5c510d04ce1de6dcbd0fcd6607af4d3893ebdced4"
+    },
+    {
+      "name": "io.nekohasekai.sfa.feedback.FeedbackApiTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "1526a850b8b512813e4011907143274d79e5215489c24c472d18a03e4c9bd389"
+    },
+    {
+      "name": "io.nekohasekai.sfa.managed.ManagedApiTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "85ee8761f6be3f9ec6fd42635594dfcf88e1f7634d31d5ca33256324670d1430"
+    },
+    {
+      "name": "io.nekohasekai.sfa.managed.ManagedConfigTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "c0718e98abff3a54e3765cc79982265b55e7bccf34f685815cd184e445b892ed"
+    },
+    {
+      "name": "io.nekohasekai.sfa.managed.ManagedEndpointTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "01626151d609a5134607e2d7976e2bbea11c44fa339b3df3eeb41ec2731e6b95"
+    },
+    {
+      "name": "io.nekohasekai.sfa.qrs.QRSDecoderTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "96b1bd50f87b203c524da2890d2bcc7a16957c5532e7bd58fd8d79d602ee6a6f"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.ClashNodesTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a32e0ee79a2c25d9631ca985eadc44b73837edaa176992ee5765f81fc575bc04"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.HomeLinkTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "1dae9d7ead19f3f6df9afdbc9f437214f6300b1df4cc79fb03420b6ead2397b1"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.NodeChainTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "dc5a518e10869615bed8d4796a530c916b962a0386e63b4f5248544846ed8a83"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.NodeShareLinkTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "fe73f6f9866b624d3adfcd0f23089dccd0ba5d476dbbc74e02cc526c5f8f2baa"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.PairedProfileTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a3c0a615efb6ddd4bcc9645f713812558338512852056a86b0c2e0ddc0dc1ad9"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.PhoneDiagnosisTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "d5e3109edf380a39d57a417fc219b7d52727984dbefb37d1c3974b7798599342"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.RoutingPolicyTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "fa8cbdddd84991876f31cbbdf02b3807da0d242921707a9d69ec7f2d007d78f0"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.RoutingTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "bc192ea9ab984bc68e8b950f47e641790fb8e05522d48e169347be0ba35b662f"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.ShareLinksTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "d83f753f01b996cce01214f57146d6bf9ebac9096c2a3389c8d0b50fd32ea293"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.SubscriptionFetchTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "15be886287fc39769e0a72586fbb755fbb66a0a8a6b93d15d1765c88769b965e"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.SubscriptionProfileTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "de1f6231d0cedca2dd2d319a987ee0d615576e7c31fa73bc1806e809224d5af0"
+    },
+    {
+      "name": "io.nekohasekai.sfa.selfuse.SubscriptionTermsTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "731781ed6ab588af0b25f27b4341a918956b47976b4089c81edd4e19cc3ef257"
+    },
+    {
+      "name": "io.nekohasekai.sfa.udp.UdpProbeTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "71c42e71a7d728645507837e783ab781f021ba763548c1885edbc2881783686c"
+    },
+    {
+      "name": "io.nekohasekai.sfa.udp.UdpTargetsTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "25bf0942ebc5091cebc689ede54a958a3b3e06c7a4aa67226f29a61f71de5d15"
+    },
+    {
+      "name": "io.nekohasekai.sfa.update.KoneReleaseTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "8a647121f98cacb78a2771bb38d5ef25b82b93499edd5b68522d115f6f428a9c"
+    },
+    {
+      "name": "io.nekohasekai.sfa.update.KoneUpdateNoticePolicyTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "5d4a18376bc1a75352509ce68c073eb14c7197348049027847a59155bdc7a452"
+    },
+    {
+      "name": "io.nekohasekai.sfa.vendor.GitHubUpdateCheckerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "543c3cf554f17033d8f8d035f52c08e1710449ff6f5b96428ee49ab4f95a9445"
+    }
+  ],
+  "totals": {
+    "tests": 421,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

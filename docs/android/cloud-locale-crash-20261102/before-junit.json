@@ -1,0 +1,38 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportPersistenceTest",
+    "tests": 3,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "pendingReportsExcludeBearerAndNestedCauseSecrets",
+        "failure": "java.lang.AssertionError: Secret excluded from pending stack"
+      },
+      {
+        "name": "pendingMetadataStaysValidJsonWithoutJsonOrUrlCredentials",
+        "failure": "java.lang.AssertionError"
+      },
+      {
+        "name": "ordinaryFailureContextAndHandlerDelegationRemainIntact",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "f2d6eb5004dbf2199edee113664f5b482901844aa37365d81f647a0e1e45d38e"
+  },
+  {
+    "name": "io.nekohasekai.sfa.locale.LocalePersistenceWriteTest",
+    "tests": 1,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "api32WritesTheSelectionToPrivateStorage",
+        "failure": "java.lang.AssertionError: AppCompat persisted the selected application locale"
+      }
+    ],
+    "xml_sha256": "19e10b5ce3f6e0d6cd0ddef9389f33e9bc0c12a5b278b3cb86429b5dd38c0d2f"
+  }
+]

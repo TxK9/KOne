@@ -1,0 +1,571 @@
+{
+  "format": 1,
+  "date_utc": "2026-11-01",
+  "baseline_commit": "0dd7a9ff0d78743d8910e05041bcbb07c7d598a5",
+  "endpoint_fix_commit": "2f7c022e3ad43ffac4f7ab2378eaf579e2b7ea12",
+  "wallpaper_fix_commit": "57998afe384068558850c3f6d75878765e10634d",
+  "checks": [
+    {
+      "name": "toolchain",
+      "cwd": "${TASK_WORKSPACE}",
+      "command": "python3 --version && node --version && npm --version && java -version && javac -version && gradle --version && go version && sdkmanager --version && sdkmanager --list_installed && ${CLOUD_RUNTIME}/node-tools/node_modules/.bin/esbuild --version && sha256sum ${CLOUD_RUNTIME}/downloads/gradle.zip ${CLOUD_RUNTIME}/downloads/jdk.tar.gz",
+      "started_utc": "2026-11-01T17:58:27.516269+00:00",
+      "elapsed_seconds": 3.65,
+      "exit_status": 0,
+      "log": "toolchain.log",
+      "local_log_sha256": "b26da96d4b6afbf38bea6e729d436d4103322681f928945920f717e1bf33ac2c"
+    },
+    {
+      "name": "candidate-heads",
+      "cwd": "${SOURCE_CHECKOUT}",
+      "command": "git ls-remote origin refs/heads/codex/server-web-collab-20261101 refs/heads/codex/android-ui-20261101 && git -C ${SERVER_ROOT} rev-parse HEAD && git -C ${ANDROID_ROOT} rev-parse HEAD && git status --short",
+      "started_utc": "2026-11-01T17:58:31.378026+00:00",
+      "elapsed_seconds": 0.57,
+      "exit_status": 0,
+      "log": "candidate-heads.log",
+      "local_log_sha256": "9d1b480396e401557bfbe279260515ad35e6cedd7efb9967028886c07cfdc481"
+    },
+    {
+      "name": "android-wrapper",
+      "cwd": "android",
+      "command": "bash ./gradlew --version",
+      "started_utc": "2026-11-01T17:59:22.178037+00:00",
+      "elapsed_seconds": 8.82,
+      "exit_status": 0,
+      "log": "android-wrapper.log",
+      "local_log_sha256": "834efe3e761aa869bfc7f46be35f7b789e15a5179a24cb01cff5025785cfe2bc"
+    },
+    {
+      "name": "android-wallpaper-reproduction",
+      "cwd": ".",
+      "command": "node --test ${TASK_WORKSPACE}/wallpaper-regression-baseline.cjs",
+      "started_utc": "2026-11-01T18:01:31.066150+00:00",
+      "elapsed_seconds": 1.28,
+      "exit_status": 1,
+      "log": "android-wallpaper-reproduction.log",
+      "local_log_sha256": "a05ede26d6d02715f36ae3a8f2499804b22526f678f76805e50bea258fd756ae",
+      "outcome_context": "Expected baseline regression failure; fixed in wallpaper implementation."
+    },
+    {
+      "name": "android-endpoint-reproduction-final",
+      "cwd": "${TASK_WORKSPACE}",
+      "command": "java EndpointProbe.java",
+      "started_utc": "2026-11-01T18:03:18.785053+00:00",
+      "elapsed_seconds": 0.86,
+      "exit_status": 1,
+      "log": "android-endpoint-reproduction-final.log",
+      "local_log_sha256": "3961711359bd3e418a2e81f42e56f5e7f0e0a5049587b6e0a453e56feadcab37",
+      "outcome_context": "Host JDK probe demonstrates an out-of-range connection failure; no remote request succeeds."
+    },
+    {
+      "name": "android-baseline",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest",
+      "started_utc": "2026-11-01T17:59:47.468673+00:00",
+      "elapsed_seconds": 401.47,
+      "exit_status": 0,
+      "log": "android-baseline.log",
+      "local_log_sha256": "5e46ab93ca4fd4e9b9b77a51299f6c78eae4a51018e0bccd39bf26f7c5657845"
+    },
+    {
+      "name": "android-browser-baseline",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-baseline node ${TASK_WORKSPACE}/wallpaper-browser.cjs ${ANDROID_ROOT}/android/app/src/main/assets/wallpaper",
+      "started_utc": "2026-11-01T18:07:21.958884+00:00",
+      "elapsed_seconds": 14.0,
+      "exit_status": 1,
+      "log": "android-browser-baseline.log",
+      "local_log_sha256": "24b682a775af996ae462a6fa989f7b7939dd0a2114190ee379f2a8e360394241",
+      "outcome_context": "Three baseline failures; all ten browser checks pass after the fix."
+    },
+    {
+      "name": "android-endpoint-red",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:testOtherDebugUnitTest --tests '*.ManagedEndpointTest'",
+      "started_utc": "2026-11-01T18:07:45.542345+00:00",
+      "elapsed_seconds": 38.67,
+      "exit_status": 1,
+      "log": "android-endpoint-red.log",
+      "local_log_sha256": "a8df5ee5fc11b8ea5614a7e30328438e4634482a4c4f15780e98eaf8543a58ed",
+      "outcome_context": "Expected pre-fix port-validation regression failure; included in final passing 417 tests."
+    },
+    {
+      "name": "android-wallpaper-final",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:09:01.919359+00:00",
+      "elapsed_seconds": 1.18,
+      "exit_status": 0,
+      "log": "android-wallpaper-final.log",
+      "local_log_sha256": "6cae966ec2dc9dde963719cd4ba525de2973f1e4f3184a502d6b8ebead76773a"
+    },
+    {
+      "name": "android-browser-final",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-final node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:09:03.169127+00:00",
+      "elapsed_seconds": 18.38,
+      "exit_status": 0,
+      "log": "android-browser-final.log",
+      "local_log_sha256": "c4fb617a7658d7ebaffb476bf55edfbf4f19639715f64067d9dab43ccf6244d3"
+    },
+    {
+      "name": "android-wrapper-integrity",
+      "cwd": ".",
+      "command": "curl -fSL --max-time 30 https://services.gradle.org/distributions/gradle-9.7.0-wrapper.jar.sha256 -o ${TASK_WORKSPACE}/gradle-wrapper.sha256 && python3 -c 'import pathlib,hashlib; p=pathlib.Path(\"android/gradle/wrapper/gradle-wrapper.jar\"); actual=hashlib.sha256(p.read_bytes()).hexdigest(); expected=pathlib.Path(\"${TASK_WORKSPACE}/gradle-wrapper.sha256\").read_text().strip(); print(\"actual=\"+actual); print(\"official=\"+expected); assert actual==expected'",
+      "started_utc": "2026-11-01T18:10:25.959435+00:00",
+      "elapsed_seconds": 0.59,
+      "exit_status": 1,
+      "log": "android-wrapper-integrity.log",
+      "local_log_sha256": "e5c1c4c4f9115be30e5b5b7ef16426ec63bea4304e826e2951ed661922a5302a",
+      "outcome_context": "Exact 9.7.0 wrapper comparison failed; official 9.6.1 provenance verified in follow-up. No wrapper change."
+    },
+    {
+      "name": "android-final",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest",
+      "started_utc": "2026-11-01T18:09:32.524382+00:00",
+      "elapsed_seconds": 63.83,
+      "exit_status": 0,
+      "log": "android-final.log",
+      "local_log_sha256": "f4245920a263cccb1d375cd56910a2bd8ccced10f9c637fba36ee564e17dbadf"
+    },
+    {
+      "name": "android-wrapper-provenance",
+      "cwd": ".",
+      "command": "curl -fsSL --max-time 30 https://services.gradle.org/distributions/gradle-9.6.1-wrapper.jar.sha256 -o ${TASK_WORKSPACE}/gradle-wrapper-9.6.1.sha256 && python3 -c 'import pathlib,hashlib; actual=hashlib.sha256(pathlib.Path(\"android/gradle/wrapper/gradle-wrapper.jar\").read_bytes()).hexdigest(); expected=pathlib.Path(\"${TASK_WORKSPACE}/gradle-wrapper-9.6.1.sha256\").read_text().strip(); print(\"actual=\"+actual); print(\"official_9.6.1=\"+expected); assert actual==expected'",
+      "started_utc": "2026-11-01T18:10:53.139316+00:00",
+      "elapsed_seconds": 0.62,
+      "exit_status": 0,
+      "log": "android-wrapper-provenance.log",
+      "local_log_sha256": "a1c6a78a6f10bfc73aecf142684399e75e88958dd75a02ed7d6fb6846d82693a"
+    },
+    {
+      "name": "android-linux-core",
+      "cwd": "core",
+      "command": "go test -mod=readonly -p 2 -count=1 -v ./experimental/locale ./dns/transport/hosts",
+      "started_utc": "2026-11-01T18:11:39.122228+00:00",
+      "elapsed_seconds": 15.25,
+      "exit_status": 0,
+      "log": "android-linux-core.log",
+      "local_log_sha256": "01befa70cb46caedd80eb9aa1bf0ae87b6a8b86c833df8b7f8740007090dfe22"
+    },
+    {
+      "name": "android-native-preview",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PkoneVisualPreview=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/native :app:testOtherDebugUnitTest --tests '*.VisualChannelTest.accountEnglishLight' --tests '*.VisualChannelTest.accountEnglishDark' --tests '*.VisualChannelTest.accountExpired' --tests '*.VisualChannelTest.settingsEnglish' --tests '*.VisualChannelTest.longNetworkValues'",
+      "started_utc": "2026-11-01T18:11:05.297753+00:00",
+      "elapsed_seconds": 112.94,
+      "exit_status": 1,
+      "log": "android-native-preview.log",
+      "local_log_sha256": "1529f3cb151db67df1815327352b96bec4a63c8815d63d57268a35b1e0dfb623",
+      "outcome_context": "Rendering could not start because default-home download lock was read-only; workspace-cache retry passed."
+    },
+    {
+      "name": "android-native-preview-local-cache",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PkoneVisualPreview=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/native :app:testOtherDebugUnitTest --tests '*.VisualChannelTest.accountEnglishLight' --tests '*.VisualChannelTest.accountEnglishDark' --tests '*.VisualChannelTest.accountExpired' --tests '*.VisualChannelTest.settingsEnglish' --tests '*.VisualChannelTest.longNetworkValues'",
+      "started_utc": "2026-11-01T18:14:27.866095+00:00",
+      "elapsed_seconds": 47.13,
+      "exit_status": 0,
+      "log": "android-native-preview-local-cache.log",
+      "local_log_sha256": "8d7ad6221c11e6495d0e1e70469bdf2d969c35b40a93c7f4e822162dfccb94d9"
+    },
+    {
+      "name": "android-final-inputs",
+      "cwd": ".",
+      "command": "sha256sum dependencies/libbox.aar dependencies/libbox-legacy.aar android/app/libs/libbox.aar android/app/libs/libbox-legacy.aar && git diff --exit-code 0dd7a9ff0d78743d8910e05041bcbb07c7d598a5 -- dependencies android/gradle android/kone-version.properties android/app/src/main/assets/wallpaper/images android/app/src/main/res shared desktop && git -C ${SOURCE_CHECKOUT} diff --exit-code && git -C ${SOURCE_CHECKOUT} diff --cached --exit-code",
+      "started_utc": "2026-11-01T18:17:36.649116+00:00",
+      "elapsed_seconds": 0.21,
+      "exit_status": 0,
+      "log": "android-final-inputs.log",
+      "local_log_sha256": "fde2aa48e9f351003d6038e973c0d105e1b139133a26e1359acf6eb7dd64da5d"
+    },
+    {
+      "name": "android-browser-progression",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-progression node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:24:48.809858+00:00",
+      "elapsed_seconds": 46.11,
+      "exit_status": 1,
+      "log": "android-browser-progression.log",
+      "local_log_sha256": "83b20057cad0c1654706f0249f527a1725aa389148a32470d1a8ab6ed47085d5",
+      "outcome_context": "First fade instrumentation observed the document element before it existed. Corrected document observer passes; no production fade defect."
+    },
+    {
+      "name": "android-browser-progression-final",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-progression-final node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:26:34.710402+00:00",
+      "elapsed_seconds": 11.45,
+      "exit_status": 0,
+      "log": "android-browser-progression-final.log",
+      "local_log_sha256": "2ef3e6a9229a6dc29bd80d06439cda994d938b805f62f881c676c2c19e14561a"
+    },
+    {
+      "name": "android-glow-timing-red",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:28:41.756728+00:00",
+      "elapsed_seconds": 0.98,
+      "exit_status": 1,
+      "log": "android-glow-timing-red.log",
+      "local_log_sha256": "b28e2fe6ef0bdb1a78dafa3e65323d42379b040c44e365d4db9735992a004a84",
+      "outcome_context": "Expected throttled-paint regression: glow consumed time before the request. Elapsed-time origin reset fixes it."
+    },
+    {
+      "name": "saved-client-server-contract",
+      "cwd": "server-web",
+      "command": "python3 tools/check_android_contract.py --server-root . --classes ${ANDROID_API_CLASSES} --stdlib ${KOTLIN_STDLIB_JAR} --json-jar ${JSON_JAR}",
+      "started_utc": "2026-11-01T18:29:25.660108+00:00",
+      "elapsed_seconds": 3.59,
+      "exit_status": 0,
+      "log": "saved-client-server-contract.log",
+      "local_log_sha256": "5cec11745507fa9accff1330c1674800f485edcd052989dd7aae31b9f8a55e21"
+    },
+    {
+      "name": "android-wallpaper-progression-final",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:29:42.166134+00:00",
+      "elapsed_seconds": 0.92,
+      "exit_status": 0,
+      "log": "android-wallpaper-progression-final.log",
+      "local_log_sha256": "7ba2b15de2abfd0880d3fe0042b415f2debed04b84a4c7e2d78d811a495f5c9d"
+    },
+    {
+      "name": "android-final-assets",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:mergeOtherDebugAssets",
+      "started_utc": "2026-11-01T18:29:43.378438+00:00",
+      "elapsed_seconds": 28.5,
+      "exit_status": 0,
+      "log": "android-final-assets.log",
+      "local_log_sha256": "8b4f41099ff98af1651fbc248d6d0bdcc1d202084771ac8a64f3c5ace488c9d3"
+    },
+    {
+      "name": "android-browser-final-refined",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-final-refined node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:29:43.129328+00:00",
+      "elapsed_seconds": 30.67,
+      "exit_status": 0,
+      "log": "android-browser-final-refined.log",
+      "local_log_sha256": "2ba21c66b8fe6446a42d1023b6ba1508558dda763cfacd475ca99a3144029a10"
+    },
+    {
+      "name": "android-delayed-callback-red",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:40:24.371297+00:00",
+      "elapsed_seconds": 0.97,
+      "exit_status": 1,
+      "log": "android-delayed-callback-red.log",
+      "local_log_sha256": "0e91a1388a3b7b25a36aaa7c99d08e40132e6f0f950d1522ad0881bed3c856d6",
+      "outcome_context": "Expected failure: both delayed-event and older-timestamp regressions exposed inherited pre-event glow."
+    },
+    {
+      "name": "android-delayed-callback-host-final",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:41:12.402005+00:00",
+      "elapsed_seconds": 0.87,
+      "exit_status": 1,
+      "log": "android-delayed-callback-host-final.log",
+      "local_log_sha256": "288041e43c026bb97a032d63409bf24fd7a8a6a14b42ce042409c0d249849f68",
+      "outcome_context": "Strict delayed-event check passed; extra older-timestamp fixture expected progress before the paint cadence admitted another draw. Fixture sequencing corrected without weakening delayed-event bound."
+    },
+    {
+      "name": "android-delayed-callback-browser-final",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-delayed-callback-final node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:41:13.336134+00:00",
+      "elapsed_seconds": 13.67,
+      "exit_status": 1,
+      "log": "android-delayed-callback-browser-final.log",
+      "local_log_sha256": "5361381b25c80585c680d1034d880271128df7982bf94b2ba434bbdbf6c7e792",
+      "outcome_context": "Initial combined older-callback fixture tested progress inside the paint-throttle interval. Corrected browser regression isolates the delayed event; older timestamps remain covered by host regression."
+    },
+    {
+      "name": "android-delayed-callback-host-corrected",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T18:42:20.970926+00:00",
+      "elapsed_seconds": 0.62,
+      "exit_status": 0,
+      "log": "android-delayed-callback-host-corrected.log",
+      "local_log_sha256": "48c0432f806217ec39eb1a55bcf9b2fdf102d5f9eab9e9f1afe728187f1f30ba"
+    },
+    {
+      "name": "android-delayed-callback-browser-corrected",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-delayed-callback-corrected node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T18:42:21.633441+00:00",
+      "elapsed_seconds": 18.39,
+      "exit_status": 0,
+      "log": "android-delayed-callback-browser-corrected.log",
+      "local_log_sha256": "62fdd4c6ece981cef668b5595572071f0e9660d1057135287fbdd7c2f5d9e6ef"
+    },
+    {
+      "name": "android-delayed-callback-browser-old-source",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-delayed-callback-old-source node tools/test_android_wallpaper_browser.cjs ${TASK_WORKSPACE}/counterfactual-delayed-callback",
+      "started_utc": "2026-11-01T18:43:29.955408+00:00",
+      "elapsed_seconds": 29.01,
+      "exit_status": 1,
+      "log": "android-delayed-callback-browser-old-source.log",
+      "local_log_sha256": "b0bab80ba61f72f63121e7171277f31cf4ad70e4ffc6bdd8270a59813b64dcd9",
+      "outcome_context": "Expected counterfactual failure using the previous pulse source in an independent asset copy: 12 passed, delayed-event check failed."
+    },
+    {
+      "name": "android-delayed-callback-assets",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:mergeOtherDebugAssets",
+      "started_utc": "2026-11-01T18:43:30.575931+00:00",
+      "elapsed_seconds": 32.37,
+      "exit_status": 0,
+      "log": "android-delayed-callback-assets.log",
+      "local_log_sha256": "208c8803ec68d25499d0ea1c9859af4964822292b806551bbd5a20767db6edaa"
+    },
+    {
+      "name": "android-wallpaper-errors-red",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:30:13.347639+00:00",
+      "elapsed_seconds": 1.41,
+      "exit_status": 1,
+      "log": "android-wallpaper-errors-red.log",
+      "local_log_sha256": "0c38ce1a61639098279262b19af45ae44191fb0c790c07e5f1fc1444fc73b10d",
+      "outcome_context": "Expected reproduction: three new metadata/partial-attach/render error tests fail because host callbacks restart failed controllers."
+    },
+    {
+      "name": "android-wallpaper-errors-host-final",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:32:50.752606+00:00",
+      "elapsed_seconds": 2.32,
+      "exit_status": 0,
+      "log": "android-wallpaper-errors-host-final.log",
+      "local_log_sha256": "2052b1b65e1a54d552148440305a7121cb546ff916b65c41e68d869af220ce85"
+    },
+    {
+      "name": "android-wallpaper-errors-browser-final",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-errors-final node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T19:32:53.143950+00:00",
+      "elapsed_seconds": 34.28,
+      "exit_status": 0,
+      "log": "android-wallpaper-errors-browser-final.log",
+      "local_log_sha256": "2317dd99c4a6d578506eb21a0e8af309774fdd5f6175d88853b1114c0d446ee0"
+    },
+    {
+      "name": "android-accessible-account-native",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/account-states :app:testOtherDebugUnitTest --tests '*.AccountVisualTest'",
+      "started_utc": "2026-11-01T19:32:52.505840+00:00",
+      "elapsed_seconds": 142.55,
+      "exit_status": 1,
+      "log": "android-accessible-account-native.log",
+      "local_log_sha256": "b762c7be25ecb4b2d41e9060de5e207bcf5fda46a5e530140f1ea89089cba0d1",
+      "outcome_context": "Optional visual source set failed compilation at obsolete CollapsedPanel fixture calls; no tests executed."
+    },
+    {
+      "name": "android-accessible-account-native-current-api",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/account-states :app:testOtherDebugUnitTest --tests '*.AccountVisualTest' --tests '*.DashboardSemanticsTest' --tests '*.PrivacyUiTest.addressNamedNodeUsesAGlobeInsteadOfVisibleAddressText' --tests '*.FeedbackDraftTest'",
+      "started_utc": "2026-11-01T19:37:28.671363+00:00",
+      "elapsed_seconds": 95.34,
+      "exit_status": 1,
+      "log": "android-accessible-account-native-current-api.log",
+      "local_log_sha256": "b7266f2aff34e02642698b746fc5bf608026c8dd5b6072aac46f921fd3219250",
+      "outcome_context": "After fixture-call repair, 15 selected tests ran: 14 passed, one failed because its hardcoded offline label was stale. Resource-based selector fixes the fixture."
+    },
+    {
+      "name": "android-accessible-native-and-assets-final",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/account-states :app:testOtherDebugUnitTest --tests '*.AccountVisualTest' --tests '*.DashboardSemanticsTest' --tests '*.PrivacyUiTest.addressNamedNodeUsesAGlobeInsteadOfVisibleAddressText' --tests '*.FeedbackDraftTest' --tests '*.WallpaperAssetClientTest'",
+      "started_utc": "2026-11-01T19:40:54.828904+00:00",
+      "elapsed_seconds": 81.77,
+      "exit_status": 0,
+      "log": "android-accessible-native-and-assets-final.log",
+      "local_log_sha256": "019e7b1afea2b8c9d4cdc2dfe618c7c77ad1587bc396e3ee5d2691a1ec452f48",
+      "outcome_context": "All 18 selected native tests passed; includes merged updated assets. Separate from the retained earlier 417 ordinary tests and five preview cases."
+    },
+    {
+      "name": "android-wrapper-checksum-guard",
+      "cwd": ".",
+      "command": "python3 tools/test_gradle_distribution_checksum.py ${CLOUD_RUNTIME}/downloads/gradle.zip",
+      "started_utc": "2026-11-01T19:44:27.997225+00:00",
+      "elapsed_seconds": 3.88,
+      "exit_status": 0,
+      "log": "android-wrapper-checksum-guard.log",
+      "local_log_sha256": "ca788e512a4876e8a1da2c2c25ab37694b3fdbc2f35f84efe4bd49fea97b538e",
+      "outcome_context": "Two isolated real-wrapper cases pass using the reviewed local official archive: wrong hash rejected with child exit 1, reviewed hash accepted with child exit 0."
+    },
+    {
+      "name": "android-wrapper-checksum-guard-final",
+      "cwd": ".",
+      "command": "python3 tools/test_gradle_distribution_checksum.py ${CLOUD_RUNTIME}/downloads/gradle.zip",
+      "started_utc": "2026-11-01T19:45:22.058381+00:00",
+      "elapsed_seconds": 4.18,
+      "exit_status": 0,
+      "log": "android-wrapper-checksum-guard-final.log",
+      "local_log_sha256": "02f9b6826b45e0ac85208206cdb16c73ee5b953c5cf915c8037d05550e19d0fb",
+      "outcome_context": "Same two cases pass after closing the archive file handle with a context manager; no wrapper version or distribution URL change."
+    },
+    {
+      "name": "android-post-ready-sky-red",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:53:44.682315+00:00",
+      "elapsed_seconds": 1.12,
+      "exit_status": 1,
+      "log": "android-post-ready-sky-red.log",
+      "local_log_sha256": "d0b649643ddaa9a4708fff5f3c584e7ae35a17bdbc83ce1d23220763525dd33f",
+      "outcome_context": "Expected failure: four new post-readiness timer/resume regressions throw outside initialization error handling; 14 previous tests pass."
+    },
+    {
+      "name": "android-post-ready-sky-red-state",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:54:42.279727+00:00",
+      "elapsed_seconds": 1.59,
+      "exit_status": 1,
+      "log": "android-post-ready-sky-red-state.log",
+      "local_log_sha256": "884bd9245f4cb87be2ef9654fb29d7c78ab7cfdc047da083a4c3c8e9e4eab68d",
+      "outcome_context": "Expected failure with explicit state capture: all four injected post-ready faults leave ready=true, error=null and running=true; 14 previous tests pass."
+    },
+    {
+      "name": "android-post-ready-sky-browser-red",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-post-ready-red node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T19:54:42.267562+00:00",
+      "elapsed_seconds": 28.78,
+      "exit_status": 1,
+      "log": "android-post-ready-sky-browser-red.log",
+      "local_log_sha256": "7563eb6c9a1135482ef00b4b2c4059c25d11e1b527baee9f893b19097fb08164",
+      "outcome_context": "Real Chromium reproduction on pre-fix source: 15 previous checks pass; all four post-ready timer/resume faults leave ready=true, error=null and running=true."
+    },
+    {
+      "name": "android-post-ready-sky-host-final",
+      "cwd": ".",
+      "command": "node --test tools/test_android_wallpaper.cjs",
+      "started_utc": "2026-11-01T19:55:28.073508+00:00",
+      "elapsed_seconds": 2.63,
+      "exit_status": 0,
+      "log": "android-post-ready-sky-host-final.log",
+      "local_log_sha256": "ced3c966751e74e1db2998313ce149f04e5c7950c67d6cf0d06c2a98a953b1e2",
+      "outcome_context": "18 host tests pass, including four post-ready faults with observable error and frozen clock, no live layers/timer or revival on later callbacks."
+    },
+    {
+      "name": "android-post-ready-sky-assets",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:mergeOtherDebugAssets",
+      "started_utc": "2026-11-01T19:55:27.783103+00:00",
+      "elapsed_seconds": 43.17,
+      "exit_status": 0,
+      "log": "android-post-ready-sky-assets.log",
+      "local_log_sha256": "5e3f2e679b3f3c1a1e56f70c20da729b3d3cd858ef3e746a929601cd96746fcc",
+      "outcome_context": "Android debug asset merge succeeds; merged wallpaper.js hash matches latest source. No native product or test source change in this follow-up."
+    },
+    {
+      "name": "android-post-ready-sky-browser-final",
+      "cwd": ".",
+      "command": "KONE_TEST_NODE_MODULES=${TASK_WORKSPACE}/browser-tools/node_modules KONE_TEST_BROWSER=${BROWSER} KONE_WALLPAPER_EVIDENCE_DIR=${TASK_WORKSPACE}/renders/browser-post-ready-final node tools/test_android_wallpaper_browser.cjs",
+      "started_utc": "2026-11-01T19:55:27.822038+00:00",
+      "elapsed_seconds": 44.85,
+      "exit_status": 0,
+      "log": "android-post-ready-sky-browser-final.log",
+      "local_log_sha256": "e0e2dddd42c844de79b6763ffe002a660e2504010062420beaae062420106de0",
+      "outcome_context": "19 Chromium checks pass. Four post-ready faults arm only after readiness, invoke the actual registered 30000ms callback or host resume, and verify stopped state through later callbacks. The timer callback is invoked directly without waiting 30 seconds."
+    }
+  ],
+  "artifacts": {
+    "accessible-native-junit.json": "e1f4d28dd3e6916fd2bf7682a288aa1644b8f594b81c7913a64b0a3520f1fb1c",
+    "android-baseline-junit.json": "ff2984310a36d868c48b52c2b7d5b7168e2d567c066671201aa601af61d473be",
+    "android-final-junit.json": "88ecbf83b49507c8c1a64d27cf621446ce6acae27ad23f3329aaf33cf375540d",
+    "android-native-preview-junit.json": "70bba3ef08a70fa75f436d83a86280336ac82680d674fef8c557f9a08a1fdc1f",
+    "browser/checks.json": "d9a99edf11cecc5baa095127e2816e4664a2925005b8cb58156dfbdd76cb8cb2",
+    "browser/las-vegas-strip-day-320.json": "e128c7cbd17c2211d33dc335a9745a5c4b5d37d8d8e5b36b4ccad2a9fd75e743",
+    "browser/las-vegas-strip-day-320.png": "c0689a527d57de476a36629b413e52e5373bc3a4870de1b7aed8ac7e52191b0f",
+    "browser/las-vegas-strip-night-320.json": "8a7f8f10c3e11d9a6778784b637079c2209d974af492397902f79ab6986da5d1",
+    "browser/las-vegas-strip-night-320.png": "a8dca52602ecf805eda81fa9099878f960fca71e4338728ef5b8e16c10acd36d",
+    "browser/motion-progression.json": "da1e2ae2c5ff5378f60f39a4b074c625d26b396b1f197b608411f7490c8955f9",
+    "browser/original-day-320.json": "a0e3d6f09f3de625ca09cda975232571d0ea664800a7f2049c9d14921eb228e8",
+    "browser/original-day-320.png": "7c4f904aa11f4875567d4aaae1eea221f02223f724af69ffe197248a5f9b03f6",
+    "browser/original-night-320.json": "7a70c59dcee4597ecd0ba809bb04c7e2948f6664881cbce2f4ee3d96ea744e0e",
+    "browser/original-night-320.png": "85335ed31ea0e5445a3aaff6c622640756b4353514f0e71a0c5fa7a719389468",
+    "browser/tokyo-bay-day-320.json": "e020287a8411d389ed713cc53229590c191ff1cab832cdf06ce72acffa2965be",
+    "browser/tokyo-bay-day-320.png": "bbabadb8aab620eb12130e18f13f58b264dc914c1f00ad5b3a44aae7cdd2ff32",
+    "browser/tokyo-bay-night-320.json": "e51f1fb4bad4d5c1511e9618422ac39be7b53e2067035d021969abeb15042a91",
+    "browser/tokyo-bay-night-320.png": "c229069049bdeca2b97e026595efe8975cf5d74c3971ea2338986f8f4f2d2198",
+    "native/account-en-dark-320.png": "1afc5ab638f900b2a5baff6dba2434c10050a2206fb1949c395b49540abcf117",
+    "native/account-en-light-320.png": "fb07e272624766ee180b0cf3d06356b6672dbd423ce91618e150a9d4f5c1e956",
+    "native/account-expired-en-light-320.png": "cb0f8647237c0b75ca964f33d78d4ce2e10e7f844f365f0c1c9c95b70967b066",
+    "native/account-offline-dark.png": "f764ecd1f0b014f51d2c557490fa4486fcb0a5ed5079e93cd909198219b6fab3",
+    "native/account-paused-font200.png": "21a00f00c36d0ded276949a1fa909fffe35944410f4ccb5f2c25b87d1233b56b",
+    "native/account-synced-light.png": "77bfe2d422d3556f81424c919ea7f64bc3e32ebb577582085df2784bbff46b40",
+    "native/network-long-en-light-320.png": "ea454f4a3d1fc0634db4c1a104e7ce0a3e48e37ced92efe867a16eb92172cdf5",
+    "native/settings-en-light-320.png": "95824126fcb51e6fd347d7666901d110b2ddcdb30420827ec9505a392903f317",
+    "native/settings-hub-light.png": "60cb141d16717e5089c65d72c2a30f55620faf669064ab12538545dd4322e246",
+    "native-render-cache.init.gradle": "92f215316d4c24853dc93ef6e3976962073c86079bed816f4903f674351c3364",
+    "wallpaper-source-sha256.json": "9d17b23097bdeb70cfb057a621b7f50d3080e0b80cb7526187d2590558875178"
+  },
+  "limits": [
+    "No Windows compilation or tests",
+    "No signing or installation",
+    "No physical device or VPN traffic",
+    "No live service or customer data",
+    "No credential grant, production deployment or merge",
+    "No remote CI run dispatched"
+  ],
+  "command_convention": "Commands are reproducible path templates. Resolve named candidate/runtime/output placeholders to the selected local inputs. Original commands and precise environment receipts remain outside Git.",
+  "refined_wallpaper_commit": "e0da5853e69f9da210d54118599ec0d891564942",
+  "followup_counts": {
+    "wallpaper_host_passed": 18,
+    "browser_passed": 19,
+    "android_debug_asset_merge": "passed after post-ready sky-update correction; wallpaper.js source/merged SHA-256 match",
+    "actual_client_contract_scenarios_passed": 12,
+    "accessible_native_tests_passed": 18,
+    "wrapper_checksum_probe_cases_passed": 2
+  },
+  "delayed_callback_commit": "87a66a3a636cc6aa90251ff57851f6ec254a2461",
+  "merged_pulse_asset": {
+    "path": "android/app/build/intermediates/assets/otherDebug/mergeOtherDebugAssets/wallpaper/pulse-v1.js",
+    "source_sha256": "241412e5642394d2dac69bd53fc1b6fe7c54ccc602f3d7a7e69adc3329e4f190",
+    "merged_sha256": "241412e5642394d2dac69bd53fc1b6fe7c54ccc602f3d7a7e69adc3329e4f190"
+  },
+  "failed_wallpaper_commit": "0665a9dd2e53c403d18e2ac674dfbeaa99a10744",
+  "visual_fixture_commit": "1c23f76a1fecb68700fdb7f384fb38532740db80",
+  "distribution_checksum_commit": "47f5ced3ad33f9971e4aeca225f030d171608912",
+  "merged_wallpaper_asset": {
+    "path": "android/app/build/intermediates/assets/otherDebug/mergeOtherDebugAssets/wallpaper/wallpaper.js",
+    "source_sha256": "cd2edbd8b82cef3b97235f934d931393f16f87c71a39c6c3e8ca2d930afbb111",
+    "merged_sha256": "cd2edbd8b82cef3b97235f934d931393f16f87c71a39c6c3e8ca2d930afbb111"
+  },
+  "gradle_distribution_checksum": {
+    "version": "9.7.0",
+    "source": "https://gradle.org/release-checksums/",
+    "sha256": "84fbba45c7f4c64abc77460e1c00f541e9f960e3c7ed2538f1ede19eacd873ae",
+    "input": "Reviewed local official archive; isolated fresh cache for each real-wrapper case.",
+    "cases": [
+      {
+        "name": "reject-mismatch",
+        "child_exit_status": 1,
+        "passed": true
+      },
+      {
+        "name": "accept-reviewed",
+        "child_exit_status": 0,
+        "passed": true
+      }
+    ]
+  },
+  "post_ready_sky_update_commit": "0366948015c3a4eb07b41ef630ac5f270ff3a1b2",
+  "post_ready_reproduction_baseline": "7fd58e518b639f5e0c46f7bd4a8e12e5851b7492",
+  "earlier_native_merged_wallpaper_asset": {
+    "path": "android/app/build/intermediates/assets/otherDebug/mergeOtherDebugAssets/wallpaper/wallpaper.js",
+    "source_sha256": "2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18",
+    "merged_sha256": "2622f0adb02bc882d8d2456954076d586d8314b2ea91df7698fa9cf16b526d18"
+  }
+}

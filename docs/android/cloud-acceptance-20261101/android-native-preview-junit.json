@@ -1,0 +1,15 @@
+{
+  "name": "io.nekohasekai.sfa.preview.VisualChannelTest",
+  "tests": "5",
+  "failures": "0",
+  "errors": "0",
+  "skipped": "0",
+  "cases": [
+    "accountExpired",
+    "accountEnglishLight",
+    "accountEnglishDark",
+    "longNetworkValues",
+    "settingsEnglish"
+  ],
+  "xml_sha256": "52a10a305addf464645fa66c84eecefd5130cee77ecd1205dc32387412329930"
+}

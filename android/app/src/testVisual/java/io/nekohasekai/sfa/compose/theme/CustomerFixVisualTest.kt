@@ -49,7 +49,6 @@ class CustomerFixVisualTest {
                         io.nekohasekai.sfa.compose.screen.dashboard.CollapsedPanel(
                             uiState = io.nekohasekai.sfa.compose.screen.dashboard.DashboardUiState(),
                             serviceStatus = io.nekohasekai.sfa.constant.Status.Stopped,
-                            exit = io.nekohasekai.sfa.compose.screen.dashboard.ExitIpUi(),
                             host = io.nekohasekai.sfa.compose.screen.dashboard.KnineHost(),
                             onSwitch = {}, modifier = Modifier.weight(1f),
                         )

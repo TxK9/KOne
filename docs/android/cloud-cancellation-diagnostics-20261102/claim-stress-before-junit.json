@@ -1,0 +1,70 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportRedactionTest",
+    "tests": 9,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "unterminatedQuotedValuesDoNotExposeSecretsOrRemoveFrames",
+        "failure": null
+      },
+      {
+        "name": "httpUserInfoAndTokenQueryAreRemovedWhileTheFailureLocationRemains",
+        "failure": null
+      },
+      {
+        "name": "longQuotedSecretsAndAdversarialEscapesStayBounded",
+        "failure": "java.lang.StackOverflowError"
+      },
+      {
+        "name": "authorizationAndCookieHeadersDoNotConsumeTheNextDiagnosticLine",
+        "failure": null
+      },
+      {
+        "name": "bearerAndAssignmentValuesAreRemovedWithoutHidingStackFrames",
+        "failure": null
+      },
+      {
+        "name": "largeSyntheticNestedTraceRetainsFramesWithoutRecognizedSecrets",
+        "failure": null
+      },
+      {
+        "name": "quotedJsonSecretsAreRemovedAndOrdinaryFieldsRemainValid",
+        "failure": null
+      },
+      {
+        "name": "benignDiagnosticsAndNonSecretFieldNamesRemainUnchanged",
+        "failure": null
+      },
+      {
+        "name": "repeatedRedactionIsStable",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "47e93d6e52d0dfe08488205b75ebc0e5f771975a1059dc6185c9711a01837a96"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ManagedClaimCancellationTest",
+    "tests": 3,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "cancellationDuringRemovalCannotRebindOrSchedule",
+        "failure": "java.lang.AssertionError: expected:<0> but was:<3>"
+      },
+      {
+        "name": "cancelledRequestCannotBindAfterTheBlockingApiReturns",
+        "failure": "java.lang.AssertionError: Cancelled response must not remove, bind, schedule or sync expected:<0> but was:<4>"
+      },
+      {
+        "name": "failedClaimReleasesTheLockAndRetryCommitsExactlyOnceInOrder",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "2a28713d2e3529ae36c2f3a5116eaa6392b475bc5c65e1397d05ab7b40ae3d92"
+  }
+]

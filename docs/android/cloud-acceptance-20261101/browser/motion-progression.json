@@ -1,0 +1,124 @@
+{
+  "fade": {
+    "duration": 480,
+    "initial": 0,
+    "intermediate": 0.88676,
+    "complete": 1
+  },
+  "connectionGlow": {
+    "initial": {
+      "glow": 0,
+      "frames": 1,
+      "time": 0.5474000000003725,
+      "wallMs": 1071.5
+    },
+    "intermediate": {
+      "glow": 0.7353757660661175,
+      "frames": 3,
+      "time": 0.7887000000001863,
+      "wallMs": 1312.7999999998137
+    },
+    "pauseStart": {
+      "glow": 0.7353757660661175,
+      "frames": 3,
+      "time": 0.7887999999998138,
+      "wallMs": 1313.0999999996275
+    },
+    "pauseEnd": {
+      "glow": 0.7353757660661175,
+      "frames": 3,
+      "time": 0.7887999999998138,
+      "wallMs": 1493.7000000001863
+    },
+    "complete": {
+      "glow": 0.9802029476231751,
+      "frames": 11
+    }
+  },
+  "delayedCallback": {
+    "initial": 0,
+    "oneMillisecond": 0.005540151995103254,
+    "eventTimeMs": 999,
+    "callbackTimeMs": 1000
+  },
+  "failurePaths": {
+    "metadata": {
+      "ready": false,
+      "running": false,
+      "timeBefore": 0.029,
+      "timeAfter": 0.029,
+      "layerCount": 0,
+      "runningLayers": 0
+    },
+    "sky": {
+      "ready": false,
+      "running": false,
+      "timeBefore": 0.8582000000001863,
+      "timeAfter": 0.8582000000001863,
+      "layerCount": 6,
+      "runningLayers": 0
+    }
+  },
+  "postReadyFailures": {
+    "sky-render:timer": {
+      "healthy": {
+        "ready": true,
+        "error": null,
+        "running": true
+      },
+      "ready": false,
+      "error": "Synthetic post-ready sky-render failure",
+      "running": false,
+      "timeBefore": 0.9722999999998138,
+      "timeAfter": 0.9722999999998138,
+      "runningLayers": 0,
+      "timers": 0,
+      "paintingVisible": true
+    },
+    "sky-render:host-resume": {
+      "healthy": {
+        "ready": true,
+        "error": null,
+        "running": true
+      },
+      "ready": false,
+      "error": "Synthetic post-ready sky-render failure",
+      "running": false,
+      "timeBefore": 1.1327999999998137,
+      "timeAfter": 1.1327999999998137,
+      "runningLayers": 0,
+      "timers": 0,
+      "paintingVisible": true
+    },
+    "layer-setSky:timer": {
+      "healthy": {
+        "ready": true,
+        "error": null,
+        "running": true
+      },
+      "ready": false,
+      "error": "Synthetic post-ready layer-setSky failure",
+      "running": false,
+      "timeBefore": 1.015,
+      "timeAfter": 1.015,
+      "runningLayers": 0,
+      "timers": 0,
+      "paintingVisible": true
+    },
+    "layer-setSky:host-resume": {
+      "healthy": {
+        "ready": true,
+        "error": null,
+        "running": true
+      },
+      "ready": false,
+      "error": "Synthetic post-ready layer-setSky failure",
+      "running": false,
+      "timeBefore": 0.3523000000007451,
+      "timeAfter": 0.3523000000007451,
+      "runningLayers": 0,
+      "timers": 0,
+      "paintingVisible": true
+    }
+  }
+}

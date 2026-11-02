@@ -1,0 +1,122 @@
+{
+  "format": 1,
+  "date_utc": "2026-11-02",
+  "provenance": "Published KOne cloud runtime; synthetic fixtures only",
+  "baseline_head": "ba78f3c81f7d1f5c3adf14acb42b653f06fd5765",
+  "validated_implementation_head": "6bc8ffefc79edce0eb109225b79363fcd383615e",
+  "crash_fix_commit": "e8a5a9010db54b2e91046daea86698e7e7471fd2",
+  "locale_fix_commit": "6bc8ffefc79edce0eb109225b79363fcd383615e",
+  "checks": [
+    {
+      "name": "android-locale-crash-before",
+      "cwd": "android",
+      "command": "KONE_LOCALE_FIXTURE=${TASK_WORKSPACE}/locale-persistence-fixture KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true :app:testOtherDebugUnitTest --tests '*.LocalePersistenceWriteTest' --tests '*.CrashReportPersistenceTest'",
+      "started_utc": "2026-11-02T04:02:50.920555+00:00",
+      "elapsed_seconds": 22.17,
+      "exit_status": 1,
+      "log": "android-locale-crash-before.log",
+      "local_log_sha256": "56bae4b641be5feed2afa5418ee527e42a1ba462f5c0ff94737831557607a8fb"
+    },
+    {
+      "name": "android-locale-crash-before-runnable",
+      "cwd": "android",
+      "command": "KONE_LOCALE_FIXTURE=${TASK_WORKSPACE}/locale-persistence-fixture KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true :app:testOtherDebugUnitTest --tests '*.LocalePersistenceWriteTest' --tests '*.CrashReportPersistenceTest'",
+      "started_utc": "2026-11-02T04:04:02.391913+00:00",
+      "elapsed_seconds": 20.87,
+      "exit_status": 1,
+      "log": "android-locale-crash-before-runnable.log",
+      "local_log_sha256": "8aa30c54d5e8a1c9530d3d6001eedc03a3082245747305b29501c7b1a69cde37"
+    },
+    {
+      "name": "android-locale-crash-before-compatible",
+      "cwd": "android",
+      "command": "KONE_LOCALE_FIXTURE=${TASK_WORKSPACE}/locale-persistence-fixture KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true :app:testOtherDebugUnitTest --tests '*.LocalePersistenceWriteTest' --tests '*.CrashReportPersistenceTest'",
+      "started_utc": "2026-11-02T04:06:53.035663+00:00",
+      "elapsed_seconds": 41.34,
+      "exit_status": 1,
+      "log": "android-locale-crash-before-compatible.log",
+      "local_log_sha256": "aadf6043eb4acbbc51300699c90121e0003b5dcdd7949d9628abe06abc8f5ae9"
+    },
+    {
+      "name": "android-locale-crash-after-write",
+      "cwd": "android",
+      "command": "KONE_LOCALE_FIXTURE=${TASK_WORKSPACE}/locale-persistence-fixture KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest --tests '*.LocalePersistenceWriteTest' --tests '*.CrashReportPersistenceTest' --tests '*.CrashReportRedactionTest'",
+      "started_utc": "2026-11-02T04:09:19.168470+00:00",
+      "elapsed_seconds": 39.18,
+      "exit_status": 0,
+      "log": "android-locale-crash-after-write.log",
+      "local_log_sha256": "fcd8bd01f94e473cf57cf576cb877fcbfb1f5a7403e31e2d972c820a6bb95e08"
+    },
+    {
+      "name": "android-locale-crash-final-write",
+      "cwd": "android",
+      "command": "KONE_LOCALE_FIXTURE=${TASK_WORKSPACE}/locale-persistence-fixture KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true :app:testOtherDebugUnitTest --tests '*.LocalePersistenceWriteTest' --tests '*.CrashReportPersistenceTest' --tests '*.CrashReportRedactionTest'",
+      "started_utc": "2026-11-02T04:13:30.705777+00:00",
+      "elapsed_seconds": 20.64,
+      "exit_status": 1,
+      "log": "android-locale-crash-final-write.log",
+      "local_log_sha256": "8ce8d551a00b5eb7442593ce54cb51a287acfbf8ed7b2a9c4f27cd07d4eed308"
+    },
+    {
+      "name": "android-locale-crash-final-write-compatible",
+      "cwd": "android",
+      "command": "KONE_LOCALE_FIXTURE=${TASK_WORKSPACE}/locale-persistence-fixture KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true :app:testOtherDebugUnitTest --tests '*.LocalePersistenceWriteTest' --tests '*.CrashReportPersistenceTest' --tests '*.CrashReportRedactionTest'",
+      "started_utc": "2026-11-02T04:14:21.772356+00:00",
+      "elapsed_seconds": 29.99,
+      "exit_status": 0,
+      "log": "android-locale-crash-final-write-compatible.log",
+      "local_log_sha256": "a514990a9a35d1cf802ba6422bf56aec5e75223df26491d3eebe61008c1f8a1c"
+    },
+    {
+      "name": "android-locale-fresh-restore",
+      "cwd": "android",
+      "command": "KONE_LOCALE_FIXTURE=${TASK_WORKSPACE}/locale-persistence-fixture KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true :app:testOtherDebugUnitTest --tests '*.LocalePersistenceRestoreTest'",
+      "started_utc": "2026-11-02T04:15:00.254617+00:00",
+      "elapsed_seconds": 18.57,
+      "exit_status": 0,
+      "log": "android-locale-fresh-restore.log",
+      "local_log_sha256": "8c76158be47fad4524005db4f561b37f1bf91a7a3aeba93ff48f0d5a5e29ca5d"
+    },
+    {
+      "name": "android-locale-crash-full-unit",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest",
+      "started_utc": "2026-11-02T04:15:28.009569+00:00",
+      "elapsed_seconds": 21.57,
+      "exit_status": 0,
+      "log": "android-locale-crash-full-unit.log",
+      "local_log_sha256": "76083875b2e145a8ea01e8185acc8b0aaab44a0094f9ad6a25efe9fcdf018fde"
+    },
+    {
+      "name": "android-locale-crash-native-final",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true :app:testOtherDebugUnitTest --tests '*.HubPolishVisualTest' --tests '*.AccountVisualTest' --tests '*.DashboardSemanticsTest' --tests '*.CrashReportPersistenceTest'",
+      "started_utc": "2026-11-02T04:16:05.297967+00:00",
+      "elapsed_seconds": 48.77,
+      "exit_status": 0,
+      "log": "android-locale-crash-native-final.log",
+      "local_log_sha256": "2958ccbaaaca21d7fa86d5919fe6a0060f503433e7b5bf04de4408cee3052860"
+    }
+  ],
+  "source_sha256": {
+    "android/app/src/main/AndroidManifest.xml": "668a46d9887914eab1bdd5aefbecc1aaf687c4d233f88f7098702b154de9109d",
+    "android/app/src/main/java/io/nekohasekai/sfa/bg/CrashReportManager.kt": "18a33c68b25f9878b7070c5ac9bd937b81502e3a031728df7b23ba688141f0ee",
+    "android/app/src/main/java/io/nekohasekai/sfa/bg/CrashReportRedaction.kt": "c295da0b21a573d08bbfa902b5951976079d2fd040985633c18d96ce257663d0",
+    "android/app/src/test/java/io/nekohasekai/sfa/bg/CrashReportRedactionTest.kt": "4f4b44bed05b3f71844cd065734c13262dc96f27dc116120f67c56db013222f4",
+    "android/app/src/testVisual/java/io/nekohasekai/sfa/bg/CrashReportPersistenceTest.kt": "aecb2904cbed8e0eb6b228e6c075f0da1fa826b12c7a30c41532ba080e6c6b84",
+    "android/app/src/testVisual/java/io/nekohasekai/sfa/locale/LocalePersistenceTest.kt": "65e08cb3f6b933ac6ede141ca91921301adef5651581202296d4286b0ec1e739"
+  },
+  "evidence_sha256": {
+    "restore-1-junit.json": "df743bc9cd3e33c9e97b2445080a1769e73e018a982ea95a7cc5767ae11dde3a",
+    "ordinary-434-junit.json": "ec81ac12c493c1ee32f1072c9e83f00cf52bd1335c4dc4bac4aae0f06f18a468",
+    "writer-crash-11-junit.json": "e56a9da9f9dc72bfbff18050da3c10bed3a6e66594015b89815101f17927e0f5",
+    "native-22-junit.json": "6b51dafae5a8d158b86478be8bbd16d6e87d699602a66c49af9f92de685b5dd4",
+    "before-junit.json": "7230845c49d5fad3311e2545e6a5d68363bedd3dc7fd0196337157fb40bd7a2d",
+    "merged-manifest.json": "a97cf7e63691c49fa8f11d9d544da66ccb3650035145684e398000a51601a479"
+  },
+  "limits": [
+    "API32 locale host framework persistence, not OEM/device restart or OS upgrade",
+    "Recognized syntax in new application-owned pending JVM text only; not logcat/native/history/configuration export",
+    "No signing,installation,Windows,production,merge,grants or environment changes"
+  ]
+}

@@ -1,0 +1,11 @@
+// Test-process caches only; preserve the inherited proxy and CA trust settings.
+allprojects {
+    tasks.withType(Test).configureEach {
+        def cacheRoot = System.getenv('KONE_ROBOLECTRIC_CACHE')
+        if (cacheRoot != null) {
+            systemProperty 'user.home', cacheRoot
+            systemProperty 'maven.repo.local', new File(cacheRoot, 'm2').absolutePath
+            systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
+        }
+    }
+}

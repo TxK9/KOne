@@ -1,0 +1,74 @@
+{
+  "suites": [
+    {
+      "name": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "hubLightHasReadableHierarchy",
+        "emptySelectorKeepsItsActionAndTouchTarget",
+        "hubDarkHasReadableHierarchy",
+        "hubLargeTextKeepsCompleteNavigationLabels",
+        "loadingSettlesIntoTheEmptySelector"
+      ],
+      "xml_sha256": "5bf6913a0e496a8230917fe0cb4d58bb2121272c67bc95729ff061c21031acc6"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.account.AccountVisualTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "anEndWithinTheHourTurnsToEndedOnTheMinuteTick",
+        "theEndDateFollowsTheAppLocale",
+        "offlineAccountKeepsItsReasonOneTapAway",
+        "syncedAccountShowsItsTermsAndActions",
+        "accountRowsWrapAtDoubleFontSize",
+        "hubRowsShareOneCardAndTheirBadges",
+        "theEndDateFollowsTheZoneReadWithTheClock"
+      ],
+      "xml_sha256": "b146bbb19ecb78fb777444e57402c832a3506d3da36170e0583793ef6276eab8"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.DashboardSemanticsTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "theFoldedPanelIsAButtonThatSaysItChoosesANode"
+      ],
+      "xml_sha256": "4ce5299a7a6cf5cfc57d38253befb7bd0492d60c136fc27fb8a3ebe5131e2fa1"
+    },
+    {
+      "name": "io.nekohasekai.sfa.managed.ManagedApiTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "reflectedClaimCodesNeverEnterFailureText",
+        "serverFailureReasonsAreBounded",
+        "claimSendsTheCodeAndReadsTheCredential",
+        "claimFailuresHaveTheirOwnMeaning",
+        "reflectedDeviceCredentialsNeverEnterFailureText",
+        "diagnosticsSendOnlyKnownEvents",
+        "configRefusalsMapToStatesAndKeepTheConsolesWords",
+        "configIsFetchedWithTheBearerCredentialOnly",
+        "aStaleAckIsNotAnErrorButARevokedOneIs",
+        "anUnreachableConsoleIsOffline",
+        "serverFailureReasonsCannotContainControlCharacters"
+      ],
+      "xml_sha256": "7250272468f6d82904bd843146a9540314a9ad1f6bd8b3b64aea4d122250f4fc"
+    }
+  ],
+  "totals": {
+    "tests": 24,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

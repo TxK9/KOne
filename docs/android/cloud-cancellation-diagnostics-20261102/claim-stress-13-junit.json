@@ -1,0 +1,74 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportRedactionTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "unterminatedQuotedValuesDoNotExposeSecretsOrRemoveFrames",
+        "failure": null
+      },
+      {
+        "name": "httpUserInfoAndTokenQueryAreRemovedWhileTheFailureLocationRemains",
+        "failure": null
+      },
+      {
+        "name": "longQuotedSecretsAndAdversarialEscapesStayBounded",
+        "failure": null
+      },
+      {
+        "name": "authorizationAndCookieHeadersDoNotConsumeTheNextDiagnosticLine",
+        "failure": null
+      },
+      {
+        "name": "bearerAndAssignmentValuesAreRemovedWithoutHidingStackFrames",
+        "failure": null
+      },
+      {
+        "name": "largeSyntheticNestedTraceRetainsFramesWithoutRecognizedSecrets",
+        "failure": null
+      },
+      {
+        "name": "quotedJsonSecretsAreRemovedAndOrdinaryFieldsRemainValid",
+        "failure": null
+      },
+      {
+        "name": "benignDiagnosticsAndNonSecretFieldNamesRemainUnchanged",
+        "failure": null
+      },
+      {
+        "name": "repeatedRedactionIsStable",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "5d3a3a6cb3e6f8b7a37e60e41a4ff750a24d4d504fed84f0e65e702178be78fb"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ManagedClaimCancellationTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "cancellationDuringRemovalCannotRebindOrSchedule",
+        "failure": null
+      },
+      {
+        "name": "cancelledRequestCannotBindAfterTheBlockingApiReturns",
+        "failure": null
+      },
+      {
+        "name": "failedClaimReleasesTheLockAndRetryCommitsExactlyOnceInOrder",
+        "failure": null
+      },
+      {
+        "name": "aCancelledQueuedClaimNeverStartsItsRequest",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "80c7b64300137d539076a87906c6a7afdb50289037c9b83c1b73168e552fda2a"
+  }
+]

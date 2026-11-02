@@ -1,0 +1,153 @@
+{
+  "format": 1,
+  "provenance": "Published KOne cloud runtime; synthetic requests/files/navigation only",
+  "baseline_head": "9963abe452fa5c97628bc7df24b692f68dd6d366",
+  "validated_implementation_head": "4f6f5745232d9db83f20aabf324c96a2bea7f0e1",
+  "cancellation_commit": "e07a1e52829a7ab1047b1aea16cb37b1fe794ff4",
+  "diagnostic_commit": "4f6f5745232d9db83f20aabf324c96a2bea7f0e1",
+  "checks": [
+    {
+      "name": "android-cancellation-redaction-red",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:testOtherDebugUnitTest --tests '*.ManagedClaimCancellationTest' --tests '*.CrashReportRedactionTest'",
+      "started_utc": "2026-11-02T04:31:05.506123+00:00",
+      "elapsed_seconds": 34.97,
+      "exit_status": 1,
+      "log": "android-cancellation-redaction-red.log",
+      "local_log_sha256": "626e787747c47731661f2df2ab78a8c8d4929c5f195145fb905cac3db57e6593"
+    },
+    {
+      "name": "android-cancellation-redaction-corrected",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:testOtherDebugUnitTest --tests '*.ManagedClaimCancellationTest' --tests '*.CrashReportRedactionTest'",
+      "started_utc": "2026-11-02T04:32:39.211969+00:00",
+      "elapsed_seconds": 30.61,
+      "exit_status": 0,
+      "log": "android-cancellation-redaction-corrected.log",
+      "local_log_sha256": "99ac0faeeda60637851715900413a817d04f056163f9f6d471ca66836d01b3a8"
+    },
+    {
+      "name": "android-diagnostic-archive-red",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:testOtherDebugUnitTest --tests '*.DiagnosticArchiveTest'",
+      "started_utc": "2026-11-02T04:34:31.420259+00:00",
+      "elapsed_seconds": 32.82,
+      "exit_status": 1,
+      "log": "android-diagnostic-archive-red.log",
+      "local_log_sha256": "7d25b9e455401f4f57c270a87307b8cc1f2dff16bf457cc47b1cb3372659429b"
+    },
+    {
+      "name": "android-activation-flow-red",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/cancellation :app:testOtherDebugUnitTest --tests '*.ActivationFlowTest'",
+      "started_utc": "2026-11-02T04:35:25.240767+00:00",
+      "elapsed_seconds": 26.11,
+      "exit_status": 1,
+      "log": "android-activation-flow-red.log",
+      "local_log_sha256": "35cc8137c99922b75ab5301f42857d57698d2bb70918d0c6bd900659d7b3b40f"
+    },
+    {
+      "name": "android-activation-flow-red-compatible",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/cancellation :app:testOtherDebugUnitTest --tests '*.ActivationFlowTest'",
+      "started_utc": "2026-11-02T04:36:22.226372+00:00",
+      "elapsed_seconds": 50.28,
+      "exit_status": 1,
+      "log": "android-activation-flow-red-compatible.log",
+      "local_log_sha256": "da498157e678cdc9e6083c531089cad6de1cbeef9089fabf35f9b12855f2fc1f"
+    },
+    {
+      "name": "android-claim-diagnostic-corrected",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:testOtherDebugUnitTest --tests '*.ManagedClaimCancellationTest' --tests '*.CrashReportRedactionTest' --tests '*.DiagnosticArchiveTest'",
+      "started_utc": "2026-11-02T04:37:56.694669+00:00",
+      "elapsed_seconds": 30.77,
+      "exit_status": 0,
+      "log": "android-claim-diagnostic-corrected.log",
+      "local_log_sha256": "96a141173f35ceb15014d71079627906e2fb4646eab049d0401a36a4dc060f10"
+    },
+    {
+      "name": "android-activation-binding-flows",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/cancellation :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest --tests '*.ActivationFlowTest' --tests '*.FeedbackSubmissionTest'",
+      "started_utc": "2026-11-02T04:39:15.222947+00:00",
+      "elapsed_seconds": 42.9,
+      "exit_status": 0,
+      "log": "android-activation-binding-flows.log",
+      "local_log_sha256": "2f47b9d951c9dd3ab9a8597e9ed08092a94dfb963cee9231db60be25d48044ed"
+    },
+    {
+      "name": "android-diagnostic-stream-red",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:testOtherDebugUnitTest --tests '*.DiagnosticTextTest'",
+      "started_utc": "2026-11-02T04:41:26.485473+00:00",
+      "elapsed_seconds": 30.83,
+      "exit_status": 1,
+      "log": "android-diagnostic-stream-red.log",
+      "local_log_sha256": "ea91e708019a6de86cc8cd10dbb3797f5ee6995e6083a98c81b8a06aef7ab66f"
+    },
+    {
+      "name": "android-cancellation-diagnostic-full-unit",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest",
+      "started_utc": "2026-11-02T04:42:33.193693+00:00",
+      "elapsed_seconds": 32.51,
+      "exit_status": 0,
+      "log": "android-cancellation-diagnostic-full-unit.log",
+      "local_log_sha256": "c9bc7b145ea63ca30104ef8c67da3ac3480d2c6308b1bba6873df280b060bd5e"
+    },
+    {
+      "name": "android-cancellation-diagnostic-native-final",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/cancellation-final :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest --tests '*.HubPolishVisualTest' --tests '*.AccountVisualTest' --tests '*.DashboardSemanticsTest' --tests '*.CrashReportPersistenceTest' --tests '*.FeedbackSubmissionTest' --tests '*.ActivationFlowTest'",
+      "started_utc": "2026-11-02T04:43:33.225503+00:00",
+      "elapsed_seconds": 49.85,
+      "exit_status": 0,
+      "log": "android-cancellation-diagnostic-native-final.log",
+      "local_log_sha256": "4782f80a01bd8f39aa9108313699230f7077b3989cf08ee706022e11d4372b6f"
+    }
+  ],
+  "source_sha256": {
+    "android/app/src/main/java/io/nekohasekai/sfa/bg/CrashReportManager.kt": "a3d94ad760d9375bd84b139793b39ac9f524b862573a718a2d36266f241c2266",
+    "android/app/src/main/java/io/nekohasekai/sfa/bg/CrashReportRedaction.kt": "bae1bf63095ed6811abdd7847dc7ff85bb91ce28df6b8c5205936e1c95376cb1",
+    "android/app/src/main/java/io/nekohasekai/sfa/bg/DebugInfoExporter.kt": "d1af3eb15c6ccf278046b5c6feee84ee3092a9a2091a4f7b98919f95bb00742f",
+    "android/app/src/main/java/io/nekohasekai/sfa/bg/DiagnosticText.kt": "1490b7fafabaa2846b3d1479b260c52e8f2ca8c79ab3771af4f898ff2b6ee93f",
+    "android/app/src/main/java/io/nekohasekai/sfa/compose/screen/activation/ActivationScreen.kt": "22959b6d0f5b9c0fbddb42a520fc1af9c9a6746ddf823cecd706d6e7c88129a0",
+    "android/app/src/main/java/io/nekohasekai/sfa/managed/ManagedSync.kt": "930ea893faf90c3ae184dc16d58199b9343958ce6a15cd9bf91d25115e3cfb98",
+    "android/app/src/test/java/io/nekohasekai/sfa/bg/CrashReportRedactionTest.kt": "911b1f9aa5f1d1bedb0bd76f3896e8248075f9f2d34144cdd2176976a3dbe089",
+    "android/app/src/test/java/io/nekohasekai/sfa/bg/DiagnosticArchiveTest.kt": "480c1ac8b286f9a2b5195c88c70f021109e6f44dceeb82585e917ef3235cc19f",
+    "android/app/src/test/java/io/nekohasekai/sfa/bg/DiagnosticTextTest.kt": "e005033810331dad97bcc20162e98dea0b8f99d186f27be0abcb5c6cf8e4e484",
+    "android/app/src/test/java/io/nekohasekai/sfa/managed/ManagedClaimCancellationTest.kt": "fc7797e8e9bc66cd36e0075e46efeba640e8f220aa25f36c035a421f8ee41982",
+    "android/app/src/testVisual/java/io/nekohasekai/sfa/feedback/FeedbackSubmissionTest.kt": "8117253a4b2ec021a1c2e95e66a02b4d65aeb95c2b4bb1add05ff4502699bcd8",
+    "android/app/src/testVisual/java/io/nekohasekai/sfa/managed/ActivationFlowTest.kt": "75d3fd7989626dbef750e974065a54dd7c8dc9a28e97ac3a863ca8a0360e4bf8"
+  },
+  "unchanged_backup_sha256": "1efc7fdd51cef905fd3195ee6b36f165096c0cd0418ed7dd3546ebd0d113709e",
+  "evidence_sha256": {
+    "dependency-provenance.json": "1769db916ca710e50b19b291764c69cfce5c50cac3f5ad4a3e37fad2b1b51c4d",
+    "stream-before-junit.json": "5c9f5902d9f4f7346146e7500039af5785a83f40ea2aaf6a4f79e68d182c9051",
+    "ordinary-450-junit.json": "feaedb615a1be352185dfb198421d5b865b91fc3092d3cc3f8328ed7980c321f",
+    "activation-before-junit.json": "b2beeeec5eb39259cbe5c06dba01326d35c6eab34065f43f5bafd69c1f8c022d",
+    "robolectric-28-junit.json": "51807e9e72069c055b07b884c1af5f9ee89112c9e134057b44175521750f71fe",
+    "activation-feedback-6-junit.json": "ec8781beca63dc7049da85fc82004427f7347f38b69ccf76c750708104084837",
+    "claim-stress-before-junit.json": "6d6b7204adb84411cdd602d3abcac7455f34ade99096384f7585f8aa249ac72a",
+    "claim-diagnostic-19-junit.json": "ed44ea33727f167eb1a37099464d1e8748ed7bd447308f93a9cc9df2f42cf751",
+    "diagnostic-before-junit.json": "28336ff8836c77830e07d10034e6f0f70a3d1395b150f0ad69079b0fbdd600a1",
+    "claim-stress-13-junit.json": "883f977eeae180fe474ce355983b7429cb88c67e548e1a4a3aac7cf86ebf32e4"
+  },
+  "final_counts": {
+    "ordinary": 450,
+    "selected_robolectric": 28,
+    "native_ui": 25,
+    "crash_handler_files": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "finite_limits": [
+    "No server-side rollback/revocation or cancellation after binding commit guarantee",
+    "Synthetic navigation host, not full MainActivity/hardware/OEM/keystore",
+    "No native ZIP/age/root collector execution",
+    "Recognized credential syntax, not universal privacy/OOM resilience",
+    "No generated trust metadata or dependency upgrades"
+  ]
+}

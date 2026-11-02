@@ -1,0 +1,52 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+    "tests": 10,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "hubLightHasReadableHierarchy",
+        "failure": null
+      },
+      {
+        "name": "badgeAndTextStaySeparateAtLargeFontInBothDirectionsAndThemes",
+        "failure": null
+      },
+      {
+        "name": "emptySelectorKeepsItsActionAndTouchTarget",
+        "failure": null
+      },
+      {
+        "name": "rtlFeedbackPreservesDraftAndRetryAcrossBusyAndErrorStates",
+        "failure": null
+      },
+      {
+        "name": "hubDarkHasReadableHierarchy",
+        "failure": null
+      },
+      {
+        "name": "rtlFeedbackImageActionsKeepTheirIndicesAtLargeFont",
+        "failure": null
+      },
+      {
+        "name": "hubLargeTextKeepsCompleteNavigationLabels",
+        "failure": null
+      },
+      {
+        "name": "rtlDashboardLoadingSettlesAndKeepsItsNodeActionAtLargeFont",
+        "failure": null
+      },
+      {
+        "name": "disabledNavigationRejectsBothPointerAndSemanticClicks",
+        "failure": "java.lang.AssertionError: Disabled row ignores pointer and direct semantic actions expected:<0> but was:<1>"
+      },
+      {
+        "name": "loadingSettlesIntoTheEmptySelector",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "0f556eea01c331d806405c156ed30572770605692a870ab89e9934bc5687fc87"
+  }
+]

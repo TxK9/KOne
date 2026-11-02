@@ -1,0 +1,6 @@
+{
+  "component": "androidx.appcompat.app.AppLocalesMetadataHolderService",
+  "enabled": "false",
+  "exported": "false",
+  "autoStoreLocales": "true"
+}

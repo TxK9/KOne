@@ -36,7 +36,6 @@ class DashboardSemanticsTest {
                 CollapsedPanel(
                     uiState = DashboardUiState(),
                     serviceStatus = Status.Stopped,
-                    exit = ExitIpUi(),
                     host = KnineHost(),
                     onSwitch = { switched++ },
                     modifier = Modifier,

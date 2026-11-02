@@ -1,0 +1,2624 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.CrashReportRedactionTest",
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "unterminatedQuotedValuesDoNotExposeSecretsOrRemoveFrames",
+        "failure": null
+      },
+      {
+        "name": "httpUserInfoAndTokenQueryAreRemovedWhileTheFailureLocationRemains",
+        "failure": null
+      },
+      {
+        "name": "longQuotedSecretsAndAdversarialEscapesStayBounded",
+        "failure": null
+      },
+      {
+        "name": "authorizationAndCookieHeadersDoNotConsumeTheNextDiagnosticLine",
+        "failure": null
+      },
+      {
+        "name": "bearerAndAssignmentValuesAreRemovedWithoutHidingStackFrames",
+        "failure": null
+      },
+      {
+        "name": "largeSyntheticNestedTraceRetainsFramesWithoutRecognizedSecrets",
+        "failure": null
+      },
+      {
+        "name": "quotedJsonSecretsAreRemovedAndOrdinaryFieldsRemainValid",
+        "failure": null
+      },
+      {
+        "name": "benignDiagnosticsAndNonSecretFieldNamesRemainUnchanged",
+        "failure": null
+      },
+      {
+        "name": "repeatedRedactionIsStable",
+        "failure": null
+      },
+      {
+        "name": "danglingQuotedEscapesAreRedactedWithoutConsumingTheNextFrame",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "8af5cbb7e467286773481d6767d044b7dce41f8dfcf6acd70ee5849d435f285b"
+  },
+  {
+    "name": "io.nekohasekai.sfa.bg.DiagnosticArchiveTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "ordinaryDebugTextIsNotModified",
+        "failure": null
+      },
+      {
+        "name": "metadataOnlyExportRedactsHistoricalReasonAndOmitsOptOutFiles",
+        "failure": null
+      },
+      {
+        "name": "explicitConfigurationInclusionPreservesTheRestorableBytes",
+        "failure": null
+      },
+      {
+        "name": "includedDiagnosticLogsAreRedactedWithoutRewritingOriginals",
+        "failure": null
+      },
+      {
+        "name": "malformedMetadataIsReplacedByAnExplicitSafeDiagnostic",
+        "failure": null
+      },
+      {
+        "name": "generatedDebugTextExcludesRecognizedCredentialsAndKeepsContext",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "bd155d57a1908d54f4f791797cd20faabb31b730b7be770c6ff0b3c8462f1683"
+  },
+  {
+    "name": "io.nekohasekai.sfa.bg.DiagnosticTextTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "frameworkBinaryCopyRemainsByteExact",
+        "failure": null
+      },
+      {
+        "name": "credentialSyntaxIsRedactedEvenWhenInputChunksSplitItsBoundaries",
+        "failure": null
+      },
+      {
+        "name": "oversizedLinesHaveAnExplicitBoundAndDoNotLoseTheFollowingFrame",
+        "failure": null
+      },
+      {
+        "name": "jsonSecretsStayRedactedWhenTheLineCapSplitsAnEscape",
+        "failure": null
+      },
+      {
+        "name": "ordinaryQuotedFieldsKeepTheirRetainedPrefixAtTheSameBoundary",
+        "failure": null
+      },
+      {
+        "name": "ordinaryUtf8DiagnosticsAndEmptyLinesRoundTrip",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "4b9243fbf6473d8a62081c1fe5197d72ea2bd6f40775c7a446a80675c499cd6b"
+  },
+  {
+    "name": "io.nekohasekai.sfa.bg.NodeWatchProbeTargetTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "nestedChoicesAreFollowedAllTheWayDown",
+        "failure": null
+      },
+      {
+        "name": "aGroupOfManyNodesTestsOnlyTheSelectedOne",
+        "failure": null
+      },
+      {
+        "name": "aLoopEndsInsteadOfSpinning",
+        "failure": null
+      },
+      {
+        "name": "aSingleNodeIsTestedByItsOwnTag",
+        "failure": null
+      },
+      {
+        "name": "noSelectionLeavesTheCallerToFallBack",
+        "failure": null
+      },
+      {
+        "name": "anAutomaticChoiceIsFollowedToTheNodeItPicked",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "093dd42d856ef5fb054e680fb99d21370d20702eac6f1cbe3a1466edf7a9583e"
+  },
+  {
+    "name": "io.nekohasekai.sfa.bg.NotificationTextTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "healthComesFirstThenTraffic",
+        "failure": null
+      },
+      {
+        "name": "beforeAnythingIsKnownItSaysConnected",
+        "failure": null
+      },
+      {
+        "name": "eitherLineStandsAlone",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "36352207ba7dc82278e9c2f0ca1d1086b5330de2f7e5d8efa73f54004a326688"
+  },
+  {
+    "name": "io.nekohasekai.sfa.bg.UpdateProfileWorkTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "aRefusedLinkWaitsForItsNextRefresh",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "17cf7adfaaa48ea11e6137736d1917451d67cb7b873fb118786b50827863de8d"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.base.PublicErrorMessageTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "knownActionableMessagesRemainVisibleOnlyOnExactMatch",
+        "failure": null
+      },
+      {
+        "name": "unknownCoreAndImportErrorsNeverReachTheInterface",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "fce126ceb96e13a6ec589f4be85cdba5ea5dbbf30568ad69eefc74576bb9be72"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.base.QuietServiceReloadTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "rapidChangesCoalesceAndNeverReloadConcurrently",
+        "failure": null
+      },
+      {
+        "name": "disconnectedSettingsDoNotReloadAndFailureDoesNotStopLaterChanges",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "81be15d6ec7fb5b81086bd32c27410302de799159a917f4812b8ff936333bd57"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.component.UptimeTickTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "landingOnTheBoundaryShowsTheNewSecondWithoutSkipping",
+        "failure": null
+      },
+      {
+        "name": "waitsExactlyUntilTheNextWholeSecondOfUptime",
+        "failure": null
+      },
+      {
+        "name": "aStartTimeAheadOfThePhoneClockStillWaitsLessThanASecond",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "80b5672b408588fc39c21bb46f9afdd03dde0f3d5b176cf783215d0c297d4ee4"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.component.qr.IndexedFrameBufferTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "movingPlaybackWindowCoversEveryFrameAcrossWraparound",
+        "failure": null
+      },
+      {
+        "name": "overwrittenSlotNeverMasqueradesAsEarlierFrame",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "355327c77f3252a8597fa68e7e776fa6b1cb5c7af5e88c52ada58d7fb5060f6b"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.account.AccountFactsTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "theClockReadsTheZoneWithTheTime",
+        "failure": null
+      },
+      {
+        "name": "theEndDateIsWrittenInTheGivenLocale",
+        "failure": null
+      },
+      {
+        "name": "missingOrUnreadableEndDatesAreNotShown",
+        "failure": null
+      },
+      {
+        "name": "endingSoonIsWithinThreeDaysAndEndedIsPast",
+        "failure": null
+      },
+      {
+        "name": "aBareDateLastsThroughThatDay",
+        "failure": null
+      },
+      {
+        "name": "instantsAreReadWithOrWithoutAnOffset",
+        "failure": null
+      },
+      {
+        "name": "theDateShownIsThePhonesOwn",
+        "failure": null
+      },
+      {
+        "name": "everyStatusHasAWeatherAndOnlySyncedIsClear",
+        "failure": null
+      },
+      {
+        "name": "consoleUnixSecondsShowTheSameDateAndExpiryBoundaryAsIso",
+        "failure": null
+      },
+      {
+        "name": "anEndWithinTheHourIsEndedOnTheMinuteAfterIt",
+        "failure": null
+      },
+      {
+        "name": "fractionalAndExponentUnixSecondsRetainTheExpiryInstant",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "16101989e540c8e7812f1e6d24631633e675d97245f8b88bef8c6fed321e09e3"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.configuration.ImportInputTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "aFileOfNodesIsCountedHoweverItIsWritten",
+        "failure": null
+      },
+      {
+        "name": "aPastedSubscriptionIsTrimmedAndOpenedFromAnotherClientsLink",
+        "failure": null
+      },
+      {
+        "name": "profilesAndOtherTextAreNotNodeLists",
+        "failure": null
+      },
+      {
+        "name": "theRefreshIntervalCanBeTypedFreely",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "7911669f461d6c4db5764cf160da00add110b5637e93a9ec49d3be84a6484761"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.connections.AppTrafficTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "hostIsTheDomainOrTheAddressWithoutItsPort",
+        "failure": null
+      },
+      {
+        "name": "koneOwnTrafficIsCountedButItsHostsAreWithheld",
+        "failure": null
+      },
+      {
+        "name": "groupsByAppThenHostAndRouteAndSumsTraffic",
+        "failure": null
+      },
+      {
+        "name": "similarSpeedsShareATierSoTotalsKeepTheOrderSteady",
+        "failure": null
+      },
+      {
+        "name": "outboundTagsThatReadAsAddressesAreRecognised",
+        "failure": null
+      },
+      {
+        "name": "busiestFirstByTierThenTotalThenKey",
+        "failure": null
+      },
+      {
+        "name": "routeKinds",
+        "failure": null
+      },
+      {
+        "name": "closedConnectionsAreLeftOut",
+        "failure": null
+      },
+      {
+        "name": "rulesKeepRuleSetNamesAndDropLiteralValues",
+        "failure": null
+      },
+      {
+        "name": "systemProcessAndUnknownTrafficGetTheirOwnGroups",
+        "failure": null
+      },
+      {
+        "name": "hostsAreSortedTheSameWay",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "851d7b02e689ce92f017115c952b9929cb3d2fa28e5040ce9fc62e976d330cfa"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.console.ConsoleAddressTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "onlyAnHttpsAddressWithAHostIsTaken",
+        "failure": null
+      },
+      {
+        "name": "theConsoleAndItsPagesAreInsideEverythingElseIsNot",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "e5059fb52b76e2966936213ee10c0414edc3e3ca6f5cdda0f9c8246c31f43c23"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.AddressNameTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "ordinaryNamesAreNot",
+        "failure": null
+      },
+      {
+        "name": "addressesAreRecognised",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "7b040784e9356b519b99d2836619a4b57bd99e73f59db5cd08ddec14382f356d"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.CountryProfileGroupingTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "manualCategoryWinsAndLocalProfilesKeepTheirIdentityAndOrder",
+        "failure": null
+      },
+      {
+        "name": "localNodesAlwaysComeFirstWithoutAnEmptyUnitedStatesTemplate",
+        "failure": null
+      },
+      {
+        "name": "ambiguousAndUnknownNamesUseTheLocalCategoryWithoutGeoAssumptions",
+        "failure": null
+      },
+      {
+        "name": "shortCodesAreCaseSensitiveAndFullNamesIgnoreCase",
+        "failure": null
+      },
+      {
+        "name": "customCategoryIsLocalMetadataAndInvalidStoredValuesAreIgnored",
+        "failure": null
+      },
+      {
+        "name": "neutralProviderAndIncidentalLettersDoNotInventARealCountry",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "e11aef744631337e13277670289d03d469a87e1f440513f39d88754bc367ff37"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.DialSpacingTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "typeNeverDropsBelowTheFloor",
+        "failure": null
+      },
+      {
+        "name": "neighboursNeverTouchWhicheverIsFocused",
+        "failure": null
+      },
+      {
+        "name": "turningFollowsTheStopsBetweenNames",
+        "failure": null
+      },
+      {
+        "name": "narrowScreensShrinkTheTypeUntilTheNeighbourFits",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "8b508b3e5e9b246e582aae88fabdbd443ae4abdb76033537e35ab8e1b77d10ee"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.ExitIpRetryTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "immediateSuccessPreservesExitMetadataWithoutWaiting",
+        "failure": null
+      },
+      {
+        "name": "exceptionsAndEmptyResponsesRetryWithinTheBound",
+        "failure": null
+      },
+      {
+        "name": "cancelledNetworkChangeDoesNotRetry",
+        "failure": null
+      },
+      {
+        "name": "anUnavailableExitRemainsHiddenAfterThreeAttempts",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "d02e854022044beed172ff3ca17168095d97b8793187d98eddeac90ec405d402"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.ExitIpTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "failuresAndHostnamesHaveNoDisplayValue",
+        "failure": null
+      },
+      {
+        "name": "traceGivesAddressAndCountry",
+        "failure": null
+      },
+      {
+        "name": "rejectsInvalidAmbiguousAndPrivateAddresses",
+        "failure": null
+      },
+      {
+        "name": "acceptsOnlyACompletePublicIpLiteral",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "d3bf19f8e23892dfb2000daefeb84c4ee943c2a52f5ea5fc731bf40a9eaf80c0"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.ImportBloomPlacementTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "itemsStayOnANarrowScreen",
+        "failure": null
+      },
+      {
+        "name": "aLabelsNearEdgeSitsOnTheRimWhicheverWayItPoints",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "68a2ead44d0416fc7f3894c171c2509512a696a5fa317bcea05837159e131fd0"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeCategoriesTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "storageRoundTripsAndRejectsBadLines",
+        "failure": null
+      },
+      {
+        "name": "aFlaggedCategoryRecognisesCountryAndCityNames",
+        "failure": null
+      },
+      {
+        "name": "fourNodesStayWholeRatherThanFoldingOne",
+        "failure": null
+      },
+      {
+        "name": "anyNameWorksAndAmbiguousNodesFallBack",
+        "failure": null
+      },
+      {
+        "name": "nothingIsPresetSoEveryNodeStartsInTheFallback",
+        "failure": null
+      },
+      {
+        "name": "groupsKeepTheFallbackFirstAndUserOrderAfterIt",
+        "failure": null
+      },
+      {
+        "name": "aCategoryNamedAfterACountryNeedsNoFlag",
+        "failure": null
+      },
+      {
+        "name": "flagsAreRegionalIndicatorPairs",
+        "failure": null
+      },
+      {
+        "name": "manualPlacementWinsUntilItsCategoryIsGone",
+        "failure": null
+      },
+      {
+        "name": "migrationKeepsOnlyManualChoices",
+        "failure": null
+      },
+      {
+        "name": "visibleNodesAlwaysIncludeTheSelectedOne",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "c1bf8344fa890d95fc4fea015c0f6a98f3eec263b863100c0c8b6bae5d98a31b"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeCategoryGroupingCostTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "groupingMatchesEachNodeOnItsOwn",
+        "failure": null
+      },
+      {
+        "name": "threeHundredNodesGroupQuickly",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "ca4d32eb5c06a887f9b548f1dabb573f7e28bbd6e957a1b7d9b9144268957ced"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeEndpointsTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "selectorDefaultWinsOverFirstMember",
+        "failure": null
+      },
+      {
+        "name": "quicProxiesAndBrokenConfigsAreNotMeasured",
+        "failure": null
+      },
+      {
+        "name": "pairedProfileResolvesThroughItsSelector",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "306f9c6029b9331a3a552bc72c721dcd2a95f035cc0cde4d354f4576060af475"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeFingerprintsTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "anotherServerPortOrSettingIsAnotherNode",
+        "failure": null
+      },
+      {
+        "name": "theSameNodeUnderAnotherNameIsACopy",
+        "failure": null
+      },
+      {
+        "name": "aConfigWithoutProxiesHasNoFingerprint",
+        "failure": null
+      },
+      {
+        "name": "keyOrderDoesNotMatter",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "0bd003e5c79933c37ed4c85c164d8ab12af558f94c5a784593dbc40f6a86bde5"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeHealthRulesTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "badgesShowTheWeatherAndLatencyButNoReason",
+        "failure": null
+      },
+      {
+        "name": "steadyFastRepliesAreGood",
+        "failure": null
+      },
+      {
+        "name": "consecutiveFailuresAreDownAndSayWhy",
+        "failure": null
+      },
+      {
+        "name": "healthMapsToItsWeather",
+        "failure": null
+      },
+      {
+        "name": "proxyTestUsesWiderLimits",
+        "failure": null
+      },
+      {
+        "name": "slowOrJumpyRepliesAreSlow",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "27009cf2355127b07d9d7ad56a71aca9a2fb4aad0d135b49e2ba2ebbec524c51"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeLatencyInvalidationTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "aResultWakesOnlyItsOwnRow",
+        "failure": null
+      },
+      {
+        "name": "aRowLearnsOfItsFirstReading",
+        "failure": null
+      },
+      {
+        "name": "forgettingAndReturningReachTheRow",
+        "failure": null
+      },
+      {
+        "name": "theProxyReadingStillWakesItsRow",
+        "failure": null
+      },
+      {
+        "name": "aFirstSweepWakesEachRowAtMostTwice",
+        "failure": null
+      },
+      {
+        "name": "anUnchangedVerdictWakesNoRow",
+        "failure": null
+      },
+      {
+        "name": "aSweepOverManyNodesWakesEachRowOnce",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "62cdd03876ca0a2dba324152b52e645b5603931776ad3e95bd5279c4892ed60c"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeListingTest",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "aLongListIsCheckedOnlyWhereItShows",
+        "failure": null
+      },
+      {
+        "name": "fastestFirstPutsRepliesByLatencyThenFailuresThenUntested",
+        "failure": null
+      },
+      {
+        "name": "naturalOrderHandlesLeadingZerosAndPrefixes",
+        "failure": null
+      },
+      {
+        "name": "byNameComparesNumbersAsNumbersAndIgnoresFlagsInFront",
+        "failure": null
+      },
+      {
+        "name": "equalPlacesKeepTheSavedOrder",
+        "failure": null
+      },
+      {
+        "name": "searchMatchesEveryWordInTheNameOrCountry",
+        "failure": null
+      },
+      {
+        "name": "duplicatesKeepOneOfEachAndNeverAManagedNode",
+        "failure": null
+      },
+      {
+        "name": "latencyComesFromTheLabelAndNotFromFailures",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "57d668ede9ac70a6e9ed422bd4de252b8342ecd0112f50ae039f1d69101442a7"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.NodeProbeTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "aClosedPortStillReadsAsDown",
+        "failure": null
+      },
+      {
+        "name": "dialsTheFirstIpv4AddressThenTheFirstIpv6One",
+        "failure": null
+      },
+      {
+        "name": "anUnresolvableNameFailsWithoutDialling",
+        "failure": null
+      },
+      {
+        "name": "aServerAnsweringOnIpv4AloneIsReachable",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "65740384a6fef6fbed1dd01f4af5ec48d6a1b38023d33f81a11d2c68ca166247"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.dashboard.ProfileSelectionQueueTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "tapsDuringReloadDoNotOverlapAndKeepTheLastPendingChoice",
+        "failure": null
+      },
+      {
+        "name": "failedReloadReleasesTheWorkerForAnotherTap",
+        "failure": null
+      },
+      {
+        "name": "rapidTapsApplyTheLastChoiceOnly",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "c2ccaa25c9261c2da1f8f7e3b970640cc73be51d66dfe8db207e599dd192ad77"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.qrscan.QRCodeDecodeAttemptTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "checksumAndFormatMissesDoNotAbortTheNextDecodeAttempt",
+        "failure": null
+      },
+      {
+        "name": "unexpectedDecoderFailureRemainsObservable",
+        "failure": null
+      },
+      {
+        "name": "notFoundMissAlsoResetsDecoder",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "e2d943d2b6c835f5caf16864e057acad431b4e799ee1112383068f278c8ad89a"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.qrscan.QRImageDecoderTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "nodeImageFeedsTheExistingPairedConfigurationBuilder",
+        "failure": null
+      },
+      {
+        "name": "photographedActivationCodeIsRecognizedAwayFromTheCenter",
+        "failure": null
+      },
+      {
+        "name": "transparentPngBackgroundKeepsTheNodeReadable",
+        "failure": null
+      },
+      {
+        "name": "unexpectedDecoderErrorsCannotEchoCredentials",
+        "failure": null
+      },
+      {
+        "name": "lightOnDarkNodeQRCodeIsRecognized",
+        "failure": null
+      },
+      {
+        "name": "unsupportedTransportExplainsTheLimitWithoutTheLink",
+        "failure": null
+      },
+      {
+        "name": "blankPhotoDoesNotPretendToImport",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "def558544b582a4c1f3b53f3351365c6d0ecae8870cbf91c5abefb6e750b7c76"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.qrscan.YPlaneReaderTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "rowPaddingAndMissingFinalPaddingAreHandled",
+        "failure": null
+      },
+      {
+        "name": "directBufferLimitAndReusableStorageAreRespected",
+        "failure": null
+      },
+      {
+        "name": "overlappingRowsAreRejected",
+        "failure": null
+      },
+      {
+        "name": "interleavedPixelStrideAndCurrentPositionReadOnlyVisibleSamples",
+        "failure": null
+      },
+      {
+        "name": "packedPlaneStartsAtCurrentPositionWithoutConsumingOriginalBuffer",
+        "failure": null
+      },
+      {
+        "name": "truncatedVisiblePixelIsRejectedBeforeBufferReads",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "abb166d0442d0761a1b7d89903ea5c9ac8d6fce3cd8a40955ff1a9a6e5511c66"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.router.RouterAddressTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "fingerprintsMustBeExactSha256Values",
+        "failure": null
+      },
+      {
+        "name": "credentialsAndSessionLinksAreNeverSavedAsAddresses",
+        "failure": null
+      },
+      {
+        "name": "routerAuthenticationStaysOnOneHttpsOrigin",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "200fadda5ee39419f34dd6cb1a5136ceec6e192834e90dbaffecd7b1dfe8eef8"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.settings.InterfacePrefixTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "onlyLettersDigitsAndUnderscoresAreKept",
+        "failure": null
+      },
+      {
+        "name": "nothingLeftFallsBackToEn",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "cb0e37966900d1df240c4f49c6091f71f88cc17072caa8469402d504f2d610e5"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.tools.NetworkTestTargetTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "stoppedRemoteAndMissingRuntimeNeverProvideATarget",
+        "failure": null
+      },
+      {
+        "name": "restoredNodeEntryCannotSilentlyFollowAnotherConnectedNode",
+        "failure": null
+      },
+      {
+        "name": "unifiedEntryUsesOnlyTheRunningLocalProfile",
+        "failure": null
+      },
+      {
+        "name": "directRuntimeStillCannotFallBackToDirectUdpTesting",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "b2fa73bb0446c60a0e26e3a782769771c5033eb87978a48a4f759ec6599c64f5"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.screen.tools.TailscalePresentationPolicyTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "staleRunningStatusCannotClaimConnectionAfterDisableOrStop",
+        "failure": null
+      },
+      {
+        "name": "localEntrySurvivesStopAndDoesNotDuplicateOnReconnect",
+        "failure": null
+      },
+      {
+        "name": "missingEndpointDistinguishesSyncFromUnsupportedConfiguration",
+        "failure": null
+      },
+      {
+        "name": "remoteControlNeverInventsALocalSettingsEndpoint",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "60920df71a3a2f63c54b42f9b65a23d6dbe8964382bd65290909fd1ba3f76298"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.BackdropBusynessTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "flatAreaIsCalm",
+        "failure": null
+      },
+      {
+        "name": "gentleGradientStaysCalmAndOnlyTheAreaCounts",
+        "failure": null
+      },
+      {
+        "name": "lightnessIsPerceptual",
+        "failure": null
+      },
+      {
+        "name": "checkerboardIsBusy",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "6b447887f6d378ef091aef5f9a96d524fad2b71bf29b733d3a6b580d4a73765b"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.BackdropFramingTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "nearPortraitKeepsOriginalPhotoClearThroughTheBottomControls",
+        "failure": null
+      },
+      {
+        "name": "extremeFocalPointsNeverExposeAnEmptyPhotoEdge",
+        "failure": null
+      },
+      {
+        "name": "rightHandPersonMovesToHorizontalCentreWithoutZoom",
+        "failure": null
+      },
+      {
+        "name": "wideWindowKeepsImageCoveredAtItsLegalCropLimits",
+        "failure": null
+      },
+      {
+        "name": "floatingPointUndershootCannotCreateAnEmptyCropRange",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "d681db4e6ddae9f9bfc65de47d589deb7b97862a87d3e11c93c54dac962ddda7"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.BrightConnectedReadingSpaceTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "runningPhotoKeepsKnownCherryBlossomFaceAndHandsAboveTheReadingSeam",
+        "failure": null
+      },
+      {
+        "name": "tallConnectionBarDoesNotConsumeTheMinimumReadingFrame",
+        "failure": null
+      },
+      {
+        "name": "runningDashboardGetsMoreRoomAfterTheConnectionBarIsMeasured",
+        "failure": null
+      },
+      {
+        "name": "veryShortViewportKeepsItsAvailableSpaceScrollable",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "98c3af4885b0183b1817c0bd06328dc47d51fb8e3b967dbb81337efa8e29bc1a"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.BrightSceneGeometryTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "brightPhotoEndsAtTheMeasuredFirstReadingRow",
+        "failure": null
+      },
+      {
+        "name": "cherryBlossomHandsAndFaceFitAboveControlsAtPhoneGeometry",
+        "failure": null
+      },
+      {
+        "name": "anUnmeasuredSceneHasFiniteSafeInitialGeometry",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "beeac6ebbb94a0977d252a3085a23d0f15efa27c257b471a9eddfacd6dd42d12"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.BrightWallpaperPolicyTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "pixelOrderCannotMakeTypographyChange",
+        "failure": null
+      },
+      {
+        "name": "oneBrightPatchDoesNotReplaceDarkPhotoLayout",
+        "failure": null
+      },
+      {
+        "name": "plainReadingInkAndAccentHaveContrastOverDarkestSupportedBackground",
+        "failure": null
+      },
+      {
+        "name": "broadHighlightsComposeReadingAreaDespiteDarkHair",
+        "failure": null
+      },
+      {
+        "name": "shortScreensAlwaysKeepAUsableScrollableReadingArea",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "685ca6bdf37d640a75c4d23383591593417de33bf5630af455b5b3876013665d"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.CityCanvasTest",
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "theMapLiesOnTheScreenAsTheStageCoversIt",
+        "failure": null
+      },
+      {
+        "name": "aGapBetweenGroupsDipsWithoutFlashingTheBareCity",
+        "failure": null
+      },
+      {
+        "name": "daylightIsReadFromTheStageOnly",
+        "failure": null
+      },
+      {
+        "name": "theInkTurnsOnceAtDuskAndDawnAndNeverFlickers",
+        "failure": null
+      },
+      {
+        "name": "distantGroupsStaySeparate",
+        "failure": null
+      },
+      {
+        "name": "nightAsksForLessThanDayAndUnknownLightAssumesTheBrighter",
+        "failure": null
+      },
+      {
+        "name": "shadeDeepensQuicklyAndGivesTheCityBackSlowly",
+        "failure": null
+      },
+      {
+        "name": "aDaySceneNeedsOnlyAThinPaperWashUnderDarkInk",
+        "failure": null
+      },
+      {
+        "name": "popupFocusVeilMatchesTheOldWholeCityVeil",
+        "failure": null
+      },
+      {
+        "name": "measuredShadeKeepsInkAndAccentAt4_5OverABrightSky",
+        "failure": null
+      },
+      {
+        "name": "everyLineGetsAtLeastWhatItNeeds",
+        "failure": null
+      },
+      {
+        "name": "theOpenCityAboveAndBelowStaysClear",
+        "failure": null
+      },
+      {
+        "name": "largeTextFollowsWcag",
+        "failure": null
+      },
+      {
+        "name": "aListReadsAsOneBandWithoutStripes",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "b9de35cdb53369b6d94a8248a08a7914a4ea303a3e0fed566b93b276f0be05fb"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.InkStabilityTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "oppositeInkModesNeverInterpolateThroughGrey",
+        "failure": null
+      },
+      {
+        "name": "smallContrastChangesRetainBothEstablishedModes",
+        "failure": null
+      },
+      {
+        "name": "substantialBackgroundChangeSwitchesMode",
+        "failure": null
+      },
+      {
+        "name": "repeatedBoundaryJitterDoesNotAlternateInk",
+        "failure": null
+      },
+      {
+        "name": "samePolarityAccentsRetainTheirGentleTransition",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "9706e8286b86efcd84ba05d43140c02b31c0e37257e6e03b44d225968abcca5a"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.KninePaletteTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "oneLowContrastPatchFallsBackToOrdinaryInk",
+        "failure": null
+      },
+      {
+        "name": "choosesSoftSageOnDarkAndDeepForestOnLight",
+        "failure": null
+      },
+      {
+        "name": "unloadedBackdropDoesNotUseUnverifiedAccent",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "49f176b43a869cfca274ad0feb9edeee99c7b93037065db135bb40d7a3ec138f"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.LightFilmMaterialTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "unsafeSemanticMidtoneFallsBackOnClearFilm",
+        "failure": null
+      },
+      {
+        "name": "normalAccentAndErrorRemainReadableOverWorstPhotoDetail",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "f0d2422effdc748ad888ebe6d636ac1e5e0d4cda4d30fabd5c9874a39f78637b"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.SkyClockTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "earlyAfternoonSunLeansWest",
+        "failure": null
+      },
+      {
+        "name": "noonInShanghaiIsNearTheTop",
+        "failure": null
+      },
+      {
+        "name": "moonPhaseFollowsTheMonth",
+        "failure": null
+      },
+      {
+        "name": "sunRisesAndSetsWithTheDay",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "15d799e1cfad0006f5c4b4cd4d5d5d23472e78d9b5d25d23f302eaf42b8835ea"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.WallpaperRotationTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "backgroundAndProcessRestoreAdvanceOnlyOneImage",
+        "failure": null
+      },
+      {
+        "name": "clockRollbackReanchorsAndLastImageWraps",
+        "failure": null
+      },
+      {
+        "name": "firstOpenAnchorsWithoutReplacingValidImage",
+        "failure": null
+      },
+      {
+        "name": "waitsTenMinutesAndCannotRotateTwiceOnRecreation",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "759c9f4978fe673aab704ea277f3c37b788bcc40085c55d2b4c483b55e58c699"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.theme.WallpaperThemeTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "unsafeSemanticMidtonesFallBackToSettledBodyColor",
+        "failure": null
+      },
+      {
+        "name": "unloadedPhotoUsesSafeUnderlayWithoutPretendingItWasMeasured",
+        "failure": null
+      },
+      {
+        "name": "bothThemesAndAccentsMeetEveryReducedImageSampleAfterSupport",
+        "failure": null
+      },
+      {
+        "name": "pixelOrderingDoesNotChangeTheme",
+        "failure": null
+      },
+      {
+        "name": "transparentTextRemainsTransparentWhereContrastIsEnough",
+        "failure": null
+      },
+      {
+        "name": "oneBadPatchCannotBeHiddenByAverageOrFifthPercentile",
+        "failure": null
+      },
+      {
+        "name": "blendUsesRenderedSrgbChannelsInsteadOfLinearLuminanceAveraging",
+        "failure": null
+      },
+      {
+        "name": "wallpaperDistributionSelectsOneStablePalette",
+        "failure": null
+      },
+      {
+        "name": "iconTargetNeedsNoMoreUnderlayThanSmallText",
+        "failure": null
+      },
+      {
+        "name": "cityVeilKeepsBothInkAndAccentReadableEvenOverWhiteArtwork",
+        "failure": null
+      },
+      {
+        "name": "cityShowcaseAlternatesHomeAndAbroadWithoutRepeats",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "72f6b1d30e59f2e13bb4743379d6878325a73393835c6a6bc11c63587efc2a07"
+  },
+  {
+    "name": "io.nekohasekai.sfa.compose.util.QRCodeGeneratorTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "longAuthenticationUrlAndQrsSizedPayloadDecodeAtDisplayResolution",
+        "failure": null
+      },
+      {
+        "name": "quietZoneRemainsWhiteOnEveryEdge",
+        "failure": null
+      },
+      {
+        "name": "opaqueBlackWhiteCodeRoundTripsThroughScanner",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "dd0c45f1fe5554797d463a41a20094c7ce0de1b8b3ca7db85e54f105b7968245"
+  },
+  {
+    "name": "io.nekohasekai.sfa.connection.CallingOptionApplierTest",
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "acceptedNewEpochAndExactFinalContentAreRequiredForApplied",
+        "failure": null
+      },
+      {
+        "name": "selectedProfileAndNetworkChangesDuringValidationPreventCommit",
+        "failure": null
+      },
+      {
+        "name": "failedRollbackIsReportedWithoutRawFailureText",
+        "failure": null
+      },
+      {
+        "name": "cancellationAfterWritePerformsNonCancellableCleanup",
+        "failure": null
+      },
+      {
+        "name": "editDuringPreparationIsProtectedByCommitCas",
+        "failure": null
+      },
+      {
+        "name": "oldEpochWrongNetworkAndWrongFinalHashCannotBeAcknowledgements",
+        "failure": null
+      },
+      {
+        "name": "rpcSuccessWithoutRuntimeAcknowledgementRestoresSettings",
+        "failure": null
+      },
+      {
+        "name": "reloadExceptionRestoresOnlySettingAndNeverRetriesConnection",
+        "failure": null
+      },
+      {
+        "name": "disconnectBetweenCommitAndReloadRestoresWithoutRestarting",
+        "failure": null
+      },
+      {
+        "name": "rollbackCannotOverwriteALaterEdit",
+        "failure": null
+      },
+      {
+        "name": "disconnectedSaveNeverStartsVpnAndStaleEditorCannotOverwrite",
+        "failure": null
+      },
+      {
+        "name": "separateApplierInstancesShareOneSerializationLock",
+        "failure": null
+      },
+      {
+        "name": "finalValidationFailureDoesNotWriteOrReload",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "ad03f6b1e4863fcd76b0d2d64fa2d31378a9875d28c27e4ab640a77d72a5e28b"
+  },
+  {
+    "name": "io.nekohasekai.sfa.connection.CallingOptionMessagesTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "FailedRecoveryRemainsVisibleWithoutAConnectionAndNeverClaimsConnectionRestored",
+        "failure": null
+      },
+      {
+        "name": "onlyTheAcceptedCurrentConnectionCanDisplayApplied",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "6b0f0927dd35ed6c7beebbf36d259864bde24a68bec7bcbf77616d82aff85ee7"
+  },
+  {
+    "name": "io.nekohasekai.sfa.connection.ConnectionChecksTest",
+    "tests": 19,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "emptyIncludeOnlyListMeansKnownAppsMayDirectAndNeverZeroExceptions",
+        "failure": null
+      },
+      {
+        "name": "unfamiliarOrPublicDirectRulesBeforeGlobalAreNotSilentlyApproved",
+        "failure": null
+      },
+      {
+        "name": "acceptedRuntimeReportsConfigurationWithoutClaimingRealExit",
+        "failure": null
+      },
+      {
+        "name": "actualCoreExceptionsAreCountedOnceWithoutClaimingTheirSource",
+        "failure": null
+      },
+      {
+        "name": "anUnselectedUnsafeChoiceStillPreventsGraphConfirmation",
+        "failure": null
+      },
+      {
+        "name": "dnsRequiresHijackProxyDetourAndIndependentNamedNodeBootstrap",
+        "failure": null
+      },
+      {
+        "name": "applicationDnsMustMatchTheRuntimeDirectPredicates",
+        "failure": null
+      },
+      {
+        "name": "callingCannotBeApprovedForTcpOnlyOrUnconfirmedSelectedProxy",
+        "failure": null
+      },
+      {
+        "name": "includeOnlyMeansAnUnboundedComplementRatherThanZeroDirectApps",
+        "failure": null
+      },
+      {
+        "name": "callingSettingsDoNotOverrideDirectExceptionsOrClaimRegistration",
+        "failure": null
+      },
+      {
+        "name": "selectedNestedChainIncludesItsDetourButNotAnUnusedPool",
+        "failure": null
+      },
+      {
+        "name": "unspecifiedNetworkIsNotReportedAsDynamicallyVerifiedUdp",
+        "failure": null
+      },
+      {
+        "name": "unusedTcpOnlyBackupDoesNotRestrictTheSelectedUdpNode",
+        "failure": null
+      },
+      {
+        "name": "malformedConfigsAndUntrustedErrorsNeverReachTheDisplayBoundary",
+        "failure": null
+      },
+      {
+        "name": "ruleAndDirectAreNotGlobalEvenThoughTheConfigContainsGlobalRules",
+        "failure": null
+      },
+      {
+        "name": "stoppedRemoteUnknownOwnerAndUnsettledNetworkNeverKeepConfirmedResults",
+        "failure": null
+      },
+      {
+        "name": "doubleStackNeedsBothFamiliesStrictRoutingAndNoOperatingSystemBypass",
+        "failure": null
+      },
+      {
+        "name": "systemFlagsAreIndependentAndUnsupportedIsNotDisabled",
+        "failure": null
+      },
+      {
+        "name": "privateHomeAndBootstrapHaveExplicitSeparatePurposes",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "c67aec155e1ecc135dd2ab34b5a64f56428d18ec28494d11de9dd9b83dc6e1ce"
+  },
+  {
+    "name": "io.nekohasekai.sfa.connection.ConnectionCompatibilityTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "disabledKeepsExactSourceAndPresetNeverReplacesTheChosenNode",
+        "failure": null
+      },
+      {
+        "name": "homeEndpointsAndHomeRouteStillUseTheSamePrivatePath",
+        "failure": null
+      },
+      {
+        "name": "unsupportedCustomConfigsAndUnsafeMtuAreRefusedBeforeSaving",
+        "failure": null
+      },
+      {
+        "name": "administrativeRefusalsAndExistingDnsRulesRemainAheadAndUnedited",
+        "failure": null
+      },
+      {
+        "name": "userCanChooseAddressStrategyAndMtuWithoutAnyCountryOrOperator",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "b67d2c8b4293b053fe08ca475563dc703f9fe9ece03a73a2d72bfa1299792c51"
+  },
+  {
+    "name": "io.nekohasekai.sfa.connection.GlobalRoutingPolicyTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "disabledIsByteForByteUnchangedAndEnabledNeverWritesSource",
+        "failure": null
+      },
+      {
+        "name": "globalPrecedesPublicDirectAndChinaRulesWhileOtherModesRemainAvailable",
+        "failure": null
+      },
+      {
+        "name": "directAndBlockChoicesAndMissingOrCyclicDetoursAreRejected",
+        "failure": null
+      },
+      {
+        "name": "includeOnlyInverseCannotExemptAnUnknownProcess",
+        "failure": null
+      },
+      {
+        "name": "ordinaryGlobalDnsUsesProxyWhileNamedNodeBootstrapStaysExplicit",
+        "failure": null
+      },
+      {
+        "name": "explicitlyExemptAppsAreDirectInsideCoreAndAllOthersReachGlobalProxy",
+        "failure": null
+      },
+      {
+        "name": "nestedUrltestAndTransportDetoursAreValidatedAndPreserved",
+        "failure": null
+      },
+      {
+        "name": "homeKeepsPrivateRangesAndInternalNamesButPublicSubnetCannotBypassGlobal",
+        "failure": null
+      },
+      {
+        "name": "sourcePackageExemptionsMoveToCoreWithoutBeingLost",
+        "failure": null
+      },
+      {
+        "name": "managedRefusalsStayAheadOfAppExceptionsAndGlobalIncludingDns",
+        "failure": null
+      },
+      {
+        "name": "everyTunCapturesBothFamiliesAndRemovesOperatingSystemBypasses",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "58163202397ba0c5ae6a05bea151e05825750d408789fd6c3a8c31016179ce38"
+  },
+  {
+    "name": "io.nekohasekai.sfa.connection.PreparedRoutingIntegrationTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "explicitDirectSitesSurviveTheFinalGlobalGuard",
+        "failure": null
+      },
+      {
+        "name": "fakeIpAddressQueriesStillPrecedeGlobalRemoteLookups",
+        "failure": null
+      },
+      {
+        "name": "managedRefusalsStillWinOverAnExplicitDirectSite",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "3bf1d48062e9b03af7db19ae91ad5492f0f4b336df070e21e355eb6c9fe9b79b"
+  },
+  {
+    "name": "io.nekohasekai.sfa.connection.RuntimeConnectionConfigTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "intermediateCallingValidationCannotAcceptAnUnsafeFinalProxyGraph",
+        "failure": null
+      },
+      {
+        "name": "finalGlobalPolicyKeepsExplicitAppExceptionsForIkeAndGatewayDns",
+        "failure": null
+      },
+      {
+        "name": "explicitlyChosenLegacyDnsAndMtuValuesStillApplyAfterDefaultChange",
+        "failure": null
+      },
+      {
+        "name": "refusalsStillWinAgainstCallingAndDirectAppsAndHomeNamesRemainPrivate",
+        "failure": null
+      },
+      {
+        "name": "inclusionAndDisabledSnapshotsKeepExistingAppSemanticsAndOwnerNeverBecomesDirect",
+        "failure": null
+      },
+      {
+        "name": "enablingCallingDefaultsPreservesExistingDnsStrategyAndEveryTunMtu",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "d34cccf12a9dc69c297eafad0595212d2ac579f2b0b10875b9c16638fd41d7b4"
+  },
+  {
+    "name": "io.nekohasekai.sfa.connection.VideoCompatibilityTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "aDirectFinalNeverGetsTheCatchAllRejection",
+        "failure": null
+      },
+      {
+        "name": "repeatedApplicationDoesNotGrowRules",
+        "failure": null
+      },
+      {
+        "name": "preservesDirectAndAdministrativeRulesBeforeFallback",
+        "failure": null
+      },
+      {
+        "name": "disabledKeepsTheOriginalAndDoesNotDependOnCalling",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "a8d55fb76adfb17556e67ac64a83d8cd1ce49c438f20df5235046ed83039a1a2"
+  },
+  {
+    "name": "io.nekohasekai.sfa.devices.DeviceIntegrationsTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "engineIdsRoundTrip",
+        "failure": null
+      },
+      {
+        "name": "aConnectionThatCannotDriveTheEngineMakesEveryPartUnavailable",
+        "failure": null
+      },
+      {
+        "name": "registeringTheSameIdReplacesTheEarlierIntegration",
+        "failure": null
+      },
+      {
+        "name": "mappingAResultKeepsItsProblem",
+        "failure": null
+      },
+      {
+        "name": "discoveredDevicesCarryTheIntegrationThatFoundThem",
+        "failure": null
+      },
+      {
+        "name": "eachPartFollowsWhatTheAdapterOffers",
+        "failure": null
+      },
+      {
+        "name": "aFoundDeviceOpensOnlyThroughItsOwnIntegration",
+        "failure": null
+      },
+      {
+        "name": "anEmptyRegistryClaimsNothingAndFindsNothing",
+        "failure": null
+      },
+      {
+        "name": "withoutAConnectionEveryPartIsNotConnected",
+        "failure": null
+      },
+      {
+        "name": "trafficAddsRatesAndShowsTotalsOnlyWhenEveryEngineMeasuredThem",
+        "failure": null
+      },
+      {
+        "name": "reportedDeviceFactsWinOverWhatThePhoneKnew",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "d6e960c45faf0d9806f4ccaea9c955c6eb94c85621632efa772df3da576a5b7f"
+  },
+  {
+    "name": "io.nekohasekai.sfa.feedback.FeedbackApiTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "distinguishesServiceAndSizeFailuresFromIncompleteSubmission",
+        "failure": null
+      },
+      {
+        "name": "sendsFeedbackOnlyToTheBoundEndpointWithHeaderAuthentication",
+        "failure": null
+      },
+      {
+        "name": "malformedCredentialsFailBeforeCreatingAConnectionAndDoNotEchoTheirValue",
+        "failure": null
+      },
+      {
+        "name": "aSuccessStatusRequiresAValidReceiptBeforeTheDraftCanBeCleared",
+        "failure": null
+      },
+      {
+        "name": "rejectedPayloadExplainsTheActionWithoutEchoingServerDetails",
+        "failure": null
+      },
+      {
+        "name": "permissionFailuresAndMissingBackendAreVisible",
+        "failure": null
+      },
+      {
+        "name": "refusesRedirectsInsteadOfForwardingCredentials",
+        "failure": null
+      },
+      {
+        "name": "theWholeRequestDeadlineDisconnectsAStalledImageUpload",
+        "failure": null
+      },
+      {
+        "name": "readsPublishedAndPendingStatusesWithoutPretendingSuccess",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "b6cddb1a2fd94c8380d1513830d16f2c8a84473c3a08840b00a35af7972a03fc"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ManagedApiTest",
+    "tests": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "reflectedClaimCodesNeverEnterFailureText",
+        "failure": null
+      },
+      {
+        "name": "errorDetailPreservesTheExactLengthBoundary",
+        "failure": null
+      },
+      {
+        "name": "serverFailureReasonsAreBounded",
+        "failure": null
+      },
+      {
+        "name": "claimSendsTheCodeAndReadsTheCredential",
+        "failure": null
+      },
+      {
+        "name": "claimFailuresHaveTheirOwnMeaning",
+        "failure": null
+      },
+      {
+        "name": "reflectedDeviceCredentialsNeverEnterFailureText",
+        "failure": null
+      },
+      {
+        "name": "diagnosticsSendOnlyKnownEvents",
+        "failure": null
+      },
+      {
+        "name": "configRefusalsMapToStatesAndKeepTheConsolesWords",
+        "failure": null
+      },
+      {
+        "name": "configIsFetchedWithTheBearerCredentialOnly",
+        "failure": null
+      },
+      {
+        "name": "unmappedServerErrorsDoNotReflectRequestSecrets",
+        "failure": null
+      },
+      {
+        "name": "aStaleAckIsNotAnErrorButARevokedOneIs",
+        "failure": null
+      },
+      {
+        "name": "malformedStoredCredentialFailsWithoutAnArgumentExceptionOrRequest",
+        "failure": null
+      },
+      {
+        "name": "invalidClaimCredentialsAreRejectedBeforeTheyCanBeStored",
+        "failure": null
+      },
+      {
+        "name": "anUnreachableConsoleIsOffline",
+        "failure": null
+      },
+      {
+        "name": "serverFailureReasonsCannotContainControlCharacters",
+        "failure": null
+      },
+      {
+        "name": "validBearerSyntaxAndTheCredentialSizeBoundaryRemainSupported",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "e446ea86ec097c238a79b2915e4e1fa36d635a4847a824afdadb00bf008ad691"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ManagedClaimCancellationTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "cancellationDuringRemovalCannotRebindOrSchedule",
+        "failure": null
+      },
+      {
+        "name": "cancelledRequestCannotBindAfterTheBlockingApiReturns",
+        "failure": null
+      },
+      {
+        "name": "failedClaimReleasesTheLockAndRetryCommitsExactlyOnceInOrder",
+        "failure": null
+      },
+      {
+        "name": "aCancelledQueuedClaimNeverStartsItsRequest",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "806d3a08c2ef467cf9e3b4c44db5d6976a69f9cfb01763fbb90a9d2a64030f12"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ManagedConfigTest",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "withoutARefusalNothingIsAdded",
+        "failure": null
+      },
+      {
+        "name": "aSourceWithoutANodeOrWithABrokenChainIsRefused",
+        "failure": null
+      },
+      {
+        "name": "severalNodesAreOfferedAndChainsStayWhole",
+        "failure": null
+      },
+      {
+        "name": "theConsolesGeneratedRouteBecomesTheKOneNode",
+        "failure": null
+      },
+      {
+        "name": "claudeRefusedByTheConsoleIsRefusedInEveryModeAndInDns",
+        "failure": null
+      },
+      {
+        "name": "aNodeNamedLikeKOnesOwnGroupIsRenamed",
+        "failure": null
+      },
+      {
+        "name": "onlyRulesThatRefuseNamesAndNothingElseAreKept",
+        "failure": null
+      },
+      {
+        "name": "withHomeOnTheRefusalFollowsTheHomeRouteAndTheConfigStillPairs",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "c53c1cd8a488f55896d278b44a01126ed8a9a0cc0fd47cafbfb0f66b7c73b595"
+  },
+  {
+    "name": "io.nekohasekai.sfa.managed.ManagedEndpointTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "claimLinksCarryAddressAndCode",
+        "failure": null
+      },
+      {
+        "name": "portsAreValidatedBeforeNetworkSetup",
+        "failure": null
+      },
+      {
+        "name": "addressesAreHttpsOrThisPhoneItself",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "9c5d3ae35701faec9e243aad75f62f2c0f58a5021d9cd70ea664b1ead7afd7a2"
+  },
+  {
+    "name": "io.nekohasekai.sfa.qrs.QRSDecoderTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "regularCompressedFrameStillImports",
+        "failure": null
+      },
+      {
+        "name": "dictionaryCompressedFrameDoesNotHangTheScanner",
+        "failure": null
+      },
+      {
+        "name": "uncompressedFrameStillImports",
+        "failure": null
+      },
+      {
+        "name": "truncatedCompressedFrameDoesNotImportPartialData",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "595413c52e88c1804467004b55a9704b67b348234876b23660c65397efcf203f"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.ClashNodesTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "clashProxiesBecomeNodesWithoutNotices",
+        "failure": null
+      },
+      {
+        "name": "aClashNodeBuildsTheSameProfileAsALink",
+        "failure": null
+      },
+      {
+        "name": "aProfileWithoutUsableProxiesSaysWhy",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "ef5d8e71611fc443e84faedb98b5be21a9fed9003929ba1bebed37b758953d09"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.HomeLinkTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "hostnamesBecomeTailnetNames",
+        "failure": null
+      },
+      {
+        "name": "switchingBackAndForthKeepsEverythingElseAndHandAddedEndpointFields",
+        "failure": null
+      },
+      {
+        "name": "homeOffLeavesOnlyTheProxy",
+        "failure": null
+      },
+      {
+        "name": "configurationsWrittenElsewhereAreUntouched",
+        "failure": null
+      },
+      {
+        "name": "homeNetworksAreReadForgivingly",
+        "failure": null
+      },
+      {
+        "name": "homeOnRoutesTheTailnetAndTheHomeNetworkFirstAndAnswersItsNames",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "fe3d3c9c6ea2a425933a9aa9d58d605cedb6f95ca38ef8680d014a78704825aa"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.NodeChainTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "aTagAlreadyTakenGetsANumber",
+        "failure": null
+      },
+      {
+        "name": "aNodeWithItsOwnCarrierKeepsIt",
+        "failure": null
+      },
+      {
+        "name": "aFrontNodeThatIsItselfChainedIsRefused",
+        "failure": null
+      },
+      {
+        "name": "theChosenNodeDialsThroughACopyOfTheFrontNode",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "88647c48fbc452971d385f7793f299a2b37b22c9b8575b643a012fde16168f4d"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.NodeShareLinkTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "hysteriaPasswordsAndObfuscationSurviveQrExport",
+        "failure": null
+      },
+      {
+        "name": "portableVlessRealityAndWebsocketRoundTrip",
+        "failure": null
+      },
+      {
+        "name": "ignoresHomeRoutesAndRejectsUnsupportedParameters",
+        "failure": null
+      },
+      {
+        "name": "vmessUsesPortableJsonAndSsUsesSip002",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "d4673ffc41aefb2e49f619ecbaacb6f49d54c94dc56a8a70908696f34ef4886e"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.PairedProfileTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "rejectsUnconditionalEarlyProxyRoute",
+        "failure": null
+      },
+      {
+        "name": "aMalformedRuleBeforeHomeHasAControlledValidationFailure",
+        "failure": null
+      },
+      {
+        "name": "rejectsUnencryptedLink",
+        "failure": null
+      },
+      {
+        "name": "linkNameBecomesNodeName",
+        "failure": null
+      },
+      {
+        "name": "rejectsDuplicateSecurityParameters",
+        "failure": null
+      },
+      {
+        "name": "rejectsProxyOnlyConfiguration",
+        "failure": null
+      },
+      {
+        "name": "oneVpnIncludesPersistentPrivateEndpointAndAllModes",
+        "failure": null
+      },
+      {
+        "name": "rejectsGlobalRuleThatShadowsHomeRoute",
+        "failure": null
+      },
+      {
+        "name": "rejectsTailnetOnlyProfile",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "4559134b4e8daf714818397b187831d95935186092a11738be3947263f4bd05f"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.PhoneDiagnosisTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "nothingToFixWhenAllIsWell",
+        "failure": null
+      },
+      {
+        "name": "thePhonesOwnCausesComeFirst",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "adb4f01322b55ec5083c6533e0e628dae871635382776b36483111396fa6cd3e"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.RoutingPolicyTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "eachPickRunsAsAGroupOfItsOwn",
+        "failure": null
+      },
+      {
+        "name": "withOneNodeThereIsNothingToPick",
+        "failure": null
+      },
+      {
+        "name": "anOwnListWaitsForItsCopyAndIsReadInItsFormat",
+        "failure": null
+      },
+      {
+        "name": "theFastestOfEveryNodeIsAutomaticWhenThatIsOn",
+        "failure": null
+      },
+      {
+        "name": "aPickIsKeptOnlyWhereItMeansSomething",
+        "failure": null
+      },
+      {
+        "name": "aHostSentFromTheStatusTabWinsAndTheRestGoesAsBefore",
+        "failure": null
+      },
+      {
+        "name": "aClashProfilesProvidersAndGroupsComeOver",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "0bb0b0939471daf5628ae6d27c5f82b5509bfeeac7676efc1e19b87630652fce"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.RoutingTest",
+    "tests": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "automaticPicksAmongSeveralNodesAndGoesAwayCleanly",
+        "failure": null
+      },
+      {
+        "name": "sitesAreReadFromWhatPeopleType",
+        "failure": null
+      },
+      {
+        "name": "aCountryWithSeveralNodesGetsItsOwnAutomatic",
+        "failure": null
+      },
+      {
+        "name": "choicesComeAfterTheClaudeBlockAndBeforeTheModes",
+        "failure": null
+      },
+      {
+        "name": "applyingAgainChangesNothingAndTurningOffUndoesIt",
+        "failure": null
+      },
+      {
+        "name": "fakeIpAnswersWhatGoesThroughTheNodeAndLeavesNoTraceWhenOff",
+        "failure": null
+      },
+      {
+        "name": "aConfigurationKOneDidNotBuildIsLeftAlone",
+        "failure": null
+      },
+      {
+        "name": "aCategoryListRuleWaitsForItsList",
+        "failure": null
+      },
+      {
+        "name": "anotherClientsRulesComeOverWithTheAppsKinds",
+        "failure": null
+      },
+      {
+        "name": "outsideChinaThereIsNoChinaSplitAndBackInChinaItReturns",
+        "failure": null
+      },
+      {
+        "name": "fixedAnswersAndOwnServersComeAfterTheClaudeBlock",
+        "failure": null
+      },
+      {
+        "name": "homeStaysAheadOfTheChoices",
+        "failure": null
+      },
+      {
+        "name": "ownRulesComeInOrderAfterTheSitesAndBeforeAds",
+        "failure": null
+      },
+      {
+        "name": "theDefaultChoicesLeaveTheTemplateAsItWasBuilt",
+        "failure": null
+      },
+      {
+        "name": "aRuleThroughACountryGoesThroughItsNodesAndAsksItsDns",
+        "failure": null
+      },
+      {
+        "name": "aBlockRuleOfOnesOwnIsNotTakenForTheClaudeBlock",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "498afa1e07978ae16c4b8e05cbf74b171ba34f0bc95ad2d323a354b2341ae0b2"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.ShareLinksTest",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "tuicAndAnyTls",
+        "failure": null
+      },
+      {
+        "name": "refusalsNeverRepeatTheLink",
+        "failure": null
+      },
+      {
+        "name": "findsTheFirstLinkAmongOtherText",
+        "failure": null
+      },
+      {
+        "name": "findsEveryLinkAndOpensSubscriptionBlocks",
+        "failure": null
+      },
+      {
+        "name": "shadowsocksReadsEveryForm",
+        "failure": null
+      },
+      {
+        "name": "theSameNodeHasTheSameKeyWhateverTheFieldOrder",
+        "failure": null
+      },
+      {
+        "name": "trojanDefaultsToTlsAndReadsPeerAndInsecure",
+        "failure": null
+      },
+      {
+        "name": "vmessReadsTheV2rayNJson",
+        "failure": null
+      },
+      {
+        "name": "everyKindBuildsAPairedProfile",
+        "failure": null
+      },
+      {
+        "name": "vlessRealityOverGrpc",
+        "failure": null
+      },
+      {
+        "name": "vlessOverWebSocketKeepsPathHostAndEarlyData",
+        "failure": null
+      },
+      {
+        "name": "hysteria2ReadsObfuscationAndPortHopping",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "538ae78172a9c5640ce29ff360c328d4e3f2d7f3fd3837bb3ceb6dae1b276903"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.SubscriptionFetchTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "refusalsSayWhatHappenedWithoutTheLink",
+        "failure": null
+      },
+      {
+        "name": "anEmptySubscriptionIsARefusalInFixedWords",
+        "failure": null
+      },
+      {
+        "name": "movesNeverDropFromHttpsToHttp",
+        "failure": null
+      },
+      {
+        "name": "onlyPassingTroubleIsTriedAgainSoon",
+        "failure": null
+      },
+      {
+        "name": "aMovedLinkIsFollowedAndTheProvidersTermsComeWithIt",
+        "failure": null
+      },
+      {
+        "name": "aWebPageIsToldApartFromASubscription",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "5ae3f1fff1d919a14caa7fd3624bd28809e7dd44d94726cae950c236eddee466"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.SubscriptionProfileTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "aProvidersLinksBecomeKonesTemplate",
+        "failure": null
+      },
+      {
+        "name": "aWholeConfigurationIsKeptAndAnEmptyOneIsRefusedWithAReason",
+        "failure": null
+      },
+      {
+        "name": "wordsLeaveNodesOutAndSayWhenNothingIsLeft",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "d7861466c8c948da0337a0c2d3daa37f98dfa9a802bea49b2882e5e5419c4e49"
+  },
+  {
+    "name": "io.nekohasekai.sfa.selfuse.SubscriptionTermsTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "theRowSaysWhatIsUsedOrWhatIsWrong",
+        "failure": null
+      },
+      {
+        "name": "wordsAreKeptCleanAndForgottenWhenEmpty",
+        "failure": null
+      },
+      {
+        "name": "termsAreKeptPerProfileAndForgotten",
+        "failure": null
+      },
+      {
+        "name": "aWarningIsRememberedAsSaid",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "0d33b0784b23fd3ed3b9bd91a6b34f363ded04ead60ab3faa0fd21a256a1ab64"
+  },
+  {
+    "name": "io.nekohasekai.sfa.udp.UdpProbeTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "validReplyIsRequiredAndSecondServerCanRecoverFailure",
+        "failure": null
+      },
+      {
+        "name": "successCanBeRetestedAndCancellationNeverLeavesRunningState",
+        "failure": null
+      },
+      {
+        "name": "exitDisplayKeepsTheAddressAndOmitsOnlyThePort",
+        "failure": null
+      },
+      {
+        "name": "timeoutIsFailedMeasurementAndNotUnsupportedOrDirectFallback",
+        "failure": null
+      },
+      {
+        "name": "cancelAndNewTargetRejectLateRepliesAndRapidTapsRunOnlyOnce",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "61fb8ede9226591bf3c273e28d08c5cab09277ec8fcc61a956fcbb9da776fb3c"
+  },
+  {
+    "name": "io.nekohasekai.sfa.udp.UdpTargetsTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "explicitTcpOnlyAndNestedSelectorsAreHandledWithoutChangingConfig",
+        "failure": null
+      },
+      {
+        "name": "reloadAndPhysicalNetworkChangesInvalidateTheRunningIdentity",
+        "failure": null
+      },
+      {
+        "name": "selectedProxyUsesActualChoiceAndNeverFallsBackToDirectOrSavedDefault",
+        "failure": null
+      },
+      {
+        "name": "noDefaultProxyAndCyclesFailClosed",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "d05973c65874594bc416bda21c4dfa25ef9d6224dbce35571432ed4429905402"
+  },
+  {
+    "name": "io.nekohasekai.sfa.update.KoneReleaseTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "doesNotFollowCrossOriginInsecureOrEncodedPaths",
+        "failure": null
+      },
+      {
+        "name": "onlyTheSamePackageAndSignerCanMoveForwardToTheAnnouncedBuild",
+        "failure": null
+      },
+      {
+        "name": "rejectsTruncatedOversizedAndCorruptedDownloads",
+        "failure": null
+      },
+      {
+        "name": "withdrawnOrOldFormatReleasesDoNotForceAnUpdate",
+        "failure": null
+      },
+      {
+        "name": "minimumOnlyAppliesWhenANewerVerifiedPackageIsReady",
+        "failure": null
+      },
+      {
+        "name": "rejectsWrongEditionInvalidHashesAndContradictoryMinimums",
+        "failure": null
+      },
+      {
+        "name": "resolvesThePublishedDownloadAndKeepsPolicyOnCacheRoundTrip",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "9a91b0e94391195efeb8217280668c07ebf92b54b1ef3145be8996687dcfdb90"
+  },
+  {
+    "name": "io.nekohasekai.sfa.update.KoneUpdateNoticePolicyTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "aReleasePromptsOnceAndDismissalSurvivesAnotherLaunch",
+        "failure": null
+      },
+      {
+        "name": "laterSuppressesReadyNotificationsButANewReleaseCanNotify",
+        "failure": null
+      },
+      {
+        "name": "permissionDenialDoesNotConsumeTheLaterNotificationOffer",
+        "failure": null
+      },
+      {
+        "name": "aManuallyStartedInstallCanHaveOneSeparateConfirmationNoticePerSession",
+        "failure": null
+      },
+      {
+        "name": "buildAndDigestTogetherIdentifyTheRelease",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "9dedf3101667315791a09636fc9f896ae119f760b1c4d55ac56a8aed04825df2"
+  },
+  {
+    "name": "io.nekohasekai.sfa.vendor.GitHubUpdateCheckerTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "clientCannotUseTheUpstreamFallback",
+        "failure": null
+      },
+      {
+        "name": "upstreamFeedOnlyServesItsOwnExactPackage",
+        "failure": null
+      },
+      {
+        "name": "ownerCannotUseTheUpstreamFallback",
+        "failure": null
+      }
+    ],
+    "xml_sha256": "70770f13e11eb8d9687daeb87e93ce13bf6c3daa173a1e0ef298178687ac8914"
+  }
+]

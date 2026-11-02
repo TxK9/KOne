@@ -74,12 +74,12 @@ object CrashReportManager {
         try {
             val writer = StringWriter()
             throwable.printStackTrace(PrintWriter(writer))
-            File(workingDir, PENDING_JVM_CRASH_FILE_NAME).writeText(writer.toString())
+            File(workingDir, PENDING_JVM_CRASH_FILE_NAME).writeText(CrashReportRedaction.text(writer.toString()))
             val metadata = JSONObject().apply {
                 put("source", "Application")
                 put("crashedAt", formatTimestampISO8601(Date()))
                 put("exceptionName", throwable.javaClass.name)
-                put("exceptionReason", throwable.message ?: "")
+                put("exceptionReason", CrashReportRedaction.text(throwable.message.orEmpty()))
                 put("processName", Application.application.packageName)
                 put("appVersion", BuildConfig.VERSION_CODE.toString())
                 put("appMarketingVersion", BuildConfig.VERSION_NAME)
@@ -206,6 +206,13 @@ object CrashReportManager {
         val zipFile = File(cacheDir, if (useAgeEncryption) "${report.id}.zip.age" else "${report.id}.zip")
         zipFile.delete()
         val strippedDir = File(cacheDir, report.id)
+        prepareArchiveFiles(report, strippedDir, includeConfig, includeLog)
+        Libbox.createZipArchive(strippedDir.path, zipFile.path, useAgeEncryption)
+        zipFile
+    }
+
+    /** Prepare diagnostic copies without modifying the original report or restorable backups. */
+    internal fun prepareArchiveFiles(report: CrashReport, strippedDir: File, includeConfig: Boolean, includeLog: Boolean) {
         strippedDir.deleteRecursively()
         report.directory.copyRecursively(strippedDir, overwrite = true)
         File(strippedDir, READ_MARKER_FILE_NAME).delete()
@@ -216,8 +223,14 @@ object CrashReportManager {
             File(strippedDir, GO_LOG_FILE_NAME).delete()
             File(strippedDir, JVM_LOG_FILE_NAME).delete()
         }
-        Libbox.createZipArchive(strippedDir.path, zipFile.path, useAgeEncryption)
-        zipFile
+        File(strippedDir, METADATA_FILE_NAME).takeIf { it.isFile }?.let {
+            it.writeText(CrashReportRedaction.metadata(it.readText()))
+        }
+        for (name in listOf(GO_LOG_FILE_NAME, JVM_LOG_FILE_NAME)) {
+            File(strippedDir, name).takeIf { it.isFile }?.let {
+                it.writeText(CrashReportRedaction.text(it.readText()))
+            }
+        }
     }
 
     private fun nextAvailableReportDir(date: Date): File {

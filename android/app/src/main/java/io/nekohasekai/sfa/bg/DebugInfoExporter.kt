@@ -103,7 +103,7 @@ object DebugInfoExporter {
         for (file in files) {
             if (!file.isFile) continue
             if (file.name !in targetFiles) continue
-            if (addFileEntry(zip, file, "framework/${file.name}", warnings, noCompression = true)) {
+            if (addFileEntry(zip, file, "framework/${file.name}", warnings, noCompression = true, diagnosticText = false)) {
                 count++
             }
         }
@@ -116,7 +116,7 @@ object DebugInfoExporter {
             warnings.add("missing file: ${file.path}")
             return 0
         }
-        return if (addFileEntry(zip, file, "framework/apex_com.android.tethering/service-connectivity.jar", warnings, noCompression = true)) 1 else 0
+        return if (addFileEntry(zip, file, "framework/apex_com.android.tethering/service-connectivity.jar", warnings, noCompression = true, diagnosticText = false)) 1 else 0
     }
 
     private fun addLogEntries(zip: ZipOutputStream, warnings: MutableList<String>, context: Context): Int {
@@ -214,6 +214,7 @@ object DebugInfoExporter {
         entryName: String,
         warnings: MutableList<String>,
         noCompression: Boolean = false,
+        diagnosticText: Boolean = true,
     ): Boolean {
         if (!file.isFile) {
             warnings.add("missing file: ${file.path}")
@@ -223,11 +224,15 @@ object DebugInfoExporter {
             if (noCompression) zip.setLevel(Deflater.NO_COMPRESSION)
             zip.putNextEntry(ZipEntry(entryName))
             BufferedInputStream(FileInputStream(file)).use { input ->
-                val buffer = ByteArray(BUFFER_SIZE)
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read <= 0) break
-                    zip.write(buffer, 0, read)
+                if (diagnosticText) {
+                    DiagnosticText.copy(input, zip)
+                } else {
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read <= 0) break
+                        zip.write(buffer, 0, read)
+                    }
                 }
             }
             zip.closeEntry()
@@ -243,7 +248,7 @@ object DebugInfoExporter {
     private fun addTextEntry(zip: ZipOutputStream, entryName: String, content: String) {
         val entry = ZipEntry(entryName)
         zip.putNextEntry(entry)
-        val bytes = content.toByteArray()
+        val bytes = CrashReportRedaction.text(content).toByteArray()
         zip.write(bytes)
         zip.closeEntry()
     }
@@ -260,13 +265,7 @@ object DebugInfoExporter {
         zip.putNextEntry(ZipEntry(entryName))
         var bytes = 0L
         process.inputStream.use { input ->
-            val buffer = ByteArray(BUFFER_SIZE)
-            while (true) {
-                val read = input.read(buffer)
-                if (read <= 0) break
-                zip.write(buffer, 0, read)
-                bytes += read
-            }
+            bytes = DiagnosticText.copy(input, zip)
         }
         zip.closeEntry()
         val code = process.waitFor()

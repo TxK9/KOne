@@ -1,0 +1,68 @@
+{
+  "format": 1,
+  "provenance": "Published KOne cloud runtime; real screen callback/draft/API with synthetic binding and held HTTP connection",
+  "implementation_commit": "a61c8ef39dfa5b151aef88fa0e07ed1c69f1d7bf",
+  "checks": [
+    {
+      "name": "android-feedback-submission-production",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/feedback-submission :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest --tests '*.FeedbackSubmissionTest'",
+      "started_utc": "2026-11-02T04:20:13.025170+00:00",
+      "elapsed_seconds": 41.06,
+      "exit_status": 0,
+      "log": "android-feedback-submission-production.log",
+      "local_log_sha256": "30145fcb15c162cd6f62b46e066070eaacb6fd0b8063ba2ccfd5dd70c230bdd6"
+    },
+    {
+      "name": "android-feedback-submission-without-busy-counterfactual",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/feedback-submission :app:testOtherDebugUnitTest --tests '*.FeedbackSubmissionTest'",
+      "started_utc": "2026-11-02T04:21:21.177285+00:00",
+      "elapsed_seconds": 50.06,
+      "exit_status": 1,
+      "log": "android-feedback-submission-without-busy-counterfactual.log",
+      "local_log_sha256": "a3f4b1b34710d231e4e69c515e0fedf027814bae3f8eae34944690ba0bbe70a7"
+    },
+    {
+      "name": "android-feedback-submission-native-final",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/feedback-submission-final :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest --tests '*.HubPolishVisualTest' --tests '*.AccountVisualTest' --tests '*.DashboardSemanticsTest' --tests '*.CrashReportPersistenceTest' --tests '*.FeedbackSubmissionTest'",
+      "started_utc": "2026-11-02T04:22:27.746684+00:00",
+      "elapsed_seconds": 44.73,
+      "exit_status": 0,
+      "log": "android-feedback-submission-native-final.log",
+      "local_log_sha256": "6ee75d11bedf4fc16633afd40524b9cf6d826da3b7233cb73f287f2f1c3b8125"
+    },
+    {
+      "name": "android-feedback-submission-full-unit",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest",
+      "started_utc": "2026-11-02T04:23:42.504569+00:00",
+      "elapsed_seconds": 22.45,
+      "exit_status": 0,
+      "log": "android-feedback-submission-full-unit.log",
+      "local_log_sha256": "f32863f2cafd3c818b96df7ced3abdec578d69c5e2591ba8b735baee68132c54"
+    }
+  ],
+  "counterfactual": {
+    "removed_line": "if (busy) return",
+    "expected_failure": "One pending request condition timed out in FeedbackSubmissionTest at line 99",
+    "original_source_restored_byte_for_byte": true,
+    "restored_source_sha256": "de0905cadd4f1f830b8e5fefc3341b3d4887c1c9c92f1ab5a02501fafdebec61",
+    "not_a_published_candidate_defect": true
+  },
+  "source_sha256": {
+    "android/app/src/main/java/io/nekohasekai/sfa/compose/screen/feedback/FeedbackScreen.kt": "de0905cadd4f1f830b8e5fefc3341b3d4887c1c9c92f1ab5a02501fafdebec61",
+    "android/app/src/testVisual/java/io/nekohasekai/sfa/feedback/FeedbackSubmissionTest.kt": "e4b63be9382cf74ab3c62b8f3235c068b978f12212e52b6926bfd68c6ef518ec"
+  },
+  "evidence_sha256": {
+    "ordinary-434-junit.json": "69b5373795aaed080d1138a97f091102ac8dcc995538d75b588ba4119c0c5eea",
+    "native-23-junit.json": "807ccb601389acf3c0b04d6e0d13d0712ed625e5f063568b719ef99164c814af",
+    "without-guard-junit.json": "857b537b8aa00cf9919caccdc78252a5f5195461d7ab88a205e992cb4ddb3973"
+  },
+  "limits": [
+    "Controlled HttpURLConnection, not live TLS/backend/Android keystore",
+    "Actual callback busy guard and retry payload tested; no replacement guard in fixture",
+    "No device signing/installation/VPN/production or external agent contact"
+  ]
+}

@@ -1,0 +1,36 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.bg.DiagnosticArchiveTest",
+    "tests": 6,
+    "failures": 4,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "name": "ordinaryDebugTextIsNotModified",
+        "failure": null
+      },
+      {
+        "name": "metadataOnlyExportRedactsHistoricalReasonAndOmitsOptOutFiles",
+        "failure": "java.lang.AssertionError"
+      },
+      {
+        "name": "explicitConfigurationInclusionPreservesTheRestorableBytes",
+        "failure": null
+      },
+      {
+        "name": "includedDiagnosticLogsAreRedactedWithoutRewritingOriginals",
+        "failure": "java.lang.AssertionError"
+      },
+      {
+        "name": "malformedMetadataIsReplacedByAnExplicitSafeDiagnostic",
+        "failure": "org.json.JSONException: A JSONObject text must begin with '{' at 1 [character 2 line 1]"
+      },
+      {
+        "name": "generatedDebugTextExcludesRecognizedCredentialsAndKeepsContext",
+        "failure": "java.lang.AssertionError"
+      }
+    ],
+    "xml_sha256": "3dd58f19d6a18f0b05f4c637d24e2cb2a8d45eea961e07e542ed0f898e3295e5"
+  }
+]
