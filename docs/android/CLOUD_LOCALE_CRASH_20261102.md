@@ -63,6 +63,37 @@ preservation and idempotence. These are a finite syntax matrix, not a universal 
 The earlier 12 client/backend contract scenarios and wallpaper checks remain dated evidence
 for unchanged code and were not repeated by this pass.
 
+## Actual feedback submission callback follow-up
+
+The previous presentation fixture supplied its own busy callback and therefore did not
+prove the production screen's duplicate-submission behavior. A new native test invokes
+the actual screen's captured submit callback twice immediately, before recomposition can
+disable the row. It uses real `FeedbackDraft` private storage and real `FeedbackApi` request
+handling with a held synthetic `HttpURLConnection`. Binding acquisition is separated into
+an internal content entry so the fixture needs no real credential, keystore or application
+startup; the public screen still obtains its normal managed binding. The existing submit
+guard, coroutine, payload, failure and completion logic are unchanged.
+
+Two immediate callbacks produce one pending POST with its bearer header and disabled
+Sending row. A controlled 503 restores the enabled action and preserves the draft without
+a receipt. Two immediate retry callbacks produce exactly one further pending request,
+with the identical saved payload/request ID. A controlled 201 records the receipt, clears
+the matching draft and displays its number. The test contains no replacement busy guard.
+No production concurrency defect was reproduced, so no guard behavior was changed.
+
+A temporary counterfactual removed only the production `if (busy) return` line. The single
+test then failed at the one-pending-request condition after ten seconds. The original source
+was restored byte-for-byte before verification/commit. This expected failure is a fixture
+sensitivity check, not a defect in the published candidate. The restored final selection
+passes **23 native checks** (the preceding 22 plus this submission-path case); the ordinary
+suite and unsigned compilation again pass **434 tests**, all with zero failures/errors/skips.
+
+Run `--tests '*.FeedbackSubmissionTest'` with the same native opt-in/cache setup to reproduce
+the isolated check. It verifies callback/storage/API integration with controlled transport,
+not live TLS, an Android keystore, a real backend transaction or device scheduling.
+The [feedback evidence](cloud-locale-crash-20261102/feedback/evidence.json) records the
+counterfactual, restored run, final JUnit cases and source/log hashes.
+
 ## Reproduction and remaining work
 
 From `android/`, use the published JDK/SDK/AAR setup and the saved
@@ -79,7 +110,7 @@ visual opt-in. The final native selection uses `HubPolishVisualTest`, `AccountVi
 `DashboardSemanticsTest` and `CrashReportPersistenceTest`. No signing or APK installation is
 required for these host checks.
 
-Further independently feasible work includes actual feedback submission callback concurrency,
+Further independently feasible work includes binding-replacement/cancellation scenarios,
 full navigation/back-stack/permission-screen fixtures, broader export redaction design and
 reviewed all-variant dependency provenance. Real TalkBack, process/OS upgrades, OEM WebView,
 frame cadence, memory/power and device installation still require an authorized test device.
