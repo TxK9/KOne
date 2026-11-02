@@ -74,12 +74,12 @@ object CrashReportManager {
         try {
             val writer = StringWriter()
             throwable.printStackTrace(PrintWriter(writer))
-            File(workingDir, PENDING_JVM_CRASH_FILE_NAME).writeText(writer.toString())
+            File(workingDir, PENDING_JVM_CRASH_FILE_NAME).writeText(CrashReportRedaction.text(writer.toString()))
             val metadata = JSONObject().apply {
                 put("source", "Application")
                 put("crashedAt", formatTimestampISO8601(Date()))
                 put("exceptionName", throwable.javaClass.name)
-                put("exceptionReason", throwable.message ?: "")
+                put("exceptionReason", CrashReportRedaction.text(throwable.message.orEmpty()))
                 put("processName", Application.application.packageName)
                 put("appVersion", BuildConfig.VERSION_CODE.toString())
                 put("appMarketingVersion", BuildConfig.VERSION_NAME)
