@@ -141,6 +141,9 @@ func originalOptions(section uciSection) (map[string]string, error) {
 		if len(values) != 1 {
 			return nil, errors.New("unsupported_original_node_list_option")
 		}
+		if !utf8.ValidString(values[0]) {
+			return nil, errors.New("invalid_original_node_option")
+		}
 		if _, ok := stringValue(values[0], 8192); !ok && values[0] != "" {
 			return nil, errors.New("invalid_original_node_option")
 		}

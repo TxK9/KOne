@@ -85,6 +85,7 @@ func TestManagedStubsUnsupportedOptionsAndBrokenChainsCannotBePublished(t *testi
 		{string(stubSection(testDevice, stub)), []string{stub.Section}},
 		{strings.ReplaceAll(string(stubSection(testDevice, stub)), "kone_controller_owner", "other_owner"), []string{stub.Section}},
 		{originalSample, []string{"shunt"}},
+		{strings.Replace(originalSample, "selected-exit-secret", string([]byte{255}), 1), []string{"exit"}},
 		{strings.Replace(originalSample, "address 'exit.invalid'", "address '127.0.0.1'", 1), []string{"exit"}},
 		{strings.Replace(originalSample, "preproxy_node 'relay'", "preproxy_node 'missing'", 1), []string{"exit"}},
 		{strings.Replace(originalSample, "transport 'raw'", "transport 'ws'", 1), []string{"exit"}},
