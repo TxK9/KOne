@@ -6,9 +6,11 @@ export const data = {
   state: {profiles: [], users: [], records: []},
   fleet: {servers: [], nodes: [], exits: [], routes: [], jobs: [], installOrigin: null},
   customers: {groups: [], users: []},
-  loaded: {state: false, fleet: false, customers: false},
+  controller: {format: 1, nodes: [], devices: []},
+  loaded: {state: false, fleet: false, customers: false, controller: false},
   stale: false,      // the backend stopped answering; what is shown is the last we heard
   checkedAt: 0,
+  controllerReceivedAt: 0,
 };
 
 const listeners = new Set();
@@ -30,6 +32,7 @@ async function load(key, path) {
       const result = await get(path);
       if (epoch !== generation) return;
       data[key] = result;
+      if (key === 'controller') data.controllerReceivedAt = performance.now();
       data.loaded[key] = true;
       failed.delete(key);
       data.stale = failed.size > 0;
@@ -48,10 +51,11 @@ async function load(key, path) {
 export const refreshState = () => load('state', '/api/state');
 export const refreshFleet = () => load('fleet', '/api/fleet');
 export const refreshCustomers = () => load('customers', '/api/customers');
+export const refreshController = () => load('controller', '/api/node-controller');
 
 /** Reloads everything; used after a change, so every page shows its effect. */
 export function refreshAll() {
-  return Promise.allSettled([refreshState(), refreshFleet(), refreshCustomers()]);
+  return Promise.allSettled([refreshState(), refreshFleet(), refreshCustomers(), refreshController()]);
 }
 
 // Lookups.
@@ -75,6 +79,7 @@ export function startPolling() {
   every(5000, refreshFleet);
   every(12000, refreshCustomers);
   every(20000, refreshState);
+  every(10000, refreshController);
   document.addEventListener('visibilitychange', wake);
 }
 
@@ -94,7 +99,9 @@ export function reset() {
   data.state = {profiles: [], users: [], records: []};
   data.fleet = {servers: [], nodes: [], exits: [], routes: [], jobs: [], installOrigin: null};
   data.customers = {groups: [], users: []};
-  data.loaded = {state: false, fleet: false, customers: false};
+  data.controller = {format: 1, nodes: [], devices: []};
+  data.loaded = {state: false, fleet: false, customers: false, controller: false};
   data.stale = false;
   data.checkedAt = 0;
+  data.controllerReceivedAt = 0;
 }

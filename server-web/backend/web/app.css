@@ -126,6 +126,7 @@ h1, h2, h3 { text-wrap: balance; }
   position: sticky; top: 0; height: 100vh; height: 100dvh; z-index: 20;
   display: flex; flex-direction: column; gap: 4px; padding: 20px 10px 16px;
   border-right: 1px solid var(--hair); background: var(--paper);
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
 }
 .rail-mark { display: flex; justify-content: center; margin-bottom: 22px; text-decoration: none; }
 .rail-mark .mark { width: 42px; height: 42px; }
@@ -326,6 +327,38 @@ h1, h2, h3 { text-wrap: balance; }
 .row-load i { width: 3px; height: 3px; border-radius: 50%; background: var(--faint); }
 .row-usage { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .row-side .meter { width: 92px; }
+
+/* ---- Node library --------------------------------------------------------------------------- */
+
+.controller-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.controller-node-row, .controller-device-row { display: grid; grid-template-columns: auto minmax(160px, 1fr) auto minmax(120px, auto) auto; align-items: center; gap: 18px; padding: 17px 20px; border: 1px solid var(--hair); border-radius: 14px; background: var(--panel); box-shadow: var(--shadow-soft); }
+.controller-node-row > input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
+.controller-node-title { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.controller-name { border: 0; background: none; padding: 0; text-align: left; font-weight: 600; font-size: 15px; cursor: pointer; overflow-wrap: anywhere; }
+.controller-name:hover { text-decoration: underline; text-underline-offset: 4px; }
+.controller-node-title > small, .controller-node-facts, .controller-device-count { color: var(--soft); font-size: 12.5px; }
+.controller-node-facts, .controller-device-status { display: flex; flex-direction: column; gap: 4px; }
+.controller-device-status > small { color: var(--faint); font-size: 12px; }
+.node-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--soft); }
+.node-status i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
+.node-status-ok { color: var(--ok-ink); }
+.node-status-revoked { color: var(--down-ink); }
+.controller-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-radius: 12px; background: var(--press); }
+.controller-selection > span { margin-right: auto; padding: 4px 6px; font-size: 13px; }
+.controller-summary { list-style: none; margin: 0; padding: 0; }
+.controller-summary li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--hair); overflow-wrap: anywhere; }
+.controller-summary li:last-child { border-bottom: 0; }
+.controller-summary strong { font-size: 14px; font-weight: 600; }
+.controller-summary small { display: block; color: var(--soft); font-size: 12px; }
+.controller-summary .controller-device-status { text-align: right; flex-shrink: 0; }
+.controller-action-note { color: var(--soft); font-size: 13px; margin: 18px 0; }
+.controller-picker-item { grid-template-columns: auto minmax(0, 1fr) auto; }
+.controller-picker-item .picker-name { display: flex; flex-direction: column; gap: 2px; }
+.controller-picker-item .picker-name small { text-align: left; }
+.controller-load-profile { display: flex; align-items: center; gap: 8px; }
+.controller-load-profile .choice { flex: 1; min-width: 0; }
+.controller-connection { min-height: 280px; }
+.controller-device-icon { display: flex; align-items: center; justify-content: center; width: 28px; color: var(--soft); }
 
 .detail { position: relative; padding: 26px 30px 24px; border: 1px solid var(--hair); border-radius: 18px; background: var(--panel); box-shadow: var(--shadow-soft); }
 .slot { display: contents; }
@@ -664,6 +697,9 @@ h1, h2, h3 { text-wrap: balance; }
   .split.has-selection .back { display: inline-flex !important; }
   .detail-head { grid-template-columns: auto minmax(0, 1fr); }
   .detail-actions { grid-column: 1 / -1; }
+  .controller-node-row, .controller-device-row { grid-template-columns: auto minmax(120px, 1fr) auto; gap: 10px 14px; }
+  .controller-node-row > .node-status, .controller-device-row > .controller-device-status { grid-column: 2; }
+  .controller-node-row > .button, .controller-device-row > .button { grid-column: 3; grid-row: 2; }
   .tally { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tally-cell:nth-child(3) { border-left: 0; }
   .tally-cell:nth-child(n + 3) { border-top: 1px solid var(--hair); }
@@ -678,8 +714,9 @@ h1, h2, h3 { text-wrap: balance; }
     background: color-mix(in srgb, var(--paper) 90%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   }
   .rail-mark, .rail-foot { display: none; }
-  .rail-pages { flex: 1; flex-direction: row; justify-content: space-around; gap: 0; }
-  .rail-item { flex: 1; gap: 2px; padding: 7px 0 5px; font-size: 11px; border-radius: 10px; }
+  .rail-pages { flex: 1; flex-direction: row; justify-content: flex-start; gap: 0; overflow-x: auto; scrollbar-width: none; }
+  .rail-pages::-webkit-scrollbar { display: none; }
+  .rail-item { flex: 1 0 64px; gap: 2px; padding: 7px 0 5px; font-size: 11px; border-radius: 10px; }
   .rail-item .icon { width: 22px; height: 22px; }
   .rail-item[aria-current="page"]::before { left: 30%; right: 30%; top: -4px; bottom: auto; width: auto; height: 3px; border-radius: 0 0 3px 3px; }
   .main { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
@@ -690,6 +727,9 @@ h1, h2, h3 { text-wrap: balance; }
   .top-actions .button { padding: 0 14px; }
   .app[data-page="overview"] .top { padding: 10px 8px; }
   .detail { padding: 18px 16px; border-radius: 16px; }
+  .controller-node-row, .controller-device-row { padding: 14px 12px; }
+  .controller-node-facts { font-size: 12px; text-align: right; }
+  .controller-selection .button { padding: 0 10px; }
   .detail-title h2 { font-size: 24px; }
   .detail-art { width: 52px; height: 98px; }
   .gauge-dial { width: 78px; height: 78px; }

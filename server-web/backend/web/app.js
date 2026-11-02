@@ -12,12 +12,13 @@ import servers from './js/pages/servers.js';
 import routes from './js/pages/routes.js';
 import customers from './js/pages/customers.js';
 import configs from './js/pages/configs.js';
+import nodes from './js/pages/nodes.js';
 import records from './js/pages/records.js';
 import feedback from './js/pages/feedback.js';
 import {cultureNote} from './js/widgets.js';
 import {createOwnerDownload} from './js/owner-download.js';
 
-const PAGES = [overview, servers, routes, customers, configs, records, feedback];
+const PAGES = [overview, servers, nodes, routes, customers, configs, records, feedback];
 const root = document.getElementById('kone');
 document.documentElement.lang = locale;
 
@@ -230,6 +231,7 @@ function route() {
     if (el.dataset.page === page.id) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
   frame.dataset.page = page.id;
+  if (window.matchMedia('(max-width: 760px)').matches) frame.querySelector('.rail-pages [aria-current="page"]')?.scrollIntoView({block: 'nearest', inline: 'nearest'});
   titleEl.textContent = page.title;
   document.title = page.title + ' · KOne';
   if (current !== page) {
