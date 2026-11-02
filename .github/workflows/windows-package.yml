@@ -2,15 +2,15 @@ name: Windows package
 on:
   workflow_dispatch:
   push:
-    branches: [codex/windows-release-20261102]
+    branches: [codex/windows-controller-20261102]
 permissions:
   contents: write
 concurrency:
   group: windows-package-${{ github.ref }}
   cancel-in-progress: true
 env:
-  KONE_VERSION: 1.0.71
-  KONE_BUILD: '71'
+  KONE_VERSION: 1.0.72
+  KONE_BUILD: '72'
 jobs:
   source:
     runs-on: ubuntu-latest

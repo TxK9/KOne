@@ -46,6 +46,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -185,6 +187,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** One line for the Nodes page, and whether it says something went wrong. */
     private var nodesNotice: Pair<String, Boolean>? = null
     private var syncingManaged = false
+    private val controllerSyncLock = Mutex()
+    private var connectEpoch = 0L
+    private var runningManaged = false
+    private var pendingControllerLink: ServiceLink? = null
     private var managedSyncStatus: Pair<String, Boolean>? = null
 
     /** How much the core has carried, today and this month (Tools → Usage). */
@@ -364,6 +370,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         drivenPick = null
         standIn = null
         val running = clash
+        if (connection == Connection.Online && runtimePlan()?.managed != runningManaged) {
+            restart()
+            refresh()
+            return
+        }
         // A country's Automatic: the core is moved to that country's pick, and steered among its nodes from here.
         regionOf(tag)?.let { region ->
             val pick = regionPick(region)?.tag
@@ -407,10 +418,13 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             }
             // Close, or giving up on a reconnection still waiting for its turn.
             Connection.Online, Connection.Connecting -> {
+                connectEpoch++
+                pendingControllerLink?.close()
+                pendingControllerLink = null
                 wanted = false
                 preferences.connected = false
                 service?.let { link -> scope.launch(Dispatchers.IO) { link.disconnect() } }
-                if (service == null && proxied == null && attempts > 0) ended("stopped")
+                if (service == null && proxied == null) ended("stopped")
             }
         }
     }
@@ -445,6 +459,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** On quitting: the connection ends with the App, as the person expects, and is not picked up next time. */
     fun close() {
+        connectEpoch++
+        pendingControllerLink?.close()
+        pendingControllerLink = null
         wanted = false
         preferences.connected = false
         service?.disconnect()
@@ -456,12 +473,43 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     }
 
     private fun connect() {
-        val source = source()?.takeIf { builtOf(it) != null } ?: run {
+        val epoch = ++connectEpoch
+        connection = Connection.Connecting
+        refresh()
+        scope.launch {
+            if (runtimePlan()?.managed == true) {
+                val sync = controllerSyncLock.withLock {
+                    withContext(Dispatchers.IO) { runCatching { account.sync() }.getOrDefault(Sync.Failed) }
+                }
+                if (epoch != connectEpoch || !wanted) return@launch
+                afterSync(sync)
+                if (sync != Sync.Updated && sync != Sync.Unchanged) {
+                    ended(when (sync) {
+                        Sync.Revoked -> "controller_device_revoked"
+                        Sync.Refused -> "controller_account_denied"
+                        Sync.Waiting -> "controller_no_grants"
+                        Sync.Offline -> "controller_unavailable"
+                        else -> "controller_invalid"
+                    })
+                    return@launch
+                }
+            }
+            if (epoch == connectEpoch && wanted) connectPrepared(epoch)
+        }
+    }
+
+    private fun connectPrepared(epoch: Long) {
+        val plan = runtimePlan()
+        val source = plan?.source?.takeIf { builtOf(it) != null } ?: run {
             wanted = false
             preferences.connected = false
             say(tr("No nodes found"))
             return
         }
+        runningManaged = plan.managed
+        val guardedProxy = runningManaged && (preferences.way == WAY_PROXY || noAdapter)
+        val authority = if (runningManaged) account.controllerAuthority() else null
+        if (runningManaged && authority == null) { ended("controller_invalid"); return }
         val built = builtOf(source)
         val running = built?.nodes.orEmpty()
         runningTags = running.mapTo(HashSet()) { it.tag }
@@ -471,7 +519,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         notice = null
         refresh()
         probeApi = null
-        if (preferences.way == WAY_PROXY || noAdapter) {
+        if (!runningManaged && (preferences.way == WAY_PROXY || noAdapter)) {
             connectByProxy()
             return
         }
@@ -482,21 +530,25 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 // development run, with no installation, talks to whatever serves the pipe.
                 if (Places.launcher != null && Places.service == null) null else ServiceLink.open(Places.service)
             }
-            val refused = if (link == null) "no service" else withContext(Dispatchers.IO) {
+            if (epoch != connectEpoch || !wanted) { link?.close(); return@launch }
+            if (runningManaged) pendingControllerLink = link
+            val refused = if (link == null) (if (runningManaged) "controller_service_required" else "no service") else if (runningManaged && !withContext(Dispatchers.IO) { link.supportsController(guardedProxy) }) "controller_service_required" else withContext(Dispatchers.IO) {
                 keeper.running = keeper.deliver(link)
                 runCatching {
                     link.connect(
                         source, startTag(selectedNode), preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
                         preferences.rules, preferences.blockAds, preferences.remoteDns, preferences.directDns, preferences.ipv6,
                         preferences.hosts, preferences.unmatchedDirect, preferences.nameServers, preferences.region, preferences.fakeIp,
-                        KoneConfig.countries(running),
+                        KoneConfig.countries(running), controller = authority, managedProxy = guardedProxy,
                     )
                 }.getOrElse { "failed" }
             }
+            pendingControllerLink = null
+            if (epoch != connectEpoch || !wanted) { link?.close(); return@launch }
             if (link == null || refused != null) {
                 link?.close()
                 val end = refused ?: "no service"
-                if (wanted && withoutAdapter(end)) connectByProxy(fellBack = true) else ended(end)
+                if (wanted && !runningManaged && withoutAdapter(end)) connectByProxy(fellBack = true) else ended(end)
                 return@launch
             }
             service = link
@@ -514,6 +566,16 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 appendLogs(status.logs)
                 since = status.next
                 if (status.state == "running" && clash == null && status.api != null) {
+                    if (guardedProxy) {
+                        val mixed = status.mixedPort
+                        if (mixed == null || !wanted || !withContext(Dispatchers.IO) { SystemProxy.point(mixed) }) {
+                            withContext(Dispatchers.IO) { link.disconnect() }
+                            end = "controller_invalid"
+                            break
+                        }
+                        proxied = mixed
+                        if (noAdapter && preferences.way == WAY_ADAPTER) onNotice(tr("The adapter is unavailable; using the guarded system proxy"))
+                    }
                     ran = true
                     follow(ClashApi(status.api) { continuity.running })
                     if (told) onNotice(tr("Reconnected"))
@@ -521,11 +583,21 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                     held = true
                     told = false
                 }
+                if (status.state == "stopping" || status.state == "unconfirmed") {
+                    clash = null
+                    notice = tr(if (status.state == "unconfirmed") "Managed service stop is not confirmed" else "Stopping the managed service")
+                    if (guardedProxy && proxied != null) { withContext(Dispatchers.IO) { SystemProxy.restore() }; proxied = null }
+                    refresh()
+                }
                 if (status.state == "stopped") {
                     end = if (restarting) "restart" else status.end
                     break
                 }
                 delay(1000)
+                if (guardedProxy && proxied?.let { !withContext(Dispatchers.IO) { SystemProxy.pointsAt(it) } } == true) {
+                    wanted = false
+                    withContext(Dispatchers.IO) { link.disconnect() }
+                }
                 // A second that took far longer: the computer slept. If the line no longer
                 // answers, the core starts afresh rather than leave the person waiting.
                 val now = System.currentTimeMillis()
@@ -542,9 +614,15 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 }
             }
             withContext(Dispatchers.IO) { link.close() }
+            if (guardedProxy) { withContext(Dispatchers.IO) { SystemProxy.restore() }; proxied = null }
+            if (wanted && runningManaged && !guardedProxy && !ran && !restarting && withoutAdapter(end)) {
+                noAdapter = true
+                connect()
+                return@launch
+            }
             // The core never came up: most likely the adapter could not be made (security software,
             // a policy). The system proxy carries what follows it instead.
-            if (wanted && !ran && !restarting && withoutAdapter(end)) connectByProxy(fellBack = true) else ended(end)
+            if (wanted && !runningManaged && !ran && !restarting && withoutAdapter(end)) connectByProxy(fellBack = true) else ended(end)
         }
     }
 
@@ -557,9 +635,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
      * same, in the same rules. [fellBack]: the adapter was tried first and could not be made.
      */
     private fun connectByProxy(fellBack: Boolean = false) {
+        val plan = runtimePlan()
+        if (plan?.managed != false) { ended("controller_service_required"); return }
+        runningManaged = false
         val core = local
-        val source = source()
-        if (core == null || source == null) {
+        val source = plan.source
+        if (core == null) {
             ended("no service")
             return
         }
@@ -633,6 +714,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     }
 
     private fun ended(end: String) {
+        runningManaged = false
         following?.cancel()
         scope.launch(Dispatchers.IO) { usage.save(); traffic.save() }
         service = null
@@ -716,12 +798,13 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
      * alone. Uses about 35 MB; one node at a time.
      */
     fun testSpeed(tag: String) {
+        if (!independentTag(tag)) { tell(tr("Managed speed tests are unavailable"), true); return }
         val core = Places.core
         if (core == null) {
             tell(tr("Speed tests need KOne installed"), error = true)
             return
         }
-        val source = source() ?: return
+        val source = independentSource() ?: return
         if (speedTesting != null || tag == KoneConfig.AUTO_TAG) return
         speedTesting = tag
         refresh()
@@ -791,7 +874,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 async {
                     gate.withPermit {
                         val tag = tested() ?: return@withPermit
-                        if (!current() || !asks(api, tag)) return@withPermit
+                        if (!current() || !asks(api, tag) || api !== clash && !independentTag(tag)) return@withPermit
                         val names = if (api === clash) continuity.running else RunningNames.SAME
                         val measured = withContext(Dispatchers.IO) { api.delay(tag, running = names) }
                         val now = tested()
@@ -895,7 +978,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     // Sign-in networks (hotels, airports, cafés): see SignInNetworks.
 
     private val signIns = SignInNetworks(scope, object : SignInNetworks.Host {
-        override val adapterOn get() = service != null
+        override val adapterOn get() = service != null && proxied == null
         override val idle get() = connection == Connection.Idle
         override val wanted get() = this@AppModel.wanted
         override fun power() = this@AppModel.power()
@@ -921,11 +1004,11 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             this@AppModel.tools = change(this@AppModel.tools)
         }
         override val console get() = account.binding?.source
-        override val merged get() = source()
+        override val merged get() = independentSource()
         override val rules get() = this@AppModel.rules
         override val anyCore get() = clash ?: probeApi?.let(::ClashApi)
         override val live get() = clash?.takeIf { connection == Connection.Online }
-        override val adapterOn get() = service != null
+        override val adapterOn get() = service != null && proxied == null
         override val proxied get() = this@AppModel.proxied
         override val nodes get() = this@AppModel.nodes
         override fun delay(tag: String) = delays[tag]
@@ -1146,6 +1229,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** The running core no longer runs what is listed (NodeContinuity): it starts afresh with the list, now or once it is up. */
     private fun reload() {
+        if (!runningManaged && connection != Connection.Idle) {
+            val local = independentSource()?.let(::builtOf)
+            if (local != null && continuity.runsExactly(NodeContinuity.Listing.of(local))) return
+        }
         when (connection) {
             Connection.Online -> restart()
             Connection.Connecting -> staleCore = true
@@ -1391,7 +1478,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun startProbe() {
         val probe = probe ?: return
         probeApi = null
-        val source = source() ?: return
+        val source = independentSource() ?: run {
+            scope.launch(Dispatchers.IO) { probe.stop() }
+            return
+        }
         val api = CoreApi(freePort(), token())
         val config = runCatching { KoneConfig.build(source, rules, api, tun = false, region = preferences.region).config.toString() }.getOrNull() ?: return
         scope.launch {
@@ -1422,7 +1512,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         managedSyncStatus = null
         refresh()
         try {
-            val sync = withContext(Dispatchers.IO) { runCatching { account.sync() }.getOrDefault(Sync.Failed) }
+            val sync = controllerSyncLock.withLock { withContext(Dispatchers.IO) { runCatching { account.sync() }.getOrDefault(Sync.Failed) } }
             afterSync(sync)
             managedSyncStatus = when (sync) {
                 Sync.Updated -> "Nodes synced" to false
@@ -1443,15 +1533,17 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun afterSync(sync: Sync) {
         when (sync) {
             Sync.Revoked -> {
-                wanted = false
-                preferences.connected = false
-                service?.let { link -> scope.launch(Dispatchers.IO) { link.disconnect() } }
+                if (runningManaged) {
+                    connectEpoch++
+                    wanted = false
+                    preferences.connected = false
+                    service?.let { link -> scope.launch(Dispatchers.IO) { link.disconnect() } }
+                    local?.stop()
+                    SystemProxy.restore()
+                    proxied = null
+                }
                 probe?.stop()
                 probeApi = null
-                nodes = emptyList()
-                local?.stop()
-                SystemProxy.restore()
-                proxied = null
                 loadNodes()
                 if (preferences.localNodes || nodes.isNotEmpty()) {
                     preferences.localNodes = true
@@ -1498,6 +1590,19 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private fun builds(source: JsonObject) = runCatching { KoneConfig.build(source, rules, CoreApi(9090, "list")) }.isSuccess
 
     private fun source(): JsonObject? = merged()?.source
+
+    private fun runtimePlan(): ControllerSources.Plan? = merged()?.let { all ->
+        ControllerSources.choose(all.source, all.groups.flatten().toSet(), selectedNode)
+    }
+
+    private fun independentSource(): JsonObject? = merged()?.let { all ->
+        ControllerSources.localOnly(all.source, all.groups.flatten().toSet())
+    }
+
+    private fun independentTag(tag: String): Boolean = independentSource()?.get("outbounds")
+        ?.let { it as? kotlinx.serialization.json.JsonArray }?.any {
+            ((it as? JsonObject)?.get("tag") as? kotlinx.serialization.json.JsonPrimitive)?.content == tag
+        } == true
 
     /** [source] as the core is given it, its nodes listed; null when it does not build. */
     private fun builtOf(source: JsonObject): KoneConfig.Built? = runCatching { KoneConfig.build(source, rules, CoreApi(9090, "list")) }.getOrNull()
@@ -1662,6 +1767,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             testing = testing,
             notice = nodesNotice?.first,
             noticeIsError = nodesNotice?.second == true,
+            canTest = clash != null || probeApi != null,
         )
     }
 

@@ -479,5 +479,10 @@
   "Syncing": "正在同步",
   "Nodes synced": "节点已同步",
   "No changes": "没有变化",
-  "Unable to sync nodes": "无法同步节点"
+  "Unable to sync nodes": "无法同步节点",
+  "Managed routes require fresh online authorization and the KOne service": "托管线路需要在线授权并通过 KOne 服务连接",
+  "Managed speed tests are unavailable": "托管节点暂不支持测速",
+  "The adapter is unavailable; using the guarded system proxy": "虚拟网卡不可用，已改用受保护的系统代理",
+  "Managed service stop is not confirmed": "尚未确认托管服务已停止",
+  "Stopping the managed service": "正在停止托管服务"
 }

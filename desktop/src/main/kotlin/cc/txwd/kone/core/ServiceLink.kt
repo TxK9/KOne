@@ -1,5 +1,6 @@
 package cc.txwd.kone.core
 
+import cc.txwd.kone.console.ControllerAuthority
 import cc.txwd.kone.shared.Host
 import cc.txwd.kone.shared.NameServer
 import com.sun.jna.platform.win32.Kernel32
@@ -26,7 +27,7 @@ import java.io.File
 import java.io.IOException
 
 /** What the service says of the core: its state, why it last ended, its API while it runs, its new log lines. */
-data class ServiceStatus(val state: String, val end: String, val api: CoreApi?, val logs: List<String>, val next: Long)
+data class ServiceStatus(val state: String, val end: String, val api: CoreApi?, val logs: List<String>, val next: Long, val mixedPort: Int? = null)
 
 /** Why a connection ended or never began, in the words the screen shows. */
 object Ends {
@@ -35,12 +36,14 @@ object Ends {
         end == "config_invalid" -> "The received configuration is invalid"
         end == "busy" -> "Another session is already connecting"
         end == "untrusted" || end == "no service" -> "KOne service is not running"
+        end.startsWith("controller_") -> "Managed routes require fresh online authorization and the KOne service"
         end.startsWith("exited") -> "Connection ended"
         else -> "Connection failed"
     }
 
     /** Whether trying again may help: not for a configuration the core refuses, someone else's connection, or a program the service turns away. */
-    fun passing(end: String): Boolean = end != "stopped" && end != "config_invalid" && end != "busy" && end != "untrusted"
+    fun passing(end: String): Boolean =
+        (end in setOf("controller_network_changed", "controller_stale_generation", "controller_stale_config") || !end.startsWith("controller_")) && end != "stopped" && end != "config_invalid" && end != "busy" && end != "untrusted"
 }
 
 /**
@@ -50,6 +53,7 @@ object Ends {
  */
 class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoCloseable {
     private val pending = ByteArrayOutputStream()
+    private val closed = java.util.concurrent.atomic.AtomicBoolean(false)
 
     companion object {
         const val PIPE = "\\\\.\\pipe\\KOne"
@@ -93,6 +97,13 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
     /** The service's version, or null when it turns this program away (or has gone). */
     fun hello(): String? = runCatching { request(buildJsonObject { put("op", "hello") }) }.getOrNull()?.takeIf { it.ok }?.get("version")?.text()
 
+    fun supportsController(proxy: Boolean = false): Boolean = runCatching {
+        val reply = request(buildJsonObject { put("op", "hello") })
+        reply.ok && (reply["controllerProtocol"] as? JsonPrimitive)?.intOrNull == 1 &&
+            (reply["managedLeaseWatchdog"] as? JsonPrimitive)?.booleanOrNull == true &&
+            (!proxy || (reply["managedProxySupported"] as? JsonPrimitive)?.booleanOrNull == true)
+    }.getOrDefault(false)
+
     /** Starts the core on the console's [source]; null when it started, else why not. */
     fun connect(
         source: JsonObject, selected: String?, mode: String = "Rule", bypass: List<String> = emptyList(),
@@ -106,10 +117,13 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
         fakeIp: Boolean = false,
         /** The nodes whose names say each country ([KoneConfig.countries]), for the rules through a country. */
         countries: Map<String, List<String>> = emptyMap(),
+        controller: ControllerAuthority? = null,
+        managedProxy: Boolean = false,
     ): String? {
         val reply = request(buildJsonObject {
             put("op", "connect")
             put("source", source)
+            controller?.let { put("controller", it.toJson()); put("managedProxy", managedProxy) }
             selected?.let { put("selected", it) }
             put("mode", mode)
             putJsonArray("bypass") { bypass.forEach { add(it) } }
@@ -141,6 +155,7 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
             api = if (port != null && secret != null) CoreApi(port, secret) else null,
             logs = (reply["logs"] as? JsonArray)?.mapNotNull { it.text() }.orEmpty(),
             next = (reply["next"] as? JsonPrimitive)?.longOrNull ?: since,
+            mixedPort = (reply["mixedPort"] as? JsonPrimitive)?.intOrNull?.takeIf { it in 1..65535 },
         )
     }
 
@@ -167,9 +182,11 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
 
     @Synchronized
     private fun request(message: JsonObject): JsonObject {
+        if (closed.get()) throw IOException("pipe closed")
         val bytes = (message.toString() + "\n").toByteArray()
         val written = IntByReference()
         if (!Kernel32.INSTANCE.WriteFile(pipe, bytes, bytes.size, written, null) || written.value != bytes.size) throw IOException("pipe closed")
+        if (closed.get()) throw IOException("pipe closed")
         val line = readLine()
         return Json.parseToJsonElement(line) as? JsonObject ?: throw IOException("bad reply")
     }
@@ -192,7 +209,7 @@ class ServiceLink private constructor(private val pipe: WinNT.HANDLE) : AutoClos
     }
 
     override fun close() {
-        Kernel32.INSTANCE.CloseHandle(pipe)
+        if (closed.compareAndSet(false, true)) Kernel32.INSTANCE.CloseHandle(pipe)
     }
 
     private val JsonObject.ok: Boolean get() = (this["ok"] as? JsonPrimitive)?.booleanOrNull == true

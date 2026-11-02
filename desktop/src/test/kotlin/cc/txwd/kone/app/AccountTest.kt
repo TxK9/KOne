@@ -37,7 +37,7 @@ class AccountTest {
         assertEquals(console.endpoint.base, binding.server)
         assertEquals("r1", binding.revision)
         assertNotNull(binding.source)
-        assertEquals(listOf("received", "applied"), console.acks.map { it["status"]!!.jsonPrimitive.content })
+        assertEquals(listOf("received", "installed"), console.acks.map { it["status"]!!.jsonPrimitive.content })
 
         // On disk the credential and the nodes are sealed, never in the clear.
         val written = File(folder, "binding.json").readText()
@@ -46,6 +46,22 @@ class AccountTest {
 
         // The next start finds the same binding.
         assertEquals(binding, BindingStore(folder, vault).load())
+    }
+
+    @Test
+    fun generationChangesAreKeptWithoutPretendingTheCoreIsRunning() {
+        val account = bound()
+        console.authGeneration = 9
+        console.ownerPublish = true
+        assertEquals(Sync.Unchanged, account.sync())
+        assertEquals(9L, account.binding!!.authGeneration)
+        assertTrue(account.binding!!.controller!!.ownerPublish)
+        assertTrue(BindingStore(folder, vault).load()!!.controller!!.ownerPublish)
+        assertEquals("installed", console.acks.last()["status"]!!.jsonPrimitive.content)
+        assertEquals("9", console.acks.last()["authGeneration"]!!.jsonPrimitive.content)
+        assertFalse(console.acks.any { it["status"]!!.jsonPrimitive.content == "running" })
+        val authority = account.controllerAuthority()!!
+        assertFalse(account.binding!!.credential in authority.toString())
     }
 
     @Test
@@ -76,7 +92,7 @@ class AccountTest {
         assertEquals(Sync.Failed, refusing.sync())
         assertEquals(before.source, refusing.binding!!.source)
         assertEquals("failed", console.acks.last()["status"]!!.jsonPrimitive.content)
-        assertEquals("config_invalid", console.acks.last()["code"]!!.jsonPrimitive.content)
+        assertFalse(console.acks.any { it["status"]!!.jsonPrimitive.content == "running" })
     }
 
     @Test

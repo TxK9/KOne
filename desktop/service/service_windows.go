@@ -4,19 +4,24 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -34,6 +39,7 @@ const (
 var (
 	kernel32                    = windows.NewLazySystemDLL("kernel32.dll")
 	getNamedPipeClientProcessId = kernel32.NewProc("GetNamedPipeClientProcessId")
+	peekControllerPipe          = kernel32.NewProc("PeekNamedPipe")
 )
 
 // runService serves KOne until Windows stops the service (or, in a console, until Ctrl+C).
@@ -45,6 +51,8 @@ func runService(console bool) error {
 	home := filepath.Dir(executable)
 	server := &server{home: home, console: console, core: newCore(filepath.Join(home, "sing-box.exe")),
 		sets: &ruleSetStore{folder: filepath.Join(home, "rules", "sets"), parse: singBoxParses(filepath.Join(home, "sing-box.exe"))}}
+	stopNetwork := server.watchControllerNetwork()
+	defer stopNetwork()
 	if console {
 		go func() {
 			interrupt := make(chan os.Signal, 1)
@@ -64,7 +72,7 @@ func (h *handler) Execute(_ []string, requests <-chan svc.ChangeRequest, status 
 	status <- svc.Status{State: svc.StartPending}
 	failed := make(chan error, 1)
 	go func() { failed <- h.server.serve() }()
-	status <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown}
+	status <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPowerEvent}
 	for {
 		select {
 		case <-failed:
@@ -75,7 +83,13 @@ func (h *handler) Execute(_ []string, requests <-chan svc.ChangeRequest, status 
 			switch request.Cmd {
 			case svc.Interrogate:
 				status <- request.CurrentStatus
+			case svc.PowerEvent:
+				if request.EventType == 4 || request.EventType == 6 || request.EventType == 7 || request.EventType == 18 {
+					h.server.controllerNetworkEpoch.Add(1)
+					h.server.stopManaged(0, "controller_network_changed")
+				}
 			case svc.Stop, svc.Shutdown:
+				h.server.stopManaged(0, "stopped")
 				status <- svc.Status{State: svc.StopPending}
 				h.server.core.stop(0, "stopped")
 				return false, 0
@@ -85,11 +99,17 @@ func (h *handler) Execute(_ []string, requests <-chan svc.ChangeRequest, status 
 }
 
 type server struct {
-	home     string // the folder of kone-service.exe, sing-box.exe and rules\
-	console  bool
-	core     *core
-	sets     *ruleSetStore // the person's category lists, in rules\sets\
-	sessions atomic.Uint64
+	home                   string // the folder of kone-service.exe, sing-box.exe and rules\
+	console                bool
+	core                   *core
+	sets                   *ruleSetStore // the person's category lists, in rules\sets\
+	sessions               atomic.Uint64
+	managedMu              sync.Mutex
+	controllerAckMu        sync.Mutex
+	managed                *managedSession
+	managedOwner           uint64
+	controllerNetworkReady bool
+	controllerNetworkEpoch atomic.Uint64
 }
 
 // serve makes instances of the pipe and gives each caller its own session. The first instance
@@ -138,6 +158,7 @@ func (s *server) session(pipe windows.Handle) {
 	}
 	id := s.sessions.Add(1)
 	defer s.core.stop(id, "stopped")
+	defer s.stopManaged(id, "controller_session_closed")
 	reader := bufio.NewReaderSize(connection, 64<<10)
 	for {
 		line, err := readLine(reader)
@@ -145,28 +166,30 @@ func (s *server) session(pipe windows.Handle) {
 			return
 		}
 		var request struct {
-			Op        string              `json:"op"`
-			Source    map[string]any      `json:"source"`
-			Selected  string              `json:"selected"`
-			Mode      string              `json:"mode"`
-			Bypass    []string            `json:"bypass"`
-			Direct    []string            `json:"direct"`
-			Proxied   []string            `json:"proxied"`
-			Routes    []Rule              `json:"routes"`
-			BlockAds  bool                `json:"blockAds"`
-			Remote    string              `json:"remoteDns"`
-			Domestic  string              `json:"directDns"`
-			IPv6      bool                `json:"ipv6"`
-			Hosts     []Host              `json:"hosts"`
-			Servers   []NameServer        `json:"nameServers"`
-			Region    string              `json:"region"`
-			FakeIP    bool                `json:"fakeIp"`
-			Unmatched bool                `json:"unmatchedDirect"`
-			Countries map[string][]string `json:"countries"`
-			Since     int64               `json:"since"`
-			Name      string              `json:"name"`
-			Data      []byte              `json:"data"` // base64 in the JSON
-			Digest    string              `json:"sha256"`
+			ManagedProxy bool                `json:"managedProxy"`
+			Controller   *ControllerBinding  `json:"controller"`
+			Op           string              `json:"op"`
+			Source       map[string]any      `json:"source"`
+			Selected     string              `json:"selected"`
+			Mode         string              `json:"mode"`
+			Bypass       []string            `json:"bypass"`
+			Direct       []string            `json:"direct"`
+			Proxied      []string            `json:"proxied"`
+			Routes       []Rule              `json:"routes"`
+			BlockAds     bool                `json:"blockAds"`
+			Remote       string              `json:"remoteDns"`
+			Domestic     string              `json:"directDns"`
+			IPv6         bool                `json:"ipv6"`
+			Hosts        []Host              `json:"hosts"`
+			Servers      []NameServer        `json:"nameServers"`
+			Region       string              `json:"region"`
+			FakeIP       bool                `json:"fakeIp"`
+			Unmatched    bool                `json:"unmatchedDirect"`
+			Countries    map[string][]string `json:"countries"`
+			Since        int64               `json:"since"`
+			Name         string              `json:"name"`
+			Data         []byte              `json:"data"` // base64 in the JSON
+			Digest       string              `json:"sha256"`
 		}
 		decoder := json.NewDecoder(strings.NewReader(line))
 		decoder.UseNumber()
@@ -177,11 +200,15 @@ func (s *server) session(pipe windows.Handle) {
 		var reply map[string]any
 		switch request.Op {
 		case "hello":
-			reply = map[string]any{"ok": true, "version": version}
+			reply = map[string]any{"ok": true, "version": version, "controllerProtocol": 1, "managedLeaseWatchdog": s.controllerNetworkReady, "managedProxySupported": s.controllerNetworkReady}
 		case "connect":
+			if request.Controller != nil {
+				request.Controller.proxy = request.ManagedProxy
+				request.Controller.alive = func() bool { ok, _, _ := peekControllerPipe.Call(uintptr(pipe), 0, 0, 0, 0, 0); return ok != 0 }
+			}
 			reply = s.connect(id, request.Source, Options{Selected: request.Selected, Mode: request.Mode, Bypass: request.Bypass,
 				Direct: request.Direct, Proxied: request.Proxied, Routes: s.sets.Usable(request.Routes), BlockAds: request.BlockAds,
-				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Hosts: request.Hosts, NameServers: request.Servers, UnmatchedDirect: request.Unmatched, Region: request.Region, FakeIP: request.FakeIP, Countries: request.Countries})
+				Remote: request.Remote, Domestic: request.Domestic, IPv6: request.IPv6, Hosts: request.Hosts, NameServers: request.Servers, UnmatchedDirect: request.Unmatched, Region: request.Region, FakeIP: request.FakeIP, Countries: request.Countries}, request.Controller)
 		case "status":
 			reply = s.core.status(id, request.Since)
 		case "ruleSets":
@@ -193,6 +220,7 @@ func (s *server) session(pipe windows.Handle) {
 				reply = map[string]any{"ok": true}
 			}
 		case "disconnect":
+			s.stopManaged(id, "stopped")
 			s.core.stop(id, "stopped")
 			reply = map[string]any{"ok": true}
 		default:
@@ -207,7 +235,29 @@ func (s *server) session(pipe windows.Handle) {
 // connect builds the configuration from the source itself, the fixed template with only the
 // nodes and the Claude block taken from the source and the person's choices in [chosen] (all
 // checked again in Build), and starts the core on it.
-func (s *server) connect(id uint64, source map[string]any, chosen Options) map[string]any {
+func (s *server) connect(id uint64, source map[string]any, chosen Options, bindings ...*ControllerBinding) map[string]any {
+	var controller *ControllerBinding
+	if len(bindings) > 0 {
+		controller = bindings[0]
+	}
+	networkEpoch := s.controllerNetworkEpoch.Load()
+	var guard *managedSession
+	if controller != nil {
+		if !s.controllerNetworkReady {
+			return map[string]any{"ok": false, "error": "controller_service_unsupported"}
+		}
+		client, err := newControllerClient(*controller)
+		if err != nil {
+			return map[string]any{"ok": false, "error": err.Error()}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+		prepared, authoritative, err := client.prepare(ctx, source, serviceElapsedMillis)
+		cancel()
+		if err != nil {
+			return map[string]any{"ok": false, "error": err.Error()}
+		}
+		guard, source = prepared, authoritative
+	}
 	port, err := freePort()
 	if err != nil {
 		return map[string]any{"ok": false, "error": err.Error()}
@@ -220,8 +270,30 @@ func (s *server) connect(id uint64, source map[string]any, chosen Options) map[s
 	options.Rules = filepath.ToSlash(filepath.Join(s.home, "rules"))
 	options.Port = port
 	options.Secret = hex.EncodeToString(secret)
-	options.Tun = true
+	options.Tun = controller == nil || !controller.proxy
 	options.Mixed = 0
+	if controller != nil && controller.proxy {
+		mixed, err := freePort()
+		if err != nil {
+			return map[string]any{"ok": false, "error": "controller_invalid"}
+		}
+		options.Mixed = mixed
+	}
+	if controller != nil {
+		origin, parseErr := url.Parse(controller.Endpoint)
+		if parseErr != nil {
+			return map[string]any{"ok": false, "error": "controller_invalid"}
+		}
+		options.ControllerHost = origin.Hostname()
+		options.ControllerPort = 443
+		if origin.Port() != "" {
+			port, err := strconv.Atoi(origin.Port())
+			if err != nil || port < 1 || port > 65535 {
+				return map[string]any{"ok": false, "error": "controller_invalid"}
+			}
+			options.ControllerPort = port
+		}
+	}
 	config, _, err := Build(source, options)
 	if err != nil {
 		return map[string]any{"ok": false, "error": "config_invalid"}
@@ -230,10 +302,99 @@ func (s *server) connect(id uint64, source map[string]any, chosen Options) map[s
 	if err != nil {
 		return map[string]any{"ok": false, "error": "config_invalid"}
 	}
-	if err := s.core.start(id, text, options.Port, options.Secret); err != nil {
+	s.managedMu.Lock()
+	s.core.mutex.Lock()
+	busy := s.core.owner != 0 && s.core.owner != id
+	s.core.mutex.Unlock()
+	if busy {
+		s.managedMu.Unlock()
+		if guard != nil {
+			guard.close()
+		}
+		return map[string]any{"ok": false, "error": "busy"}
+	}
+	if guard != nil {
+		guard.reportMu = &s.controllerAckMu
+		guard.reportAllowed = func(status string) bool {
+			s.managedMu.Lock()
+			defer s.managedMu.Unlock()
+			if status == "stopped" || status == "failed" {
+				return s.managed == nil || s.managed == guard || s.managed.info.DeviceID != guard.info.DeviceID
+			}
+			return s.managed == guard && s.managedOwner == id
+		}
+	}
+	previous := s.managed
+	s.managed, s.managedOwner = guard, id
+	if previous != nil {
+		previous.close()
+	}
+	start := func() error {
+		if guard != nil && (networkEpoch != s.controllerNetworkEpoch.Load() || controller.alive != nil && !controller.alive()) {
+			return controllerDenied("network_changed")
+		}
+		return s.core.start(id, text, options.Port, options.Secret, options.Mixed, func() error {
+			if guard != nil && (!guard.validLocked() || networkEpoch != s.controllerNetworkEpoch.Load() || controller.alive != nil && !controller.alive()) {
+				return controllerDenied("expired")
+			}
+			return nil
+		})
+	}
+	if guard != nil {
+		err = guard.start(start)
+	} else {
+		err = start()
+	}
+	if err != nil {
+		s.managed = nil
+		if guard != nil {
+			guard.close()
+		}
+		s.core.abort(id, "stopped")
+	}
+	s.managedMu.Unlock()
+	if err != nil {
 		return map[string]any{"ok": false, "error": err.Error()}
 	}
+	if guard != nil {
+		guard.watch(func() bool {
+			s.core.mutex.Lock()
+			defer s.core.mutex.Unlock()
+			return s.core.owner == id && s.core.state == "running"
+		}, func(reason string) { s.finishManaged(id, guard, reason) })
+	}
 	return map[string]any{"ok": true}
+}
+
+func (s *server) finishManaged(id uint64, guard *managedSession, reason string) {
+	s.managedMu.Lock()
+	current := s.managed == guard && s.managedOwner == id
+	var observation *childExit
+	if current {
+		s.managed = nil
+		observation = s.core.abort(id, reason)
+	}
+	s.managedMu.Unlock()
+	guard.close()
+	if current {
+		go observeChildExit(observation, 2*time.Second, func(status string) {
+			if status == "failed" {
+				s.core.markStopUnconfirmed(id, observation)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+			defer cancel()
+			_ = guard.ack(ctx, status)
+		})
+	}
+}
+
+func (s *server) stopManaged(id uint64, reason string) {
+	s.managedMu.Lock()
+	guard, owner := s.managed, s.managedOwner
+	s.managedMu.Unlock()
+	if guard != nil && (id == 0 || id == owner) {
+		s.finishManaged(owner, guard, reason)
+	}
 }
 
 // trusted is true for the KOne.exe installed beside this service (two levels up from

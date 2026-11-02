@@ -48,6 +48,7 @@ class Delivery(
     val groupName: String,
     val config: JsonObject,
     val policy: Policy,
+    val controller: ControllerInfo? = null,
 )
 
 /** The customer's terms as the console states them; the servers enforce them, not the App. */
@@ -100,6 +101,10 @@ class ConsoleApi(
     }
 
     fun config(credential: String): Delivery {
+        val registered = call("POST", "/api/client/controller/register", controllerRegistration(), credential) { status ->
+            when (status) { 401 -> ConsoleFailure.Revoked; 403 -> ConsoleFailure.Refused; else -> null }
+        }
+        val registration = ControllerInfo.read(registered["controller"] as? JsonObject)
         val reply = call("GET", "/api/client/config", null, credential) { status ->
             when (status) {
                 401 -> ConsoleFailure.Revoked
@@ -119,7 +124,22 @@ class ConsoleApi(
             groupName = reply.string("groupName").orEmpty().trim().take(60),
             config = config,
             policy = Policy.from(reply["policy"] as? JsonObject),
+            controller = ControllerInfo.read(reply["controller"] as? JsonObject, requireNodes = true).also {
+                if (it.deviceId != registration.deviceId) throw ConsoleException(ConsoleFailure.ConfigInvalid)
+            },
         )
+    }
+
+    fun controllerAck(credential: String, delivery: Delivery, status: String) {
+        val info = delivery.controller ?: throw ConsoleException(ConsoleFailure.ConfigInvalid)
+        require(status in setOf("received", "installed", "failed"))
+        val body = buildJsonObject {
+            put("protocol", 1); put("authGeneration", info.authGeneration)
+            put("revision", delivery.revision); put("configRevision", delivery.configRevision); put("status", status)
+        }
+        call("POST", "/api/client/controller/ack", body, credential) { http ->
+            when (http) { 401 -> ConsoleFailure.Revoked; 403 -> ConsoleFailure.Refused; 409 -> ConsoleFailure.Stale; else -> null }
+        }
     }
 
     /** A late or repeated report is not an error to the App: the console simply keeps the newer one. */
@@ -163,6 +183,8 @@ class ConsoleApi(
             HttpRequest.newBuilder(URI(endpoint.url(path)))
                 .timeout(Duration.ofMillis(timeoutMillis.toLong()))
                 .header("Accept", "application/json")
+                .header("X-KOne-Controller-Protocol", "1")
+                .header("Cache-Control", "no-store")
                 .apply { if (credential != null) header("Authorization", "Bearer $credential") }
                 .apply {
                     if (body == null) method(method, HttpRequest.BodyPublishers.noBody())

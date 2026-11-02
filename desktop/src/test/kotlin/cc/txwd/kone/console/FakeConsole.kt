@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import java.io.File
 import java.net.InetSocketAddress
 import java.security.KeyStore
@@ -31,6 +32,8 @@ class FakeConsole(var source: JsonObject) : AutoCloseable {
     var configRevision = "c1"
     /** When this person's use ends, as the console states it in the policy; none by default. */
     var expiresAt: String? = null
+    var authGeneration = 0L
+    var ownerPublish = false
     val acks = mutableListOf<JsonObject>()
     val diagnostics = mutableListOf<JsonObject>()
     /** Every Authorization header and every path the console saw, to check where the credential went. */
@@ -76,6 +79,10 @@ class FakeConsole(var source: JsonObject) : AutoCloseable {
                     }
                 }
             }
+            "POST /api/client/controller/register" -> when {
+                credential == null || credential !in devices || credential in revoked -> reply(exchange, 401, error("Device authentication failed"))
+                else -> reply(exchange, 200, buildJsonObject { put("controller", controller(credential)) })
+            }
             "GET /api/client/config" -> when {
                 credential == null || credential !in devices || credential in revoked -> reply(exchange, 401, error("Device authentication failed"))
                 refused -> reply(exchange, 403, error("Service period ended"))
@@ -83,10 +90,11 @@ class FakeConsole(var source: JsonObject) : AutoCloseable {
                 else -> reply(exchange, 200, buildJsonObject {
                     put("format", 1); put("configKind", "sing-box-source"); put("configName", "United States"); put("groupName", "Test group")
                     put("config", source); put("configRevision", configRevision); put("revision", revision)
+                    if (exchange.requestHeaders.getFirst("X-KOne-Controller-Protocol") == "1") put("controller", controller(credential!!))
                     put("policy", buildJsonObject { put("quotaBytes", 0); put("deviceLimit", deviceLimit); put("period", "month"); expiresAt?.let { put("expiresAt", it) } })
                 })
             }
-            "POST /api/client/ack" -> when {
+            "POST /api/client/ack", "POST /api/client/controller/ack" -> when {
                 credential == null || credential !in devices || credential in revoked -> reply(exchange, 401, error("Device authentication failed"))
                 body!!["revision"]!!.jsonPrimitive.content != revision -> reply(exchange, 409, error("Configuration revision changed"))
                 else -> { synchronized(acks) { acks += body }; reply(exchange, 200, ok()) }
@@ -101,6 +109,12 @@ class FakeConsole(var source: JsonObject) : AutoCloseable {
             }
             else -> reply(exchange, 404, error("Endpoint not found"))
         }
+    }
+
+    private fun controller(credential: String) = buildJsonObject {
+        put("format", 1); put("deviceId", "dev-${devices.keys.indexOf(credential) + 1}")
+        put("mode", "legacy"); put("required", false); put("authGeneration", authGeneration); put("ownerPublish", ownerPublish)
+        putJsonArray("nodeIds") {}
     }
 
     private fun error(text: String) = buildJsonObject { put("error", text) }

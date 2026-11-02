@@ -104,6 +104,7 @@ data class NodesState(
     /** One line on what just happened or went wrong, for a few seconds. */
     val notice: String? = null,
     val noticeIsError: Boolean = false,
+    val canTest: Boolean = true,
 )
 
 class NodesActions(
@@ -177,7 +178,7 @@ fun NodesView(state: NodesState, actions: NodesActions, now: Long = System.curre
         // Its right edge in line with the rows below, which leave the scrollbar its room.
         Row(Modifier.fillMaxWidth().padding(end = ROOM).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             Box(Modifier.weight(1f)) { state.notice?.let { Label(it, 13.sp, if (state.noticeIsError) NodeWeather.Cut.ink(ink.dark) else ink.soft) } }
-            if (state.testing) Busy(tr("Testing")) else Action(tr("Test all"), onClick = actions.onTest)
+            if (state.testing) Busy(tr("Testing")) else Action(tr("Test all"), enabled = state.canTest, onClick = actions.onTest)
             Action(tr("Export"), soft = true, onClick = actions.onExport)
             // Every way a node comes in, behind the page's one filled button.
             val adds = rememberMenu()

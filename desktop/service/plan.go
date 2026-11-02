@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -34,23 +35,25 @@ var errInvalid = errors.New("config_invalid")
 
 // Options are what besides the source shapes a configuration.
 type Options struct {
-	Selected string // the node to start on, if it is still there
-	Rules    string // the folder holding geosite-cn.srs and geoip-cn.srs
-	Port     int    // clash_api on 127.0.0.1
-	Secret   string
-	Tun      bool     // false: the nodes only, for testing delays without rights
-	Mode     string   // Rule, Global or Direct; anything else is Rule
-	Bypass   []string // programs sent straight out, by file name (WeChat.exe)
-	Direct   []string // sites sent straight out, in every mode, by domain (example.cn and what is under it)
-	Proxied  []string // sites through the node in Rule too, by domain
-	Routes   []Rule   // the person's own rules, in order, after the lists above
-	BlockAds bool     // refuse the domains of the ad-blocking rule set
-	Remote   string   // the DNS server asked through the node: a preset or a DNS-over-HTTPS address; "" Cloudflare
-	Domestic string   // the DNS server asked straight out: a preset or an address; "" AliDNS
-	IPv6     bool     // answer names with IPv6 addresses too (IPv4 first)
-	Mixed    int      // a local proxy port on 127.0.0.1 for the system proxy, when not 0 (the App's own, never the service's)
-	Hosts    []Host   // fixed answers for chosen names, after the Claude block
-	Region   string   // "global" outside China: no China split, Cloudflare as the direct DNS; anything else China
+	ControllerHost string // Set only from the validated service authority endpoint.
+	ControllerPort int
+	Selected       string // the node to start on, if it is still there
+	Rules          string // the folder holding geosite-cn.srs and geoip-cn.srs
+	Port           int    // clash_api on 127.0.0.1
+	Secret         string
+	Tun            bool     // false: the nodes only, for testing delays without rights
+	Mode           string   // Rule, Global or Direct; anything else is Rule
+	Bypass         []string // programs sent straight out, by file name (WeChat.exe)
+	Direct         []string // sites sent straight out, in every mode, by domain (example.cn and what is under it)
+	Proxied        []string // sites through the node in Rule too, by domain
+	Routes         []Rule   // the person's own rules, in order, after the lists above
+	BlockAds       bool     // refuse the domains of the ad-blocking rule set
+	Remote         string   // the DNS server asked through the node: a preset or a DNS-over-HTTPS address; "" Cloudflare
+	Domestic       string   // the DNS server asked straight out: a preset or an address; "" AliDNS
+	IPv6           bool     // answer names with IPv6 addresses too (IPv4 first)
+	Mixed          int      // a local proxy port on 127.0.0.1 for the system proxy, when not 0 (the App's own, never the service's)
+	Hosts          []Host   // fixed answers for chosen names, after the Claude block
+	Region         string   // "global" outside China: no China split, Cloudflare as the direct DNS; anything else China
 	// NameServers answer the names under chosen domains from servers of the person's own, after
 	// the Claude block and the fixed answers.
 	NameServers []NameServer
@@ -283,6 +286,27 @@ func Build(source map[string]any, options Options) (map[string]any, []string, er
 	refused := Refusals(source)
 	dnsRules := []any{}
 	routeRules := []any{map[string]any{"action": "sniff"}, map[string]any{"protocol": "dns", "action": "hijack-dns"}}
+	if options.ControllerHost != "" {
+		host := strings.ToLower(options.ControllerHost)
+		if options.ControllerPort < 1 || options.ControllerPort > 65535 {
+			return nil, nil, errInvalid
+		}
+		control := map[string]any{"network": "tcp", "port": options.ControllerPort, "outbound": "direct"}
+		if ip := net.ParseIP(host); ip != nil {
+			bits := 128
+			if ip.To4() != nil {
+				bits = 32
+			}
+			control["ip_cidr"] = []any{ip.String() + "/" + strconv.Itoa(bits)}
+		} else {
+			if !site.MatchString(host) {
+				return nil, nil, errInvalid
+			}
+			control["domain"] = []any{host}
+			dnsRules = append(dnsRules, map[string]any{"domain": []any{host}, "server": "local-dns"})
+		}
+		routeRules = append(routeRules, control)
+	}
 	for _, rule := range refused {
 		dnsRules = append(dnsRules, rule)
 		routeRules = append(routeRules, rule)

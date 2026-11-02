@@ -2,6 +2,8 @@ package cc.txwd.kone.app
 
 import cc.txwd.kone.i18n.tr
 
+import cc.txwd.kone.console.ControllerAuthority
+import cc.txwd.kone.console.ControllerInfo
 import cc.txwd.kone.console.ClaimLink
 import cc.txwd.kone.console.ConsoleApi
 import cc.txwd.kone.console.ConsoleEndpoint
@@ -11,6 +13,7 @@ import cc.txwd.kone.console.Report
 import cc.txwd.kone.console.string
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.io.File
@@ -36,6 +39,8 @@ data class Binding(
     val selected: String? = null,
     /** When the console says this person's use ends (ISO 8601), if it ends. */
     val expiresAt: String? = null,
+    val authGeneration: Long = 0,
+    val controller: ControllerInfo? = null,
 )
 
 /**
@@ -60,6 +65,8 @@ class BindingStore(private val folder: File, private val vault: Vault) {
             source = json.string("source")?.let(::open)?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() },
             selected = json.string("selected"),
             expiresAt = json.string("expiresAt"),
+            authGeneration = (json["authGeneration"] as? kotlinx.serialization.json.JsonPrimitive)?.longOrNull ?: 0,
+            controller = runCatching { ControllerInfo.read(json["controller"] as? JsonObject, requireNodes = true) }.getOrNull(),
         )
     }
 
@@ -76,6 +83,8 @@ class BindingStore(private val folder: File, private val vault: Vault) {
             binding.source?.let { put("source", seal(it.toString())) }
             binding.selected?.let { put("selected", it) }
             binding.expiresAt?.let { put("expiresAt", it) }
+            put("authGeneration", binding.authGeneration)
+            binding.controller?.let { put("controller", it.toJson()) }
         }
         folder.mkdirs()
         val next = File(folder, "binding.json.next")
@@ -147,18 +156,22 @@ class Account(
                 else -> Sync.Failed
             }
         }
+        val controller = delivery.controller ?: return Sync.Failed
+        if (controller.deviceId != current.deviceId) return Sync.Failed
         if (delivery.revision == current.revision && current.source != null) {
             // The same nodes; the terms may still have moved (a renewal).
-            if (delivery.policy.expiresAt != current.expiresAt) {
-                remember(current) { it.copy(expiresAt = delivery.policy.expiresAt) }
+            if (delivery.policy.expiresAt != current.expiresAt || controller != current.controller) {
+                if (remember(current) { it.copy(expiresAt = delivery.policy.expiresAt, authGeneration = controller.authGeneration, controller = controller) }) {
+                    runCatching { console.controllerAck(current.credential, delivery, "installed") }
+                }
             }
             return Sync.Unchanged
         }
-        runCatching { console.ack(current.credential, delivery.revision, Report.RECEIVED) }
+        runCatching { console.controllerAck(current.credential, delivery, "received") }
         if (delivery.configRevision != current.configRevision || current.source == null) {
             val good = runCatching { accepts(delivery.config) }.getOrDefault(false)
             if (!good) {
-                runCatching { console.ack(current.credential, delivery.revision, Report.FAILED, "config_invalid") }
+                runCatching { console.controllerAck(current.credential, delivery, "failed") }
                 return Sync.Failed
             }
         }
@@ -169,10 +182,19 @@ class Account(
                 configName = delivery.configName,
                 source = delivery.config,
                 expiresAt = delivery.policy.expiresAt,
+                authGeneration = controller.authGeneration,
+                controller = controller,
             )
         }) return Sync.Unchanged
-        runCatching { console.ack(current.credential, delivery.revision, Report.APPLIED) }
+        runCatching { console.controllerAck(current.credential, delivery, "installed") }
         return Sync.Updated
+    }
+
+    fun controllerAuthority(): ControllerAuthority? {
+        val current = binding ?: return null
+        val source = current.source ?: return null
+        return ControllerAuthority(current.server, current.deviceId, current.credential,
+            current.configRevision ?: return null, current.revision ?: return null, current.authGeneration, source)
     }
 
     /** Remembers the node chosen, so the next start begins there. */

@@ -95,6 +95,12 @@ class NodeContinuity(private val host: Host) {
         running = names(pairs(nodes, listed))
     }
 
+    /** Whether a separately pruned local graph still matches the core that is running. */
+    fun runsExactly(now: Listing): Boolean {
+        val started = core ?: return false
+        return same(started, now, pairs(started, now))
+    }
+
     /** The core stopped. */
     fun stopped() {
         core = null

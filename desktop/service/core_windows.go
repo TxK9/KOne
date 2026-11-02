@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -38,29 +39,43 @@ type logLine struct {
 type core struct {
 	binary string
 
-	mutex   sync.Mutex
-	owner   uint64 // the session running it; 0 when none
-	last    uint64 // the session that started the last run, whose log this is
-	state   string // stopped, starting, running
-	end     string // why the last run ended
-	port    int
-	secret  string
-	command *exec.Cmd
-	exited  chan struct{}
-	logs    []logLine
-	next    int64
+	mutex            sync.Mutex
+	owner            uint64 // the session running it; 0 when none
+	last             uint64 // the session that started the last run, whose log this is
+	state            string // stopped, starting, running
+	end              string // why the last run ended
+	port             int
+	mixed            int
+	secret           string
+	command          *exec.Cmd
+	job              *childJob
+	exited           chan struct{}
+	observation      *childExit
+	terminationError bool
+	logs             []logLine
+	next             int64
 }
 
 func newCore(binary string) *core { return &core{binary: binary, state: "stopped"} }
 
-func (c *core) start(owner uint64, config []byte, port int, secret string) error {
+func (c *core) start(owner uint64, config []byte, port int, secret string, mixed int, beforeResume ...func() error) error {
 	c.mutex.Lock()
 	if c.owner != 0 && c.owner != owner {
 		c.mutex.Unlock()
 		return errors.New("busy")
 	}
 	c.mutex.Unlock()
-	c.stop(owner, "stopped")
+	previous := c.abort(owner, "stopped")
+	if previous != nil {
+		select {
+		case <-previous.done:
+			if !previous.confirmed.Load() {
+				return errors.New("termination_unconfirmed")
+			}
+		case <-time.After(2 * time.Second):
+			return errors.New("termination_unconfirmed")
+		}
+	}
 
 	command := exec.Command(c.binary, "run", "-c", "stdin", "--disable-color")
 	command.Stdin = bytes.NewReader(config)
@@ -70,14 +85,41 @@ func (c *core) start(owner uint64, config []byte, port int, secret string) error
 	}
 	command.Stderr = command.Stdout
 	// A console of its own, hidden, so it can be asked to stop the way Ctrl+C would.
-	command.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NEW_CONSOLE, HideWindow: true}
-	if err := command.Start(); err != nil {
+	command.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NEW_CONSOLE | windows.CREATE_SUSPENDED, HideWindow: true}
+	var job *childJob
+	started := false
+	err = launchContained(
+		func() error { var err error; job, err = newChildJob(); return err },
+		func() error { err := command.Start(); started = err == nil; return err },
+		func() error { return job.assign(command.Process.Pid) },
+		func() error {
+			for _, check := range beforeResume {
+				if err := check(); err != nil {
+					return err
+				}
+			}
+			return resumeContainedChild(command.Process.Pid)
+		},
+		func() {
+			if started {
+				_ = command.Process.Kill()
+				go func() { _ = command.Wait() }()
+			}
+			job.close()
+		},
+	)
+	if err != nil {
 		return err
 	}
-	exited := make(chan struct{})
+	observation := newChildExit()
+	exited := observation.done
 
 	c.mutex.Lock()
 	c.owner, c.last, c.state, c.end, c.port, c.secret, c.command, c.exited = owner, owner, "starting", "", port, secret, command, exited
+	c.mixed = mixed
+	c.observation = observation
+	c.terminationError = false
+	c.job = job
 	c.logs = nil
 	c.mutex.Unlock()
 
@@ -90,16 +132,24 @@ func (c *core) start(owner uint64, config []byte, port int, secret string) error
 	}()
 	go func() {
 		err := command.Wait()
+		confirmed := command.ProcessState != nil && command.ProcessState.Exited()
+		_ = job.close()
 		c.mutex.Lock()
 		if c.command == command {
 			if c.end == "" {
 				c.end = "exited " + exitCode(err)
 			}
-			c.state, c.owner, c.command = "stopped", 0, nil
+			if confirmed {
+				c.state, c.owner, c.command, c.job, c.mixed = "stopped", 0, nil, nil, 0
+			} else {
+				c.state = "unconfirmed"
+				c.end = "termination_unconfirmed"
+				c.terminationError = true
+			}
 		}
 		c.mutex.Unlock()
+		observation.finish(confirmed)
 		flushResolver()
-		close(exited)
 	}()
 	go c.watch(command, port, secret)
 	return nil
@@ -141,6 +191,43 @@ func (c *core) watch(command *exec.Cmd, port int, secret string) {
 	}
 }
 
+// Authorization loss cuts the process immediately; process reaping and resolver cleanup are separate.
+func (c *core) abort(owner uint64, reason string) *childExit {
+	c.mutex.Lock()
+	command, job, observation := c.command, c.job, c.observation
+	if command == nil {
+		valid := owner == 0 || c.last == owner
+		c.mutex.Unlock()
+		if valid {
+			return observation
+		}
+		return nil
+	}
+	if owner != 0 && c.owner != owner {
+		c.mutex.Unlock()
+		return nil
+	}
+	c.end, c.state = reason, "stopping"
+	c.mutex.Unlock()
+	jobErr := job.close()
+	killErr := command.Process.Kill()
+	c.mutex.Lock()
+	if c.command == command && (jobErr != nil || killErr != nil && killErr != os.ErrProcessDone) {
+		c.terminationError = true
+	}
+	c.mutex.Unlock()
+	return observation
+}
+
+func (c *core) markStopUnconfirmed(owner uint64, observation *childExit) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if c.owner == owner && c.command != nil && c.observation == observation && !observation.confirmed.Load() {
+		c.state = "unconfirmed"
+		c.terminationError = true
+	}
+}
+
 // stop ends the core if [owner] started it (0: whoever did), asking it first as Ctrl+C would
 // so it takes its routes and adapter down itself, and ending it outright after eight seconds.
 func (c *core) stop(owner uint64, reason string) {
@@ -176,6 +263,9 @@ func (c *core) status(owner uint64, since int64) map[string]any {
 		return reply
 	}
 	if c.state != "stopped" {
+		if c.mixed > 0 {
+			reply["mixedPort"] = c.mixed
+		}
 		reply["port"], reply["secret"] = c.port, c.secret
 	}
 	var lines []string
