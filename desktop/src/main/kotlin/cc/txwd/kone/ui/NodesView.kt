@@ -81,6 +81,8 @@ data class NodeSection(
     val leaveOut: String = "",
     /** How many of its entries are left out: the provider's notices, and nodes named with [leaveOut]. */
     val left: Int = 0,
+    val canSync: Boolean = false,
+    val status: String? = null,
 )
 
 /** A node being written by hand: which imported node it replaces (null for a new one), its fields, and how saving went. */
@@ -128,6 +130,7 @@ class NodesActions(
     val onImport: () -> Unit = {},
     /** Reads the QR codes on the screens: a node shown on a provider's page or a phone. */
     val onScan: () -> Unit = {},
+    val onSyncManaged: () -> Unit = {},
 )
 
 /** How nodes are listed within each source. */
@@ -262,6 +265,9 @@ private fun Header(section: NodeSection, open: Boolean, now: Long, onToggle: () 
                     15.sp, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f, fill = false), ellipsis = true)
                 Label("${section.nodes.size}", 13.sp, ink.soft, tabular = true)
             }
+            if (section.kind == SourceKind.Managed && section.canSync) {
+                Action(tr("Sync"), enabled = !section.updating, onClick = actions.onSyncManaged)
+            }
             if (section.kind == SourceKind.Subscription) {
                 Action(tr("Update"), enabled = !section.updating) { actions.onUpdate(section.id) }
                 Action(tr("Edit"), onClick = onEdit)
@@ -271,6 +277,13 @@ private fun Header(section: NodeSection, open: Boolean, now: Long, onToggle: () 
             }
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (section.kind == SourceKind.Managed && section.canSync) {
+                when {
+                    section.updating -> Busy(tr("Syncing"), 13.sp)
+                    section.error != null -> Label(tr(section.error), 13.sp, NodeWeather.Cut.ink(ink.dark))
+                    section.status != null -> Label(tr(section.status), 13.sp, ink.soft)
+                }
+            }
             if (section.left > 0) Label(tr("{0} left out", section.left), 13.sp, ink.soft, tabular = true)
             section.info?.let { info ->
                 if (info.total > 0) Label("${size(info.used)} / ${size(info.total)}", 13.sp, ink.soft, tabular = true)

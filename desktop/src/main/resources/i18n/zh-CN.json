@@ -474,5 +474,10 @@
   "Managed service": "托管服务",
   "Enter invitation code": "输入邀请码",
   "{0} nodes": "{0} 个节点",
-  "Import chained nodes through a subscription or the management server": "请通过订阅或管理后台导入链式节点"
+  "Import chained nodes through a subscription or the management server": "请通过订阅或管理后台导入链式节点",
+  "Sync": "同步",
+  "Syncing": "正在同步",
+  "Nodes synced": "节点已同步",
+  "No changes": "没有变化",
+  "Unable to sync nodes": "无法同步节点"
 }

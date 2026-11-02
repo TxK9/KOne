@@ -337,6 +337,7 @@ fun main(args: Array<String>) {
                                               onTest = model::testAll,
                                               onAddSubscription = model::addSubscription,
                                               onUpdate = model::updateSubscription,
+                                              onSyncManaged = model::syncManaged,
                                               onEdit = model::editSubscription,
                                               onRemoveSubscription = model::removeSubscription,
                                               onRemoveNode = model::removeImported,

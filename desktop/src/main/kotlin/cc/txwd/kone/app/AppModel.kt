@@ -184,6 +184,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** One line for the Nodes page, and whether it says something went wrong. */
     private var nodesNotice: Pair<String, Boolean>? = null
+    private var syncingManaged = false
+    private var managedSyncStatus: Pair<String, Boolean>? = null
 
     /** How much the core has carried, today and this month (Tools → Usage). */
     private val usage = Usage(File(Places.data, "usage.properties"))
@@ -298,14 +300,14 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** A key that arrived as a kone://claim link (clicked, or pasted): put it in the field. */
     fun offerKey(text: String) {
-        if (!key.busy) {
+        if (!key.busy && !syncingManaged) {
             screen = Screen.Key
             key = KeyState(text.trim())
         }
     }
 
     fun openActivation() {
-        if (key.busy) return
+        if (key.busy || syncingManaged) return
         key = KeyState()
         screen = Screen.Key
     }
@@ -319,6 +321,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     }
 
     fun claim() {
+        if (key.busy || syncingManaged) return
         val link = ClaimLink.read(key.key, Places.console)
         if (link == null) {
             key = key.copy(error = tr("Invalid access key"))
@@ -338,6 +341,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 SystemProxy.restore()
                 proxied = null
                 key = KeyState()
+                managedSyncStatus = null
                 screen = Screen.Dashboard
                 afterSync(sync)
                 if (sync != Sync.Updated && sync != Sync.Revoked) loadNodes()
@@ -1407,8 +1411,33 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         }
     }
 
+    fun syncManaged() {
+        if (account.binding == null || syncingManaged || key.busy) return
+        scope.launch { syncNow() }
+    }
+
     private suspend fun syncNow() {
-        afterSync(withContext(Dispatchers.IO) { account.sync() })
+        if (account.binding == null || syncingManaged || key.busy) return
+        syncingManaged = true
+        managedSyncStatus = null
+        refresh()
+        try {
+            val sync = withContext(Dispatchers.IO) { runCatching { account.sync() }.getOrDefault(Sync.Failed) }
+            afterSync(sync)
+            managedSyncStatus = when (sync) {
+                Sync.Updated -> "Nodes synced" to false
+                Sync.Unchanged -> "No changes" to false
+                Sync.Waiting -> "No route has been assigned" to true
+                Sync.Refused -> "Service suspended" to true
+                Sync.Revoked -> "Service revoked" to true
+                Sync.Offline -> "Unable to reach the service" to true
+                Sync.Failed -> "The received configuration is invalid" to true
+            }
+            if (sync == Sync.Revoked) tell(tr(managedSyncStatus!!.first), error = true)
+        } finally {
+            syncingManaged = false
+            refresh()
+        }
     }
 
     private fun afterSync(sync: Sync) {
@@ -1608,7 +1637,13 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         )
         nodesPage = NodesState(
             sections = buildList {
-                add(NodeSection("managed", SourceKind.Managed, "Managed", listed.filter { it.id !in importedTags && it.id !in subscribed }))
+                add(NodeSection(
+                    "managed", SourceKind.Managed, "Managed", listed.filter { it.id !in importedTags && it.id !in subscribed },
+                    updating = syncingManaged,
+                    error = managedSyncStatus?.takeIf { it.second }?.first,
+                    canSync = account.binding != null,
+                    status = managedSyncStatus?.takeUnless { it.second }?.first,
+                ))
                 if (importedTags.isNotEmpty()) add(NodeSection("imported", SourceKind.Imported, "Imported", listed.filter { it.id in importedTags }))
                 subscriptions.all.forEach { subscription ->
                     add(

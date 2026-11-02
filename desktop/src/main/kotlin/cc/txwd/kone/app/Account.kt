@@ -150,9 +150,7 @@ class Account(
         if (delivery.revision == current.revision && current.source != null) {
             // The same nodes; the terms may still have moved (a renewal).
             if (delivery.policy.expiresAt != current.expiresAt) {
-                val renewed = current.copy(expiresAt = delivery.policy.expiresAt)
-                store.save(renewed)
-                binding = renewed
+                remember(current) { it.copy(expiresAt = delivery.policy.expiresAt) }
             }
             return Sync.Unchanged
         }
@@ -164,20 +162,21 @@ class Account(
                 return Sync.Failed
             }
         }
-        val updated = current.copy(
-            revision = delivery.revision,
-            configRevision = delivery.configRevision,
-            configName = delivery.configName,
-            source = delivery.config,
-            expiresAt = delivery.policy.expiresAt,
-        )
-        store.save(updated)
-        binding = updated
+        if (!remember(current) { latest ->
+            latest.copy(
+                revision = delivery.revision,
+                configRevision = delivery.configRevision,
+                configName = delivery.configName,
+                source = delivery.config,
+                expiresAt = delivery.policy.expiresAt,
+            )
+        }) return Sync.Unchanged
         runCatching { console.ack(current.credential, delivery.revision, Report.APPLIED) }
         return Sync.Updated
     }
 
     /** Remembers the node chosen, so the next start begins there. */
+    @Synchronized
     fun select(tag: String) {
         val current = binding ?: return
         if (current.selected == tag) return
@@ -186,6 +185,17 @@ class Account(
         binding = updated
     }
 
+    /** Commit a response without replacing a choice made while its request was in flight. */
+    private fun remember(expected: Binding, update: (Binding) -> Binding): Boolean = synchronized(this) {
+        val current = binding ?: return@synchronized false
+        if (current.server != expected.server || current.deviceId != expected.deviceId || current.credential != expected.credential) return@synchronized false
+        val next = update(current)
+        store.save(next)
+        binding = next
+        true
+    }
+
+    @Synchronized
     private fun forget() {
         store.clear()
         binding = null
