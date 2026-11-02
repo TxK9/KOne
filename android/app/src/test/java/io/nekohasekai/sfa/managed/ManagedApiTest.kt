@@ -176,6 +176,59 @@ class ManagedApiTest {
         assertNull(expect(ManagedFailure.Waiting) { api().config("synthetic-device-credential") }.detail)
     }
 
+    @Test
+    fun errorDetailPreservesTheExactLengthBoundary() {
+        for (length in listOf(160, 161)) {
+            val reason = "r".repeat(length)
+            replies["/api/client/config"] = 403 to JSONObject().put("error", reason).toString()
+            val failure = expect(ManagedFailure.Refused) { api().config("synthetic-device-credential") }
+            assertEquals(if (length == 160) reason else null, failure.detail)
+        }
+    }
+
+    @Test
+    fun unmappedServerErrorsDoNotReflectRequestSecrets() {
+        val credential = "synthetic-private-device-token"
+        for (status in listOf(500, 503)) {
+            replies["/api/client/config"] = status to JSONObject().put("error", "Rejected $credential").toString()
+            val failure = expect(ManagedFailure.Server) { api().config(credential) }
+            for (text in listOf(failure.detail, failure.message, failure.shown)) {
+                assertTrue(!text.orEmpty().contains(credential))
+            }
+        }
+    }
+
+    @Test
+    fun invalidClaimCredentialsAreRejectedBeforeTheyCanBeStored() {
+        val invalid = listOf<Any>("synthetic\r\nX-Test: value", "token with spaces", "x".repeat(513), JSONObject())
+        val accepted = invalid.mapIndexedNotNull { index, credential ->
+            replies["/api/client/claim"] = 200 to JSONObject().put("format", 1).put("deviceId", "d-1").put("credential", credential).toString()
+            val failure = runCatching { api().claim("synthetic-invite-code", "Synthetic phone") }.exceptionOrNull()
+            if (failure is ManagedException && failure.failure == ManagedFailure.Server) null else index
+        }
+        assertTrue("Accepted invalid claim credential cases: $accepted", accepted.isEmpty())
+    }
+
+    @Test
+    fun validBearerSyntaxAndTheCredentialSizeBoundaryRemainSupported() {
+        for (credential in listOf("A.z_~+/-==", "x".repeat(512))) {
+            replies["/api/client/claim"] = 200 to JSONObject().put("format", 1).put("deviceId", "d-1").put("credential", credential).toString()
+            assertEquals(credential, api().claim("synthetic-invite-code", "Synthetic phone").credential)
+            replies["/api/client/config"] = 403 to JSONObject().put("error", "Renewal pending").toString()
+            assertEquals("Renewal pending", expect(ManagedFailure.Refused) { api().config(credential) }.detail)
+            assertEquals("Bearer $credential", seen.last().second)
+        }
+    }
+
+    @Test
+    fun malformedStoredCredentialFailsWithoutAnArgumentExceptionOrRequest() {
+        val failure = runCatching { api().config("synthetic\r\nX-Test: value") }.exceptionOrNull()
+        assertTrue("Unexpected failure type: ${failure?.javaClass?.simpleName}", failure is ManagedException)
+        assertEquals(ManagedFailure.Revoked, (failure as ManagedException).failure)
+        assertTrue(!failure.message.orEmpty().contains("synthetic"))
+        assertTrue(seen.isEmpty())
+    }
+
     private fun expect(failure: ManagedFailure, block: () -> Unit): ManagedException {
         try {
             block()

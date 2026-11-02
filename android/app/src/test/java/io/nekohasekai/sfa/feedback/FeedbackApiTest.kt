@@ -164,4 +164,14 @@ class FeedbackApiTest {
         assertEquals("Submission timed out. Your draft is saved. Try again.", failure.message)
         assertEquals(0L, disconnected.count)
     }
+
+    @Test fun malformedCredentialsFailBeforeCreatingAConnectionAndDoNotEchoTheirValue() {
+        var created = 0
+        val client = FeedbackApi(ManagedEndpoint.parse("https://api.example.invalid")!!,
+            "synthetic\r\nX-Test: value", connectionFactory = { created++; throw AssertionError("Unexpected connection") })
+        val failure = runCatching { client.history() }.exceptionOrNull()
+        assertTrue("Unexpected failure type: ${failure?.javaClass?.simpleName}", failure is FeedbackFailure)
+        assertTrue(!failure!!.message.orEmpty().contains("synthetic"))
+        assertEquals(0, created)
+    }
 }

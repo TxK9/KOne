@@ -28,6 +28,12 @@ class ManagedException(val failure: ManagedFailure, val detail: String? = null) 
 
 class ManagedClaim(val deviceId: String, val credential: String)
 
+/** A bounded RFC 6750 bearer value; validate before persistence or header construction. */
+internal object ManagedCredential {
+    private val bearer = Regex("[A-Za-z0-9._~+/-]+=*")
+    fun valid(value: String): Boolean = value.length in 1..512 && bearer.matches(value)
+}
+
 /** What GET /api/client/config delivers: the console's sing-box source and the customer's policy. */
 class ManagedDelivery(
     val revision: String,
@@ -85,8 +91,8 @@ class ManagedApi(private val endpoint: ManagedEndpoint, private val timeoutMilli
             }
         }
         val deviceId = reply.optString("deviceId")
-        val credential = reply.optString("credential")
-        if (deviceId.isBlank() || credential.isBlank() || reply.optInt("format") != 1) throw ManagedException(ManagedFailure.Server)
+        val credential = reply.opt("credential") as? String ?: ""
+        if (deviceId.isBlank() || !ManagedCredential.valid(credential) || reply.optInt("format") != 1) throw ManagedException(ManagedFailure.Server)
         return ManagedClaim(deviceId, credential)
     }
 
@@ -140,6 +146,7 @@ class ManagedApi(private val endpoint: ManagedEndpoint, private val timeoutMilli
     }
 
     private fun call(method: String, path: String, body: JSONObject?, credential: String?, map: (Int) -> ManagedFailure?): JSONObject {
+        if (credential != null && !ManagedCredential.valid(credential)) throw ManagedException(ManagedFailure.Revoked)
         val connection = try {
             URL(endpoint.url(path)).openConnection() as HttpURLConnection
         } catch (_: IOException) {
