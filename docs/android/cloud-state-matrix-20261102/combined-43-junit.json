@@ -1,0 +1,103 @@
+{
+  "suites": [
+    {
+      "name": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "hubLightHasReadableHierarchy",
+        "badgeAndTextStaySeparateAtLargeFontInBothDirectionsAndThemes",
+        "emptySelectorKeepsItsActionAndTouchTarget",
+        "rtlFeedbackPreservesDraftAndRetryAcrossBusyAndErrorStates",
+        "hubDarkHasReadableHierarchy",
+        "rtlFeedbackImageActionsKeepTheirIndicesAtLargeFont",
+        "hubLargeTextKeepsCompleteNavigationLabels",
+        "rtlDashboardLoadingSettlesAndKeepsItsNodeActionAtLargeFont",
+        "disabledNavigationRejectsBothPointerAndSemanticClicks",
+        "loadingSettlesIntoTheEmptySelector"
+      ],
+      "xml_sha256": "85f6f8a42ec16ad19308fb6784a93b2275cde39e16337d92ef41db22b9b0da00"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.account.AccountVisualTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "anEndWithinTheHourTurnsToEndedOnTheMinuteTick",
+        "theEndDateFollowsTheAppLocale",
+        "offlineAccountKeepsItsReasonOneTapAway",
+        "syncedAccountShowsItsTermsAndActions",
+        "accountRowsWrapAtDoubleFontSize",
+        "hubRowsShareOneCardAndTheirBadges",
+        "theEndDateFollowsTheZoneReadWithTheClock"
+      ],
+      "xml_sha256": "7550ca8290d730e03eb9ca20c0b1d3a30b041e41f91a43fd352117f39d5e1e8a"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.DashboardSemanticsTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "theFoldedPanelIsAButtonThatSaysItChoosesANode"
+      ],
+      "xml_sha256": "b375afc3d4553e681a6adbab618d78b3db765ec759ab1a013e6b3bd909f8b76c"
+    },
+    {
+      "name": "io.nekohasekai.sfa.feedback.FeedbackApiTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "distinguishesServiceAndSizeFailuresFromIncompleteSubmission",
+        "sendsFeedbackOnlyToTheBoundEndpointWithHeaderAuthentication",
+        "malformedCredentialsFailBeforeCreatingAConnectionAndDoNotEchoTheirValue",
+        "aSuccessStatusRequiresAValidReceiptBeforeTheDraftCanBeCleared",
+        "rejectedPayloadExplainsTheActionWithoutEchoingServerDetails",
+        "permissionFailuresAndMissingBackendAreVisible",
+        "refusesRedirectsInsteadOfForwardingCredentials",
+        "theWholeRequestDeadlineDisconnectsAStalledImageUpload",
+        "readsPublishedAndPendingStatusesWithoutPretendingSuccess"
+      ],
+      "xml_sha256": "841a28bc88290db65f30fe66917cfb23902ac545f466c6a5bde4a5564f49e164"
+    },
+    {
+      "name": "io.nekohasekai.sfa.managed.ManagedApiTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "reflectedClaimCodesNeverEnterFailureText",
+        "errorDetailPreservesTheExactLengthBoundary",
+        "serverFailureReasonsAreBounded",
+        "claimSendsTheCodeAndReadsTheCredential",
+        "claimFailuresHaveTheirOwnMeaning",
+        "reflectedDeviceCredentialsNeverEnterFailureText",
+        "diagnosticsSendOnlyKnownEvents",
+        "configRefusalsMapToStatesAndKeepTheConsolesWords",
+        "configIsFetchedWithTheBearerCredentialOnly",
+        "unmappedServerErrorsDoNotReflectRequestSecrets",
+        "aStaleAckIsNotAnErrorButARevokedOneIs",
+        "malformedStoredCredentialFailsWithoutAnArgumentExceptionOrRequest",
+        "invalidClaimCredentialsAreRejectedBeforeTheyCanBeStored",
+        "anUnreachableConsoleIsOffline",
+        "serverFailureReasonsCannotContainControlCharacters",
+        "validBearerSyntaxAndTheCredentialSizeBoundaryRemainSupported"
+      ],
+      "xml_sha256": "74256da70b3a6ae3027f8d3fcd0b77cb1107fcfd4bf0f58dc04ed5d4168e50dd"
+    }
+  ],
+  "totals": {
+    "tests": 43,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      "rtlReasonsFollowTheirContentDirectionWithoutMovingLatinPunctuation"
+    ],
+    "xml_sha256": "90ae0b15bc80ce881d876f22fc7b50b70831a90c74d2d1af0b912f04f6f1cb6e"
+  }
+]

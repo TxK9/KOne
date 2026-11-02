@@ -1,0 +1,168 @@
+{
+  "format": 1,
+  "date_utc": "2026-11-02",
+  "baseline_head": "42edac0938dd4e53d2dcff85782df4d7b80291b4",
+  "android_nominated_base": "0dd7a9ff0d78743d8910e05041bcbb07c7d598a5",
+  "navigation_guard_commit": "30f453a0f364ba51abcbbfcf3920c616277cf36f",
+  "credential_guard_commit": "98046b919303f4a9d31fc13788d724c77da37b7b",
+  "server_head_unchanged": "7f8cead2323276304979bfa0a61fe705a7f76f70",
+  "checks": [
+    {
+      "name": "android-credential-matrix-red",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:testOtherDebugUnitTest --tests '*.ManagedApiTest' --tests '*.FeedbackApiTest'",
+      "started_utc": "2026-11-02T03:20:58.981983+00:00",
+      "elapsed_seconds": 25.24,
+      "exit_status": 1,
+      "log": "android-credential-matrix-red.log",
+      "local_log_sha256": "bc384fb6bfc6e9cf6e46be161e43e2319bf615521f7b4ce7b4f2777571a47415",
+      "outcome_context": "24 API cases: 21 passed, three new malformed-credential regressions failed. Existing localized refusal, 160/161 detail boundary and exact-secret unmapped-5xx guards pass."
+    },
+    {
+      "name": "android-state-matrix-before",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/state-matrix-before :app:testOtherDebugUnitTest --tests '*.HubPolishVisualTest'",
+      "started_utc": "2026-11-02T03:23:59.340531+00:00",
+      "elapsed_seconds": 44.8,
+      "exit_status": 1,
+      "log": "android-state-matrix-before.log",
+      "local_log_sha256": "156f24ca511be55fcaee67a4dfa5b5b4c63c6bcb24874d01745d503b606abb2b",
+      "outcome_context": "10 native cases: nine passed, disabled direct semantic-click callback regression failed; pointer input was already blocked."
+    },
+    {
+      "name": "android-state-credential-matrix-final",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/state-matrix-final :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest --tests '*.HubPolishVisualTest' --tests '*.AccountVisualTest' --tests '*.DashboardSemanticsTest' --tests '*.ManagedApiTest' --tests '*.FeedbackApiTest'",
+      "started_utc": "2026-11-02T03:25:45.690348+00:00",
+      "elapsed_seconds": 44.77,
+      "exit_status": 0,
+      "log": "android-state-credential-matrix-final.log",
+      "local_log_sha256": "66b2fad154bf8ec6c727eaacce3a874e9b9b448b05e549cc7b3ae1919ed90a99",
+      "outcome_context": "Unsigned compilation and 43 selected tests pass: 18 native UI and 25 API cases."
+    },
+    {
+      "name": "android-rtl-badge-arrow-final",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/state-matrix-final :app:testOtherDebugUnitTest --tests '*.HubPolishVisualTest.badgeAndTextStaySeparateAtLargeFontInBothDirectionsAndThemes'",
+      "started_utc": "2026-11-02T03:27:51.115294+00:00",
+      "elapsed_seconds": 30.44,
+      "exit_status": 0,
+      "log": "android-rtl-badge-arrow-final.log",
+      "local_log_sha256": "d684a77b35e36681076d3b59a7f0091664cd199f2b0c7cf0fbea941199b44a62",
+      "outcome_context": "The badge/text geometry check passes after adding an unbadged mirrored-arrow navigation row to all four direction/theme fixtures."
+    },
+    {
+      "name": "android-rtl-reason-direction-probe",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/state-matrix-final :app:testOtherDebugUnitTest --tests '*.HubPolishVisualTest.rtlReasonsFollowTheirContentDirectionWithoutMovingLatinPunctuation'",
+      "started_utc": "2026-11-02T03:30:03.289422+00:00",
+      "elapsed_seconds": 28.74,
+      "exit_status": 0,
+      "log": "android-rtl-reason-direction-probe.log",
+      "local_log_sha256": "c590e92e467c29a63b065383aafa818396846dac53f805c18221001f13789271",
+      "outcome_context": "Content-direction probe passes for the Latin reason and an existing Persian resource; no runtime direction change justified."
+    },
+    {
+      "name": "android-state-security-contract",
+      "cwd": "${SERVER_ROOT}/server-web",
+      "command": "python3 tools/check_android_contract.py --server-root . --classes ${ANDROID_ROOT}/android/app/build/tmp/kotlin-classes/otherDebug --stdlib ${CLOUD_RUNTIME}/gradle-home/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.4.10/8943c84ddc6d5cc00a10dbc3736c397066eeaab5/kotlin-stdlib-2.4.10.jar --json-jar ${CLOUD_RUNTIME}/gradle-home/caches/modules-2/files-2.1/org.json/json/20250517/d67181bbd819ccceb929b580a4e2fcb0c8b17cd8/json-20250517.jar",
+      "started_utc": "2026-11-02T03:31:41.915431+00:00",
+      "elapsed_seconds": 2.65,
+      "exit_status": 0,
+      "log": "android-state-security-contract.log",
+      "local_log_sha256": "a0f7c60729aca5ec14bdfda37dc848dbe065c908be8f584a6c9e11d8132073ef",
+      "outcome_context": "Updated compiled production client passes 12 disposable backend scenarios plus acknowledgement/lifecycle checks; no customer or live-node data."
+    },
+    {
+      "name": "android-state-security-full-unit",
+      "cwd": "android",
+      "command": "bash ./gradlew --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share :app:compileOtherDebugKotlin :app:testOtherDebugUnitTest",
+      "started_utc": "2026-11-02T03:31:40.664760+00:00",
+      "elapsed_seconds": 21.79,
+      "exit_status": 0,
+      "log": "android-state-security-full-unit.log",
+      "local_log_sha256": "29cb6d667b19c5fe74056817b4231922f02b5b2416329d93a597eb281a2adffc",
+      "outcome_context": "Unsigned compilation and all 427 ordinary tests pass; no failures/errors/skips."
+    },
+    {
+      "name": "android-state-final-native",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/state-matrix-final :app:testOtherDebugUnitTest --tests '*.HubPolishVisualTest' --tests '*.AccountVisualTest' --tests '*.DashboardSemanticsTest'",
+      "started_utc": "2026-11-02T03:32:20.607626+00:00",
+      "elapsed_seconds": 42.76,
+      "exit_status": 0,
+      "log": "android-state-final-native.log",
+      "local_log_sha256": "4f7002f8e8751bcf39cd2d01504c1225ec25741039d87a8649d87679225a5ca7",
+      "outcome_context": "Final 19 native cases pass; no failures/errors/skips, including direction probe and expanded RTL/busy/retry/image matrix."
+    },
+    {
+      "name": "android-header-failure-probe",
+      "cwd": ".",
+      "command": "java ${TASK_WORKSPACE}/HeaderFailureProbe.java",
+      "started_utc": "2026-11-02T03:33:35.354329+00:00",
+      "elapsed_seconds": 0.57,
+      "exit_status": 0,
+      "log": "android-header-failure-probe.log",
+      "local_log_sha256": "5c3678803a33814eed52ede944753e1484970f7c364a95a97d13102ade58bfb2",
+      "outcome_context": "JDK-only no-connect probe confirms raw argument exception contains the synthetic credential; value is not printed."
+    },
+    {
+      "name": "android-rtl-loading-punctuation-probe",
+      "cwd": "android",
+      "command": "KONE_ROBOLECTRIC_CACHE=${TASK_WORKSPACE}/robolectric-cache bash ./gradlew --init-script ../docs/android/cloud-acceptance-20261101/native-render-cache.init.gradle --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx3g -Dfile.encoding=UTF-8' -PkoneEdition=share -PknineVisualTests=true -PkonePreviewDir=${TASK_WORKSPACE}/renders/state-matrix-final :app:testOtherDebugUnitTest --tests '*.HubPolishVisualTest.loadingSettlesIntoTheEmptySelector' --tests '*.HubPolishVisualTest.rtlDashboardLoadingSettlesAndKeepsItsNodeActionAtLargeFont'",
+      "started_utc": "2026-11-02T03:41:17.413939+00:00",
+      "elapsed_seconds": 30.5,
+      "exit_status": 0,
+      "log": "android-rtl-loading-punctuation-probe.log",
+      "local_log_sha256": "9d5bb05bffb01bf55661fea319a7b69d233c6643075d2e1616d466f055f76402",
+      "outcome_context": "Two focused loading direction/punctuation layout checks pass in LTR and RTL; no runtime patch justified."
+    }
+  ],
+  "counts": {
+    "ordinary_tests_passed": 427,
+    "final_native_tests_passed": 19,
+    "combined_selected_passed": 43,
+    "api_cases_in_combined_run": 25,
+    "actual_backend_client_scenarios_passed": 12,
+    "new_state_frames_reviewed": 11
+  },
+  "source_sha256": {
+    "android/app/src/main/java/io/nekohasekai/sfa/compose/component/KnineRows.kt": "777207fd3db77be3125e69153efeaf987933ed02c8ff1bdd93444ea970cddefc",
+    "android/app/src/main/java/io/nekohasekai/sfa/managed/ManagedApi.kt": "a573929f1b0496aa901055a123cac26f95ffe8d25feed049a3f5aad1c2cc793e",
+    "android/app/src/main/java/io/nekohasekai/sfa/feedback/FeedbackApi.kt": "01cbbb9887d4f2091f5dae5f5d1d94fefea4dc519f558bed8e1a6628183a6fe7",
+    "android/app/src/testVisual/java/io/nekohasekai/sfa/compose/component/HubPolishVisualTest.kt": "5a3d8cd3dcfef9937bd13df21343e41c1db4239a288aeedf1a77b747af00178f"
+  },
+  "execution": "Restored published KOne cloud runtime; exact host/environment receipts and raw logs retained outside Git.",
+  "limits": [
+    "Synthetic component states, not full navigation/device/TalkBack/keyboard/performance proof",
+    "RTL frames use English text; existing Persian text tested through layout only",
+    "Exact-secret error reflection only, no encoded/partial protection claim",
+    "No active generated trust metadata or environment change",
+    "No Windows, signing, install, production, customer data, external Claude contact, grants or merge"
+  ],
+  "command_convention": "Resolve named candidate/runtime/output placeholders to disposable local inputs.",
+  "wallpaper_assets": "Unchanged; earlier host/browser results not rerun.",
+  "artifacts": {
+    "HeaderFailureProbe.java": "ab839fbf1cea63d6bfa7f413203f84ef3001762b4e33d2bd2d6adb8fadb14691",
+    "api-before-junit.json": "746a5853faa7f505a2161853fd0a767e53951a0a4ed353e3dc3392e477e4bd77",
+    "audit_candidate_language.py": "cd3b2d01ad779272ae75d1d9b9be12979f7ee0559e19b89460afa703389505ed",
+    "candidate-language-audit.json": "bc8d44122fd4c3391b14508b68c9c3f898f8a7ee1ff902c3f2e44b62434833eb",
+    "combined-43-junit.json": "df47485025d1d6b16cac2c2707c43c9e4c46f6b311bc3d99385b870dc77e8a71",
+    "content-direction-probe-junit.json": "2ee6ec9dc79c47d5ab1289c50d1bd0d1c4aa642733aa2a326b9ec65492052bc2",
+    "loading-direction-probe-junit.json": "257db318cb0310d615a7df93920a53a7064e0a3de9c5d65e4518ed5697ea43e7",
+    "native/dashboard-rtl-font200-empty.png": "7a807be99e618805ecbff903b7405bf40e76df991f49a9e31a8a170f090b0a50",
+    "native/dashboard-rtl-font200-loading.png": "c9ee51fbe1d97b2e46ae4c7473521789ca54da95b1d557ced2ec6414b8a78367",
+    "native/feedback-rtl-font200-busy.png": "74f3a55e68cef9813260904496c50296c525c0312518fe9156994b2a08e5dd28",
+    "native/feedback-rtl-font200-error.png": "08f85b8bb1a723a3a571e195329364409ee7a9e12a612098d949556262226664",
+    "native/feedback-rtl-font200-images.png": "ce821b33dc739eebc39a18041a10580aed63f01e277e145d8642ef95420d3243",
+    "native/navigation-dark-ltr-font200.png": "d4646e71504eed81d5b34890e612990f3b8b946c9556de2d7cd40effff40ddcd",
+    "native/navigation-dark-rtl-font200.png": "4b30fb50504c8beea67a18e5d65ff2c1c447cae6c2c3fa1f248503e073df9d56",
+    "native/navigation-disabled.png": "0e27d66b6b5e2987874fbb30d53ddf80cef46aba9b1583fa25a13faef1d90007",
+    "native/navigation-enabled.png": "4566cba32c58fe8dce51029b669de72260024721fd8a7e4c949434d0e25ef2f9",
+    "native/navigation-light-ltr-font200.png": "13d81095a483340c97155c664567687775f1561a2efb1d74effc72513f793455",
+    "native/navigation-light-rtl-font200.png": "e6f803cd4b36f0187c95dab0f190b9a80fd4957d15c538934711238f6f5e295d",
+    "native-19-junit.json": "5f447724de3ac732ac43ba92fda52c6ac28d1c04f519cbc16b39b4ad6cf1941f",
+    "native-before-junit.json": "a58593e130b4cf0d66339a2d1f2082ab956d5d6cf966580004ccdb2f8a44c217",
+    "ordinary-427-junit.json": "c00f131dda5e9f77c60e86aa2046c62d6da4d3373c01a67ad5c93efaf56d6603"
+  }
+}

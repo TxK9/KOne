@@ -1,0 +1,59 @@
+{
+  "suites": [
+    {
+      "name": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "hubLightHasReadableHierarchy",
+        "badgeAndTextStaySeparateAtLargeFontInBothDirectionsAndThemes",
+        "emptySelectorKeepsItsActionAndTouchTarget",
+        "rtlFeedbackPreservesDraftAndRetryAcrossBusyAndErrorStates",
+        "hubDarkHasReadableHierarchy",
+        "rtlFeedbackImageActionsKeepTheirIndicesAtLargeFont",
+        "rtlReasonsFollowTheirContentDirectionWithoutMovingLatinPunctuation",
+        "hubLargeTextKeepsCompleteNavigationLabels",
+        "rtlDashboardLoadingSettlesAndKeepsItsNodeActionAtLargeFont",
+        "disabledNavigationRejectsBothPointerAndSemanticClicks",
+        "loadingSettlesIntoTheEmptySelector"
+      ],
+      "xml_sha256": "db0c82f94251dcc45b7273743bc0ac6fd426f47e59b6d4645950512bf1b77643"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.account.AccountVisualTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "anEndWithinTheHourTurnsToEndedOnTheMinuteTick",
+        "theEndDateFollowsTheAppLocale",
+        "offlineAccountKeepsItsReasonOneTapAway",
+        "syncedAccountShowsItsTermsAndActions",
+        "accountRowsWrapAtDoubleFontSize",
+        "hubRowsShareOneCardAndTheirBadges",
+        "theEndDateFollowsTheZoneReadWithTheClock"
+      ],
+      "xml_sha256": "17639504912e133e4f8c01cc34a90f416230681f1501e1f7f3408ed9e11ba688"
+    },
+    {
+      "name": "io.nekohasekai.sfa.compose.screen.dashboard.DashboardSemanticsTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "theFoldedPanelIsAButtonThatSaysItChoosesANode"
+      ],
+      "xml_sha256": "96c44b3722acc17814ffbd8df737a350cf6aaa99b9987050f98351f396255200"
+    }
+  ],
+  "totals": {
+    "tests": 19,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

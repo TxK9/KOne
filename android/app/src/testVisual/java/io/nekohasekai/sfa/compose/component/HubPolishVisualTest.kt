@@ -144,7 +144,12 @@ class HubPolishVisualTest {
             }
         }
         capture("dashboard-loading.png")
-        compose.onNodeWithText(context.getString(R.string.loading)).assertIsDisplayed()
+        val label = context.getString(R.string.loading)
+        compose.onNodeWithText(label).assertIsDisplayed()
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText(label).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals(ResolvedTextDirection.Ltr, layouts.single().getParagraphDirection(0))
+        assertTrue("English loading punctuation follows its word", layouts.single().getBoundingBox(label.lastIndex).center.x > layouts.single().getBoundingBox(label.lastIndex - 1).center.x)
         compose.onNodeWithText(context.getString(R.string.kone_dashboard_no_node)).assertDoesNotExist()
         compose.runOnIdle { loading = false }
         compose.onNodeWithText(context.getString(R.string.loading)).assertDoesNotExist()
@@ -239,7 +244,12 @@ class HubPolishVisualTest {
                 CollapsedPanel(DashboardUiState(isLoading = loading), Status.Stopped, KnineHost(), { opened++ }, Modifier)
             }
         }
-        compose.onNodeWithText(context.getString(R.string.loading)).assertIsDisplayed()
+        val label = context.getString(R.string.loading)
+        compose.onNodeWithText(label).assertIsDisplayed()
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText(label).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals("Loading keeps content direction in an RTL layout", ResolvedTextDirection.Ltr, layouts.single().getParagraphDirection(0))
+        assertTrue("Loading punctuation follows its word in RTL", layouts.single().getBoundingBox(label.lastIndex).center.x > layouts.single().getBoundingBox(label.lastIndex - 1).center.x)
         capture("dashboard-rtl-font200-loading.png")
         compose.runOnIdle { loading = false }
         compose.onNodeWithText(context.getString(R.string.loading)).assertDoesNotExist()

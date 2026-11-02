@@ -1,0 +1,14 @@
+[
+  {
+    "name": "io.nekohasekai.sfa.compose.component.HubPolishVisualTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      "rtlDashboardLoadingSettlesAndKeepsItsNodeActionAtLargeFont",
+      "loadingSettlesIntoTheEmptySelector"
+    ],
+    "xml_sha256": "158d59013f6e7a64260a77da19154cfb624f0d4b03f1e6a24212742300dd9f2b"
+  }
+]
