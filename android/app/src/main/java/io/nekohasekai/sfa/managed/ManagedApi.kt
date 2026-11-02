@@ -21,7 +21,7 @@ enum class ManagedFailure(val message: String) {
     Stale("Configuration updated"),
 }
 
-/** A failure, with the console's own wording when it gave one (it never echoes secrets). */
+/** A failure with bounded console wording after request secrets are excluded at the API boundary. */
 class ManagedException(val failure: ManagedFailure, val detail: String? = null) : Exception(detail ?: failure.message) {
     val shown: String get() = detail?.takeIf { it.isNotBlank() && it.length <= 60 } ?: failure.message
 }
@@ -164,7 +164,11 @@ class ManagedApi(private val endpoint: ManagedEndpoint, private val timeoutMilli
             val text = (if (status in 200..299) connection.inputStream else connection.errorStream)?.use { readLimited(it) }.orEmpty()
             val json = runCatching { JSONObject(text) }.getOrNull()
             if (status == 200) return json ?: throw ManagedException(ManagedFailure.Server)
-            val said = json?.optString("error")?.takeIf { it.isNotBlank() }
+            val requestSecrets = listOfNotNull(credential, body?.optString("inviteCode")?.takeIf { it.isNotEmpty() })
+            val said = json?.optString("error")?.takeIf { text ->
+                text.isNotBlank() && text.length <= 160 && text.none { it.isISOControl() } &&
+                    requestSecrets.none { secret -> secret.isNotEmpty() && text.contains(secret) }
+            }
             val failure = map(status) ?: ManagedFailure.Server
             throw ManagedException(failure, if (failure == ManagedFailure.Server) "$status ${said.orEmpty()}".trim() else said)
         } catch (failure: ManagedException) {

@@ -145,6 +145,37 @@ class ManagedApiTest {
         start()
     }
 
+    @Test
+    fun reflectedDeviceCredentialsNeverEnterFailureText() {
+        val credential = "synthetic-device-secret-12345678"
+        replies["/api/client/config"] = 403 to JSONObject().put("error", "Denied: $credential").toString()
+        val refused = expect(ManagedFailure.Refused) { api().config(credential) }
+        assertNull(refused.detail)
+        assertEquals(ManagedFailure.Refused.message, refused.message)
+        assertEquals(ManagedFailure.Refused.message, refused.shown)
+    }
+
+    @Test
+    fun reflectedClaimCodesNeverEnterFailureText() {
+        val invite = "synthetic-invite-code-12345678"
+        replies["/api/client/claim"] = 409 to JSONObject().put("error", "Limit for $invite").toString()
+        val refused = expect(ManagedFailure.DeviceLimit) { api().claim(invite, "Synthetic phone") }
+        assertNull(refused.detail)
+        assertEquals(ManagedFailure.DeviceLimit.message, refused.message)
+    }
+
+    @Test
+    fun serverFailureReasonsCannotContainControlCharacters() {
+        replies["/api/client/config"] = 409 to JSONObject().put("error", "Waiting\nAuthorization: Bearer synthetic").toString()
+        assertNull(expect(ManagedFailure.Waiting) { api().config("synthetic-device-credential") }.detail)
+    }
+
+    @Test
+    fun serverFailureReasonsAreBounded() {
+        replies["/api/client/config"] = 409 to JSONObject().put("error", "x".repeat(2000)).toString()
+        assertNull(expect(ManagedFailure.Waiting) { api().config("synthetic-device-credential") }.detail)
+    }
+
     private fun expect(failure: ManagedFailure, block: () -> Unit): ManagedException {
         try {
             block()
