@@ -7,6 +7,7 @@ import java.io.FilterInputStream
 import java.nio.file.Files
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -39,6 +40,35 @@ class DiagnosticTextTest {
     @Test fun ordinaryUtf8DiagnosticsAndEmptyLinesRoundTrip() {
         val input = "Stage=connect café\r\n\nFailure at Loader.kt:42"
         assertEquals(input, copy(input))
+    }
+
+    @Test(timeout = 5_000) fun jsonSecretsStayRedactedWhenTheLineCapSplitsAnEscape() {
+        val cap = 32_768
+        val marker = "synthetic-boundary-secret "
+        for (field in listOf("password", "credential")) {
+            for (offset in -1..1) {
+                val prefix = "{\"$field\":\""
+                val filler = "x".repeat(cap - prefix.length - marker.length - 1 + offset)
+                val input = prefix + marker + filler + "\\\"suffix\"}"
+                assertTrue(JSONObject(input).getString(field).contains(marker))
+                val output = copy(input + "\n\tat example.Loader.read(Loader.kt:42)\n")
+                assertFalse("Secret retained at escape offset $offset", output.contains("synthetic-boundary-secret"))
+                assertTrue(output.contains("\"$field\":\"[redacted]\""))
+                assertTrue(output.contains("[diagnostic line truncated]"))
+                assertTrue(output.endsWith("Loader.kt:42)\n"))
+                assertTrue(output.length < 256)
+            }
+        }
+    }
+
+    @Test fun ordinaryQuotedFieldsKeepTheirRetainedPrefixAtTheSameBoundary() {
+        val cap = 32_768
+        val prefix = "{\"passwordPolicy\":\"ordinary-policy "
+        val retained = prefix + "x".repeat(cap - prefix.length - 1) + "\\"
+        assertEquals(cap, retained.length)
+        val output = copy(retained + "\"suffix\"}\nNext diagnostic line\n")
+        assertEquals(retained + " [diagnostic line truncated]\nNext diagnostic line\n", output)
+        assertEquals(retained, copy(retained))
     }
 
     @Test fun frameworkBinaryCopyRemainsByteExact() {

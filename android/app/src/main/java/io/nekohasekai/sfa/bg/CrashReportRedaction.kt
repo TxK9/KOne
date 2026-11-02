@@ -7,9 +7,9 @@ import org.json.JSONObject
 internal object CrashReportRedaction {
     private const val KEYS = "(?:password|passwd|credential|invite[_-]?code|access[_-]?token|refresh[_-]?token|client[_-]?secret|private[_-]?key|token|secret|psk|authorization|proxy-authorization|cookie|set-cookie)"
     private val secretField = Regex(KEYS, RegexOption.IGNORE_CASE)
-    // Possessive repetition avoids recursive backtracking on long quoted values.
-    private val jsonValue = Regex("""(?im)("$KEYS"\s*:\s*)("(?:\\.|[^"\\\r\n])*+(?:"|(?=\r?$)))""")
-    private val assignment = Regex("""(?im)(\b$KEYS[ \t]*=[ \t]*)("(?:\\.|[^"\\\r\n])*+(?:"|(?=\r?$))|'(?:\\.|[^'\\\r\n])*+(?:'|(?=\r?$))|[^\s,;&}]+)""")
+    // Keep possessive matching bounded and accept a dangling escape at a truncated line end.
+    private val jsonValue = Regex("""(?im)("$KEYS"\s*:\s*)("(?:\\.|[^"\\\r\n])*+(?:"|(?:\\)?(?=\r?$)))""")
+    private val assignment = Regex("""(?im)(\b$KEYS[ \t]*=[ \t]*)("(?:\\.|[^"\\\r\n])*+(?:"|(?:\\)?(?=\r?$))|'(?:\\.|[^'\\\r\n])*+(?:'|(?:\\)?(?=\r?$))|[^\s,;&}]+)""")
     private val header = Regex("""(?im)(\b(?:authorization|proxy-authorization|cookie|set-cookie)[ \t]*:[ \t]*)[^\r\n]*""")
     private val bearer = Regex("""(?i)(\bBearer[ \t]+)[^\s"'<>]+""")
     private val userInfo = Regex("""(?i)\b(https?://)[^/\s?#@]+@""")

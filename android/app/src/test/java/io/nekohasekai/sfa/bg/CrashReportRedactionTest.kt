@@ -87,4 +87,18 @@ class CrashReportRedactionTest {
         assertTrue(output.contains("Loader.kt:1"))
         assertTrue(output.contains("Caused by:"))
     }
+
+    @Test fun danglingQuotedEscapesAreRedactedWithoutConsumingTheNextFrame() {
+        for (prefix in listOf("\"password\":\"", "credential=\"", "password='")) {
+            for (ending in listOf("\n", "\r\n", "")) {
+                val frame = if (ending.isEmpty()) "" else "\tat example.Loader.read(Loader.kt:42)"
+                val output = CrashReportRedaction.text(prefix + "synthetic leading retained-secret\\" + ending + frame)
+                assertFalse(output.contains("synthetic"))
+                assertFalse(output.contains("retained-secret"))
+                if (frame.isNotEmpty()) assertTrue(output.endsWith(frame))
+            }
+        }
+        val ordinary = "\"passwordPolicy\":\"ordinary-policy\\"
+        assertEquals(ordinary, CrashReportRedaction.text(ordinary))
+    }
 }
