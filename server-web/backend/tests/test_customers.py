@@ -253,13 +253,13 @@ class CustomerAPITest(unittest.TestCase):
         self.request('/api/client/ack',{'revision':envelope['revision'],'status':'received'},bearer=device['credential'],admin=False)
         snapshot=self.server.app.customers.detail(self.user)
         archive=self.root/'private-backup.zip';meta=backup(self.root/'data',archive)
-        self.assertEqual(meta['user_version'],5);self.assertEqual(verify(archive),meta)
+        self.assertEqual(meta['user_version'],6);self.assertEqual(verify(archive),meta)
         restore(archive,self.root/'restored')
         store=ConsoleStore(self.root/'restored');Fleet(store);customers=Customers(store)
         self.assertEqual(customers.authenticate('Bearer '+device['credential']),device['deviceId'])
         self.assertEqual(customers.detail(self.user),snapshot)
         self.assertEqual(customers.configuration(device['deviceId'])['revision'],envelope['revision'])
-        with store.connect() as c:self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],5)
+        with store.connect() as c:self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],6)
 
     def test_upgrade_version_two_preserves_old_records_and_does_not_downgrade_schema(self):
         directory=self.root/'old-version-two'

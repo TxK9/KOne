@@ -122,7 +122,7 @@ class ClaudeConfigTest(unittest.TestCase):
 
     def test_the_column_is_added_without_a_new_schema_version(self):
         with self.server.app.store.connect() as c:
-            self.assertEqual(c.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(c.execute("PRAGMA user_version").fetchone()[0], 6)
             self.assertIn("block_claude", {row[1] for row in c.execute("PRAGMA table_info(customer_accounts)")})
 
 

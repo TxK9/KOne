@@ -27,6 +27,7 @@ from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 import uuid
 from fleet import Fleet, FleetError
 from customers import Customers, CustomerError, DEFAULT_GROUP
+from node_controller import NodeController, ControllerError
 from feedback import Feedback
 from owner_updates import OwnerUpdates, APK_PATH as OWNER_APK_PATH
 from deploy.center_common import DataLock
@@ -50,6 +51,10 @@ PUBLIC_API_ROUTES = {
     "/api/node/result": {"POST"},
     "/api/node/usage": {"POST"},
     "/api/client/claim": {"POST"},
+    "/api/client/controller/register": {"POST"},
+    "/api/client/controller/lease": {"POST"},
+    "/api/client/controller/ack": {"POST"},
+    "/api/client/controller/nodes/publish": {"POST"},
     "/api/client/config": {"GET"},
     "/api/client/ack": {"POST"},
     "/api/client/diagnostics": {"POST"},
@@ -195,7 +200,7 @@ class ConsoleStore:
         os.close(descriptor)
         os.chmod(str(self.path), 0o600)
         with self.connect() as connection:
-            if connection.execute("PRAGMA user_version").fetchone()[0] > 5:
+            if connection.execute("PRAGMA user_version").fetchone()[0] > 6:
                 raise ValueError("数据库来自较新的版本，请先更新管理中心程序")
             connection.executescript("""
                 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -528,6 +533,8 @@ class ConsoleApplication:
         self.store = store
         self.fleet = Fleet(store)
         self.customers = Customers(store,self.fleet)
+        self.node_controller = NodeController(store, self.customers, parse_json_text)
+        self.customers.controller = self.node_controller
         self.feedback = Feedback(store)
         self.owner_updates = OwnerUpdates(store)
         self.web_dir = Path(web_dir).resolve()
@@ -846,7 +853,7 @@ class ConsoleHandler(BaseHTTPRequestHandler):
         if path == "/api/client/config":
             identifier = self.app.customers.authenticate(self.headers.get("Authorization", ""))
             if head:raise APIError(405,"请使用 GET 领取配置")
-            self._json(200, self.app.customers.configuration(identifier), head=head)
+            self._json(200, self.app.customers.configuration(identifier, controller_protocol=1 if self.headers.get("X-KOne-Controller-Protocol") == "1" else None), head=head)
             return
         if path in ("/downloads/kone-node.py", "/downloads/install-node.sh"):
             target = BASE_DIR / "node" / ("agent.py" if path.endswith(".py") else "install.sh")
@@ -861,6 +868,15 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             return
         if path.startswith("/api/"):
             self.app.require_session(self)
+            if path == "/api/node-controller":
+                self._json(200, self.app.node_controller.listing(), head=head)
+                return
+            controller_match = re.fullmatch(r"/api/node-controller/nodes/([0-9a-f-]{36})(?:/(config|impact))?", path)
+            if controller_match:
+                result = self.app.node_controller.impact(controller_match[1]) if controller_match[2] == "impact" else self.app.node_controller.detail(controller_match[1])
+                if controller_match[2] != "config": result.pop("config", None)
+                self._json(200, result, head=head)
+                return
             if path == "/api/owner-release":
                 self._json(200, {"release": self.app.owner_updates.release(), "devices": self.app.owner_updates.devices()}, head=head)
                 return
@@ -914,8 +930,20 @@ class ConsoleHandler(BaseHTTPRequestHandler):
                 self.app.check_login_rate("client:" + self.app.request_ip(self))
                 result = self.app.customers.claim(payload)
             else:
-                identifier = self.app.customers.authenticate(self.headers.get("Authorization", ""))
-                if path == "/api/client/ack":
+                try:
+                    identifier = self.app.customers.authenticate(self.headers.get("Authorization", ""))
+                except CustomerError:
+                    if path.startswith("/api/client/controller/"):
+                        raise ControllerError(401, "Device authentication has been revoked.", "device_revoked") from None
+                    raise
+                if path.startswith("/api/client/controller/"):
+                    actions = {"/api/client/controller/register": self.app.node_controller.register,
+                               "/api/client/controller/lease": self.app.node_controller.lease,
+                               "/api/client/controller/ack": self.app.node_controller.ack,
+                               "/api/client/controller/nodes/publish": self.app.node_controller.publish}
+                    if path not in actions: raise APIError(404, "客户端接口不存在")
+                    result = actions[path](identifier, payload)
+                elif path == "/api/client/ack":
                     result = self.app.customers.ack(identifier,payload)
                 elif path == "/api/client/feedback":
                     result = self.app.feedback.submit(identifier, payload)
@@ -974,6 +1002,20 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             return
         token, _ = self.app.require_session(self, mutation=True)
         payload = self._body()
+        if path.startswith("/api/node-controller/"):
+            controller = self.app.node_controller
+            if path == "/api/node-controller/nodes/import": result = controller.import_nodes(payload)
+            elif path == "/api/node-controller/nodes/preview": result = controller.preview(payload)
+            else:
+                match = re.fullmatch(r"/api/node-controller/(nodes|devices)/([0-9a-f-]{36})/(update|delete|restore|configure|grants|revoke|publishing)", path)
+                node_actions = {"update": controller.update, "delete": controller.delete, "restore": controller.restore}
+                device_actions = {"configure": controller.configure, "grants": controller.grant, "revoke": controller.revoke, "publishing": controller.publishing}
+                if not match: raise APIError(404, "接口不存在")
+                actions = node_actions if match[1] == "nodes" else device_actions
+                if match[3] not in actions: raise APIError(404, "接口不存在")
+                result = actions[match[3]](match[2], payload)
+            self._json(200, result)
+            return
         if path == "/api/owner-update/enroll":
             if not self.app.public_api_authority: raise APIError(503, "更新通道尚未配置")
             result = self.app.owner_updates.enroll(payload)
@@ -1068,6 +1110,9 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             else:
                 self.app.check_request(self)
                 raise APIError(405, "不支持此操作")
+        except ControllerError as error:
+            if method != "GET": self.close_connection = True
+            self._json(error.status, error.payload(), head=head)
         except (APIError, FleetError, CustomerError) as error:
             if method != "GET":
                 self.close_connection = True

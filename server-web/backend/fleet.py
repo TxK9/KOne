@@ -98,7 +98,7 @@ class Fleet:
     def __init__(self, store):
         self.store = store
         with store.connect() as c:
-            if c.execute("PRAGMA user_version").fetchone()[0] > 5:
+            if c.execute("PRAGMA user_version").fetchone()[0] > 6:
                 raise ValueError("数据库来自较新的版本")
             c.executescript("""
                 CREATE TABLE IF NOT EXISTS fleet_servers(

@@ -135,7 +135,7 @@ class Customers:
                       (DEFAULT_GROUP, "默认分组", time.time()))
             c.execute("INSERT OR IGNORE INTO customer_accounts(user_id,group_id,paused,joined) SELECT id,?,0,? FROM users",
                       (DEFAULT_GROUP, time.time()))
-            c.execute("PRAGMA user_version=5")
+            c.execute("PRAGMA user_version=" + str(max(5, c.execute("PRAGMA user_version").fetchone()[0])))
         store.restrict_files()
 
     @staticmethod
@@ -454,20 +454,37 @@ class Customers:
         if device["revoked"]:raise CustomerError(401,"设备凭据已撤销")
         return device
 
-    def configuration(self, identifier):
+    def configuration(self, identifier, controller_protocol=None):
+        controller = getattr(self, "controller", None)
+        if controller_protocol == 1 and controller is not None:
+            controller.recover_device(identifier)
         with self.store.connect() as c:
             c.execute("BEGIN IMMEDIATE")
             device=self.checked_device(c,identifier)
             context=self.context(c,device["user_id"])
             allowed=[d[0] for d in c.execute("SELECT id FROM customer_devices WHERE user_id=? AND revoked=0 ORDER BY created,id",(device["user_id"],))]
-            if identifier not in allowed[:context[3]["deviceLimit"]]:raise CustomerError(403,"此设备超出分组上限")
-            result=self.envelope(context)
+            controller = getattr(self, "controller", None)
+            if controller_protocol == 1 and controller is None and c.execute("PRAGMA user_version").fetchone()[0] >= 6:
+                raise CustomerError(503, "Node control is unavailable. Cached managed configurations are not authorized.")
+            controlled = False
+            if c.execute("SELECT 1 FROM sqlite_master WHERE name='controller_devices'").fetchone():
+                control = c.execute("SELECT mode FROM controller_devices WHERE device_id=?", (identifier,)).fetchone()
+                controlled = bool(control and control['mode'] != 'legacy')
+            if controlled and controller is None:
+                raise CustomerError(503, "Node control is unavailable. Cached managed configurations are not authorized.")
+            if not controlled and identifier not in allowed[:context[3]["deviceLimit"]]:raise CustomerError(403,"此设备超出分组上限")
+            result = controller.configuration(c, device, context, controller_protocol) if controller else self.envelope(context)
             c.execute("INSERT OR IGNORE INTO customer_deliveries VALUES(?,?,?,?)",(identifier,result["revision"],json.dumps(result,ensure_ascii=False),time.time()))
             c.execute("UPDATE customer_devices SET issued_revision=?,issued_at=?,last_seen=? WHERE id=?",(result["revision"],time.time(),time.time(),identifier))
             c.execute("DELETE FROM customer_deliveries WHERE device_id=? AND revision NOT IN (SELECT revision FROM customer_deliveries WHERE device_id=? ORDER BY issued DESC LIMIT 10)",(identifier,identifier))
         return result
 
     def ack(self, identifier, data):
+        controller = getattr(self, "controller", None)
+        if controller:
+            with self.store.connect() as c:
+                controlled = controller._state(c, identifier)["mode"] != "legacy"
+            if controlled: return controller.ack(identifier, data, legacy=True)
         revision=text(data.get("revision"),64)
         status=data.get("status");code=data.get("code","ok" if status!="failed" else "unknown")
         if status not in ("received","applied","failed") or not isinstance(code,str) or code not in ACK_CODES:
