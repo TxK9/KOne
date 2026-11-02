@@ -54,6 +54,7 @@ import io.nekohasekai.sfa.compose.topbar.LocalScaffoldPadding
 import io.nekohasekai.sfa.compose.topbar.OverrideTopBar
 import io.nekohasekai.sfa.feedback.*
 import io.nekohasekai.sfa.managed.ManagedState
+import io.nekohasekai.sfa.managed.ManagedSnapshot
 import io.nekohasekai.sfa.compose.theme.BackdropText as Text
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import io.nekohasekai.sfa.compose.theme.BackdropOutlinedTextField as OutlinedTextField
@@ -72,8 +73,25 @@ internal data class FeedbackProblem(val title: String, val reason: String)
 @Composable
 fun FeedbackScreen(navController: NavController) {
     val context = LocalContext.current
+    FeedbackScreenContent(navController, ManagedState.snapshot) {
+        val endpoint = ManagedState.endpoint
+        val credential = ManagedState.credential()
+        if (!ManagedState.bound || endpoint == null || credential == null) null
+        else Triple(FeedbackDraft.bindingKey(endpoint.base, credential),
+            FeedbackDraft(context.applicationContext, endpoint.base, credential), FeedbackApi(endpoint, credential))
+    }
+}
+
+/** Keep binding acquisition separate so the real submission path can use disposable test state. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun FeedbackScreenContent(
+    navController: NavController,
+    bindingVersion: ManagedSnapshot,
+    loadBinding: () -> Triple<String, FeedbackDraft, FeedbackApi>?,
+) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val snapshot = ManagedState.snapshot
     var draft by remember { mutableStateOf<FeedbackDraft?>(null) }
     var api by remember { mutableStateOf<FeedbackApi?>(null) }
     var description by remember { mutableStateOf("") }
@@ -138,14 +156,8 @@ fun FeedbackScreen(navController: NavController) {
             finally { if (draft === saved) { pendingImages = emptyList(); busy = false } }
         }
     }
-    LaunchedEffect(snapshot) {
-        val binding = withContext(Dispatchers.IO) {
-            val endpoint = ManagedState.endpoint
-            val credential = ManagedState.credential()
-            if (!ManagedState.bound || endpoint == null || credential == null) null
-            else Triple(FeedbackDraft.bindingKey(endpoint.base, credential),
-                FeedbackDraft(context.applicationContext, endpoint.base, credential), FeedbackApi(endpoint, credential))
-        }
+    LaunchedEffect(bindingVersion) {
+        val binding = withContext(Dispatchers.IO) { loadBinding() }
         // A credential can change while the endpoint and `bound` flag stay the same. Ordinary
         // sync status updates, on the other hand, must not reset this form or an active upload.
         if (initialized && bindingKey == binding?.first) return@LaunchedEffect
