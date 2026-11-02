@@ -18,7 +18,7 @@ import kotlinx.serialization.json.JsonObject
  */
 class SubscriptionUpdates(private val scope: CoroutineScope, private val subscriptions: Subscriptions, private val host: Host) {
     interface Host {
-        /** The console's configuration, which subscribed nodes join; null without a key. */
+        /** The base configuration, empty when no managed source has been assigned. */
         val managed: JsonObject?
         /** KOne's local port while it is the system proxy, for a fetch the network refuses straight out. */
         val proxied: Int?

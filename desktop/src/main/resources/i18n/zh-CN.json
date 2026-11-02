@@ -473,5 +473,6 @@
   "Use my own nodes": "使用自己的节点",
   "Managed service": "托管服务",
   "Enter invitation code": "输入邀请码",
-  "{0} nodes": "{0} 个节点"
+  "{0} nodes": "{0} 个节点",
+  "Import chained nodes through a subscription or the management server": "请通过订阅或管理后台导入链式节点"
 }

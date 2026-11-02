@@ -14,7 +14,7 @@ import java.io.File
 /**
  * The nodes the person imported (⋮ → Import from clipboard, Import from file), sealed like the console's in
  * imported.bin in the App's folder. They join the console's nodes and go through the same
- * template, so the Claude block holds for them too; without a key they are not used at all.
+ * template, so managed reject rules also apply while a managed source is assigned.
  */
 class Imports(private val file: File, private val vault: Vault) {
     /** Each node's outbound, tagged with its name. */

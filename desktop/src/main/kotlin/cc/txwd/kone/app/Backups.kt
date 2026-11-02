@@ -29,7 +29,7 @@ class Backups(
     interface Host {
         val tools: ToolsState
         fun update(change: (ToolsState) -> ToolsState)
-        /** The console's configuration, which imported nodes join; null without a key. */
+        /** The base configuration, empty when no managed source has been assigned. */
         val managed: JsonObject?
         /** [nodes] that sing-box accepts beside [managed]. */
         fun accepted(managed: JsonObject, nodes: List<JsonObject>): List<JsonObject>

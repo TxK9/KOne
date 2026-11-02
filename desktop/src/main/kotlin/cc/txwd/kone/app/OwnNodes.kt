@@ -27,7 +27,7 @@ import java.awt.image.BufferedImage
  */
 class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, private val host: Host) {
     interface Host {
-        /** The console's configuration, which the person's nodes join; null until it is sent. */
+        /** The base configuration, empty when no managed source has been assigned. */
         val managed: JsonObject?
         /** The node the person picked. */
         val selected: String?
@@ -79,11 +79,13 @@ class OwnNodes(private val scope: CoroutineScope, private val imports: Imports, 
             val (message, good) = withContext(Dispatchers.IO) {
                 // Share links, a Clash profile or a sing-box configuration, as a subscription is read.
                 val read = SubscriptionContent.read(text)
-                // A chain names its next node by tag, and imported nodes are tagged anew: chains come by subscription.
-                val single = read.nodes.filter { it["detour"] == null }.take(100)
+                // Local nodes are tagged independently: reject the whole chain instead of losing its dependency.
+                if (read.nodes.any { (it["detour"] as? JsonPrimitive)?.contentOrNull?.isNotBlank() == true }) {
+                    return@withContext tr("Import chained nodes through a subscription or the management server") to false
+                }
+                val single = read.nodes.take(100)
                 if (single.isEmpty()) {
                     return@withContext when {
-                        read.nodes.isNotEmpty() -> tr("Chained nodes can be added as a subscription") to false
                         read.refused > 0 -> (read.refusal ?: tr("No usable nodes")) to false
                         else -> tr("No nodes found") to false
                     }
