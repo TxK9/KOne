@@ -15,6 +15,7 @@ FILES = ["server.py", "node_controller.py", "config_import.py", "fleet.py", "cus
          "web/index.html", "web/app.css", "web/app.js", "web/app.bundle.js", "web/theme.js", "web/favicon.svg",
          "web/js/api.js", "web/js/core.js", "web/js/icons.js", "web/js/ink.js", "web/js/layer.js", "web/js/owner-download.js",
          "web/js/i18n.js", "web/js/store.js", "web/js/weather.js", "web/js/widgets.js",
+         "web/js/controller-model.js", "web/js/pages/nodes.js",
          "web/js/pages/overview.js", "web/js/pages/servers.js", "web/js/pages/routes.js",
          "web/js/pages/customers.js", "web/js/pages/configs.js", "web/js/pages/records.js", "web/js/pages/feedback.js",
          "web/art/liberty-light.png", "web/art/liberty-dark.png", "web/art/goldengate-light.png", "web/art/goldengate-dark.png",

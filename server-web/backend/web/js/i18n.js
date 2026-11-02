@@ -1166,7 +1166,8 @@ const ZH_CONTROLLER = {
   "Upgrade the client to enforce startup and runtime authorization leases.": "请更新客户端，以执行启动和运行期间的在线授权校验。",
   "Use a fresh random nonce for each authorization request.": "每次在线授权请求都需要新的随机标识。",
   "Use a new nonce for a new authorization request.": "新的在线授权请求需要新的随机标识。",
-  "Use a node name between 1 and 80 characters.": "节点名称须为 1 到 80 个字符。"
+  "Use a node name between 1 and 80 characters.": "节点名称须为 1 到 80 个字符。",
+  "The node controller recovery state is invalid.": "节点管理恢复状态无效。"
 };
 for (const key of Object.keys(ZH_CONTROLLER)) EN[key] = key;
 Object.assign(ZH_PORTABLE, ZH_CONTROLLER);
