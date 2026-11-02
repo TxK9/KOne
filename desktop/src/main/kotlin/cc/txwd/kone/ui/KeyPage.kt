@@ -47,7 +47,7 @@ data class KeyState(val key: String = "", val busy: Boolean = false, val error: 
  * that asks for the key, the key field with its paste button, and Get started.
  */
 @Composable
-fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onStart: () -> Unit, moving: Boolean = true) {
+fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onStart: () -> Unit, moving: Boolean = true, onOwnNodes: () -> Unit = {}) {
     val ink = LocalInk.current
     Box(Modifier.fillMaxSize()) {
         Handscroll(moving = moving)
@@ -104,6 +104,9 @@ fun KeyView(state: KeyState, onKey: (String) -> Unit, onPaste: () -> Unit, onSta
                     } else {
                         Label(tr("Get started"), 16.sp, if (state.ready) ink.paper else ink.soft, FontWeight.SemiBold, letterSpacing = 1.28.sp)
                     }
+                }
+                Box(Modifier.fillMaxWidth().height(44.dp).press(enabled = !state.busy, label = tr("Use my own nodes"), onClick = onOwnNodes), contentAlignment = Alignment.Center) {
+                    Label(tr("Use my own nodes"), 14.sp, ink.soft)
                 }
             }
         }

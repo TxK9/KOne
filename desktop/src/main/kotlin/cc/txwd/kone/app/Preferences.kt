@@ -22,6 +22,21 @@ class Preferences(folder: File) {
     private val file = File(folder, "settings.properties")
     private val values = Properties().apply { runCatching { file.inputStream().use(::load) } }
 
+    /** Local nodes stay independent of a management account and its credentials. */
+    var localNodes: Boolean
+        get() = values.getProperty("localNodes") == "true"
+        set(value) {
+            values.setProperty("localNodes", value.toString())
+            save()
+        }
+
+    var localSelected: String?
+        get() = values.getProperty("localSelected")
+        set(value) {
+            if (value == null) values.remove("localSelected") else values.setProperty("localSelected", value)
+            save()
+        }
+
     var language: Language
         get() = Language.of(values.getProperty("language", Places.defaultLanguage))
         set(value) {

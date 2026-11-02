@@ -1,0 +1,116 @@
+name: Windows package
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/windows-release-20261102]
+permissions:
+  contents: write
+concurrency:
+  group: windows-package-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  KONE_VERSION: 1.0.71
+  KONE_BUILD: '71'
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          tag="windows-package-${{ github.run_id }}"
+          gh release create "$tag" --draft --target '${{ github.sha }}' --title "KOne $KONE_VERSION" --notes ''
+          git archive --format=tar --prefix="KOne-$KONE_VERSION/" HEAD | gzip -n > "KOne-$KONE_VERSION-source.tar.gz"
+          sha256sum "KOne-$KONE_VERSION-source.tar.gz" > "KOne-$KONE_VERSION-source.tar.gz.sha256"
+          gh release upload "$tag" "KOne-$KONE_VERSION-source.tar.gz" "KOne-$KONE_VERSION-source.tar.gz.sha256"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+  package:
+    needs: source
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: windows-latest
+            jdk: temurin
+            wix: x64
+            suffix: ''
+          - arch: arm64
+            runner: windows-11-arm
+            jdk: microsoft
+            wix: arm64
+            suffix: '-arm64'
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - id: go
+        shell: bash
+        run: echo "version=$(python -c "import json; print(json.load(open('docs/CORE_BUILD.json'))['go'])")" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+          cache-dependency-path: |
+            core/go.sum
+            desktop/service/go.sum
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95
+        with:
+          distribution: ${{ matrix.jdk }}
+          java-version: '21'
+          cache: gradle
+      - name: Build core and service
+        env:
+          CGO_ENABLED: '0'
+          GOOS: windows
+          GOARCH: ${{ matrix.arch }}
+          GOTOOLCHAIN: local
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force desktop/build/core | Out-Null
+          Push-Location core
+          $commit = (Get-Content ../docs/CORE_BUILD.json -Raw | ConvertFrom-Json).core_commit
+          $version = (go list -m -f '{{.Version}}' "github.com/sagernet/sing-box@$commit").TrimStart('v')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $tags = Get-Content release/DEFAULT_BUILD_TAGS_WINDOWS
+          $flags = Get-Content release/LDFLAGS
+          go build -trimpath -tags "$tags" -ldflags "-X github.com/sagernet/sing-box/constant.Version=$version $flags -s -w -buildid=" -o ../desktop/build/core/sing-box.exe ./cmd/sing-box
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+          Push-Location desktop/service
+          go build -trimpath -ldflags "-X main.version=$env:KONE_VERSION -s -w -buildid=" -o ../build/core/kone-service.exe .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+      - name: Create application image
+        working-directory: desktop
+        run: |
+          ./gradlew.bat --no-daemon createDistributable coreRules installerArt "-Pkone.build=$env:KONE_BUILD" "-Pkone.console=${{ vars.KONE_CONSOLE }}" '-Duser.language=en' '-Duser.country=US'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package MSI
+        working-directory: desktop
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = "$env:RUNNER_TEMP/wix.zip"
+          Invoke-WebRequest https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip -OutFile $zip
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne '6AC824E1642D6F7277D0ED7EA09411A508F6116BA6FAE0AA5F2C7DAA2FF43D31') { throw 'WiX hash mismatch' }
+          Expand-Archive $zip "$env:RUNNER_TEMP/wix"
+          $common = @{ Wix = "$env:RUNNER_TEMP/wix"; AppDir = (Resolve-Path build/compose/binaries/main/app/KOne).Path; CoreDir = (Resolve-Path build/core).Path; ArtDir = (Resolve-Path build/wix).Path; Site = '${{ vars.KONE_SITE }}' }
+          New-Item -ItemType Directory -Force build/msi | Out-Null
+          ./packaging/build-msi.ps1 @common -Arch ${{ matrix.wix }} -Version $env:KONE_VERSION -Out "$PWD/build/msi/KOne-$env:KONE_VERSION${{ matrix.suffix }}.msi"
+      - name: Save MSI
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = "build/msi/KOne-$env:KONE_VERSION${{ matrix.suffix }}.msi"
+          $hash = (Get-FileHash $msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Encoding ascii "$msi.sha256" "$hash  $([IO.Path]::GetFileName($msi))"
+          gh release upload '${{ needs.source.outputs.tag }}' $msi "$msi.sha256"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

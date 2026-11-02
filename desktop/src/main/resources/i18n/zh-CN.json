@@ -469,5 +469,9 @@
   "Download": "下载",
   "All": "全部",
   "{0} days remaining": "剩余 {0} 天",
-  "{0} can no longer be found; using {1}": "找不到 {0}，已改用{1}"
+  "{0} can no longer be found; using {1}": "找不到 {0}，已改用{1}",
+  "Use my own nodes": "使用自己的节点",
+  "Managed service": "托管服务",
+  "Enter invitation code": "输入邀请码",
+  "{0} nodes": "{0} 个节点"
 }

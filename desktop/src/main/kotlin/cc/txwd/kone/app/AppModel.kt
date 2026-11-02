@@ -50,6 +50,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import java.io.File
 import java.net.InetAddress
@@ -66,6 +67,13 @@ enum class Screen { Key, Dashboard }
  * draw what is here and call back into it. Runs its work on [scope]; state changes on the UI thread.
  */
 class AppModel(private val scope: CoroutineScope, private val preferences: Preferences) {
+    private val personalSource = JsonObject(mapOf("outbounds" to JsonArray(emptyList())))
+    private fun baseSource(): JsonObject = account.binding?.source ?: personalSource
+    private val selectedNode: String? get() = account.binding?.selected ?: preferences.localSelected
+    private fun selectNode(tag: String) {
+        if (account.binding != null) account.select(tag) else preferences.localSelected = tag
+    }
+
     private val account = Account(BindingStore(Places.data, Vault.forThisComputer()), Places.deviceName, accepts = ::accepts)
     private val rules: String by lazy { Places.rules?.path?.replace('\\', '/') ?: RuleSets.ensure(File(Places.data, "rules")) }
     private val probe: Probe? = Places.core?.let(::Probe)
@@ -81,8 +89,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private var importedOrder: List<String> = emptyList()
 
     private val ownNodes = OwnNodes(scope, imports, object : OwnNodes.Host {
-        override val managed get() = account.binding?.source
-        override val selected get() = account.binding?.selected
+        override val managed get() = baseSource()
+        override val selected get() = selectedNode
         override val imported get() = importedOrder
         override fun own(): OwnNodes.Own {
             val merged = merged() ?: return OwnNodes.Own(emptyList(), emptySet())
@@ -120,9 +128,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** Adding, fetching, editing and removing them: see SubscriptionUpdates. */
     private val feeds: SubscriptionUpdates = SubscriptionUpdates(scope, subscriptions, object : SubscriptionUpdates.Host {
-        override val managed get() = account.binding?.source
+        override val managed get() = baseSource()
         override val proxied get() = this@AppModel.proxied
-        override val inUse get() = account.binding?.selected?.let { subscribed[it]?.id }
+        override val inUse get() = selectedNode?.let { subscribed[it]?.id }
         override fun accepted(managed: JsonObject, nodes: List<JsonObject>) = acceptedNodes(managed, nodes)
         override fun refresh() = this@AppModel.refresh()
         override fun nodesChanged() = this@AppModel.nodesChanged()
@@ -155,9 +163,9 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** The chosen node, what was measured of each node, and the running core, through changes of the list: see NodeContinuity. */
     private val continuity = NodeContinuity(object : NodeContinuity.Host {
-        override val selected get() = account.binding?.selected
+        override val selected get() = selectedNode
         override val through get() = cc.txwd.kone.shared.Rules.countries(UserRules.clean(preferences.rules)).toSet()
-        override fun keep(tag: String) = account.select(tag)
+        override fun keep(tag: String) = selectNode(tag)
         override fun carry(carry: Map<String, String>) {
             delays.carry(carry)
             speeds.carry(carry)
@@ -194,7 +202,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         override fun changed() = ruleBook.show()
     })
 
-    var screen by mutableStateOf(if (account.binding != null) Screen.Dashboard else Screen.Key)
+    var screen by mutableStateOf(if (account.binding != null || preferences.localNodes) Screen.Dashboard else Screen.Key)
         private set
     var key by mutableStateOf(KeyState())
         private set
@@ -290,7 +298,24 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
 
     /** A key that arrived as a kone://claim link (clicked, or pasted): put it in the field. */
     fun offerKey(text: String) {
-        if (screen == Screen.Key && !key.busy) key = KeyState(text.trim())
+        if (!key.busy) {
+            screen = Screen.Key
+            key = KeyState(text.trim())
+        }
+    }
+
+    fun openActivation() {
+        if (key.busy) return
+        key = KeyState()
+        screen = Screen.Key
+    }
+
+    fun useOwnNodes() {
+        if (key.busy) return
+        preferences.localNodes = true
+        screen = Screen.Dashboard
+        loadNodes()
+        if (connection == Connection.Idle) startProbe()
     }
 
     fun claim() {
@@ -320,7 +345,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     }
 
     fun pickNode(tag: String) {
-        account.select(tag)
+        selectNode(tag)
         // The person's choice replaces whatever KOne picked or stood in with.
         drivenPick = null
         standIn = null
@@ -417,8 +442,12 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     }
 
     private fun connect() {
-        val binding = account.binding ?: return
-        val source = source() ?: return
+        val source = source()?.takeIf { builtOf(it) != null } ?: run {
+            wanted = false
+            preferences.connected = false
+            say(tr("No nodes found"))
+            return
+        }
         val built = builtOf(source)
         val running = built?.nodes.orEmpty()
         runningTags = running.mapTo(HashSet()) { it.tag }
@@ -443,7 +472,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 keeper.running = keeper.deliver(link)
                 runCatching {
                     link.connect(
-                        source, startTag(binding.selected), preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
+                        source, startTag(selectedNode), preferences.mode, preferences.bypass, preferences.direct, preferences.proxied,
                         preferences.rules, preferences.blockAds, preferences.remoteDns, preferences.directDns, preferences.ipv6,
                         preferences.hosts, preferences.unmatchedDirect, preferences.nameServers, preferences.region, preferences.fakeIp,
                         KoneConfig.countries(running),
@@ -535,7 +564,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             val listed = withContext(Dispatchers.IO) { keeper.ready() }
             keeper.running = listed
             val config = runCatching {
-                KoneConfig.build(source, rules, api, startTag(account.binding?.selected), tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
+                KoneConfig.build(source, rules, api, startTag(selectedNode), tun = false, mode = preferences.mode, bypass = preferences.bypass, mixed = port,
                     direct = preferences.direct, proxied = preferences.proxied, routes = keeper.routesWith(listed), blockAds = preferences.blockAds,
                     remoteDns = preferences.remoteDns, directDns = preferences.directDns, ipv6 = preferences.ipv6, hosts = preferences.hosts,
                     nameServers = preferences.nameServers, unmatchedDirect = preferences.unmatchedDirect, region = preferences.region,
@@ -807,7 +836,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /** The node carrying traffic now: a stand-in, KOne's pick for Automatic, the core's, or the person's own. */
     private fun inUse(): String? {
         standIn?.let { return it }
-        val chosen = account.binding?.selected ?: return nodes.firstOrNull()?.tag
+        val chosen = selectedNode ?: return nodes.firstOrNull()?.tag
         if (chosen == KoneConfig.AUTO_TAG) return drivenPick ?: autoNow ?: autoPick()?.tag
         return regionOf(chosen)?.let { regionPick(it)?.tag } ?: chosen
     }
@@ -822,7 +851,8 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         override suspend fun reach() = signIns.reach()
         override val proxied get() = this@AppModel.proxied
         override val bound get() = account.binding != null
-        override val sourceReady get() = account.binding?.source != null
+        override val sourceReady get() = nodes.isNotEmpty()
+        override val personal get() = account.binding == null && preferences.localNodes
         override val nodeCount get() = nodes.size
         override val throughAdapter get() = preferences.way == WAY_ADAPTER && !noAdapter
         override val serviceConnected get() = service != null
@@ -911,7 +941,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         override fun update(change: (ToolsState) -> ToolsState) {
             this@AppModel.tools = change(this@AppModel.tools)
         }
-        override val managed get() = account.binding?.source
+        override val managed get() = baseSource()
         override fun accepted(managed: JsonObject, nodes: List<JsonObject>) = acceptedNodes(managed, nodes)
         override fun showSettings() {
             ruleBook.show()
@@ -939,7 +969,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     fun setFailover(on: Boolean) {
         networkSettings.setFailover(on)
         val api = clash
-        val chosen = account.binding?.selected
+        val chosen = selectedNode
         if (!on && standIn != null && api != null && chosen != null) {
             standIn = null
             scope.launch(Dispatchers.IO) { api.select(chosen) }
@@ -1175,7 +1205,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private suspend fun watch(api: ClashApi) {
         delay(5_000)
         while (clash === api) {
-            val chosen = account.binding?.selected
+            val chosen = selectedNode
             val region = regionOf(chosen)
             when {
                 chosen == KoneConfig.AUTO_TAG && auto -> steerAutomatic(api)
@@ -1200,7 +1230,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private suspend fun steerAutomatic(api: ClashApi) {
         val current = drivenPick ?: withContext(Dispatchers.IO) { api.now(KoneConfig.AUTO_TAG) }
         if (current != null) testOne(api, current)
-        if (clash !== api || account.binding?.selected != KoneConfig.AUTO_TAG) return
+        if (clash !== api || selectedNode != KoneConfig.AUTO_TAG) return
         val next = steer.next(current, nodes.map { it.tag })
         if (next != null && withContext(Dispatchers.IO) { api.select(next) }) {
             if (current != null && health.failing(current) >= Health.FAILED) closeVia(api, current)
@@ -1216,7 +1246,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         val members = regionNodes(region).map { it.tag }
         val current = drivenPick?.takeIf { it in members } ?: withContext(Dispatchers.IO) { api.now(KoneConfig.PROXY_TAG) }?.takeIf { it in members }
         if (current != null) testOne(api, current)
-        if (clash !== api || regionOf(account.binding?.selected) != region) return
+        if (clash !== api || regionOf(selectedNode) != region) return
         // The others are tested now and then too, so there is someone to move to.
         if (members.count { health.tested(it) } < 2) measureSome(api, (members - setOfNotNull(current)).take(4))
         val next = steer.next(current, members)
@@ -1264,7 +1294,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     private suspend fun guard(api: ClashApi, chosen: String) {
         testOne(api, chosen)
         standIn?.let { testOne(api, it) }
-        if (clash !== api || account.binding?.selected != chosen) return
+        if (clash !== api || selectedNode != chosen) return
         val stand = standIn
         if (stand != null && health.answering(chosen) >= Health.RECOVERED) {
             if (withContext(Dispatchers.IO) { api.select(chosen) }) {
@@ -1380,8 +1410,17 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
                 probe?.stop()
                 probeApi = null
                 nodes = emptyList()
-                screen = Screen.Key
-                key = KeyState(error = sync.message)
+                local?.stop()
+                SystemProxy.restore()
+                proxied = null
+                loadNodes()
+                if (preferences.localNodes || nodes.isNotEmpty()) {
+                    preferences.localNodes = true
+                    screen = Screen.Dashboard
+                } else {
+                    screen = Screen.Key
+                    key = KeyState(error = sync.message)
+                }
             }
             Sync.Updated -> {
                 loadNodes()
@@ -1389,7 +1428,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             }
             Sync.Unchanged -> Unit
             // Paused, nothing assigned yet, offline: worth saying only while there are no nodes to use.
-            else -> if (account.binding?.source == null) notice = sync.message
+            else -> if (nodes.isEmpty()) notice = sync.message
         }
         refresh()
     }
@@ -1407,10 +1446,10 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     /**
      * The console's source with the person's own nodes after its own: the imported ones, then each
      * subscription's. Should a group stop it building, the person's groups are left out rather
-     * than the managed nodes. Null until the console has sent a source.
+     * than the managed nodes. An empty local baseline is used without a managed source.
      */
     private fun merged(): Merge.Merged? {
-        val managed = account.binding?.source ?: return null
+        val managed = baseSource()
         val groups = listOf(imports.all) + subscriptions.all.map { it.kept.nodes }
         return sequenceOf(groups, listOf(imports.all) + subscriptions.all.map { emptyList() }, groups.map { emptyList() })
             .map { Merge.into(managed, it) }
@@ -1435,15 +1474,14 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         // a running core that no longer runs what is listed starts afresh (NodeContinuity).
         if (continuity.listed(NodeContinuity.Listing.of(built))) probeApi = null
         health.forget(nodes.mapTo(HashSet()) { it.tag })
-        val binding = account.binding
         // The countries rules can go through, in the order the country list keeps them.
         val present = nodes.mapNotNullTo(HashSet()) { it.country }
         ruleBook.countriesChanged(Countries.all.map { it.code }.filter { it in present })
         if (tab !in categories()) {
             tab = when {
-                binding?.selected == KoneConfig.AUTO_TAG && auto -> AUTO_NAME
-                regionOf(binding?.selected) != null -> regionOf(binding?.selected)!!
-                else -> categoryOf(nodes.firstOrNull { it.tag == binding?.selected } ?: nodes.firstOrNull())
+                selectedNode == KoneConfig.AUTO_TAG && auto -> AUTO_NAME
+                regionOf(selectedNode) != null -> regionOf(selectedNode)!!
+                else -> categoryOf(nodes.firstOrNull { it.tag == selectedNode } ?: nodes.firstOrNull())
             }
         }
         refresh()
@@ -1530,7 +1568,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
     }
 
     private fun refresh() {
-        val selected = account.binding?.selected?.takeIf { tag -> (tag == KoneConfig.AUTO_TAG && auto) || regionOf(tag) != null || nodes.any { it.tag == tag } }
+        val selected = selectedNode?.takeIf { tag -> (tag == KoneConfig.AUTO_TAG && auto) || regionOf(tag) != null || nodes.any { it.tag == tag } }
             ?: nodes.firstOrNull()?.tag
         val listed = nodes.map(::shown)
         // Each country with two nodes or more leads its tab with an Automatic of its own.
@@ -1552,7 +1590,7 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
             expiry = Expiry.hint(account.binding?.expiresAt),
             proxied = proxied != null,
             hint = hint,
-            canImport = account.binding != null,
+            canImport = true,
             standIn = standIn?.let(::nameOf),
             trail = trail.toList(),
             signIn = signIns.state,
@@ -1591,22 +1629,22 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         Runtime.getRuntime().addShutdownHook(Thread { SystemProxy.restore(); usage.save(); traffic.save() })
         NetworkChanges { change -> scope.launch { networkChanged(change) } }.start()
         loadNodes()
-        if (account.binding != null) {
+        if (account.binding != null || preferences.localNodes) {
             // Connected when Windows shut down or restarted (not ended by Close or Quit): connect again.
-            if (preferences.connected && account.binding?.source != null) {
+            if (preferences.connected && nodes.isNotEmpty()) {
                 wanted = true
                 held = true
                 connect()
             } else {
                 startProbe()
             }
-            scope.launch { syncNow() }
+            if (account.binding != null) scope.launch { syncNow() }
         }
         scope.launch {
             // Subscriptions due for their update are fetched quietly; a failure keeps their last good nodes.
             delay(20_000)
             while (isActive) {
-                if (account.binding != null) {
+                if (account.binding != null || preferences.localNodes) {
                     val now = System.currentTimeMillis()
                     feeds.updateDue(now)
                 }

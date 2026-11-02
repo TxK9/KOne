@@ -320,6 +320,7 @@ fun main(args: Array<String>) {
                                   onKey = model::typeKey,
                                   onPaste = { clipboardText()?.let(model::typeKey) },
                                   onStart = model::claim,
+                                  onOwnNodes = model::useOwnNodes,
                                   moving = inSight && !still,
                               )
                               Screen.Dashboard -> WithRail(
@@ -400,6 +401,7 @@ fun main(args: Array<String>) {
                                           settings.state,
                                           SettingsActions(
                                               onLanguage = settings::pickLanguage,
+                                              onActivate = model::openActivation,
                                               onAppearance = settings::pickAppearance,
                                               onBackdrop = settings::pickBackdrop,
                                               onSound = settings::setSound,

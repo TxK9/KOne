@@ -91,6 +91,7 @@ data class SettingsState(
 
 class SettingsActions(
     val onLanguage: (Language) -> Unit = {},
+    val onActivate: () -> Unit = {},
     val onAppearance: (Appearance) -> Unit = {},
     val onBackdrop: (Backdrop) -> Unit = {},
     val onSound: (Boolean) -> Unit = {},
@@ -163,6 +164,7 @@ fun SettingsView(
                 }
             }
         }
+        Line(tr("Managed service")) { Action(tr("Enter invitation code"), actions.onActivate) }
         Line(tr("Appearance")) { Choices(Appearance.entries, state.appearance, Appearance::title, actions.onAppearance) }
         Line(tr("Background")) { Choices(Backdrop.entries, state.backdrop, Backdrop::title, actions.onBackdrop) }
         if (state.backdrop == Backdrop.City) Line(tr("Ambient sound")) { Switch(state.sound, tr("Ambient sound")) { actions.onSound(!state.sound) } }

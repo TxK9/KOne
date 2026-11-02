@@ -29,6 +29,7 @@ class DiagnosisRun(private val scope: CoroutineScope, private val host: Host) {
         val proxied: Int?
         /** Whether a key is bound, whether the console has sent its nodes, and how many nodes there are. */
         val bound: Boolean
+        val personal: Boolean get() = false
         val sourceReady: Boolean
         val nodeCount: Int
         /** Whether KOne goes out through its virtual adapter (and so through the service). */
@@ -63,6 +64,7 @@ class DiagnosisRun(private val scope: CoroutineScope, private val host: Host) {
             checks += withContext(Dispatchers.IO) { Conflicts.check(Conflicts.adapters(), SystemProxy.read(), host.proxied) }
             show(tr("Key"))
             checks += when {
+                host.personal -> Check(tr("Nodes"), if (host.nodeCount > 0) Outcome.Pass else Outcome.Warn, tr("{0} nodes", host.nodeCount))
                 !host.bound -> Check(tr("Key"), Outcome.Fail, tr("No key yet"))
                 !host.sourceReady -> Check(tr("Key"), Outcome.Fail, tr("The console has not sent nodes yet"))
                 else -> Check(tr("Key"), Outcome.Pass, "${host.nodeCount} nodes")

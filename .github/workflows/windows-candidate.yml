@@ -71,7 +71,7 @@ jobs:
           Push-Location core
           go test ./experimental/locale
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $commit = (Get-Content ../SNAPSHOT.json -Raw | ConvertFrom-Json).upstream_commits.core
+          $commit = (Get-Content ../docs/CORE_BUILD.json -Raw | ConvertFrom-Json).core_commit
           $version = (go list -m -f '{{.Version}}' "github.com/sagernet/sing-box@$commit").TrimStart('v')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $tags = Get-Content release/DEFAULT_BUILD_TAGS_WINDOWS

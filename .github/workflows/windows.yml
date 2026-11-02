@@ -61,7 +61,7 @@ jobs:
         id: core
         shell: bash
         run: |
-          commit=$(python -c "import json; print(json.load(open('SNAPSHOT.json'))['upstream_commits']['core'])")
+          commit=$(python -c "import json; print(json.load(open('docs/CORE_BUILD.json'))['core_commit'])")
           echo "version=$(go list -m -f '{{.Version}}' "github.com/sagernet/sing-box@$commit" | sed 's/^v//')" >> "$GITHUB_OUTPUT"
         env:
           GOTOOLCHAIN: local
