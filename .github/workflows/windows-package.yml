@@ -7,7 +7,7 @@ permissions:
   contents: write
 concurrency:
   group: windows-package-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 env:
   KONE_VERSION: 1.0.71
   KONE_BUILD: '71'

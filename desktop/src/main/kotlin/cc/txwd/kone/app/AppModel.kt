@@ -328,9 +328,19 @@ class AppModel(private val scope: CoroutineScope, private val preferences: Prefe
         scope.launch {
             val result = withContext(Dispatchers.IO) { runCatching { account.claim(link) } }
             result.onSuccess { sync ->
+                // A new binding cannot keep running the previous account's configuration.
+                wanted = false
+                preferences.connected = false
+                service?.let { link -> scope.launch(Dispatchers.IO) { link.disconnect() } }
+                probe?.stop()
+                probeApi = null
+                local?.stop()
+                SystemProxy.restore()
+                proxied = null
                 key = KeyState()
                 screen = Screen.Dashboard
                 afterSync(sync)
+                if (sync != Sync.Updated && sync != Sync.Revoked) loadNodes()
             }.onFailure { failure ->
                 key = key.copy(busy = false, error = (failure as? ConsoleException)?.shown ?: tr("Activation failed"))
             }
