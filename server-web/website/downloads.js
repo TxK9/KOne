@@ -7,7 +7,7 @@ const t=k=>L?L.t(k):({checkingRelease:'Checking the release…',releaseError:'Re
 const messages={},retryFiles={},busy=new Set();let architecture='x64',archChosen=false,pending=null;
 // Pinned, previously verified release fallback; metadata is refreshed independently.
 let android={version:'1.0.0',versionCode:10041,url:$('download-button').getAttribute('href'),bytes:102530593,sha256:$('android-sha').textContent,sourceUrl:$('source-download').getAttribute('href'),sourceBytes:119622416,sourceSha256:$('android-source-sha').textContent};
-let windows={version:'1.0.70',signed:false,installers:{x64:{url:$('windows-download').getAttribute('href'),bytes:144744455,sha256:$('windows-sha').textContent},arm64:{url:'downloads/windows/KOne-1.0.70-arm64.msi',bytes:140871120,sha256:'89cbb46b937d2e4ea5187c90030ec9326b0fde816b68a283cc0c209a065885fb'}},source:{url:$('windows-source').getAttribute('href'),bytes:70193893,sha256:$('windows-source-sha').textContent}};
+let windows={"version":"1.0.71","signed":false,"installers":{"x64":{"url":"downloads/windows/KOne-1.0.71.msi","bytes":144985187,"sha256":"97c19cb6d536ddb228e115d9c38d2d9d3003cce3193e6ffb65bb0eedb7dd0cac"},"arm64":{"url":"downloads/windows/KOne-1.0.71-arm64.msi","bytes":140931158,"sha256":"47d88224597abf54d5c0fecb5c359fd572166f17a29cf5159a0b109641a45762"}},"source":{"url":"downloads/windows/KOne-1.0.71-source.tar.gz","bytes":187635592,"sha256":"0f28650dca45e077e7d8241e1f4bbdc8d846779a91147ce510196cb27042bf10"}};
 let sourceAllowed=true;let allowed={android:true,windows:true},sequence={android:0,windows:0};
 function report(id,key=''){messages[id]=key;$(id+'-status').textContent=key?t(key):'';}
 async function request(url,options={},json=false){
