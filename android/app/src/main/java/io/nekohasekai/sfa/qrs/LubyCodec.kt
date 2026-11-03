@@ -144,12 +144,11 @@ class LubyCodec(private val sliceSize: Int = QRSConstants.DEFAULT_SLICE_SIZE) {
         if (indices.size > 2) {
             for (i in indices.indices) {
                 val subkey = indicesToKey(indices.filterIndexed { j, _ -> j != i })
-                state.blockKeyMap[subkey]?.let { subblock ->
-                    xorInPlace(data, subblock.data)
-                    indices = mutableListOf(indices[i])
-                    pending.indices = indices
-                    return@let
-                }
+                val subblock = state.blockKeyMap[subkey] ?: continue
+                xorInPlace(data, subblock.data)
+                indices = mutableListOf(indices[i])
+                pending.indices = indices
+                break
             }
         }
 

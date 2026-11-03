@@ -17,6 +17,14 @@ object QRSConstants {
     const val MIN_SLICE_SIZE = 100
     const val MAX_SLICE_SIZE = 1500
 
+    // Bounds for frames received from a scanner. Every header field is untrusted
+    // camera input, so a malformed frame must be rejected before it can size an
+    // allocation or index into the decoding state.
+    const val MAX_DECODE_BLOCKS = 100_000
+    const val MAX_DECODE_DEGREE = 1_000
+    const val MAX_ASSEMBLED_SIZE = 16 * 1024 * 1024
+    const val MAX_DECOMPRESSED_SIZE = 16 * 1024 * 1024
+
     fun calculateRequiredFrames(dataSize: Int, sliceSize: Int): Int {
         val k = (dataSize + sliceSize - 1) / sliceSize
         if (k == 0) return 1
