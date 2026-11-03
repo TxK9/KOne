@@ -167,7 +167,9 @@ object PairedProfile {
             val rule = routes.optJSONObject(index)
             val cidrs = rule?.optJSONArray("ip_cidr") ?: JSONArray()
             val entries = (0 until cidrs.length()).map { cidrs.optString(it) }
-            rule != null && rule.optString("outbound") in tags && "100.64.0.0/10" in entries && rule.optString("clash_mode").isBlank() && rule.optString("type") != "logical"
+            // An inverted rule matches everything except the tailnet, and only the route action delivers to the endpoint.
+            rule != null && rule.optString("outbound") in tags && "100.64.0.0/10" in entries && rule.optString("clash_mode").isBlank() &&
+                rule.optString("type") != "logical" && !rule.optBoolean("invert") && rule.optString("action", "route") == "route"
         }
         require(privateIndex != null) { "Configuration has no Tailscale private-network rule" }
         for (index in 0 until privateIndex) {

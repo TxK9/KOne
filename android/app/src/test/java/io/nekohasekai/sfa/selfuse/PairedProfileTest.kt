@@ -34,6 +34,29 @@ class PairedProfileTest {
         PairedProfile.requirePaired(config.toString())
     }
 
+    private fun withHomeRule(change: (JSONObject) -> Unit): String {
+        val config = JSONObject(PairedProfile.fromVlessLink(link))
+        val rules = config.getJSONObject("route").getJSONArray("rules")
+        change((0 until rules.length()).map { rules.getJSONObject(it) }.first { it.optString("outbound") == PairedProfile.HOME_TAG })
+        return config.toString()
+    }
+
+    @Test
+    fun explicitRouteActionOnHomeRuleIsAccepted() {
+        PairedProfile.requirePaired(withHomeRule { it.put("action", "route").put("invert", false) })
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsInvertedHomeRule() {
+        // Inverted, the rule would send all non-tailnet traffic to Home and tailnet traffic to the proxy.
+        PairedProfile.requirePaired(withHomeRule { it.put("invert", true) })
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsHomeRuleThatDoesNotRoute() {
+        PairedProfile.requirePaired(withHomeRule { it.put("action", "reject") })
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsProxyOnlyConfiguration() {
         PairedProfile.requirePaired("{\"inbounds\":[{\"type\":\"tun\"}]}")
