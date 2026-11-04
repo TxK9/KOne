@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_paired_detail_format">%1$s：%2$s</string>
+    <string name="knine_paired_invalid_link">连接链接无效</string>
+    <string name="knine_paired_not_vless">请导入 VLESS 链接。其他协议请使用完整的 sing-box 配置。</string>
+    <string name="knine_paired_invalid_identifier">连接标识（UUID）无效</string>
+    <string name="knine_paired_duplicate_parameter">链接包含重复的参数</string>
+    <string name="knine_paired_unsupported_transport">此传输方式请使用完整配置导入</string>
+    <string name="knine_paired_unencrypted">配对配置需要加密的 VLESS 连接（TLS 或 Reality）</string>
+    <string name="knine_paired_missing_reality_key">缺少 Reality 公钥</string>
+    <string name="knine_paired_invalid_reality_key">Reality 公钥格式无效</string>
+    <string name="knine_paired_invalid_short_id">Reality Short ID 格式无效</string>
+    <string name="knine_paired_unsupported_flow">不支持的 VLESS 流控</string>
+    <string name="knine_paired_unsupported_fingerprint">不支持的 TLS 指纹</string>
+    <string name="knine_paired_missing_server">缺少连接服务器</string>
+    <string name="knine_paired_invalid_server">连接服务器无效</string>
+    <string name="knine_paired_invalid_port">连接端口无效</string>
+    <string name="knine_paired_not_a_proxy">需要一个实际的代理节点</string>
+    <string name="knine_paired_invalid_configuration">配置格式无效</string>
+    <string name="knine_paired_tailscale_missing">此配置未启用 Tailscale。请先创建配对的代理与回家配置。</string>
+    <string name="knine_paired_no_proxy_node">配置中没有实际的代理节点</string>
+    <string name="knine_paired_tun_required">配对配置需要 VPN（TUN）路由</string>
+    <string name="knine_paired_no_private_rule">配置中没有 Tailscale 私有网络规则</string>
+    <string name="knine_paired_rule_overrides_home">私有网络规则之前的规则会覆盖回家流量</string>
+    <string name="knine_paired_private_after_global">私有网络规则必须位于全局代理规则之前</string>
+    <string name="knine_import_core_rejected">内核拒绝了生成的配置：%1$s</string>
+</resources>

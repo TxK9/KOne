@@ -9,6 +9,9 @@ import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeReader
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.selfuse.PairedProfile
+import io.nekohasekai.sfa.selfuse.PairedProfileException
+import io.nekohasekai.sfa.selfuse.PairedProfileMessages
 
 /** Local image pixels only; camera and gallery share the node import path. */
 internal object QRImageDecoder {
@@ -48,21 +51,18 @@ internal object QRImageDecoder {
 /** A scanner message resolved by the UI, so it follows the in-app language rather than the Application locale. */
 sealed interface ScanMessage {
     data class Resource(@StringRes val id: Int) : ScanMessage
-
-    /** Untranslated validator text; only a fixed allow-list ever reaches this, never decoded content. */
-    data class Literal(val text: String) : ScanMessage
 }
 
 internal object QRImportErrors {
-    private val knownParameters = setOf(
-        "Invalid connection link", "Invalid connection identifier", "Connection server is missing", "Invalid connection port",
-        "Connection contains duplicate parameters", "Reality public key is missing", "Invalid Reality public key format", "Invalid Reality short ID format",
-    )
-
-    fun controlledMessage(failure: Exception): ScanMessage = when (val message = failure.message.orEmpty()) {
-        "Import this transport using a complete configuration" -> ScanMessage.Resource(R.string.knine_qr_error_transport)
-        "The paired configuration requires an encrypted VLESS connection" -> ScanMessage.Resource(R.string.knine_qr_error_encryption)
-        in knownParameters -> ScanMessage.Literal(message)
+    /** Validator reasons map to fixed resources; decoded QR content is never echoed. */
+    fun controlledMessage(failure: Exception): ScanMessage = when (failure) {
+        is PairedProfileException -> ScanMessage.Resource(
+            when (failure.reason) {
+                PairedProfile.Reason.UNSUPPORTED_TRANSPORT -> R.string.knine_qr_error_transport
+                PairedProfile.Reason.UNENCRYPTED -> R.string.knine_qr_error_encryption
+                else -> PairedProfileMessages.resource(failure.reason)
+            },
+        )
         else -> ScanMessage.Resource(R.string.knine_qr_error_parameters)
     }
 }

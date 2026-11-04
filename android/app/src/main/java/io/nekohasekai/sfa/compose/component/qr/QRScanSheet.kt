@@ -365,7 +365,6 @@ fun QRScanSheet(onDismiss: () -> Unit, onScanResult: (QRScanResult) -> Unit, vie
                 Text(
                     when (message) {
                         is ScanMessage.Resource -> stringResource(message.id)
-                        is ScanMessage.Literal -> message.text
                     },
                 )
             },

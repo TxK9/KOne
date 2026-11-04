@@ -29,6 +29,8 @@ import io.nekohasekai.libbox.SystemProxyStatus
 import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.selfuse.PairedProfile
+import io.nekohasekai.sfa.selfuse.PairedProfileException
+import io.nekohasekai.sfa.selfuse.PairedProfileMessages
 import io.nekohasekai.sfa.compose.MainActivity
 import io.nekohasekai.sfa.constant.Action
 import io.nekohasekai.sfa.constant.Alert
@@ -144,8 +146,8 @@ class BoxService(private val service: Service, private val platformInterface: Pl
             }
             try {
                 PairedProfile.requirePaired(content)
-            } catch (e: IllegalArgumentException) {
-                stopAndAlert(Alert.CreateService, e.message)
+            } catch (e: PairedProfileException) {
+                stopAndAlert(Alert.CreateService, PairedProfileMessages.message(service, e))
                 return
             }
 
@@ -239,8 +241,8 @@ class BoxService(private val service: Service, private val platformInterface: Pl
         }
         try {
             PairedProfile.requirePaired(content)
-        } catch (e: IllegalArgumentException) {
-            stopAndAlert(Alert.CreateService, e.message)
+        } catch (e: PairedProfileException) {
+            stopAndAlert(Alert.CreateService, PairedProfileMessages.message(service, e))
             return
         }
         lastProfileName = profile.name

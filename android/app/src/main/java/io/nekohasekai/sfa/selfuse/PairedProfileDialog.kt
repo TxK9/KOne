@@ -84,7 +84,11 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
                         try {
                             val created = withContext(Dispatchers.IO) {
                                 val content = PairedProfile.fromVlessLink(input, InitialRuleSets.ensure(context))
-                                Libbox.checkConfig(content)
+                                try {
+                                    Libbox.checkConfig(content)
+                                } catch (failure: Exception) {
+                                    throw CoreRejectedException(failure.message)
+                                }
                                 val fileId = ProfileManager.nextFileID()
                                 val directory = File(context.filesDir, "configs").also { it.mkdirs() }
                                 val file = File(directory, "$fileId.json")
@@ -104,8 +108,11 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
                             onCreated(created)
                             Toast.makeText(context, R.string.knine_import_done, Toast.LENGTH_LONG).show()
                             onDismiss()
-                        } catch (failure: IllegalArgumentException) {
-                            error = failure.message ?: context.getString(R.string.knine_import_invalid_parameters)
+                        } catch (failure: PairedProfileException) {
+                            error = PairedProfileMessages.message(context, failure)
+                        } catch (failure: CoreRejectedException) {
+                            error = failure.detail?.let { context.getString(R.string.knine_import_core_rejected, it) }
+                                ?: context.getString(R.string.knine_import_invalid_parameters)
                         } catch (_: Exception) {
                             error = context.getString(R.string.knine_import_save_failed)
                         } finally {
@@ -117,4 +124,10 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
         },
         dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+/** The core's own check failed: the link parsed, so "check the link format" would mislead. */
+private class CoreRejectedException(message: String?) : Exception(message) {
+    // Core errors are English diagnostics; keep one short line under the localized prefix.
+    val detail: String? = message?.lineSequence()?.firstOrNull()?.trim()?.take(160)?.takeIf { it.isNotEmpty() }
 }

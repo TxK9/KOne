@@ -215,4 +215,54 @@ class PairedProfileTest {
     fun rejectsInvalidPortOnUnderscoreHostname() {
         PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@edge_1.node.invalid:70000"))
     }
+
+    private fun reasonOf(block: () -> Unit): PairedProfileException =
+        try {
+            block()
+            throw AssertionError("expected a validation failure")
+        } catch (failure: PairedProfileException) {
+            failure
+        }
+
+    private fun replaced(from: String, to: String) = PairedProfile.fromVlessLink(link.replace(from, to))
+
+    @Test
+    fun failuresCarryStableReasonsForTranslation() {
+        val cases = mapOf(
+            PairedProfile.Reason.INVALID_LINK to { PairedProfile.fromVlessLink("vless://bad host") },
+            PairedProfile.Reason.NOT_VLESS to { PairedProfile.fromVlessLink(link.replace("vless://", "trojan://")) },
+            PairedProfile.Reason.INVALID_IDENTIFIER to { replaced("00000000-0000-0000-0000-000000000001", "x") },
+            PairedProfile.Reason.DUPLICATE_PARAMETER to { PairedProfile.fromVlessLink("$link&sni=b.example") },
+            PairedProfile.Reason.UNSUPPORTED_TRANSPORT to { PairedProfile.fromVlessLink(link.replace("type=tcp", "type=grpc")) },
+            PairedProfile.Reason.UNENCRYPTED to { PairedProfile.fromVlessLink(link.replace("security=reality", "security=none")) },
+            PairedProfile.Reason.MISSING_REALITY_KEY to { PairedProfile.fromVlessLink(link.replace("pbk=", "pbx=")) },
+            PairedProfile.Reason.INVALID_REALITY_KEY to { PairedProfile.fromVlessLink(link.replace("pbk=A", "pbk=")) },
+            PairedProfile.Reason.INVALID_SHORT_ID to { PairedProfile.fromVlessLink("$link&sid=abc") },
+            PairedProfile.Reason.UNSUPPORTED_FLOW to { replaced("flow=xtls-rprx-vision", "flow=xtls-rprx-direct") },
+            PairedProfile.Reason.UNSUPPORTED_FINGERPRINT to { PairedProfile.fromVlessLink("$link&fp=unknown") },
+            PairedProfile.Reason.INVALID_SERVER to { PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@edge_1!:443")) },
+            PairedProfile.Reason.INVALID_PORT to { replaced("@node.invalid:443", "@edge_1.node.invalid:70000") },
+            PairedProfile.Reason.INVALID_CONFIGURATION to { PairedProfile.requirePaired("[]") },
+            PairedProfile.Reason.TAILSCALE_MISSING to { PairedProfile.requirePaired("{}") },
+            PairedProfile.Reason.NO_PRIVATE_RULE to { PairedProfile.requirePaired(withHomeRule { it.put("invert", true) }) },
+        )
+        for ((reason, block) in cases) {
+            assertEquals(reason.name, reason, reasonOf { block() }.reason)
+        }
+    }
+
+    @Test
+    fun malformedPercentEscapeIsALinkErrorNotADecoderMessage() {
+        val failure = reasonOf { PairedProfile.fromVlessLink("$link&spx=%zz") }
+        assertEquals(PairedProfile.Reason.INVALID_LINK, failure.reason)
+        assertEquals("Invalid connection link", failure.message)
+    }
+
+    @Test
+    fun detailIsBoundedToOneShortLine() {
+        val failure = reasonOf { PairedProfile.fromVlessLink(link.replace("flow=xtls-rprx-vision", "flow=" + "a%0A".repeat(40))) }
+        assertEquals(PairedProfile.Reason.UNSUPPORTED_FLOW, failure.reason)
+        assertEquals("a".repeat(32), failure.detail)
+        assertEquals("Unsupported VLESS flow: " + "a".repeat(32), failure.message)
+    }
 }

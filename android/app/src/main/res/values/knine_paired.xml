@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Validation messages for VLESS import and paired Proxy and Home profiles. -->
+    <string name="knine_paired_detail_format">%1$s: %2$s</string>
+    <string name="knine_paired_invalid_link">Invalid connection link</string>
+    <string name="knine_paired_not_vless">Import a VLESS link. Use a complete sing-box configuration for other protocols.</string>
+    <string name="knine_paired_invalid_identifier">Invalid connection identifier</string>
+    <string name="knine_paired_duplicate_parameter">The link contains duplicate parameters</string>
+    <string name="knine_paired_unsupported_transport">Import this transport using a complete configuration</string>
+    <string name="knine_paired_unencrypted">The paired configuration requires an encrypted VLESS connection (TLS or Reality)</string>
+    <string name="knine_paired_missing_reality_key">The Reality public key is missing</string>
+    <string name="knine_paired_invalid_reality_key">Invalid Reality public key format</string>
+    <string name="knine_paired_invalid_short_id">Invalid Reality short ID format</string>
+    <string name="knine_paired_unsupported_flow">Unsupported VLESS flow</string>
+    <string name="knine_paired_unsupported_fingerprint">Unsupported TLS fingerprint</string>
+    <string name="knine_paired_missing_server">The connection server is missing</string>
+    <string name="knine_paired_invalid_server">Invalid connection server</string>
+    <string name="knine_paired_invalid_port">Invalid connection port</string>
+    <string name="knine_paired_not_a_proxy">An actual proxy node is required</string>
+    <string name="knine_paired_invalid_configuration">Invalid configuration format</string>
+    <string name="knine_paired_tailscale_missing">Tailscale is disabled in this profile. Create a paired Proxy and Home profile first.</string>
+    <string name="knine_paired_no_proxy_node">The configuration has no actual proxy node</string>
+    <string name="knine_paired_tun_required">Paired profiles require VPN (TUN) routing</string>
+    <string name="knine_paired_no_private_rule">The configuration has no Tailscale private-network rule</string>
+    <string name="knine_paired_rule_overrides_home">A rule before the private-network rule would override Home traffic</string>
+    <string name="knine_paired_private_after_global">Private-network rules must precede global proxy rules</string>
+    <string name="knine_import_core_rejected">The core rejected the generated configuration: %1$s</string>
+</resources>

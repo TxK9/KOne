@@ -7,7 +7,6 @@ import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.selfuse.PairedProfile
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -53,11 +52,14 @@ class QRImageDecoderTest {
         assertEquals(ScanMessage.Resource(R.string.knine_qr_error_encryption), QRImportErrors.controlledMessage(failure))
     }
 
-    @Test fun knownValidatorMessagesPassThroughWithoutTheLink() {
+    @Test fun validatorReasonsMapToFixedResourcesWithoutTheLink() {
         val failure = runCatching { PairedProfile.fromVlessLink(link.replace("00000000-0000-0000-0000-000000000001", "not-a-uuid")) }.exceptionOrNull() as Exception
-        val message = QRImportErrors.controlledMessage(failure) as ScanMessage.Literal
-        assertFalse(message.text.contains("node.invalid"))
-        assertFalse(message.text.contains("vless://"))
+        assertEquals(ScanMessage.Resource(R.string.knine_paired_invalid_identifier), QRImportErrors.controlledMessage(failure))
+    }
+
+    @Test fun flowDetailIsNotEchoedFromTheCode() {
+        val failure = runCatching { PairedProfile.fromVlessLink("$link&flow=secret-flow") }.exceptionOrNull() as Exception
+        assertEquals(ScanMessage.Resource(R.string.knine_paired_unsupported_flow), QRImportErrors.controlledMessage(failure))
     }
 
     @Test fun unexpectedDecoderErrorsCannotEchoCredentials() {
