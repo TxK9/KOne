@@ -75,4 +75,42 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    private fun node(content: String) = JSONObject(content).getJSONArray("outbounds")
+        .let { outbounds -> (0 until outbounds.length()).map { outbounds.getJSONObject(it) }.first { it.optString("tag") == "node" } }
+
+    @Test
+    fun stripsBracketsFromIpv6Server() {
+        val node = node(PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@[2001:db8::1]:8443")))
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(8443, node.getInt("server_port"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsNonCanonicalIdentifier() {
+        // java.util.UUID accepts "1-1-1-1-1" and silently rewrites it to a different identity.
+        PairedProfile.fromVlessLink(link.replace("00000000-0000-0000-0000-000000000001", "1-1-1-1-1"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val tls = node(PairedProfile.fromVlessLink("$link&fp=")).getJSONObject("tls")
+        assertEquals("chrome", tls.getJSONObject("utls").getString("fingerprint"))
+    }
+
+    @Test
+    fun acceptsRawTransportAlias() {
+        val node = node(PairedProfile.fromVlessLink(link.replace("type=tcp", "type=raw")))
+        assertEquals(false, node.has("transport"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsNonObjectRouteRuleAsInvalidConfiguration() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link))
+        val original = config.getJSONObject("route").getJSONArray("rules")
+        val reordered = JSONArray().put("not-a-rule")
+        for (index in 0 until original.length()) reordered.put(original.getJSONObject(index))
+        config.getJSONObject("route").put("rules", reordered)
+        PairedProfile.requirePaired(config.toString())
+    }
 }
