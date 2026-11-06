@@ -216,6 +216,20 @@ class PairedProfileTest {
         PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@edge_1.node.invalid:70000"))
     }
 
+    @Test
+    fun rejectsNonCanonicalIdentifier() {
+        // java.util.UUID accepts "1-1-1-1-1" and silently rewrites it to a different identity.
+        val failure = reasonOf { replaced("00000000-0000-0000-0000-000000000001", "1-1-1-1-1") }
+        assertEquals(PairedProfile.Reason.INVALID_IDENTIFIER, failure.reason)
+    }
+
+    @Test
+    fun acceptsUppercaseIdentifierAndNormalizesIt() {
+        val node = JSONObject(replaced("00000000-0000-0000-0000-000000000001", "0000000A-0000-0000-0000-00000000000B"))
+            .getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("0000000a-0000-0000-0000-00000000000b", node.getString("uuid"))
+    }
+
     private fun reasonOf(block: () -> Unit): PairedProfileException =
         try {
             block()

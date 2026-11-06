@@ -58,6 +58,7 @@ object PairedProfile {
 
     const val HOME_TAG = "home-tailnet"
     const val PROXY_TAG = "proxy"
+    private val CANONICAL_UUID = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
     private fun obj(vararg values: Pair<String, Any>) = JSONObject().apply { values.forEach { put(it.first, it.second) } }
     private fun array(vararg values: Any) = JSONArray().apply { values.forEach { put(it) } }
 
@@ -76,7 +77,10 @@ object PairedProfile {
         val uri = try { URI(link.trim().substringBefore('#')) } catch (_: Exception) { fail(Reason.INVALID_LINK) }
         ensure(uri.scheme.equals("vless", true), Reason.NOT_VLESS)
         val (userInfo, host, port) = authority(uri)
-        val uuid = try { UUID.fromString(userInfo).toString() } catch (_: Exception) { fail(Reason.INVALID_IDENTIFIER) }
+        // UUID.fromString accepts shortened groups such as "1-1-1-1-1" and rewrites them to a
+        // different identity, so only the canonical 8-4-4-4-12 form is accepted.
+        val uuid = userInfo?.takeIf { CANONICAL_UUID.matches(it) }?.let { UUID.fromString(it).toString() }
+            ?: fail(Reason.INVALID_IDENTIFIER)
         val parameters = mutableMapOf<String, String>()
         uri.rawQuery.orEmpty().split('&').filter { it.isNotBlank() }.forEach {
             val pieces = it.split('=', limit = 2)
@@ -220,7 +224,7 @@ object PairedProfile {
             rule != null && rule.optString("outbound") in tags && "100.64.0.0/10" in entries && rule.optString("clash_mode").isBlank() &&
                 rule.optString("type") != "logical" && !rule.optBoolean("invert") && rule.optString("action", "route") == "route"
         } ?: fail(Reason.NO_PRIVATE_RULE)
-                for (index in 0 until privateIndex) {
+        for (index in 0 until privateIndex) {
             val earlier = routes.optJSONObject(index) ?: fail(Reason.RULE_OVERRIDES_HOME)
             val action = earlier.optString("action", "route")
             val dnsOnly = earlier.optString("protocol") == "dns"
