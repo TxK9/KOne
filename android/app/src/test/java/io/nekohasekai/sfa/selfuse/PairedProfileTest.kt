@@ -75,4 +75,49 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+    private fun node(link: String) = JSONObject(PairedProfile.fromVlessLink(link))
+        .getJSONArray("outbounds").let { outbounds ->
+            (0 until outbounds.length()).map { outbounds.getJSONObject(it) }.first { it.getString("type") == "vless" }
+        }
+
+    @Test
+    fun acceptsUnencodedDisplayName() {
+        assertEquals("node.invalid", node("$link#Home node 1").getString("server"))
+    }
+
+    @Test
+    fun stripsBracketsFromIpv6Server() {
+        val outbound = node(link.replace("node.invalid:443", "[2001:db8::1]:8443"))
+        assertEquals("2001:db8::1", outbound.getString("server"))
+        assertEquals(8443, outbound.getInt("server_port"))
+    }
+
+    @Test
+    fun acceptsRawTransportAliasAndPlainEncryption() {
+        val outbound = node(link.replace("type=tcp", "type=raw") + "&encryption=none&headerType=none")
+        assertEquals("xtls-rprx-vision", outbound.getString("flow"))
+    }
+
+    @Test
+    fun mapsAlpnAndFallsBackFromEmptyFingerprint() {
+        val tls = node(link.replace("security=reality", "security=tls") + "&alpn=h2%2Chttp%2F1.1&fp=").getJSONObject("tls")
+        assertEquals(listOf("h2", "http/1.1"), (0 until tls.getJSONArray("alpn").length()).map { tls.getJSONArray("alpn").getString(it) })
+        assertEquals("chrome", tls.getJSONObject("utls").getString("fingerprint"))
+        assertEquals(false, tls.has("reality"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnsupportedFlow() {
+        PairedProfile.fromVlessLink(link.replace("flow=xtls-rprx-vision", "flow=xtls-rprx-direct"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsVlessEncryptionMode() {
+        PairedProfile.fromVlessLink("$link&encryption=mlkem768x25519plus.native.0rtt.AAAA")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsHttpHeaderObfuscation() {
+        PairedProfile.fromVlessLink("$link&headerType=http")
+    }
 }

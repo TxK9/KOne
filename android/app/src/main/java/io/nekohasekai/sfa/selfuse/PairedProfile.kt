@@ -11,14 +11,21 @@ import java.util.UUID
 object PairedProfile {
     const val HOME_TAG = "home-tailnet"
     const val PROXY_TAG = "proxy"
+
+    // The VLESS client in the pinned core accepts no flow or XTLS Vision only.
+    private val SUPPORTED_FLOWS = setOf("", "xtls-rprx-vision")
     private fun obj(vararg values: Pair<String, Any>) = JSONObject().apply { values.forEach { put(it.first, it.second) } }
     private fun array(vararg values: Any) = JSONArray().apply { values.forEach { put(it) } }
 
     fun fromVlessLink(link: String, rulesDirectory: String = "rules"): String {
-        val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
+        // The fragment is only a display name. Share links often carry it unencoded
+        // (spaces, emoji), which java.net.URI rejects, so drop it before parsing.
+        val uri = try { URI(link.trim().substringBefore('#')) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
         val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        // URI keeps the brackets around IPv6 literals; sing-box expects the bare address.
+        val host = uri.host?.removeSurrounding("[", "]")?.takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Connection server is missing")
         val port = if (uri.port == -1) 443 else uri.port
         require(port in 1..65535) { "Invalid connection port" }
         val parameters = mutableMapOf<String, String>()
@@ -28,11 +35,18 @@ object PairedProfile {
             require(!parameters.containsKey(key)) { "Connection contains duplicate parameters" }
             parameters[key] = URLDecoder.decode(pieces.getOrElse(1) { "" }, "UTF-8")
         }
-        require(parameters["type"].orEmpty() in setOf("", "tcp")) { "Import this transport using a complete configuration" }
+        require(parameters["type"].orEmpty() in setOf("", "tcp", "raw")) { "Import this transport using a complete configuration" }
+        require(parameters["headerType"].orEmpty() in setOf("", "none")) { "Import this transport using a complete configuration" }
+        require(parameters["encryption"].orEmpty() in setOf("", "none")) { "This VLESS encryption mode is not supported" }
+        val flow = parameters["flow"].orEmpty()
+        require(flow in SUPPORTED_FLOWS) { "Unsupported VLESS flow" }
         require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
         val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
         val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"] ?: "chrome")))
+            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"]?.takeIf { it.isNotBlank() } ?: "chrome")))
+        parameters["alpn"]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }?.let {
+            tls.put("alpn", JSONArray(it))
+        }
         if (parameters["security"] == "reality") {
             val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
             val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }
@@ -43,7 +57,7 @@ object PairedProfile {
         }
         val node = obj("type" to "vless", "tag" to "node", "server" to host, "server_port" to port,
             "uuid" to uuid, "tls" to tls)
-        parameters["flow"]?.takeIf { it.isNotBlank() }?.let { node.put("flow", it) }
+        if (flow.isNotEmpty()) node.put("flow", flow)
         return build(node, rulesDirectory)
     }
 
