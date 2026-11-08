@@ -75,4 +75,42 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    private fun withFirstRule(rule: Any): String {
+        val config = JSONObject(PairedProfile.fromVlessLink(link))
+        val original = config.getJSONObject("route").getJSONArray("rules")
+        val reordered = JSONArray().put(rule)
+        for (index in 0 until original.length()) reordered.put(original.get(index))
+        config.getJSONObject("route").put("rules", reordered)
+        return config.toString()
+    }
+
+    private fun withPrivateRule(change: (JSONObject) -> Unit): String {
+        val config = JSONObject(PairedProfile.fromVlessLink(link))
+        val rules = config.getJSONObject("route").getJSONArray("rules")
+        val index = (0 until rules.length()).first { rules.getJSONObject(it).optString("outbound") == PairedProfile.HOME_TAG }
+        change(rules.getJSONObject(index))
+        return config.toString()
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun malformedRuleIsAConfigurationRejectionNotAParserCrash() {
+        PairedProfile.requirePaired(withFirstRule("not-a-rule"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun invertedPrivateRuleDoesNotCountAsHomeRoute() {
+        PairedProfile.requirePaired(withPrivateRule { it.put("invert", true) })
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectingPrivateRuleDoesNotCountAsHomeRoute() {
+        PairedProfile.requirePaired(withPrivateRule { it.put("action", "reject") })
+    }
+
+    @Test
+    fun explicitRouteActionAndNonTerminatingEarlyRulesRemainAccepted() {
+        PairedProfile.requirePaired(withPrivateRule { it.put("action", "route") })
+        PairedProfile.requirePaired(withFirstRule(JSONObject().put("action", "resolve")))
+    }
 }

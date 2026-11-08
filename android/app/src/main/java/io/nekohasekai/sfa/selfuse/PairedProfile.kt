@@ -108,21 +108,26 @@ object PairedProfile {
         require((0 until outbounds.length()).any { outbounds.optJSONObject(it)?.optString("type") in proxyTypes }) { "Configuration has no actual proxy node" }
         val inbounds = config.optJSONArray("inbounds") ?: JSONArray()
         require((0 until inbounds.length()).any { inbounds.optJSONObject(it)?.optString("type") == "tun" }) { "Paired profiles require VPN/TUN routing" }
-        val routes = config.optJSONObject("route")?.optJSONArray("rules") ?: JSONArray()
-        val privateIndex = (0 until routes.length()).firstOrNull { index ->
-            val rule = routes.optJSONObject(index)
-            val cidrs = rule?.optJSONArray("ip_cidr") ?: JSONArray()
-            val entries = (0 until cidrs.length()).map { cidrs.optString(it) }
-            rule != null && rule.optString("outbound") in tags && "100.64.0.0/10" in entries && rule.optString("clash_mode").isBlank() && rule.optString("type") != "logical"
+        val routeArray = config.optJSONObject("route")?.optJSONArray("rules") ?: JSONArray()
+        // A malformed rule is a configuration rejection, never an unchecked parser crash.
+        val routes = (0 until routeArray.length()).map { index ->
+            routeArray.optJSONObject(index) ?: throw IllegalArgumentException("Invalid route rule format")
         }
-        require(privateIndex != null) { "Configuration has no Tailscale private-network rule" }
+        val privateIndex = routes.indexOfFirst { rule ->
+            val cidrs = rule.optJSONArray("ip_cidr") ?: JSONArray()
+            val entries = (0 until cidrs.length()).map { cidrs.optString(it) }
+            rule.optString("outbound") in tags && "100.64.0.0/10" in entries &&
+                rule.optString("action", "route") == "route" && !rule.optBoolean("invert", false) &&
+                rule.optString("clash_mode").isBlank() && rule.optString("type") != "logical"
+        }
+        require(privateIndex >= 0) { "Configuration has no Tailscale private-network rule" }
         for (index in 0 until privateIndex) {
-            val earlier = routes.getJSONObject(index)
+            val earlier = routes[index]
             val action = earlier.optString("action", "route")
             val dnsOnly = earlier.optString("protocol") == "dns"
             require(action in setOf("sniff", "resolve") || (action == "hijack-dns" && dnsOnly)) { "A rule before the private-network rule would override Home traffic." }
         }
-        val globalIndex = (0 until routes.length()).firstOrNull { routes.optJSONObject(it)?.optString("clash_mode").equals("Global", true) }
-        require(globalIndex == null || privateIndex < globalIndex) { "Private-network rules must precede global proxy rules." }
+        val globalIndex = routes.indexOfFirst { it.optString("clash_mode").equals("Global", true) }
+        require(globalIndex < 0 || privateIndex < globalIndex) { "Private-network rules must precede global proxy rules." }
     }
 }
