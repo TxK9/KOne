@@ -54,6 +54,32 @@ class PairedProfileTest {
         PairedProfile.fromVlessLink(link.replace("security=reality", "security=none"))
     }
 
+    @Test
+    fun ipv6LiteralIsStoredWithoutUriBrackets() {
+        val tlsLink = "vless://00000000-0000-0000-0000-000000000001@[2001:db8::1]:8443?security=tls"
+        val node = JSONObject(PairedProfile.fromVlessLink(tlsLink)).getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(8443, node.getInt("server_port"))
+        // Without an explicit SNI the certificate is verified against the bare address.
+        assertEquals("2001:db8::1", node.getJSONObject("tls").getString("server_name"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToDefault() {
+        val node = JSONObject(PairedProfile.fromVlessLink("$link&fp=")).getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("chrome", node.getJSONObject("tls").getJSONObject("utls").getString("fingerprint"))
+    }
+
+    @Test
+    fun acceptsExplicitNoneEncryption() {
+        PairedProfile.fromVlessLink("$link&encryption=none")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsVlessEncryptionUnsupportedByCore() {
+        PairedProfile.fromVlessLink("$link&encryption=mlkem768x25519plus.native.0rtt.AAAA")
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsDuplicateSecurityParameters() {
         PairedProfile.fromVlessLink(link + "&security=tls")

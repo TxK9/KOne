@@ -11,6 +11,10 @@
 **/.kotlin/
 **/.idea/
 **/build/
+# Upstream core source package named "build"; it is code, not output.
+!core/cmd/internal/build/
 **/private/
 **/device/
+# Upstream core source package named "device"; it is code, not device data.
+!core/transport/device/
 **/backups/

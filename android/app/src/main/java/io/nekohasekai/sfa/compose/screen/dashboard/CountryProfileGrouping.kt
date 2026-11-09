@@ -10,22 +10,26 @@ internal object CountryProfileGrouping {
     const val UNCLASSIFIED = "ZZ"
     val countries = listOf("US", "GB", "DE", "JP", "SG", "HK", "NL", "KR", "CA", "AU", "FR", "TW")
     private val aliases = mapOf(
-        "US" to "\u7f8e\u56fd|United States|USA|US|🇺🇸",
-        "GB" to "\u82f1\u56fd|United Kingdom|UK|GB|🇬🇧",
-        "DE" to "\u5fb7\u56fd|Germany|DE|🇩🇪",
+        "US" to "\u7f8e\u56fd|\u7f8e\u570b|United States|USA|US|🇺🇸",
+        "GB" to "\u82f1\u56fd|\u82f1\u570b|United Kingdom|UK|GB|🇬🇧",
+        "DE" to "\u5fb7\u56fd|\u5fb7\u570b|Germany|DE|🇩🇪",
         "JP" to "\u65e5\u672c|Japan|JP|🇯🇵",
         "SG" to "\u65b0\u52a0\u5761|Singapore|SG|🇸🇬",
         "HK" to "\u9999\u6e2f|Hong Kong|HK|🇭🇰",
-        "NL" to "\u8377\u5170|Netherlands|NL|🇳🇱",
-        "KR" to "\u97e9\u56fd|South Korea|KR|🇰🇷",
+        "NL" to "\u8377\u5170|\u8377\u862d|Netherlands|NL|🇳🇱",
+        "KR" to "\u97e9\u56fd|\u97d3\u570b|South Korea|Korea|KR|🇰🇷",
         "CA" to "\u52a0\u62ff\u5927|Canada|CA|🇨🇦",
-        "AU" to "\u6fb3\u5927\u5229\u4e9a|Australia|AU|🇦🇺",
-        "FR" to "\u6cd5\u56fd|France|FR|🇫🇷",
-        "TW" to "\u53f0\u6e7e|Taiwan|TW|🇹🇼",
+        "AU" to "\u6fb3\u5927\u5229\u4e9a|\u6fb3\u5927\u5229\u4e9e|\u6fb3\u6d32|Australia|AU|🇦🇺",
+        "FR" to "\u6cd5\u56fd|\u6cd5\u570b|France|FR|🇫🇷",
+        "TW" to "\u53f0\u6e7e|\u53f0\u7063|\u81fa\u7063|Taiwan|TW|🇹🇼",
     ).mapValues { (_, words) ->
         words.split('|').map { word ->
-            if (word.all { it.code < 128 }) Regex("(?<![A-Za-z])${Regex.escape(word)}(?![A-Za-z])", RegexOption.IGNORE_CASE)
-            else Regex(Regex.escape(word))
+            when {
+                word.any { it.code >= 128 } -> Regex(Regex.escape(word))
+                // Short codes match only in capitals: "de", "ca" and "us" are ordinary words.
+                word.length <= 3 -> Regex("(?<![A-Za-z])${Regex.escape(word)}(?![A-Za-z])")
+                else -> Regex("(?<![A-Za-z])${Regex.escape(word)}(?![A-Za-z])", RegexOption.IGNORE_CASE)
+            }
         }
     }
 
