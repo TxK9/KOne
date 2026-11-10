@@ -27,6 +27,7 @@ object PairedProfile {
         INVALID_REALITY_KEY("Invalid Reality public key format"),
         INVALID_SHORT_ID("Invalid Reality short ID format"),
         UNSUPPORTED_FLOW("Unsupported VLESS flow"),
+        UNSUPPORTED_ENCRYPTION("Unsupported VLESS encryption mode"),
         UNSUPPORTED_FINGERPRINT("Unsupported TLS fingerprint"),
         MISSING_SERVER("Connection server is missing"),
         INVALID_SERVER("Invalid connection server"),
@@ -92,10 +93,15 @@ object PairedProfile {
         // Xray renamed the plain TCP transport to "raw"; both mean no transport layer.
         ensure(parameters["type"].orEmpty() in setOf("", "tcp", "raw"), Reason.UNSUPPORTED_TRANSPORT)
         ensure(parameters["headerType"].orEmpty() in setOf("", "none"), Reason.UNSUPPORTED_TRANSPORT)
+        // The pinned core's VLESS client has no encryption option; dropping one would yield a node that never connects.
+        parameters["encryption"].orEmpty().let { ensure(it in setOf("", "none"), Reason.UNSUPPORTED_ENCRYPTION, it) }
         ensure(parameters["security"] in setOf("reality", "tls"), Reason.UNENCRYPTED)
         val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
         val tls = obj("enabled" to true, "server_name" to serverName,
             "utls" to obj("enabled" to true, "fingerprint" to fingerprint(parameters["fp"])))
+        // Servers that only accept a specific protocol (for example h2 behind a CDN) publish it as a comma list.
+        parameters["alpn"]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.distinct()?.takeIf { it.isNotEmpty() }
+            ?.let { tls.put("alpn", JSONArray(it)) }
         if (parameters["security"] == "reality") {
             val publicKey = realityPublicKey(parameters["pbk"] ?: fail(Reason.MISSING_REALITY_KEY))
             val shortId = parameters["sid"].orEmpty()

@@ -18,6 +18,7 @@ object PairedProfileMessages {
         PairedProfile.Reason.INVALID_REALITY_KEY -> R.string.knine_paired_invalid_reality_key
         PairedProfile.Reason.INVALID_SHORT_ID -> R.string.knine_paired_invalid_short_id
         PairedProfile.Reason.UNSUPPORTED_FLOW -> R.string.knine_paired_unsupported_flow
+        PairedProfile.Reason.UNSUPPORTED_ENCRYPTION -> R.string.knine_paired_unsupported_encryption
         PairedProfile.Reason.UNSUPPORTED_FINGERPRINT -> R.string.knine_paired_unsupported_fingerprint
         PairedProfile.Reason.MISSING_SERVER -> R.string.knine_paired_missing_server
         PairedProfile.Reason.INVALID_SERVER -> R.string.knine_paired_invalid_server

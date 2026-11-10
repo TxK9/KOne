@@ -12,6 +12,7 @@
     <string name="knine_paired_invalid_reality_key">Invalid Reality public key format</string>
     <string name="knine_paired_invalid_short_id">Invalid Reality short ID format</string>
     <string name="knine_paired_unsupported_flow">Unsupported VLESS flow</string>
+    <string name="knine_paired_unsupported_encryption">Unsupported VLESS encryption mode</string>
     <string name="knine_paired_unsupported_fingerprint">Unsupported TLS fingerprint</string>
     <string name="knine_paired_missing_server">The connection server is missing</string>
     <string name="knine_paired_invalid_server">Invalid connection server</string>

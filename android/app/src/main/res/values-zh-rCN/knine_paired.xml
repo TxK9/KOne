@@ -11,6 +11,7 @@
     <string name="knine_paired_invalid_reality_key">Reality 公钥格式无效</string>
     <string name="knine_paired_invalid_short_id">Reality Short ID 格式无效</string>
     <string name="knine_paired_unsupported_flow">不支持的 VLESS 流控</string>
+    <string name="knine_paired_unsupported_encryption">不支持的 VLESS 加密方式</string>
     <string name="knine_paired_unsupported_fingerprint">不支持的 TLS 指纹</string>
     <string name="knine_paired_missing_server">缺少连接服务器</string>
     <string name="knine_paired_invalid_server">连接服务器无效</string>

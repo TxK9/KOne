@@ -253,6 +253,7 @@ class PairedProfileTest {
             PairedProfile.Reason.INVALID_REALITY_KEY to { PairedProfile.fromVlessLink(link.replace("pbk=A", "pbk=")) },
             PairedProfile.Reason.INVALID_SHORT_ID to { PairedProfile.fromVlessLink("$link&sid=abc") },
             PairedProfile.Reason.UNSUPPORTED_FLOW to { replaced("flow=xtls-rprx-vision", "flow=xtls-rprx-direct") },
+            PairedProfile.Reason.UNSUPPORTED_ENCRYPTION to { PairedProfile.fromVlessLink("$link&encryption=mlkem768x25519plus.native.0rtt.abc") },
             PairedProfile.Reason.UNSUPPORTED_FINGERPRINT to { PairedProfile.fromVlessLink("$link&fp=unknown") },
             PairedProfile.Reason.INVALID_SERVER to { PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@edge_1!:443")) },
             PairedProfile.Reason.INVALID_PORT to { replaced("@node.invalid:443", "@edge_1.node.invalid:70000") },
@@ -278,5 +279,22 @@ class PairedProfileTest {
         assertEquals(PairedProfile.Reason.UNSUPPORTED_FLOW, failure.reason)
         assertEquals("a".repeat(32), failure.detail)
         assertEquals("Unsupported VLESS flow: " + "a".repeat(32), failure.message)
+    }
+
+    @Test
+    fun plainEncryptionIsAccepted() {
+        for (value in listOf("none", "")) {
+            val node = JSONObject(PairedProfile.fromVlessLink("$link&encryption=$value")).getJSONArray("outbounds").getJSONObject(1)
+            assertEquals(false, node.has("encryption"))
+        }
+    }
+
+    @Test
+    fun alpnBecomesATlsList() {
+        val tls = JSONObject(PairedProfile.fromVlessLink("$link&alpn=h2%2C%20http%2F1.1,h2")).getJSONArray("outbounds")
+            .getJSONObject(1).getJSONObject("tls")
+        assertEquals(JSONArray(listOf("h2", "http/1.1")).toString(), tls.getJSONArray("alpn").toString())
+        val noAlpn = JSONObject(PairedProfile.fromVlessLink("$link&alpn=")).getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls")
+        assertEquals(false, noAlpn.has("alpn"))
     }
 }
