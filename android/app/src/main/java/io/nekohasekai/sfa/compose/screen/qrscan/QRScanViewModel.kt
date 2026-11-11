@@ -23,6 +23,7 @@ import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.selfuse.PairedProfile
 import io.nekohasekai.sfa.qrs.QRSDecoder
+import io.nekohasekai.sfa.qrs.QRSFileFormat
 import io.nekohasekai.sfa.qrs.readIntLE
 import io.nekohasekai.sfa.vendor.Vendor
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -505,33 +506,10 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.update { it.copy(qrsMode = false, qrsProgress = null) }
     }
 
-    private fun parseQRSFileFormat(data: ByteArray): ByteArray {
-        var offset = 0
-
-        val metaLength = ((data[offset].toInt() and 0xFF) shl 24) or
-            ((data[offset + 1].toInt() and 0xFF) shl 16) or
-            ((data[offset + 2].toInt() and 0xFF) shl 8) or
-            (data[offset + 3].toInt() and 0xFF)
-        offset += 4
-
-        offset += metaLength
-
-        val dataLength = ((data[offset].toInt() and 0xFF) shl 24) or
-            ((data[offset + 1].toInt() and 0xFF) shl 16) or
-            ((data[offset + 2].toInt() and 0xFF) shl 8) or
-            (data[offset + 3].toInt() and 0xFF)
-        offset += 4
-
-        return data.copyOfRange(offset, offset + dataLength)
-    }
-
     private fun importQRSProfile(data: ByteArray) {
         try {
-            val actualData = try {
-                parseQRSFileFormat(data)
-            } catch (e: Exception) {
+            val actualData = QRSFileFormat.unwrap(data) ?: data.also {
                 Log.d(TAG, "Not official QRS format, using raw data")
-                data
             }
             Log.d(TAG, "Decoding profile content, size: ${actualData.size}")
             Libbox.decodeProfileContent(actualData)

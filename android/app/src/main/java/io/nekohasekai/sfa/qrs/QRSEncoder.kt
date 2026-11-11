@@ -8,46 +8,8 @@ class QRSEncoder(private val sliceSize: Int = QRSConstants.DEFAULT_SLICE_SIZE) {
     private val codec = LubyCodec(sliceSize)
 
     companion object {
-        fun appendFileHeaderMeta(data: ByteArray, filename: String? = null, contentType: String? = null): ByteArray {
-            val meta = buildString {
-                append("{")
-                var hasContent = false
-                filename?.let {
-                    append("\"filename\":\"")
-                    append(escapeJson(it))
-                    append("\"")
-                    hasContent = true
-                }
-                contentType?.let {
-                    if (hasContent) append(",")
-                    append("\"contentType\":\"")
-                    append(escapeJson(it))
-                    append("\"")
-                }
-                append("}")
-            }
-            val metaBytes = meta.toByteArray(Charsets.ISO_8859_1)
-
-            val result = ByteArray(4 + metaBytes.size + 4 + data.size)
-            var offset = 0
-
-            result.writeIntBE(offset, metaBytes.size)
-            offset += 4
-            metaBytes.copyInto(result, offset)
-            offset += metaBytes.size
-
-            result.writeIntBE(offset, data.size)
-            offset += 4
-            data.copyInto(result, offset)
-
-            return result
-        }
-
-        private fun escapeJson(s: String): String = s.replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
+        fun appendFileHeaderMeta(data: ByteArray, filename: String? = null, contentType: String? = null): ByteArray =
+            QRSFileFormat.wrap(data, filename, contentType)
     }
 
     data class QRSFrame(val content: String, val frameIndex: Int, val totalBlocks: Int)
