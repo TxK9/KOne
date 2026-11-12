@@ -25,4 +25,6 @@
     <string name="knine_paired_rule_overrides_home">私有网络规则之前的规则会覆盖回家流量</string>
     <string name="knine_paired_private_after_global">私有网络规则必须位于全局代理规则之前</string>
     <string name="knine_import_core_rejected">内核拒绝了生成的配置：%1$s</string>
+    <string name="knine_bootstrap_failed">无法导入配对配置。请在“添加配置文件”中重试。</string>
+    <string name="knine_bootstrap_failed_reason">无法导入配对配置（%1$s）。请在“添加配置文件”中重试。</string>
 </resources>

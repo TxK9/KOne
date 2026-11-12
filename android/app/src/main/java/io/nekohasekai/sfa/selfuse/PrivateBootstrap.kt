@@ -1,40 +1,34 @@
 package io.nekohasekai.sfa.selfuse
 
 import android.content.Context
-import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.BuildConfig
-import io.nekohasekai.sfa.database.Profile
-import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.Settings
-import io.nekohasekai.sfa.database.TypedProfile
 import java.io.File
 
 /** Debug-only import from this App's private directory, never shared Downloads or clipboard. */
 object PrivateBootstrap {
     suspend fun consume(context: Context): Boolean {
         if (!BuildConfig.DEBUG) return false
-        val input = File(context.filesDir, "inbox/vless.txt")
-        if (!input.isFile()) return false
-        require(input.length() in 1..16384) { "Invalid import file" }
-        val link = input.readText()
-        val config = PairedProfile.fromVlessLink(link, InitialRuleSets.ensure(context))
-        Libbox.checkConfig(config)
-        val fileId = ProfileManager.nextFileID()
-        val directory = File(context.filesDir, "configs").also { it.mkdirs() }
-        val file = File(directory, "$fileId.json")
+        val link = take(File(context.filesDir, "inbox/vless.txt")) ?: return false
+        PairedProfileStore.save(context, link, select = true)
+        Settings.rebuildServiceMode()
+        return true
+    }
+
+    /**
+     * Reads the pending link and removes it before anything is imported. The link is a credential,
+     * so it never stays on disk after a start, and a file that cannot be removed is not imported,
+     * because it would otherwise create another copy of the profile on every start.
+     */
+    internal fun take(input: File): String? {
+        if (!input.isFile) return null
         try {
-            file.writeText(config)
-            file.setReadable(false, false)
-            file.setReadable(true, true)
-            val typed = TypedProfile().apply { type = TypedProfile.Type.Local; path = file.absolutePath }
-            val profile = Profile(name = PairedProfile.displayName(link), typed = typed).apply { userOrder = ProfileManager.nextOrder() }
-            ProfileManager.create(profile, andSelect = true)
-            Settings.rebuildServiceMode()
-            input.delete()
-            return true
-        } catch (failure: Exception) {
-            file.delete()
-            throw failure
+            require(input.length() in 1..MAX_LINK_BYTES) { "Invalid import file" }
+            return input.readText()
+        } finally {
+            check(input.delete() || !input.exists()) { "Cannot remove the import file" }
         }
     }
+
+    private const val MAX_LINK_BYTES = 16384L
 }

@@ -26,4 +26,6 @@
     <string name="knine_paired_rule_overrides_home">A rule before the private-network rule would override Home traffic</string>
     <string name="knine_paired_private_after_global">Private-network rules must precede global proxy rules</string>
     <string name="knine_import_core_rejected">The core rejected the generated configuration: %1$s</string>
+    <string name="knine_bootstrap_failed">Could not import the paired profile. Try again in Add Profile.</string>
+    <string name="knine_bootstrap_failed_reason">Could not import the paired profile (%1$s). Try again in Add Profile.</string>
 </resources>

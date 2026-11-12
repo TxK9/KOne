@@ -104,6 +104,8 @@ import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.BuildConfig
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.selfuse.PairedProfileException
+import io.nekohasekai.sfa.selfuse.PairedProfileMessages
 import io.nekohasekai.sfa.selfuse.PrivateBootstrap
 import io.nekohasekai.sfa.bg.BoxService
 import io.nekohasekai.sfa.bg.CrashReportManager
@@ -270,8 +272,13 @@ class MainActivity :
             lifecycleScope.launch {
                 try {
                     withContext(Dispatchers.IO) { PrivateBootstrap.consume(this@MainActivity) }
+                } catch (failure: PairedProfileException) {
+                    pendingIntentErrorMessage = getString(
+                        R.string.knine_bootstrap_failed_reason,
+                        PairedProfileMessages.message(this@MainActivity, failure),
+                    )
                 } catch (_: Exception) {
-                    pendingIntentErrorMessage = "Could not import the paired profile. Try again in Add profile."
+                    pendingIntentErrorMessage = getString(R.string.knine_bootstrap_failed)
                 }
             }
 

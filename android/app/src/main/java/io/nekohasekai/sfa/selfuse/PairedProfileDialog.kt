@@ -30,15 +30,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.sfa.database.Profile
-import io.nekohasekai.sfa.database.ProfileManager
-import io.nekohasekai.sfa.database.Settings
-import io.nekohasekai.sfa.database.TypedProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 @Composable
 fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, initialLink: String = "") {
@@ -83,26 +78,7 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
                     scope.launch {
                         try {
                             val created = withContext(Dispatchers.IO) {
-                                val content = PairedProfile.fromVlessLink(input, InitialRuleSets.ensure(context))
-                                try {
-                                    Libbox.checkConfig(content)
-                                } catch (failure: Exception) {
-                                    throw CoreRejectedException(failure.message)
-                                }
-                                val fileId = ProfileManager.nextFileID()
-                                val directory = File(context.filesDir, "configs").also { it.mkdirs() }
-                                val file = File(directory, "$fileId.json")
-                                try {
-                                    file.writeText(content)
-                                    file.setReadable(false, false)
-                                    file.setReadable(true, true)
-                                    val typed = TypedProfile().apply { type = TypedProfile.Type.Local; path = file.absolutePath }
-                                    val profile = Profile(name = PairedProfile.displayName(input), typed = typed).apply { userOrder = ProfileManager.nextOrder() }
-                                    ProfileManager.create(profile, andSelect = false)
-                                } catch (failure: Exception) {
-                                    file.delete()
-                                    throw failure
-                                }
+                                PairedProfileStore.save(context, input, select = false)
                             }
                             link = ""
                             onCreated(created)
@@ -110,7 +86,7 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
                             onDismiss()
                         } catch (failure: PairedProfileException) {
                             error = PairedProfileMessages.message(context, failure)
-                        } catch (failure: CoreRejectedException) {
+                        } catch (failure: PairedProfileCoreException) {
                             error = failure.detail?.let { context.getString(R.string.knine_import_core_rejected, it) }
                                 ?: context.getString(R.string.knine_import_invalid_parameters)
                         } catch (_: Exception) {
@@ -124,10 +100,4 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
         },
         dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
-}
-
-/** The core's own check failed: the link parsed, so "check the link format" would mislead. */
-private class CoreRejectedException(message: String?) : Exception(message) {
-    // Core errors are English diagnostics; keep one short line under the localized prefix.
-    val detail: String? = message?.lineSequence()?.firstOrNull()?.trim()?.take(160)?.takeIf { it.isNotEmpty() }
 }
