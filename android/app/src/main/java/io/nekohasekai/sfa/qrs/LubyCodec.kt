@@ -4,6 +4,26 @@ import java.util.zip.CRC32
 import kotlin.random.Random
 
 class LubyCodec(private val sliceSize: Int = QRSConstants.DEFAULT_SLICE_SIZE) {
+    companion object {
+        /**
+         * Returns how many leading blocks of [encode] this decoder needs to recover all [k]
+         * source blocks, or null when [limit] blocks are not enough. A block's indices depend
+         * only on [k] and its position in the stream, never on the data, so a sender can learn
+         * exactly which prefix of its stream a receiver is able to decode.
+         */
+        fun leadingBlocksToDecode(k: Int, limit: Int): Int? {
+            if (k <= 0) return 0
+            val codec = LubyCodec(sliceSize = 1)
+            val placeholder = ByteArray(k)
+            var state: DecodingState? = null
+            codec.encode(placeholder, placeholder, k).take(limit).forEachIndexed { index, block ->
+                val current = state ?: codec.createDecodingState(block).also { state = it }
+                if (codec.processBlock(current, block)) return index + 1
+            }
+            return null
+        }
+    }
+
     internal class IntArrayKey(val indices: IntArray) {
         private val hash = indices.contentHashCode()
 

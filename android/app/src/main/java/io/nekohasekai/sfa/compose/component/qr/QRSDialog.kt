@@ -81,13 +81,8 @@ fun QRSDialog(profileData: ByteArray, profileName: String, onDismiss: () -> Unit
             contentType = "application/octet-stream",
         )
     }
-    val requiredFrames = remember(dataWithMeta, sliceSize) {
-        QRSConstants.calculateRequiredFrames(dataWithMeta.size, sliceSize)
-    }
-    val frames = remember(dataWithMeta, sliceSize, requiredFrames) {
-        encoder.encode(dataWithMeta, QRSConstants.OFFICIAL_URL_PREFIX)
-            .take(requiredFrames)
-            .toList()
+    val frames = remember(dataWithMeta, sliceSize) {
+        encoder.encodeLoop(dataWithMeta, QRSConstants.OFFICIAL_URL_PREFIX)
     }
 
     val frameInterval = remember(fps) { 1000L / fps }

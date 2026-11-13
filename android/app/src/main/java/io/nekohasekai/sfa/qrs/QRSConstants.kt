@@ -25,9 +25,18 @@ object QRSConstants {
     const val MAX_ASSEMBLED_SIZE = 16 * 1024 * 1024
     const val MAX_DECOMPRESSED_SIZE = 16 * 1024 * 1024
 
-    fun calculateRequiredFrames(dataSize: Int, sliceSize: Int): Int {
-        val k = (dataSize + sliceSize - 1) / sliceSize
-        if (k == 0) return 1
-        return (k * RECOVERY_FACTOR).toInt().coerceAtLeast(k + 5)
+    // A sender searches at most this many blocks per source block for a decodable prefix.
+    const val MAX_LOOP_BLOCKS_PER_SOURCE = 50
+
+    fun blockCount(compressedSize: Int, sliceSize: Int): Int = (compressedSize + sliceSize - 1) / sliceSize
+
+    /**
+     * Frames shown in one loop for [k] source blocks. The loop repeats a fixed set of frames, so
+     * the set must contain the [decodablePrefix] frames a receiver needs; a few more let a
+     * receiver that missed a frame finish without waiting for the next pass.
+     */
+    fun calculateRequiredFrames(k: Int, decodablePrefix: Int): Int {
+        if (k <= 0) return 1
+        return maxOf((k * RECOVERY_FACTOR).toInt(), k + 5, decodablePrefix + maxOf(2, k / 10))
     }
 }

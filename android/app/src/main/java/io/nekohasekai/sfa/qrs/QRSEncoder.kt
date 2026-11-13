@@ -14,15 +14,29 @@ class QRSEncoder(private val sliceSize: Int = QRSConstants.DEFAULT_SLICE_SIZE) {
 
     data class QRSFrame(val content: String, val frameIndex: Int, val totalBlocks: Int)
 
-    fun encode(data: ByteArray, urlPrefix: String = ""): Sequence<QRSFrame> {
-        val compressed = compress(data)
+    fun encode(data: ByteArray, urlPrefix: String = ""): Sequence<QRSFrame> = encodeCompressed(data, compress(data), urlPrefix)
 
-        return codec.encode(data, compressed, compressed.size).mapIndexed { index, block ->
+    /**
+     * Frames for a display that repeats them in a loop. A fixed loop of `k * RECOVERY_FACTOR`
+     * frames is often not decodable by a peeling decoder at all, and a receiver would then scan
+     * forever, so the loop always includes the prefix that the decoder is known to complete with.
+     */
+    fun encodeLoop(data: ByteArray, urlPrefix: String = ""): List<QRSFrame> {
+        val compressed = compress(data)
+        val k = QRSConstants.blockCount(compressed.size, sliceSize)
+        val limit = k * QRSConstants.MAX_LOOP_BLOCKS_PER_SOURCE + 100
+        val prefix = checkNotNull(LubyCodec.leadingBlocksToDecode(k, limit)) { "No decodable QRS frame loop" }
+        return encodeCompressed(data, compressed, urlPrefix)
+            .take(QRSConstants.calculateRequiredFrames(k, prefix))
+            .toList()
+    }
+
+    private fun encodeCompressed(data: ByteArray, compressed: ByteArray, urlPrefix: String): Sequence<QRSFrame> =
+        codec.encode(data, compressed, compressed.size).mapIndexed { index, block ->
             val payload = buildPayload(block)
             val base64 = Base64.encodeToString(payload, Base64.NO_WRAP)
             QRSFrame("$urlPrefix$base64", index, block.totalBlocks)
         }
-    }
 
     private fun compress(data: ByteArray): ByteArray {
         val deflater = Deflater(Deflater.DEFAULT_COMPRESSION)
