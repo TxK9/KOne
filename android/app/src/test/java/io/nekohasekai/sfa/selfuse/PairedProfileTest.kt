@@ -75,4 +75,27 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    private fun node(config: JSONObject) = (0 until config.getJSONArray("outbounds").length())
+        .map { config.getJSONArray("outbounds").getJSONObject(it) }
+        .first { it.optString("tag") == "node" }
+
+    @Test
+    fun acceptsUnencodedDisplayNameFragment() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link#My Node 1"))
+        assertEquals("node.invalid", node(config).getString("server"))
+    }
+
+    @Test
+    fun stripsIpv6LiteralBrackets() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("node.invalid:443", "[2001:db8::1]:8443")))
+        assertEquals("2001:db8::1", node(config).getString("server"))
+        assertEquals(8443, node(config).getInt("server_port"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link&fp="))
+        assertEquals("chrome", node(config).getJSONObject("tls").getJSONObject("utls").getString("fingerprint"))
+    }
 }
