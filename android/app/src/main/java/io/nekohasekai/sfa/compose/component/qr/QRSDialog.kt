@@ -28,6 +28,7 @@ import io.nekohasekai.sfa.compose.theme.KnineDialogSurface
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import io.nekohasekai.sfa.compose.theme.BackdropIcon as Icon
 import androidx.compose.material3.MaterialTheme
 import io.nekohasekai.sfa.compose.theme.BackdropButton as OutlinedButton
@@ -41,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -60,8 +62,13 @@ import io.nekohasekai.sfa.compat.WindowSizeClassCompat
 import io.nekohasekai.sfa.compat.isWidthAtLeastBreakpointCompat
 import io.nekohasekai.sfa.qrs.QRSConstants
 import io.nekohasekai.sfa.qrs.QRSEncoder
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+
+private const val SLICE_SIZE_SETTLE_MILLIS = 250L
 
 @Composable
 fun QRSDialog(profileData: ByteArray, profileName: String, onDismiss: () -> Unit) {
@@ -73,48 +80,56 @@ fun QRSDialog(profileData: ByteArray, profileName: String, onDismiss: () -> Unit
     var sliceSize by remember { mutableIntStateOf(QRSConstants.DEFAULT_SLICE_SIZE) }
     var qrPixelSize by remember { mutableIntStateOf(512) }
 
-    val encoder = remember(sliceSize) { QRSEncoder(sliceSize) }
-    val dataWithMeta = remember(profileData, profileName) {
-        QRSEncoder.appendFileHeaderMeta(
-            data = profileData,
-            filename = "$profileName.bpf",
-            contentType = "application/octet-stream",
-        )
-    }
-    val frames = remember(dataWithMeta, sliceSize) {
-        encoder.encodeLoop(dataWithMeta, QRSConstants.OFFICIAL_URL_PREFIX)
+    // Encoding deflates the profile, simulates the receiver's decoder to size the loop and
+    // Base64-encodes every frame. That takes seconds for large profiles, so it runs off the
+    // main thread; the previous frames stay on screen while a new slice size is encoded.
+    val frames by produceState<List<QRSEncoder.QRSFrame>?>(null, profileData, profileName, sliceSize) {
+        // Let the slice-size slider settle before encoding; each step restarts this producer.
+        if (value != null) delay(SLICE_SIZE_SETTLE_MILLIS)
+        value = withContext(Dispatchers.Default) {
+            val dataWithMeta = QRSEncoder.appendFileHeaderMeta(
+                data = profileData,
+                filename = "$profileName.bpf",
+                contentType = "application/octet-stream",
+            )
+            QRSEncoder(sliceSize).encodeLoop(dataWithMeta, QRSConstants.OFFICIAL_URL_PREFIX)
+        }
     }
 
     val frameInterval = remember(fps) { 1000L / fps }
 
     val generator = remember(frames, qrPixelSize) {
-        QRSBitmapGenerator(
-            scope = coroutineScope,
-            frames = frames,
-            foregroundColor = Color.BLACK,
-            backgroundColor = Color.WHITE,
-            bitmapSize = qrPixelSize,
-            bufferSize = QRSConstants.BITMAP_BUFFER_SIZE,
-        )
+        frames?.let {
+            QRSBitmapGenerator(
+                scope = coroutineScope,
+                frames = it,
+                foregroundColor = Color.BLACK,
+                backgroundColor = Color.WHITE,
+                bitmapSize = qrPixelSize,
+                bufferSize = QRSConstants.BITMAP_BUFFER_SIZE,
+            )
+        }
     }
 
-    val generationState by generator.state.collectAsState()
+    val idleState = remember { MutableStateFlow(QRSGenerationState()) }
+    val generationState by (generator?.state ?: idleState).collectAsState()
 
     LaunchedEffect(generator) {
-        generator.start()
+        generator?.start()
     }
 
     DisposableEffect(generator) {
         onDispose {
-            generator.cancel()
+            generator?.cancel()
         }
     }
 
     LaunchedEffect(generator, frameInterval) {
-        generator.state.first { it.currentBitmap != null }
+        val activeGenerator = generator ?: return@LaunchedEffect
+        activeGenerator.state.first { it.currentBitmap != null }
         while (true) {
             delay(frameInterval)
-            generator.advanceFrame()
+            activeGenerator.advanceFrame()
         }
     }
 
@@ -151,7 +166,8 @@ fun QRSDialog(profileData: ByteArray, profileName: String, onDismiss: () -> Unit
                             .background(androidx.compose.ui.graphics.Color.White),
                         contentAlignment = Alignment.Center,
                     ) {
-                        generationState.currentBitmap?.let { bitmap ->
+                        val bitmap = generationState.currentBitmap
+                        if (bitmap != null) {
                             Image(
                                 bitmap = bitmap.asImageBitmap(),
                                 contentDescription = stringResource(R.string.content_description_qr_code),
@@ -159,6 +175,8 @@ fun QRSDialog(profileData: ByteArray, profileName: String, onDismiss: () -> Unit
                                 contentScale = ContentScale.Fit,
                                 filterQuality = FilterQuality.None,
                             )
+                        } else {
+                            CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
                         }
                     }
                 }
