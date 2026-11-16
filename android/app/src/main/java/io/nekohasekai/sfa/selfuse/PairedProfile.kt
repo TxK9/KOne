@@ -14,36 +14,66 @@ object PairedProfile {
     private fun obj(vararg values: Pair<String, Any>) = JSONObject().apply { values.forEach { put(it.first, it.second) } }
     private fun array(vararg values: Any) = JSONArray().apply { values.forEach { put(it) } }
 
+    /** uTLS fingerprints accepted by the pinned core (`common/tls/utls_client.go`). */
+    private val FINGERPRINTS = setOf(
+        "chrome", "chrome_psk", "chrome_psk_shuffle", "chrome_padding_psk_shuffle", "chrome_pq", "chrome_pq_psk",
+        "firefox", "edge", "safari", "360", "qq", "ios", "android", "random", "randomized",
+    )
+
+    /** VLESS flows implemented by the pinned core. */
+    private val FLOWS = setOf("xtls-rprx-vision")
+
+    private fun decode(value: String) = try {
+        URLDecoder.decode(value, "UTF-8")
+    } catch (_: IllegalArgumentException) {
+        throw IllegalArgumentException("Connection link contains malformed escapes")
+    }
+
     fun fromVlessLink(link: String, rulesDirectory: String = "rules"): String {
         val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
         val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        // java.net.URI keeps the brackets around IPv6 literals; sing-box expects the bare address.
+        val host = uri.host?.removeSurrounding("[", "]")?.takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Connection server is missing")
         val port = if (uri.port == -1) 443 else uri.port
         require(port in 1..65535) { "Invalid connection port" }
         val parameters = mutableMapOf<String, String>()
         uri.rawQuery.orEmpty().split('&').filter { it.isNotBlank() }.forEach {
             val pieces = it.split('=', limit = 2)
-            val key = URLDecoder.decode(pieces[0], "UTF-8")
+            val key = decode(pieces[0])
             require(!parameters.containsKey(key)) { "Connection contains duplicate parameters" }
-            parameters[key] = URLDecoder.decode(pieces.getOrElse(1) { "" }, "UTF-8")
+            parameters[key] = decode(pieces.getOrElse(1) { "" })
         }
-        require(parameters["type"].orEmpty() in setOf("", "tcp")) { "Import this transport using a complete configuration" }
-        require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
-        val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
+        fun parameter(key: String) = parameters[key]?.trim()?.takeIf { it.isNotEmpty() }
+        // Xray renamed the plain TCP transport to "raw"; both describe the same wire format.
+        require(parameter("type") in setOf(null, "tcp", "raw")) { "Import this transport using a complete configuration" }
+        require(parameter("headerType") in setOf(null, "none")) { "Import this transport using a complete configuration" }
+        val security = parameter("security")
+        require(security in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
+        val serverName = parameter("sni") ?: host
+        val fingerprint = parameter("fp") ?: "chrome"
+        require(fingerprint in FINGERPRINTS) { "Unsupported TLS fingerprint: $fingerprint" }
         val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"] ?: "chrome")))
-        if (parameters["security"] == "reality") {
-            val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
+            "utls" to obj("enabled" to true, "fingerprint" to fingerprint))
+        parameter("alpn")?.let { value ->
+            val protocols = value.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            if (protocols.isNotEmpty()) tls.put("alpn", array(*protocols.toTypedArray()))
+        }
+        if (security == "reality") {
+            val publicKey = parameter("pbk") ?: throw IllegalArgumentException("Reality public key is missing")
             val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }
             require(decoded.size == 32) { "Invalid Reality public key format" }
-            val shortId = parameters["sid"].orEmpty()
+            val shortId = parameter("sid").orEmpty()
             require(shortId.length <= 16 && shortId.length % 2 == 0 && shortId.all { it in "0123456789abcdefABCDEF" }) { "Invalid Reality short ID format" }
             tls.put("reality", obj("enabled" to true, "public_key" to publicKey, "short_id" to shortId))
         }
         val node = obj("type" to "vless", "tag" to "node", "server" to host, "server_port" to port,
             "uuid" to uuid, "tls" to tls)
-        parameters["flow"]?.takeIf { it.isNotBlank() }?.let { node.put("flow", it) }
+        parameter("flow")?.let { flow ->
+            require(flow in FLOWS) { "Unsupported VLESS flow: $flow" }
+            node.put("flow", flow)
+        }
         return build(node, rulesDirectory)
     }
 
@@ -117,7 +147,7 @@ object PairedProfile {
         }
         require(privateIndex != null) { "Configuration has no Tailscale private-network rule" }
         for (index in 0 until privateIndex) {
-            val earlier = routes.getJSONObject(index)
+            val earlier = routes.optJSONObject(index) ?: throw IllegalArgumentException("Invalid route rule format")
             val action = earlier.optString("action", "route")
             val dnsOnly = earlier.optString("protocol") == "dns"
             require(action in setOf("sniff", "resolve") || (action == "hijack-dns" && dnsOnly)) { "A rule before the private-network rule would override Home traffic." }

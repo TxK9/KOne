@@ -75,4 +75,61 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    private fun node(link: String) = JSONObject(PairedProfile.fromVlessLink(link))
+        .getJSONArray("outbounds").let { outbounds ->
+            (0 until outbounds.length()).map { outbounds.getJSONObject(it) }.first { it.optString("tag") == "node" }
+        }
+
+    @Test
+    fun stripsBracketsFromIpv6Server() {
+        val result = node(link.replace("node.invalid:443", "[2001:db8::1]:8443"))
+        assertEquals("2001:db8::1", result.getString("server"))
+        assertEquals(8443, result.getInt("server_port"))
+        assertEquals("example.org", result.getJSONObject("tls").getString("server_name"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val result = node("$link&fp=")
+        assertEquals("chrome", result.getJSONObject("tls").getJSONObject("utls").getString("fingerprint"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnknownFingerprint() {
+        PairedProfile.fromVlessLink("$link&fp=netscape")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnsupportedFlow() {
+        PairedProfile.fromVlessLink(link.replace("flow=xtls-rprx-vision", "flow=xtls-rprx-direct"))
+    }
+
+    @Test
+    fun acceptsRawTransportAliasAndAlpn() {
+        val result = node(link.replace("type=tcp", "type=raw&headerType=none") + "&alpn=h2%2Chttp%2F1.1")
+        val alpn = result.getJSONObject("tls").getJSONArray("alpn")
+        assertEquals(listOf("h2", "http/1.1"), (0 until alpn.length()).map { alpn.getString(it) })
+        assertEquals("xtls-rprx-vision", result.getString("flow"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsHttpHeaderObfuscation() {
+        PairedProfile.fromVlessLink("$link&headerType=http")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsMalformedEscapes() {
+        PairedProfile.fromVlessLink("$link&spx=%zz")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsNonObjectRouteRule() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link))
+        val original = config.getJSONObject("route").getJSONArray("rules")
+        val reordered = JSONArray().put("not-a-rule")
+        for (index in 0 until original.length()) reordered.put(original.getJSONObject(index))
+        config.getJSONObject("route").put("rules", reordered)
+        PairedProfile.requirePaired(config.toString())
+    }
 }
