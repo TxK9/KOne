@@ -14,3 +14,7 @@
 **/private/
 **/device/
 **/backups/
+
+# Upstream source directories that share names with the local-data patterns above.
+!/core/transport/device/
+!/core/cmd/internal/build/
