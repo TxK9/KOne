@@ -57,4 +57,28 @@ class CountryProfileGroupingTest {
         assertFalse(CountryProfileGrouping.validKey("custom:"))
         assertFalse(CountryProfileGrouping.validKey("custom:line\nbreak"))
     }
+
+    @Test fun traditionalChineseNamesUseTheSameCountryCategories() {
+        val expected = mapOf(
+            "\u7f8e\u570b \u7bc0\u9ede" to "US",
+            "\u82f1\u570b-01" to "GB",
+            "\u5fb7\u570b" to "DE",
+            "\u97d3\u570b \u9996\u723e" to "KR",
+            "\u8377\u862d" to "NL",
+            "\u6fb3\u6d32" to "AU",
+            "\u6fb3\u5927\u5229\u4e9e" to "AU",
+            "\u6cd5\u570b" to "FR",
+            "\u53f0\u7063 \u5099\u7528" to "TW",
+            "\u81fa\u7063" to "TW",
+            "HongKong 02" to "HK",
+        )
+        for ((name, key) in expected) assertEquals(name, key, CountryProfileGrouping.fromName(name))
+        assertEquals(CountryProfileGrouping.UNCLASSIFIED, CountryProfileGrouping.fromName("\u7f8e\u570b / \u53f0\u7063"))
+    }
+
+    @Test fun localCategoryLabelIsSuppliedByTheLocalizedResource() {
+        assertEquals("\u672c\u5730\u8282\u70b9", CountryProfileGrouping.label(CountryProfileGrouping.UNCLASSIFIED, Locale.SIMPLIFIED_CHINESE, "\u672c\u5730\u8282\u70b9"))
+        assertEquals(CountryProfileGrouping.LOCAL_NODES_LABEL, CountryProfileGrouping.label(CountryProfileGrouping.UNCLASSIFIED, Locale.ENGLISH))
+        assertEquals("custom", CountryProfileGrouping.label("custom:custom", Locale.ENGLISH, "ignored"))
+    }
 }

@@ -64,6 +64,7 @@ internal fun CountryProfileDeck(
     val hasPhoto = LocalBackdrop.current != null
     val transparent = LocalBackdrop.current?.theme?.brightComposition == false
     val locale = LocalConfiguration.current.locales[0]
+    val localNodesLabel = stringResource(R.string.knine_country_local)
     val preferences = remember(context) { context.getSharedPreferences("knine_profile_categories", Context.MODE_PRIVATE) }
     var assignments by remember(preferences) {
         mutableStateOf(preferences.all.mapNotNull { (id, value) ->
@@ -154,7 +155,7 @@ internal fun CountryProfileDeck(
         groups.forEachIndexed { index, group ->
             val open = openCountry == group.key
             val all = showAllCountry == group.key
-            val label = CountryProfileGrouping.label(group.key, locale)
+            val label = CountryProfileGrouping.label(group.key, locale, localNodesLabel)
             val shape = RoundedCornerShape(if (hasPhoto) 18.dp else 12.dp)
             val ink = MaterialTheme.colorScheme.onSurface
             Box(Modifier.fillMaxWidth().padding(start = if (hasPhoto) (index.coerceAtMost(3) * 8).dp else 0.dp)) {
@@ -238,7 +239,7 @@ internal fun CountryProfileDeck(
                     LazyColumn(Modifier.heightIn(max = 280.dp)) {
                         items(listOf(CountryProfileGrouping.UNCLASSIFIED) + CountryProfileGrouping.countries) { key ->
                             TextButton(onClick = { editingProfileId?.let { assign(it, key) } }, modifier = Modifier.fillMaxWidth()) {
-                                Text(CountryProfileGrouping.label(key, locale), modifier = Modifier.fillMaxWidth())
+                                Text(CountryProfileGrouping.label(key, locale, localNodesLabel), modifier = Modifier.fillMaxWidth())
                             }
                         }
                     }
