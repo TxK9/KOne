@@ -28,6 +28,7 @@ import io.nekohasekai.libbox.PlatformInterface
 import io.nekohasekai.libbox.SystemProxyStatus
 import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.selfuse.KoneErrorMessages
 import io.nekohasekai.sfa.selfuse.PairedProfile
 import io.nekohasekai.sfa.compose.MainActivity
 import io.nekohasekai.sfa.constant.Action
@@ -353,7 +354,10 @@ class BoxService(private val service: Service, private val platformInterface: Pl
             }
             notification.close()
             binder.broadcast { callback ->
-                callback.onServiceAlert(type.ordinal, message)
+                // Paired-profile errors surface here on both the start path
+                // (StartService) and the reload path (CreateService); known
+                // messages are localized, everything else passes through.
+                callback.onServiceAlert(type.ordinal, KoneErrorMessages.resolve(service, message))
             }
             status.value = Status.Stopped
             service.stopSelf()

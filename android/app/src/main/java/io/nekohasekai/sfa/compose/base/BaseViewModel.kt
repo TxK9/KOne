@@ -2,6 +2,9 @@ package io.nekohasekai.sfa.compose.base
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.nekohasekai.sfa.Application
+import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.selfuse.KoneErrorMessages
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -69,6 +72,10 @@ abstract class BaseViewModel<State, Event> : ViewModel() {
      * Convenience method to handle exceptions with a custom fallback message
      */
     protected fun sendError(throwable: Throwable) {
-        sendErrorMessage(throwable.message ?: "An unknown error occurred")
+        val appContext = Application.application
+        sendErrorMessage(
+            KoneErrorMessages.resolve(appContext, throwable.message)
+                ?: appContext.getString(R.string.knine_error_unknown),
+        )
     }
 }

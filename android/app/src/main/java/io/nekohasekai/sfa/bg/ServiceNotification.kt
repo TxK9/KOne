@@ -86,7 +86,7 @@ class ServiceNotification(private val status: MutableLiveData<Status>, private v
             Application.notification.createNotificationChannel(
                 NotificationChannel(
                     notificationChannel,
-                    "Service Notifications",
+                    service.getString(R.string.knine_channel_service),
                     NotificationManager.IMPORTANCE_LOW,
                 ),
             )

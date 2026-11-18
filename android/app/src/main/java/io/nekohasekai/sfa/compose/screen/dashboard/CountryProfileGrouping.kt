@@ -1,5 +1,7 @@
 package io.nekohasekai.sfa.compose.screen.dashboard
 
+import io.nekohasekai.sfa.Application
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.database.Profile
 import java.util.Locale
 
@@ -49,7 +51,7 @@ internal object CountryProfileGrouping {
     }
 
     fun label(key: String, locale: Locale = Locale.getDefault()): String {
-        if (key == UNCLASSIFIED) return "Local nodes"
+        if (key == UNCLASSIFIED) return Application.application.getString(R.string.knine_group_local)
         if (key.startsWith("custom:")) return key.removePrefix("custom:")
         return Locale("", key).getDisplayCountry(locale)
     }

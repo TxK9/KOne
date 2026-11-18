@@ -271,7 +271,7 @@ class MainActivity :
                 try {
                     withContext(Dispatchers.IO) { PrivateBootstrap.consume(this@MainActivity) }
                 } catch (_: Exception) {
-                    pendingIntentErrorMessage = "Could not import the paired profile. Try again in Add profile."
+                    pendingIntentErrorMessage = getString(R.string.knine_error_import_failed)
                 }
             }
 
@@ -345,7 +345,7 @@ class MainActivity :
                 pendingImportProfile = Triple(profile.name, profile.host, profile.url)
                 showImportProfileDialog = true
             } catch (e: Exception) {
-                pendingIntentErrorMessage = e.message ?: "Failed to parse profile link"
+                pendingIntentErrorMessage = e.message ?: getString(R.string.knine_error_parse_link)
             }
             return
         }

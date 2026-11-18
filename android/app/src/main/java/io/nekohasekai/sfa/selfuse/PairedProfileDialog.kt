@@ -50,14 +50,14 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
     var error by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
-        title = { Text("Import VLESS node") },
+        title = { Text(stringResource(R.string.knine_import_vless_title)) },
         text = {
             Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Supports VLESS TCP nodes with TLS or Reality.", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.knine_import_vless_body), style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(
                     value = link,
                     onValueChange = { link = it; error = null },
-                    label = { Text("Node link") },
+                    label = { Text(stringResource(R.string.knine_import_vless_link_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     isError = error != null,
                     visualTransformation = if (revealLink) VisualTransformation.None else PasswordVisualTransformation(),
@@ -93,7 +93,7 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
                                     file.setReadable(false, false)
                                     file.setReadable(true, true)
                                     val typed = TypedProfile().apply { type = TypedProfile.Type.Local; path = file.absolutePath }
-                                    val profile = Profile(name = "Proxy and Home", typed = typed).apply { userOrder = ProfileManager.nextOrder() }
+                                    val profile = Profile(name = context.getString(R.string.knine_import_profile_name), typed = typed).apply { userOrder = ProfileManager.nextOrder() }
                                     ProfileManager.create(profile, andSelect = false)
                                 } catch (failure: Exception) {
                                     file.delete()
@@ -102,19 +102,20 @@ fun PairedProfileDialog(onDismiss: () -> Unit, onCreated: (Profile) -> Unit, ini
                             }
                             link = ""
                             onCreated(created)
-                            Toast.makeText(context, "Node imported and selected. Tap Connect if disconnected, then choose Rule or Global.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, context.getString(R.string.knine_import_toast), Toast.LENGTH_LONG).show()
                             onDismiss()
                         } catch (failure: IllegalArgumentException) {
-                            error = failure.message ?: "Invalid connection parameters"
+                            error = KoneErrorMessages.resolve(context, failure.message)
+                                ?: context.getString(R.string.knine_import_error_invalid)
                         } catch (_: Exception) {
-                            error = "Could not save the profile. Check the link format and try again."
+                            error = context.getString(R.string.knine_import_error_save)
                         } finally {
                             busy = false
                         }
                     }
                 },
-            ) { Text(if (busy) "Importing" else "Import and select") }
+            ) { Text(if (busy) stringResource(R.string.knine_import_busy) else stringResource(R.string.knine_import_confirm)) }
         },
-        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="knine_connect">连接</string>
+    <string name="knine_disconnect">断开</string>
+    <string name="knine_proxy_started">已连接</string>
+    <string name="knine_home_online">Home 在线</string>
+    <string name="knine_home_connecting">Home 连接中</string>
+    <string name="knine_home_login">Home 需要登录</string>
+    <string name="knine_home_auth">Home 需要授权</string>
+    <string name="knine_home_stopped">Home 已停止</string>
+    <string name="knine_home_unconfigured">Home 未配置</string>
+    <string name="knine_home_pending">正在同步 Home 状态</string>
+    <string name="knine_current_profile">当前配置</string>
+    <string name="knine_current_mode">路由模式</string>
+    <string name="knine_total">总计 %1$s</string>
+    <!-- Import VLESS node dialog -->
+    <string name="knine_import_vless_title">导入 VLESS 节点</string>
+    <string name="knine_import_vless_body">支持使用 TLS 或 Reality 的 VLESS TCP 节点。</string>
+    <string name="knine_import_vless_link_label">节点链接</string>
+    <string name="knine_import_profile_name">代理与 Home</string>
+    <string name="knine_import_toast">节点已导入并选中。如未连接请点连接，然后选择规则或全局模式。</string>
+    <string name="knine_import_error_invalid">连接参数无效</string>
+    <string name="knine_import_error_save">无法保存配置。请检查链接格式后重试。</string>
+    <string name="knine_import_busy">正在导入</string>
+    <string name="knine_import_confirm">导入并选中</string>
+    <!-- Import and configuration validation errors (shown in dialogs) -->
+    <string name="knine_error_invalid_link">连接链接无效</string>
+    <string name="knine_error_non_vless">请导入 VLESS 链接；其他协议请使用完整的 sing-box 配置</string>
+    <string name="knine_error_invalid_id">连接标识无效</string>
+    <string name="knine_error_no_server">缺少连接服务器</string>
+    <string name="knine_error_invalid_port">连接端口无效</string>
+    <string name="knine_error_dup_param">连接包含重复参数</string>
+    <string name="knine_error_transport">请使用完整配置导入此传输方式</string>
+    <string name="knine_error_unencrypted">配对配置需要加密的 VLESS 连接</string>
+    <string name="knine_error_no_pbk">缺少 Reality 公钥</string>
+    <string name="knine_error_bad_pbk">Reality 公钥格式无效</string>
+    <string name="knine_error_bad_sid">Reality Short ID 格式无效</string>
+    <string name="knine_error_no_node">需要一个真实的代理节点。</string>
+    <string name="knine_error_bad_config">配置格式无效</string>
+    <string name="knine_error_no_tailscale">此配置未启用 Tailscale。请先创建配对的代理与 Home 配置。</string>
+    <string name="knine_error_no_proxy">配置中没有真实的代理节点</string>
+    <string name="knine_error_no_tun">配对配置需要 VPN/TUN 路由</string>
+    <string name="knine_error_no_private_rule">配置中没有 Tailscale 内网规则</string>
+    <string name="knine_error_rule_order">内网规则之前的规则会覆盖 Home 流量。</string>
+    <string name="knine_error_global_order">内网规则必须位于全局代理规则之前。</string>
+    <string name="knine_error_ruleset_verify">内置规则集验证失败</string>
+    <string name="knine_error_ruleset_save">无法保存内置规则集</string>
+    <string name="knine_error_bad_import">导入文件无效</string>
+    <string name="knine_error_import_failed">无法导入配对配置。请在添加配置中重试。</string>
+    <string name="knine_error_parse_link">解析配置链接失败</string>
+    <string name="knine_error_update_profile">更新配置失败：%1$s</string>
+    <string name="knine_error_unknown">发生未知错误</string>
+    <!-- Dashboard routing mode switcher -->
+    <string name="knine_mode_rule">规则</string>
+    <string name="knine_mode_global">全局</string>
+    <string name="knine_mode_direct">直连</string>
+    <string name="knine_mode_rule_hint">按配置规则选择路由</string>
+    <string name="knine_mode_global_hint">使用全局代理策略</string>
+    <string name="knine_mode_direct_hint">不经过代理直接连接</string>
+    <!-- Dashboard profile groups -->
+    <string name="knine_group_local">本地节点</string>
+    <!-- Dashboard add-profile menu -->
+    <string name="knine_menu_import_vless_desc">从 VLESS 链接创建代理与 Tailscale 配置</string>
+    <!-- Privilege diagnostics -->
+    <string name="knine_diag_framework">框架</string>
+    <string name="knine_diag_native">原生</string>
+    <!-- Wallpaper picker -->
+    <string name="knine_wallpaper_portrait">人像</string>
+    <string name="knine_wallpaper_sunset">落日天空</string>
+    <string name="knine_wallpaper_anime">动漫</string>
+    <string name="knine_wallpaper_summer">夏日</string>
+    <string name="knine_wallpaper_indoors">室内</string>
+    <string name="knine_wallpaper_anime_summer">动漫夏日</string>
+    <string name="knine_wallpaper_saved">已保存的壁纸</string>
+    <!-- Notification channel -->
+    <string name="knine_channel_service">服务通知</string>
+</resources>

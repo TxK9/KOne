@@ -85,7 +85,7 @@ fun ClashModeCard(modes: List<String>, selectedMode: String, onModeSelected: (St
                 val textStyle = MaterialTheme.typography.labelLarge
                 val density = LocalDensity.current
 
-                val labels = remember(modes) { modes.map(::modeLabel) }
+                val labels = remember(modes) { modes.map { modeLabel(it) } }
                 val labelWidth = remember(labels, textStyle, textMeasurer, density) {
                     labels.maxOfOrNull { label ->
                         textMeasurer.measure(label, textStyle.copy(fontWeight = FontWeight.SemiBold)).size.width
@@ -233,16 +233,18 @@ private fun ModeDropdown(modes: List<String>, selectedMode: String, onModeSelect
     }
 }
 
+@Composable
 private fun modeLabel(mode: String): String = when (mode.lowercase()) {
-    "rule" -> "Rule"
-    "global" -> "Global"
-    "direct" -> "Direct"
+    "rule" -> stringResource(R.string.knine_mode_rule)
+    "global" -> stringResource(R.string.knine_mode_global)
+    "direct" -> stringResource(R.string.knine_mode_direct)
     else -> mode
 }
 
+@Composable
 private fun modeHint(mode: String): String? = when (mode.lowercase()) {
-    "rule" -> "Choose routes using profile rules"
-    "global" -> "Use the global proxy policy"
-    "direct" -> "Connect directly without a proxy"
+    "rule" -> stringResource(R.string.knine_mode_rule_hint)
+    "global" -> stringResource(R.string.knine_mode_global_hint)
+    "direct" -> stringResource(R.string.knine_mode_direct_hint)
     else -> null
 }

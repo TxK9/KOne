@@ -877,7 +877,7 @@ private fun SelfTestDialog(isRunning: Boolean, result: DetectionResult?, onDismi
                 ) {
                     Column {
                         Text(
-                            text = "Framework",
+                            text = stringResource(R.string.knine_diag_framework),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -913,7 +913,7 @@ private fun SelfTestDialog(isRunning: Boolean, result: DetectionResult?, onDismi
 
                     Column {
                         Text(
-                            text = "Native",
+                            text = stringResource(R.string.knine_diag_native),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )

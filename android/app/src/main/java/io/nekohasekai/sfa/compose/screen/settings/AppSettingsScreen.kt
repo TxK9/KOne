@@ -213,7 +213,7 @@ fun AppSettingsScreen(
             Application.notification.createNotificationChannel(
                 NotificationChannel(
                     "service",
-                    "Service Notifications",
+                    context.getString(R.string.knine_channel_service),
                     NotificationManager.IMPORTANCE_LOW,
                 ),
             )

@@ -1,16 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="knine_connect" translatable="false">Connect</string>
-    <string name="knine_disconnect" translatable="false">Close</string>
-    <string name="knine_proxy_started" translatable="false">Connected</string>
-    <string name="knine_home_online" translatable="false">Home online</string>
-    <string name="knine_home_connecting" translatable="false">Home connecting</string>
-    <string name="knine_home_login" translatable="false">Home sign-in required</string>
-    <string name="knine_home_auth" translatable="false">Home authorization required</string>
-    <string name="knine_home_stopped" translatable="false">Home stopped</string>
-    <string name="knine_home_unconfigured" translatable="false">Home not configured</string>
-    <string name="knine_home_pending" translatable="false">Syncing Home status</string>
-    <string name="knine_current_profile" translatable="false">Current profile</string>
-    <string name="knine_current_mode" translatable="false">Routing mode</string>
-    <string name="knine_total" translatable="false">Total %1$s</string>
+    <string name="knine_connect">Connect</string>
+    <string name="knine_disconnect">Close</string>
+    <string name="knine_proxy_started">Connected</string>
+    <string name="knine_home_online">Home online</string>
+    <string name="knine_home_connecting">Home connecting</string>
+    <string name="knine_home_login">Home sign-in required</string>
+    <string name="knine_home_auth">Home authorization required</string>
+    <string name="knine_home_stopped">Home stopped</string>
+    <string name="knine_home_unconfigured">Home not configured</string>
+    <string name="knine_home_pending">Syncing Home status</string>
+    <string name="knine_current_profile">Current profile</string>
+    <string name="knine_current_mode">Routing mode</string>
+    <string name="knine_total">Total %1$s</string>
+    <!-- Import VLESS node dialog -->
+    <string name="knine_import_vless_title">Import VLESS node</string>
+    <string name="knine_import_vless_body">Supports VLESS TCP nodes with TLS or Reality.</string>
+    <string name="knine_import_vless_link_label">Node link</string>
+    <string name="knine_import_profile_name">Proxy and Home</string>
+    <string name="knine_import_toast">Node imported and selected. Tap Connect if disconnected, then choose Rule or Global.</string>
+    <string name="knine_import_error_invalid">Invalid connection parameters</string>
+    <string name="knine_import_error_save">Could not save the profile. Check the link format and try again.</string>
+    <string name="knine_import_busy">Importing</string>
+    <string name="knine_import_confirm">Import and select</string>
+    <!-- Import and configuration validation errors (shown in dialogs) -->
+    <string name="knine_error_invalid_link">Invalid connection link</string>
+    <string name="knine_error_non_vless">Import a VLESS link; use a complete sing-box configuration for other protocols</string>
+    <string name="knine_error_invalid_id">Invalid connection identifier</string>
+    <string name="knine_error_no_server">Connection server is missing</string>
+    <string name="knine_error_invalid_port">Invalid connection port</string>
+    <string name="knine_error_dup_param">Connection contains duplicate parameters</string>
+    <string name="knine_error_transport">Import this transport using a complete configuration</string>
+    <string name="knine_error_unencrypted">The paired configuration requires an encrypted VLESS connection</string>
+    <string name="knine_error_no_pbk">Reality public key is missing</string>
+    <string name="knine_error_bad_pbk">Invalid Reality public key format</string>
+    <string name="knine_error_bad_sid">Invalid Reality short ID format</string>
+    <string name="knine_error_no_node">An actual proxy node is required.</string>
+    <string name="knine_error_bad_config">Invalid configuration format</string>
+    <string name="knine_error_no_tailscale">Tailscale is disabled in this profile. Create a paired Proxy and Home profile first.</string>
+    <string name="knine_error_no_proxy">Configuration has no actual proxy node</string>
+    <string name="knine_error_no_tun">Paired profiles require VPN/TUN routing</string>
+    <string name="knine_error_no_private_rule">Configuration has no Tailscale private-network rule</string>
+    <string name="knine_error_rule_order">A rule before the private-network rule would override Home traffic.</string>
+    <string name="knine_error_global_order">Private-network rules must precede global proxy rules.</string>
+    <string name="knine_error_ruleset_verify">Built-in rule-set verification failed</string>
+    <string name="knine_error_ruleset_save">Cannot save the built-in rule set</string>
+    <string name="knine_error_bad_import">Invalid import file</string>
+    <string name="knine_error_import_failed">Could not import the paired profile. Try again in Add profile.</string>
+    <string name="knine_error_parse_link">Failed to parse profile link</string>
+    <string name="knine_error_update_profile">Failed to update profile: %1$s</string>
+    <string name="knine_error_unknown">An unknown error occurred</string>
+    <!-- Dashboard routing mode switcher -->
+    <string name="knine_mode_rule">Rule</string>
+    <string name="knine_mode_global">Global</string>
+    <string name="knine_mode_direct">Direct</string>
+    <string name="knine_mode_rule_hint">Choose routes using profile rules</string>
+    <string name="knine_mode_global_hint">Use the global proxy policy</string>
+    <string name="knine_mode_direct_hint">Connect directly without a proxy</string>
+    <!-- Dashboard profile groups -->
+    <string name="knine_group_local">Local nodes</string>
+    <!-- Dashboard add-profile menu -->
+    <string name="knine_menu_import_vless_desc">Create a proxy and Tailscale configuration from a VLESS link</string>
+    <!-- Privilege diagnostics -->
+    <string name="knine_diag_framework">Framework</string>
+    <string name="knine_diag_native">Native</string>
+    <!-- Wallpaper picker -->
+    <string name="knine_wallpaper_portrait">Portrait</string>
+    <string name="knine_wallpaper_sunset">Sunset sky</string>
+    <string name="knine_wallpaper_anime">Anime</string>
+    <string name="knine_wallpaper_summer">Summer</string>
+    <string name="knine_wallpaper_indoors">Indoors</string>
+    <string name="knine_wallpaper_anime_summer">Anime summer</string>
+    <string name="knine_wallpaper_saved">Saved wallpaper</string>
+    <!-- Notification channel -->
+    <string name="knine_channel_service">Service Notifications</string>
 </resources>

@@ -1,22 +1,38 @@
 package io.nekohasekai.sfa.compose.theme
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import io.nekohasekai.sfa.Application
 import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.database.Settings
 
-data class WallpaperChoice(val id: String, val label: String, val resource: Int, internal val focus: BackdropFocus = BackdropFocus())
+/**
+ * A wallpaper entry. Display names live in string resources ([labelRes]) so they
+ * follow the app language; [fixedLabel] is only for names that never translate,
+ * such as a person's name. [label] resolves in the current locale at call time.
+ */
+data class WallpaperChoice(
+    val id: String,
+    @StringRes val labelRes: Int?,
+    val resource: Int,
+    internal val focus: BackdropFocus = BackdropFocus(),
+    val fixedLabel: String? = null,
+) {
+    val label: String
+        get() = labelRes?.let { Application.application.getString(it) } ?: fixedLabel.orEmpty()
+}
 
 object WallpaperCatalog {
     val choices = listOf(
-        WallpaperChoice("portrait", "Portrait", R.drawable.portrait_backdrop, BackdropFocus(0.56f, 0.71f)),
-        WallpaperChoice("sunset", "Sunset sky", R.drawable.sunset_backdrop),
-        WallpaperChoice("owner1", "Anime", R.drawable.owner_wallpaper_1, BackdropFocus(0.51f, 0.65f)),
-        WallpaperChoice("owner2", "Kaoruko Waguri", R.drawable.owner_wallpaper_2, BackdropFocus(0.535f, 0.58f)),
-        WallpaperChoice("owner3", "Summer", R.drawable.owner_wallpaper_3, BackdropFocus(0.705f, 0.61f)),
-        WallpaperChoice("owner4", "Indoors", R.drawable.owner_wallpaper_4, BackdropFocus(0.575f, 0.56f)),
-        WallpaperChoice("owner5", "Anime summer", R.drawable.owner_wallpaper_5),
-        WallpaperChoice("owner6", "Saved wallpaper", R.drawable.owner_wallpaper_6, BackdropFocus(0.49f, 0.55f)),
+        WallpaperChoice("portrait", R.string.knine_wallpaper_portrait, R.drawable.portrait_backdrop, BackdropFocus(0.56f, 0.71f)),
+        WallpaperChoice("sunset", R.string.knine_wallpaper_sunset, R.drawable.sunset_backdrop),
+        WallpaperChoice("owner1", R.string.knine_wallpaper_anime, R.drawable.owner_wallpaper_1, BackdropFocus(0.51f, 0.65f)),
+        WallpaperChoice("owner2", null, R.drawable.owner_wallpaper_2, BackdropFocus(0.535f, 0.58f), "Kaoruko Waguri"),
+        WallpaperChoice("owner3", R.string.knine_wallpaper_summer, R.drawable.owner_wallpaper_3, BackdropFocus(0.705f, 0.61f)),
+        WallpaperChoice("owner4", R.string.knine_wallpaper_indoors, R.drawable.owner_wallpaper_4, BackdropFocus(0.575f, 0.56f)),
+        WallpaperChoice("owner5", R.string.knine_wallpaper_anime_summer, R.drawable.owner_wallpaper_5),
+        WallpaperChoice("owner6", R.string.knine_wallpaper_saved, R.drawable.owner_wallpaper_6, BackdropFocus(0.49f, 0.55f)),
     )
 
     private val rotation = WallpaperRotation()

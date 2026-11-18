@@ -4,10 +4,13 @@ import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.OutboundGroup
 import io.nekohasekai.libbox.StatusMessage
+import io.nekohasekai.sfa.Application
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.bg.BoxService
 import io.nekohasekai.sfa.compose.base.BaseViewModel
 import io.nekohasekai.sfa.compose.base.UiEvent
 import io.nekohasekai.sfa.constant.Status
+import io.nekohasekai.sfa.selfuse.KoneErrorMessages
 import io.nekohasekai.sfa.database.Profile
 import io.nekohasekai.sfa.database.ProfileManager
 import io.nekohasekai.sfa.database.Settings
@@ -379,7 +382,12 @@ class DashboardViewModel :
                     }
                 }
             } catch (e: Exception) {
-                sendErrorMessage("Failed to update profile: ${e.message}")
+                sendErrorMessage(
+                    Application.application.getString(
+                        R.string.knine_error_update_profile,
+                        KoneErrorMessages.resolve(Application.application, e.message),
+                    ),
+                )
                 // Clear updating state on error
                 withContext(Dispatchers.Main) {
                     updateState { copy(updatingProfileId = null) }
