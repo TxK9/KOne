@@ -45,15 +45,17 @@ class CountryProfileGroupingTest {
         )
         val groups = CountryProfileGrouping.group(profiles, emptyMap())
         assertEquals(listOf(1L, 2L, 3L), groups.first().profiles.map { it.id })
-        assertEquals("Local nodes", CountryProfileGrouping.label(groups.first().key, Locale.SIMPLIFIED_CHINESE))
-        assertEquals("Local nodes", CountryProfileGrouping.label(groups.first().key, Locale.ENGLISH))
+        // The local category uses the caller's localized label, never a country name.
+        assertEquals("\u672c\u5730\u8282\u70b9", CountryProfileGrouping.label(groups.first().key, "\u672c\u5730\u8282\u70b9", Locale.SIMPLIFIED_CHINESE))
+        assertEquals("Local nodes", CountryProfileGrouping.label(groups.first().key, "Local nodes", Locale.ENGLISH))
+        assertEquals("Germany", CountryProfileGrouping.label("DE", "Local nodes", Locale.ENGLISH))
     }
 
     @Test fun customCategoryIsLocalMetadataAndInvalidStoredValuesAreIgnored() {
         val profile = Profile(id = 4, name = "\u82f1\u56fd · \u8282\u70b9")
         assertEquals("GB", CountryProfileGrouping.group(listOf(profile), mapOf(4L to "not-a-country")).first { it.profiles.isNotEmpty() }.key)
         val custom = CountryProfileGrouping.group(listOf(profile), mapOf(4L to "custom:\u5de5\u4f5c"))
-        assertEquals("\u5de5\u4f5c", CountryProfileGrouping.label(custom.first { it.profiles.isNotEmpty() }.key, Locale.CHINESE))
+        assertEquals("\u5de5\u4f5c", CountryProfileGrouping.label(custom.first { it.profiles.isNotEmpty() }.key, "Local nodes", Locale.CHINESE))
         assertFalse(CountryProfileGrouping.validKey("custom:"))
         assertFalse(CountryProfileGrouping.validKey("custom:line\nbreak"))
     }

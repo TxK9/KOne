@@ -1,7 +1,5 @@
 package io.nekohasekai.sfa.compose.screen.dashboard
 
-import io.nekohasekai.sfa.Application
-import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.database.Profile
 import java.util.Locale
 
@@ -50,8 +48,13 @@ internal object CountryProfileGrouping {
         return order.map { key -> CountryProfileGroup(key, grouped[key].orEmpty()) }
     }
 
-    fun label(key: String, locale: Locale = Locale.getDefault()): String {
-        if (key == UNCLASSIFIED) return Application.application.getString(R.string.knine_group_local)
+    /**
+     * Display name for a group [key]. [localLabel] is the already-localized name of the
+     * local-nodes category; callers resolve it from their own (Compose) resources so the
+     * label follows the in-app language and this object stays free of Android context.
+     */
+    fun label(key: String, localLabel: String, locale: Locale = Locale.getDefault()): String {
+        if (key == UNCLASSIFIED) return localLabel
         if (key.startsWith("custom:")) return key.removePrefix("custom:")
         return Locale("", key).getDisplayCountry(locale)
     }

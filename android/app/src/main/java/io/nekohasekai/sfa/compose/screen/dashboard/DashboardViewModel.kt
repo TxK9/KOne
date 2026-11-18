@@ -385,7 +385,8 @@ class DashboardViewModel :
                 sendErrorMessage(
                     Application.application.getString(
                         R.string.knine_error_update_profile,
-                        KoneErrorMessages.resolve(Application.application, e.message),
+                        KoneErrorMessages.resolve(Application.application, e.message)
+                            ?: Application.application.getString(R.string.knine_error_unknown),
                     ),
                 )
                 // Clear updating state on error
