@@ -1,0 +1,18 @@
+# Locally managed tunnel template, NOT an active tunnel configuration.
+# Replace UUID and credentials path after creating your own tunnel.
+# Keep credentials outside the code directory with Windows NTFS access restricted.
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: 'C:\ProgramData\cloudflared\REPLACE_WITH_TUNNEL_UUID.json'
+
+ingress:
+  - hostname: api.qingwanli.com
+    path: '^/api/(node/(register|poll|result|usage)|client/(claim|config|ack|diagnostics|feedback))$'
+    service: http://127.0.0.1:8768
+    originRequest:
+      httpHostHeader: api.qingwanli.com
+  - hostname: api.qingwanli.com
+    path: '^/downloads/(install-node\.sh|kone-node\.py)$'
+    service: http://127.0.0.1:8768
+    originRequest:
+      httpHostHeader: api.qingwanli.com
+  - service: http_status:404

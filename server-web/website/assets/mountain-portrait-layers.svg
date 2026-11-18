@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1536" fill="none" aria-hidden="true">
+  <defs>
+    <image id="mountain-paint" href="assets/mountain-portrait-v2.png" width="1024" height="1536"/>
+    <filter id="mountain-feather" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="9"/></filter>
+    <!-- Masks follow cloud bands; the rock contours belong to the artwork. -->
+    <path id="mountain-middle" d="M-50 485 C135 463 163 411 301 445 C453 432 517 523 628 535 C737 542 782 403 1074 459 V1586 H-50 Z"/>
+    <path id="mountain-near" d="M-50 970 C111 851 171 831 267 965 C379 1053 469 1038 564 1075 C670 1113 686 978 764 940 C871 874 972 970 1074 997 V1586 H-50 Z"/>
+    <mask id="mountain-far-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1536"><path fill="white" d="M0 0H1024V1536H0Z"/><use href="#mountain-middle" fill="black" filter="url(#mountain-feather)"/></mask>
+    <mask id="mountain-middle-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1536"><use href="#mountain-middle" fill="white" filter="url(#mountain-feather)"/><use href="#mountain-near" fill="black" filter="url(#mountain-feather)"/></mask>
+    <mask id="mountain-near-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1536"><use href="#mountain-near" fill="white" filter="url(#mountain-feather)"/></mask>
+  </defs>
+  <g data-depth="far" class="depth-layer"><g mask="url(#mountain-far-mask)"><use href="#mountain-paint"/></g></g>
+  <g data-depth="middle" class="depth-layer"><g mask="url(#mountain-middle-mask)"><use href="#mountain-paint"/></g></g>
+  <g data-depth="near" class="depth-layer"><g mask="url(#mountain-near-mask)"><use href="#mountain-paint"/></g></g>
+</svg>
