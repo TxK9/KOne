@@ -74,4 +74,35 @@
     <string name="knine_wallpaper_saved">已保存的壁纸</string>
     <!-- Notification channel -->
     <string name="knine_channel_service">服务通知</string>
+    <!-- QR scanner and profile export -->
+    <string name="knine_qr_image">图片</string>
+    <string name="knine_qr_scan_from_image">从图片扫描二维码</string>
+    <string name="knine_qr_hint">对准完整二维码，或从图片导入节点。</string>
+    <string name="knine_qr_camera_off">相机已关闭</string>
+    <string name="knine_qr_camera_off_hint">请开启相机，或选择一张二维码图片。</string>
+    <string name="knine_qr_open_permission_settings">打开应用权限设置</string>
+    <string name="knine_qr_allow_camera">允许访问相机</string>
+    <string name="knine_qr_scan_image">扫描图片</string>
+    <string name="knine_qr_scanning_image">正在扫描图片…</string>
+    <string name="knine_qr_opening_camera">正在打开相机…</string>
+    <string name="knine_qr_animated">动态二维码</string>
+    <string name="knine_qr_animated_hint">请保持完整的动态二维码在画面内。</string>
+    <string name="knine_qr_scan_incomplete">扫描未完成</string>
+    <string name="knine_qr_continue_scanning">继续扫描</string>
+    <string name="knine_qr_got_it">知道了</string>
+    <string name="knine_qr_choose_image">选择图片</string>
+    <string name="knine_qr_err_interrupted">二维码扫描已中断。请重试或扫描图片。</string>
+    <string name="knine_qr_err_camera_start">相机无法启动。请重新打开扫描器或扫描图片。</string>
+    <string name="knine_qr_err_camera_connect">无法连接相机。请检查相机权限或扫描图片。</string>
+    <string name="knine_qr_err_picker">无法打开图片选择器。请稍后重试。</string>
+    <string name="knine_qr_err_read_image">无法读取此图片。请选择其他图片，或先将其保存到设备。</string>
+    <string name="knine_qr_err_not_found">未找到二维码。请选择一张清晰、完整的节点二维码图片。</string>
+    <string name="knine_qr_err_single_frame">此图片仅包含动态二维码的一帧。请用相机扫描完整动画。</string>
+    <string name="knine_qr_err_qrs_verify">动态二维码校验失败。请重新扫描完整动画，或重新导出配置二维码。</string>
+    <string name="knine_qr_err_config">无法读取二维码中的配置。请重新导出完整的 sing-box 配置二维码。</string>
+    <string name="knine_qr_err_unsupported">不支持的二维码。请使用 VLESS TCP TLS/Reality 节点或 sing-box 远程配置二维码。</string>
+    <string name="knine_profile_not_found">未找到配置</string>
+    <string name="knine_export_config_missing">未找到配置文件</string>
+    <string name="knine_export_success">配置导出成功</string>
+    <string name="knine_export_failed">导出失败：%1$s</string>
 </resources>

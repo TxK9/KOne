@@ -699,6 +699,9 @@
     <string name="usbip_configuration">配置</string>
     <string name="usbip_interface">接口 %1$d</string>
     <string name="usbip_notification_title">USB/IP 共享</string>
+    <plurals name="usbip_notification_text">
+        <item quantity="other">正在共享 %1$d 台 USB 设备</item>
+    </plurals>
     <string name="endpoint_status">连接状态</string>
     <string name="endpoint_state">状态</string>
     <string name="endpoint_authentication">认证</string>

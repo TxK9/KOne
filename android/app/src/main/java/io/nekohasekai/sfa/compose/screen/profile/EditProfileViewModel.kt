@@ -68,7 +68,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = "Profile not found",
+                            errorMessage = getApplication<Application>().getString(R.string.knine_profile_not_found),
                         )
                     }
                     return@launch
@@ -315,7 +315,7 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
             // Read the configuration file
             val configFile = File(profile.typed.path)
             if (!configFile.exists()) {
-                Toast.makeText(context, "Configuration file not found", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.knine_export_config_missing), Toast.LENGTH_SHORT).show()
                 return null
             }
 
@@ -353,13 +353,13 @@ class EditProfileViewModel(application: Application) : AndroidViewModel(applicat
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         context,
-                        "Configuration exported successfully",
+                        context.getString(R.string.knine_export_success),
                         Toast.LENGTH_SHORT,
                     ).show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.knine_export_failed, e.message.orEmpty()), Toast.LENGTH_LONG).show()
                 }
             } finally {
                 // Clear pending export data
