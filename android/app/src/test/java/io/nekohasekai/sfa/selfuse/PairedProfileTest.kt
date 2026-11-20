@@ -3,6 +3,7 @@ package io.nekohasekai.sfa.selfuse
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -74,5 +75,29 @@ class PairedProfileTest {
         val config = JSONObject(PairedProfile.fromVlessLink(link))
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
+    }
+
+    @Test
+    fun ipv6ServerIsStoredWithoutUriBrackets() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("node.invalid", "[2001:db8::1]")))
+        val node = config.getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(443, node.getInt("server_port"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToDefault() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link&fp="))
+        val utls = config.getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls").getJSONObject("utls")
+        assertEquals("chrome", utls.getString("fingerprint"))
+    }
+
+    @Test
+    fun malformedPercentEncodingUsesTheStableLinkError() {
+        // java.net.URI rejects the escape before query decoding, keeping the localized message.
+        val failure = assertThrows(IllegalArgumentException::class.java) {
+            PairedProfile.fromVlessLink("$link&spx=%zz")
+        }
+        assertEquals("Invalid connection link", failure.message)
     }
 }
