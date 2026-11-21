@@ -17,7 +17,8 @@ object PrivateBootstrap {
         val input = File(context.filesDir, "inbox/vless.txt")
         if (!input.isFile()) return false
         require(input.length() in 1..16384) { context.getString(R.string.knine_error_bad_import) }
-        val config = PairedProfile.fromVlessLink(input.readText(), InitialRuleSets.ensure(context))
+        val link = input.readText()
+        val config = PairedProfile.fromVlessLink(link, InitialRuleSets.ensure(context))
         Libbox.checkConfig(config)
         val fileId = ProfileManager.nextFileID()
         val directory = File(context.filesDir, "configs").also { it.mkdirs() }
@@ -27,7 +28,7 @@ object PrivateBootstrap {
             file.setReadable(false, false)
             file.setReadable(true, true)
             val typed = TypedProfile().apply { type = TypedProfile.Type.Local; path = file.absolutePath }
-            val profile = Profile(name = context.getString(R.string.knine_import_profile_name), typed = typed).apply { userOrder = ProfileManager.nextOrder() }
+            val profile = Profile(name = PairedProfile.displayName(link) ?: context.getString(R.string.knine_import_profile_name), typed = typed).apply { userOrder = ProfileManager.nextOrder() }
             ProfileManager.create(profile, andSelect = true)
             Settings.rebuildServiceMode()
             input.delete()

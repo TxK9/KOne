@@ -36,3 +36,21 @@ Only explicitly shared project files belong in this repository. Keep private
 conversations, local device information, credentials, signing material, personal
 images and unrelated notes outside it. English text alone is not anonymity or
 a restriction on the provider's account and network metadata.
+
+## Known source gaps (2026-11-21)
+
+The initial export dropped five core source files that `SNAPSHOT.json` lists as
+copied: `core/cmd/internal/build/main.go` and the four files in
+`core/transport/device/`. The root `.gitignore` rules `**/build/` and
+`**/device/` excluded them; those paths are now re-included. Until the files are
+restored from the original snapshot (verify each against its `SNAPSHOT.json`
+SHA-256), `go build ./cmd/sing-box` fails because `protocol/masque`,
+`protocol/openvpn` and `protocol/openconnect` import `transport/device`, and the
+`make` release targets that run `./cmd/internal/build` fail. The recorded AARs in
+`dependencies/` are unaffected.
+
+A cloud session without access to `jitpack.io` and the Sonatype snapshot
+repository cannot resolve the Android dependency graph. In that environment the
+pure-JVM selfuse tests can be compiled with a standalone `kotlinc` against
+`org.json:json:20250517` and `junit:junit:4.13.2`; this is unit-test evidence
+only, not an Android build.

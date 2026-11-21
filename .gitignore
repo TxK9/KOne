@@ -14,3 +14,6 @@
 **/private/
 **/device/
 **/backups/
+# The broad build/ and device/ rules above must not hide core source packages.
+!core/cmd/internal/build/
+!core/transport/device/

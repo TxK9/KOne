@@ -75,4 +75,47 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    @Test
+    fun acceptsDisplayNameFragmentWithSpacesAndEmoji() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link#🇺🇸 US node 01"))
+        val node = config.getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("node.invalid", node.getString("server"))
+    }
+
+    @Test
+    fun stripsBracketsFromIpv6Server() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("node.invalid", "[2001:db8::1]")))
+        val node = config.getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(443, node.getInt("server_port"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link&fp="))
+        val tls = config.getJSONArray("outbounds").getJSONObject(1).getJSONObject("tls")
+        assertEquals("chrome", tls.getJSONObject("utls").getString("fingerprint"))
+    }
+
+    @Test
+    fun displayNameComesFromDecodedFragment() {
+        assertEquals("🇯🇵 Tokyo 01", PairedProfile.displayName("$link#%F0%9F%87%AF%F0%9F%87%B5%20Tokyo%2001"))
+        assertEquals("🇺🇸 US node", PairedProfile.displayName("$link#🇺🇸  US\tnode "))
+        assertEquals("a+b", PairedProfile.displayName("$link#a+b"))
+    }
+
+    @Test
+    fun displayNameIsAbsentWithoutUsableFragment() {
+        assertEquals(null, PairedProfile.displayName(link))
+        assertEquals(null, PairedProfile.displayName("$link#"))
+        assertEquals(null, PairedProfile.displayName("$link#%20%0A"))
+    }
+
+    @Test
+    fun displayNameIsBoundedWithoutSplittingEmoji() {
+        val name = PairedProfile.displayName("$link#" + "a".repeat(63) + "🇺🇸")!!
+        assertEquals("a".repeat(63), name)
+        assertEquals(64, PairedProfile.displayName("$link#" + "b".repeat(200))!!.length)
+    }
 }

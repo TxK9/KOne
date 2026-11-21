@@ -14,11 +14,29 @@ object PairedProfile {
     private fun obj(vararg values: Pair<String, Any>) = JSONObject().apply { values.forEach { put(it.first, it.second) } }
     private fun array(vararg values: Any) = JSONArray().apply { values.forEach { put(it) } }
 
+    /**
+     * Returns the link's display name (its `#fragment`), or null when absent or unusable.
+     * Using it as the profile name lets country grouping recognise names such as "🇯🇵 Tokyo".
+     */
+    fun displayName(link: String): String? {
+        val raw = link.trim().substringAfter('#', "").takeIf { it.isNotBlank() } ?: return null
+        val decoded = runCatching { URLDecoder.decode(raw.replace("+", "%2B"), "UTF-8") }.getOrDefault(raw)
+        val cleaned = decoded.map { if (it.isISOControl()) ' ' else it }.joinToString("").trim().replace(Regex("\\s+"), " ")
+        if (cleaned.isEmpty()) return null
+        if (cleaned.length <= 64) return cleaned
+        // Never split a surrogate pair when shortening an emoji-rich name.
+        val end = if (cleaned[63].isHighSurrogate()) 63 else 64
+        return cleaned.substring(0, end).trimEnd()
+    }
+
     fun fromVlessLink(link: String, rulesDirectory: String = "rules"): String {
-        val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
+        // The fragment is only a display name and often carries raw spaces or emoji
+        // that java.net.URI rejects, so it is dropped before parsing.
+        val uri = try { URI(link.trim().substringBefore('#')) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
         val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        // java.net.URI keeps the brackets around IPv6 literals; sing-box expects a bare address.
+        val host = uri.host?.removeSurrounding("[", "]")?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
         val port = if (uri.port == -1) 443 else uri.port
         require(port in 1..65535) { "Invalid connection port" }
         val parameters = mutableMapOf<String, String>()
@@ -32,7 +50,7 @@ object PairedProfile {
         require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
         val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
         val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"] ?: "chrome")))
+            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"]?.takeIf { it.isNotBlank() } ?: "chrome")))
         if (parameters["security"] == "reality") {
             val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
             val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }
