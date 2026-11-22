@@ -18,6 +18,7 @@ object KoneErrorMessages {
         "Invalid connection port" to R.string.knine_error_invalid_port,
         "Connection contains duplicate parameters" to R.string.knine_error_dup_param,
         "Import this transport using a complete configuration" to R.string.knine_error_transport,
+        "Unsupported VLESS flow" to R.string.knine_error_bad_flow,
         "The paired configuration requires an encrypted VLESS connection" to R.string.knine_error_unencrypted,
         "Reality public key is missing" to R.string.knine_error_no_pbk,
         "Invalid Reality public key format" to R.string.knine_error_bad_pbk,

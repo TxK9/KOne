@@ -14,11 +14,18 @@ object PairedProfile {
     private fun obj(vararg values: Pair<String, Any>) = JSONObject().apply { values.forEach { put(it.first, it.second) } }
     private fun array(vararg values: Any) = JSONArray().apply { values.forEach { put(it) } }
 
+    /** Flow values the pinned core accepts for VLESS; anything else would fail only at service start. */
+    private val supportedFlows = setOf("", "xtls-rprx-vision")
+
     fun fromVlessLink(link: String, rulesDirectory: String = "rules"): String {
-        val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
+        // The fragment is a display name only. Share links often carry unescaped spaces or
+        // symbols there, which java.net.URI rejects, so drop it before parsing.
+        val withoutName = link.trim().substringBefore('#')
+        val uri = try { URI(withoutName) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
         val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        // URI keeps IPv6 literals bracketed; the core expects the bare address in server.
+        val host = uri.host?.removeSurrounding("[", "]")?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
         val port = if (uri.port == -1) 443 else uri.port
         require(port in 1..65535) { "Invalid connection port" }
         val parameters = mutableMapOf<String, String>()
@@ -28,11 +35,17 @@ object PairedProfile {
             require(!parameters.containsKey(key)) { "Connection contains duplicate parameters" }
             parameters[key] = URLDecoder.decode(pieces.getOrElse(1) { "" }, "UTF-8")
         }
-        require(parameters["type"].orEmpty() in setOf("", "tcp")) { "Import this transport using a complete configuration" }
+        // Newer share links name the plain TCP transport "raw".
+        require(parameters["type"].orEmpty().lowercase() in setOf("", "tcp", "raw")) { "Import this transport using a complete configuration" }
         require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
+        val flow = parameters["flow"].orEmpty().trim()
+        require(flow in supportedFlows) { "Unsupported VLESS flow" }
         val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
+        val fingerprint = parameters["fp"]?.trim()?.takeIf { it.isNotBlank() } ?: "chrome"
         val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"] ?: "chrome")))
+            "utls" to obj("enabled" to true, "fingerprint" to fingerprint))
+        val alpn = parameters["alpn"].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        if (alpn.isNotEmpty()) tls.put("alpn", JSONArray(alpn))
         if (parameters["security"] == "reality") {
             val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
             val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }
@@ -43,7 +56,7 @@ object PairedProfile {
         }
         val node = obj("type" to "vless", "tag" to "node", "server" to host, "server_port" to port,
             "uuid" to uuid, "tls" to tls)
-        parameters["flow"]?.takeIf { it.isNotBlank() }?.let { node.put("flow", it) }
+        if (flow.isNotEmpty()) node.put("flow", flow)
         return build(node, rulesDirectory)
     }
 

@@ -75,4 +75,48 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    private fun node(config: JSONObject): JSONObject {
+        val outbounds = config.getJSONArray("outbounds")
+        return (0 until outbounds.length()).map { outbounds.getJSONObject(it) }.first { it.optString("tag") == "node" }
+    }
+
+    @Test
+    fun ignoresDisplayNameWithUnescapedCharacters() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link#Tokyo node 01 | backup"))
+        assertEquals("node.invalid", node(config).getString("server"))
+    }
+
+    @Test
+    fun stripsBracketsFromIpv6Server() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@[2001:db8::1]:8443")))
+        assertEquals("2001:db8::1", node(config).getString("server"))
+        assertEquals(8443, node(config).getInt("server_port"))
+    }
+
+    @Test
+    fun acceptsRawTransportAlias() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("type=tcp", "type=raw")))
+        assertEquals("xtls-rprx-vision", node(config).getString("flow"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnsupportedFlow() {
+        PairedProfile.fromVlessLink(link.replace("flow=xtls-rprx-vision", "flow=xtls-rprx-direct"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChromeAndAlpnIsKept() {
+        val config = JSONObject(PairedProfile.fromVlessLink("$link&fp=&alpn=h2%2Chttp%2F1.1"))
+        val tls = node(config).getJSONObject("tls")
+        assertEquals("chrome", tls.getJSONObject("utls").getString("fingerprint"))
+        assertEquals(listOf("h2", "http/1.1"), (0 until tls.getJSONArray("alpn").length()).map { tls.getJSONArray("alpn").getString(it) })
+    }
+
+    @Test
+    fun omitsAlpnAndFlowWhenAbsent() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("&flow=xtls-rprx-vision", "")))
+        assertEquals(false, node(config).has("flow"))
+        assertEquals(false, node(config).getJSONObject("tls").has("alpn"))
+    }
 }

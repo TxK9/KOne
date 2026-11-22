@@ -31,6 +31,7 @@
     <string name="knine_error_invalid_port">Invalid connection port</string>
     <string name="knine_error_dup_param">Connection contains duplicate parameters</string>
     <string name="knine_error_transport">Import this transport using a complete configuration</string>
+    <string name="knine_error_bad_flow">Unsupported VLESS flow. Use xtls-rprx-vision or import a complete configuration</string>
     <string name="knine_error_unencrypted">The paired configuration requires an encrypted VLESS connection</string>
     <string name="knine_error_no_pbk">Reality public key is missing</string>
     <string name="knine_error_bad_pbk">Invalid Reality public key format</string>
