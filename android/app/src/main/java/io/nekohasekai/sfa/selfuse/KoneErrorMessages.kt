@@ -4,13 +4,14 @@ import android.content.Context
 import io.nekohasekai.sfa.R
 
 /**
- * Maps the English exception messages thrown by [PairedProfile] and [InitialRuleSets]
+ * Maps the English exception messages thrown by [PairedProfile] and [InitialRuleSets], and the QR import
+ * messages produced by `QRImportErrors`,
  * to localized display strings. The exception texts themselves are never changed,
  * because other code may match on them; translation happens only where a message
  * is shown to the user. Unknown messages pass through unchanged.
  */
 object KoneErrorMessages {
-    private val messageToResource: Map<String, Int> = mapOf(
+    internal val messageToResource: Map<String, Int> = mapOf(
         "Invalid connection link" to R.string.knine_error_invalid_link,
         "Import a VLESS link; use a complete sing-box configuration for other protocols" to R.string.knine_error_non_vless,
         "Invalid connection identifier" to R.string.knine_error_invalid_id,
@@ -32,6 +33,9 @@ object KoneErrorMessages {
         "Private-network rules must precede global proxy rules." to R.string.knine_error_global_order,
         "Built-in rule-set verification failed" to R.string.knine_error_ruleset_verify,
         "Cannot save the built-in rule set" to R.string.knine_error_ruleset_save,
+        "QR import supports VLESS TCP with TLS or Reality. Import other transports as a complete configuration." to R.string.knine_qr_error_transport,
+        "This VLESS node uses unsupported encryption. TLS and Reality are supported." to R.string.knine_qr_error_encryption,
+        "The QR code contains invalid node or configuration parameters." to R.string.knine_qr_error_invalid_params,
     )
 
     /** Returns the localized form of [message], or [message] itself when unknown. Null stays null. */

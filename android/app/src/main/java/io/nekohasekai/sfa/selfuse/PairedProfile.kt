@@ -18,21 +18,26 @@ object PairedProfile {
         val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
         val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        // java.net.URI keeps the brackets of an IPv6 literal; sing-box expects the bare address.
+        val host = uri.host?.removeSurrounding("[", "]")?.takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Connection server is missing")
         val port = if (uri.port == -1) 443 else uri.port
         require(port in 1..65535) { "Invalid connection port" }
         val parameters = mutableMapOf<String, String>()
         uri.rawQuery.orEmpty().split('&').filter { it.isNotBlank() }.forEach {
             val pieces = it.split('=', limit = 2)
-            val key = URLDecoder.decode(pieces[0], "UTF-8")
+            val key = decodeComponent(pieces[0])
             require(!parameters.containsKey(key)) { "Connection contains duplicate parameters" }
-            parameters[key] = URLDecoder.decode(pieces.getOrElse(1) { "" }, "UTF-8")
+            parameters[key] = decodeComponent(pieces.getOrElse(1) { "" })
         }
         require(parameters["type"].orEmpty() in setOf("", "tcp")) { "Import this transport using a complete configuration" }
         require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
         val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
         val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"] ?: "chrome")))
+            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"]?.takeIf { it.isNotBlank() } ?: "chrome")))
+        parameters["alpn"]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }?.let { protocols ->
+            tls.put("alpn", JSONArray(protocols))
+        }
         if (parameters["security"] == "reality") {
             val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
             val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }
@@ -45,6 +50,13 @@ object PairedProfile {
             "uuid" to uuid, "tls" to tls)
         parameters["flow"]?.takeIf { it.isNotBlank() }?.let { node.put("flow", it) }
         return build(node, rulesDirectory)
+    }
+
+    /** Malformed percent escapes surface as the generic link error instead of a decoder message. */
+    private fun decodeComponent(value: String): String = try {
+        URLDecoder.decode(value, "UTF-8")
+    } catch (_: IllegalArgumentException) {
+        throw IllegalArgumentException("Invalid connection link")
     }
 
     fun build(node: JSONObject, rulesDirectory: String = "rules"): String {
@@ -117,7 +129,7 @@ object PairedProfile {
         }
         require(privateIndex != null) { "Configuration has no Tailscale private-network rule" }
         for (index in 0 until privateIndex) {
-            val earlier = routes.getJSONObject(index)
+            val earlier = routes.optJSONObject(index) ?: throw IllegalArgumentException("Invalid configuration format")
             val action = earlier.optString("action", "route")
             val dnsOnly = earlier.optString("protocol") == "dns"
             require(action in setOf("sniff", "resolve") || (action == "hijack-dns" && dnsOnly)) { "A rule before the private-network rule would override Home traffic." }

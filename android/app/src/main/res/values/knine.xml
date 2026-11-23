@@ -74,4 +74,34 @@
     <string name="knine_wallpaper_saved">Saved wallpaper</string>
     <!-- Notification channel -->
     <string name="knine_channel_service">Service Notifications</string>
+    <!-- QR scanner -->
+    <string name="knine_qr_image">Image</string>
+    <string name="knine_qr_scan_from_image">Scan QR code from image</string>
+    <string name="knine_qr_hint">Aim at the complete QR code, or import a node from an image.</string>
+    <string name="knine_qr_camera_off">Camera is off</string>
+    <string name="knine_qr_camera_off_desc">Enable the camera, or choose a QR code image.</string>
+    <string name="knine_qr_open_permission_settings">Open app permission settings</string>
+    <string name="knine_qr_allow_camera">Allow camera access</string>
+    <string name="knine_qr_scan_image">Scan image</string>
+    <string name="knine_qr_scanning_image">Scanning image…</string>
+    <string name="knine_qr_opening_camera">Opening camera…</string>
+    <string name="knine_qr_animated">Animated QR code</string>
+    <string name="knine_qr_animated_hint">Keep the complete animated QR code in view.</string>
+    <string name="knine_qr_incomplete">Scan incomplete</string>
+    <string name="knine_qr_continue">Continue scanning</string>
+    <string name="knine_qr_got_it">Got it</string>
+    <string name="knine_qr_choose_image">Choose image</string>
+    <string name="knine_qr_error_interrupted">QR scanning was interrupted. Try again or scan an image.</string>
+    <string name="knine_qr_error_camera_start">The camera could not start. Reopen the scanner or scan an image.</string>
+    <string name="knine_qr_error_camera_connect">Cannot connect to the camera. Check camera permissions or scan an image.</string>
+    <string name="knine_qr_error_picker">Cannot open the image picker. Try again later.</string>
+    <string name="knine_qr_error_read_image">Cannot read this image. Choose another image or save it to the device first.</string>
+    <string name="knine_qr_error_not_found">No QR code found. Choose a clear image of the complete node QR code.</string>
+    <string name="knine_qr_error_single_frame">This image contains one frame of an animated QR code. Scan the full animation with the camera.</string>
+    <string name="knine_qr_error_qrs_verify">Animated QR verification failed. Scan the full animation again or export a new configuration QR code.</string>
+    <string name="knine_qr_error_config">Cannot read the QR configuration. Export a complete sing-box configuration QR code again.</string>
+    <string name="knine_qr_error_unsupported">Unsupported QR code. Use a VLESS TCP TLS/Reality node or a sing-box remote configuration QR code.</string>
+    <string name="knine_qr_error_transport">QR import supports VLESS TCP with TLS or Reality. Import other transports as a complete configuration.</string>
+    <string name="knine_qr_error_encryption">This VLESS node uses unsupported encryption. TLS and Reality are supported.</string>
+    <string name="knine_qr_error_invalid_params">The QR code contains invalid node or configuration parameters.</string>
 </resources>

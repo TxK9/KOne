@@ -16,10 +16,13 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.core.content.ContextCompat
+import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.Libbox
+import io.nekohasekai.sfa.R
+import io.nekohasekai.sfa.selfuse.KoneErrorMessages
 import io.nekohasekai.sfa.selfuse.PairedProfile
 import io.nekohasekai.sfa.qrs.QRSDecoder
 import io.nekohasekai.sfa.qrs.readIntLE
@@ -157,7 +160,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             // would stop analysis while leaving the error dialog invisible.
             Log.w(TAG, "QR analysis paused: ${exception.javaClass.simpleName}")
             _uiState.update {
-                it.copy(errorMessage = "QR scanning was interrupted. Try again or scan an image.", isLoading = false)
+                it.copy(errorMessage = text(R.string.knine_qr_error_interrupted), isLoading = false)
             }
         }
     }
@@ -179,7 +182,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
         val cameraProviderFuture = try {
             ProcessCameraProvider.getInstance(context)
         } catch (e: Exception) {
-            showScanError("The camera could not start. Reopen the scanner or scan an image.")
+            showScanError(text(R.string.knine_qr_error_camera_start))
             return
         }
 
@@ -216,7 +219,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
 
                 bindCamera(lifecycleOwner)
             } catch (e: Exception) {
-                showScanError("The camera could not start. Reopen the scanner or scan an image.")
+                showScanError(text(R.string.knine_qr_error_camera_start))
             }
         }, ContextCompat.getMainExecutor(context))
     }
@@ -248,7 +251,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             }
             Log.d(TAG, "QR camera bound")
         } catch (e: Exception) {
-            showScanError("Cannot connect to the camera. Check camera permissions or scan an image.")
+            showScanError(text(R.string.knine_qr_error_camera_connect))
         }
     }
 
@@ -346,7 +349,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
 
     fun imagePickerUnavailable() {
         pickingImage = false
-        showScanError("Cannot open the image picker. Try again later.")
+        showScanError(text(R.string.knine_qr_error_picker))
     }
 
     private fun resumeAnalyzer() {
@@ -393,18 +396,20 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             _uiState.update { it.copy(isDecodingImage = false) }
             val content = result.getOrNull()
             when {
-                result.isFailure -> showScanError("Cannot read this image. Choose another image or save it to the device first.")
-                content == null -> showScanError("No QR code found. Choose a clear image of the complete node QR code.")
+                result.isFailure -> showScanError(text(R.string.knine_qr_error_read_image))
+                content == null -> showScanError(text(R.string.knine_qr_error_not_found))
                 else -> {
                     handleScanSuccess(content)
                     if (_uiState.value.qrsMode && _uiState.value.result == null && !showingError.get()) {
                         resetQRSState()
-                        showScanError("This image contains one frame of an animated QR code. Scan the full animation with the camera.")
+                        showScanError(text(R.string.knine_qr_error_single_frame))
                     }
                 }
             }
         }
     }
+
+    private fun text(@StringRes id: Int): String = getApplication<Application>().getString(id)
 
     private fun showScanError(message: String) {
         if (!sessionOpen) return
@@ -488,7 +493,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             if (progress.error != null) {
                 Log.e(TAG, "QRS validation failed")
                 resetQRSState()
-                showScanError("Animated QR verification failed. Scan the full animation again or export a new configuration QR code.")
+                showScanError(text(R.string.knine_qr_error_qrs_verify))
             } else if (progress.data != null) {
                 imageAnalysis?.clearAnalyzer()
                 Log.d(TAG, "QRS complete! Data size: ${progress.data.size}")
@@ -537,7 +542,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             _uiState.update { it.copy(result = QRScanResult.QRSData(actualData)) }
         } catch (e: Exception) {
             resetQRSState()
-            showScanError("Cannot read the QR configuration. Export a complete sing-box configuration QR code again.")
+            showScanError(text(R.string.knine_qr_error_config))
         }
     }
 
@@ -551,14 +556,14 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             }
             val uri = Uri.parse(normalized)
             if (uri.scheme != "sing-box" || uri.host != "import-remote-profile") {
-                showScanError("Unsupported QR code. Use a VLESS TCP TLS/Reality node or a sing-box remote configuration QR code.")
+                showScanError(text(R.string.knine_qr_error_unsupported))
                 return false
             }
             Libbox.parseRemoteProfileImportLink(uri.toString())
             _uiState.update { it.copy(result = QRScanResult.RemoteProfile(uri)) }
             return true
         } catch (e: Exception) {
-            showScanError(QRImportErrors.controlledMessage(e))
+            showScanError(KoneErrorMessages.resolve(getApplication<Application>(), QRImportErrors.controlledMessage(e)).orEmpty())
         }
         return false
     }
