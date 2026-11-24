@@ -17,8 +17,9 @@ object PairedProfile {
     fun fromVlessLink(link: String, rulesDirectory: String = "rules"): String {
         val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
-        val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        val uuid = parseUuid(uri.userInfo)
+        // java.net.URI keeps IPv6 literals bracketed; sing-box expects the bare address.
+        val host = uri.host?.removeSurrounding("[", "]")?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
         val port = if (uri.port == -1) 443 else uri.port
         require(port in 1..65535) { "Invalid connection port" }
         val parameters = mutableMapOf<String, String>()
@@ -28,11 +29,11 @@ object PairedProfile {
             require(!parameters.containsKey(key)) { "Connection contains duplicate parameters" }
             parameters[key] = URLDecoder.decode(pieces.getOrElse(1) { "" }, "UTF-8")
         }
-        require(parameters["type"].orEmpty() in setOf("", "tcp")) { "Import this transport using a complete configuration" }
+        require(parameters["type"].orEmpty() in setOf("", "tcp", "raw")) { "Import this transport using a complete configuration" }
         require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
         val serverName = parameters["sni"]?.takeIf { it.isNotBlank() } ?: host
         val tls = obj("enabled" to true, "server_name" to serverName,
-            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"] ?: "chrome")))
+            "utls" to obj("enabled" to true, "fingerprint" to (parameters["fp"]?.takeIf { it.isNotBlank() } ?: "chrome")))
         if (parameters["security"] == "reality") {
             val publicKey = parameters["pbk"] ?: throw IllegalArgumentException("Reality public key is missing")
             val decoded = try { Base64.getUrlDecoder().decode(publicKey) } catch (_: Exception) { ByteArray(0) }
@@ -43,8 +44,19 @@ object PairedProfile {
         }
         val node = obj("type" to "vless", "tag" to "node", "server" to host, "server_port" to port,
             "uuid" to uuid, "tls" to tls)
-        parameters["flow"]?.takeIf { it.isNotBlank() }?.let { node.put("flow", it) }
+        parameters["flow"]?.takeIf { it.isNotBlank() }?.let {
+            require(it == "xtls-rprx-vision") { "Unsupported VLESS flow" }
+            node.put("flow", it)
+        }
         return build(node, rulesDirectory)
+    }
+
+    private val canonicalUuid = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+    /** UUID.fromString also accepts short forms such as "1-2-3-4-5" and silently pads them into a different identity. */
+    private fun parseUuid(value: String?): String {
+        require(value != null && canonicalUuid.matches(value)) { "Invalid connection identifier" }
+        return UUID.fromString(value).toString()
     }
 
     fun build(node: JSONObject, rulesDirectory: String = "rules"): String {

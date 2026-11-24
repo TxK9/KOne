@@ -31,6 +31,7 @@
     <string name="knine_error_invalid_port">连接端口无效</string>
     <string name="knine_error_dup_param">连接包含重复参数</string>
     <string name="knine_error_transport">请使用完整配置导入此传输方式</string>
+    <string name="knine_error_flow">不支持的 VLESS 流控类型</string>
     <string name="knine_error_unencrypted">配对配置需要加密的 VLESS 连接</string>
     <string name="knine_error_no_pbk">缺少 Reality 公钥</string>
     <string name="knine_error_bad_pbk">Reality 公钥格式无效</string>

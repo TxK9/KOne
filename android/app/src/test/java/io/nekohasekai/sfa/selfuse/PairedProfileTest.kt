@@ -75,4 +75,39 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+    private fun node(link: String) = JSONObject(PairedProfile.fromVlessLink(link)).getJSONArray("outbounds").getJSONObject(1)
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsAbbreviatedUuidInsteadOfPaddingIt() {
+        // UUID.fromString("1-2-3-4-5") would silently become 00000001-0002-0003-0004-000000000005.
+        PairedProfile.fromVlessLink(link.replace("00000000-0000-0000-0000-000000000001", "1-2-3-4-5"))
+    }
+
+    @Test
+    fun normalizesUuidCase() {
+        assertEquals("abcdef00-0000-0000-0000-000000000001",
+            node(link.replace("00000000-0000-0000-0000-000000000001", "ABCDEF00-0000-0000-0000-000000000001")).getString("uuid"))
+    }
+
+    @Test
+    fun stripsIpv6Brackets() {
+        val node = node(link.replace("node.invalid", "[2001:db8::1]"))
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals(443, node.getInt("server_port"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        assertEquals("chrome", node("$link&fp=").getJSONObject("tls").getJSONObject("utls").getString("fingerprint"))
+    }
+
+    @Test
+    fun acceptsRawTransportAlias() {
+        assertEquals("vless", node(link.replace("type=tcp", "type=raw")).getString("type"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnsupportedFlow() {
+        PairedProfile.fromVlessLink(link.replace("xtls-rprx-vision", "xtls-rprx-direct"))
+    }
 }
