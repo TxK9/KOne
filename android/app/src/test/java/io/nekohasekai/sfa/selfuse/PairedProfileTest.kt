@@ -3,6 +3,8 @@ package io.nekohasekai.sfa.selfuse
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -74,5 +76,55 @@ class PairedProfileTest {
         val config = JSONObject(PairedProfile.fromVlessLink(link))
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
+    }
+
+    private fun node(config: String) = JSONObject(config).getJSONArray("outbounds")
+        .let { outbounds -> (0 until outbounds.length()).map(outbounds::getJSONObject).first { it.getString("type") == "vless" } }
+
+    private fun rejection(link: String) = assertThrows(IllegalArgumentException::class.java) { PairedProfile.fromVlessLink(link) }.message
+
+    @Test
+    fun ignoresUnencodedDisplayNameFragment() {
+        val vless = node(PairedProfile.fromVlessLink("$link#Tokyo node 01 🇯🇵"))
+        assertEquals("node.invalid", vless.getString("server"))
+    }
+
+    @Test
+    fun stripsIpv6LiteralBrackets() {
+        val vless = node(PairedProfile.fromVlessLink(link.replace("@node.invalid:443", "@[2001:db8::1]:8443")))
+        assertEquals("2001:db8::1", vless.getString("server"))
+        assertEquals(8443, vless.getInt("server_port"))
+    }
+
+    @Test
+    fun rejectsNonCanonicalUuidInsteadOfRewritingIt() {
+        // java.util.UUID would turn this into 00000001-0002-0003-0004-000000000005.
+        assertEquals("Invalid connection identifier", rejection(link.replace("00000000-0000-0000-0000-000000000001", "1-2-3-4-5")))
+        assertEquals("Invalid connection identifier", rejection(link.replace("00000000-0000-0000-0000-000000000001@", "")))
+    }
+
+    @Test
+    fun preservesCanonicalUuidCaseInsensitively() {
+        val upper = "ABCDEF01-2345-6789-ABCD-EF0123456789"
+        assertEquals(upper.lowercase(), node(PairedProfile.fromVlessLink(link.replace("00000000-0000-0000-0000-000000000001", upper))).getString("uuid"))
+    }
+
+    @Test
+    fun malformedPercentEncodingUsesKnownMessage() {
+        // java.net.URI rejects the escape before the query is decoded.
+        assertEquals("Invalid connection link", rejection("$link&spx=%zz"))
+    }
+
+    @Test
+    fun rejectsUnsupportedFlowAndOmitsEmptyFlow() {
+        assertEquals("Unsupported VLESS flow", rejection(link.replace("xtls-rprx-vision", "xtls-rprx-direct")))
+        assertFalse(node(PairedProfile.fromVlessLink(link.replace("&flow=xtls-rprx-vision", "&flow="))).has("flow"))
+        assertEquals("xtls-rprx-vision", node(PairedProfile.fromVlessLink(link)).getString("flow"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val tls = node(PairedProfile.fromVlessLink("$link&fp=")).getJSONObject("tls")
+        assertEquals("chrome", tls.getJSONObject("utls").getString("fingerprint"))
     }
 }

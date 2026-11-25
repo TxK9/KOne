@@ -32,6 +32,7 @@
     <string name="knine_error_dup_param">Connection contains duplicate parameters</string>
     <string name="knine_error_transport">Import this transport using a complete configuration</string>
     <string name="knine_error_unencrypted">The paired configuration requires an encrypted VLESS connection</string>
+    <string name="knine_error_flow">Unsupported VLESS flow</string>
     <string name="knine_error_no_pbk">Reality public key is missing</string>
     <string name="knine_error_bad_pbk">Invalid Reality public key format</string>
     <string name="knine_error_bad_sid">Invalid Reality short ID format</string>
