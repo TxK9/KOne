@@ -74,4 +74,19 @@
     <string name="knine_wallpaper_saved">已保存的壁纸</string>
     <!-- Notification channel -->
     <string name="knine_channel_service">服务通知</string>
+    <!-- QR scanner errors -->
+    <string name="knine_scan_interrupted">二维码扫描已中断。请重试或扫描图片。</string>
+    <string name="knine_scan_camera_start">无法启动相机。请重新打开扫描器或扫描图片。</string>
+    <string name="knine_scan_camera_connect">无法连接相机。请检查相机权限或扫描图片。</string>
+    <string name="knine_scan_picker">无法打开图片选择器。请稍后重试。</string>
+    <string name="knine_scan_image_unreadable">无法读取此图片。请选择其他图片，或先将其保存到设备。</string>
+    <string name="knine_scan_no_code">未找到二维码。请选择包含完整节点二维码的清晰图片。</string>
+    <string name="knine_scan_animated_frame">此图片仅包含动态二维码的一帧。请使用相机扫描完整动画。</string>
+    <string name="knine_scan_animated_failed">动态二维码校验失败。请重新扫描完整动画，或重新导出配置二维码。</string>
+    <string name="knine_scan_config_unreadable">无法读取二维码中的配置。请重新导出完整的 sing-box 配置二维码。</string>
+    <string name="knine_scan_unsupported">不支持的二维码。请使用 VLESS TCP TLS/Reality 节点或 sing-box 远程配置二维码。</string>
+    <string name="knine_scan_transport">二维码导入支持使用 TLS 或 Reality 的 VLESS TCP。其他传输方式请以完整配置导入。</string>
+    <string name="knine_scan_encryption">此 VLESS 节点使用了不支持的加密方式。支持 TLS 和 Reality。</string>
+    <string name="knine_scan_invalid_params">二维码包含无效的节点或配置参数。</string>
+    <string name="knine_error_bad_flow">不支持的 VLESS 流控。仅支持 xtls-rprx-vision。</string>
 </resources>

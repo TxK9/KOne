@@ -74,4 +74,19 @@
     <string name="knine_wallpaper_saved">Saved wallpaper</string>
     <!-- Notification channel -->
     <string name="knine_channel_service">Service Notifications</string>
+    <!-- QR scanner errors -->
+    <string name="knine_scan_interrupted">QR scanning was interrupted. Try again or scan an image.</string>
+    <string name="knine_scan_camera_start">The camera could not start. Reopen the scanner or scan an image.</string>
+    <string name="knine_scan_camera_connect">Cannot connect to the camera. Check camera permissions or scan an image.</string>
+    <string name="knine_scan_picker">Cannot open the image picker. Try again later.</string>
+    <string name="knine_scan_image_unreadable">Cannot read this image. Choose another image or save it to the device first.</string>
+    <string name="knine_scan_no_code">No QR code found. Choose a clear image of the complete node QR code.</string>
+    <string name="knine_scan_animated_frame">This image contains one frame of an animated QR code. Scan the full animation with the camera.</string>
+    <string name="knine_scan_animated_failed">Animated QR verification failed. Scan the full animation again or export a new configuration QR code.</string>
+    <string name="knine_scan_config_unreadable">Cannot read the QR configuration. Export a complete sing-box configuration QR code again.</string>
+    <string name="knine_scan_unsupported">Unsupported QR code. Use a VLESS TCP TLS/Reality node or a sing-box remote configuration QR code.</string>
+    <string name="knine_scan_transport">QR import supports VLESS TCP with TLS or Reality. Import other transports as a complete configuration.</string>
+    <string name="knine_scan_encryption">This VLESS node uses unsupported encryption. TLS and Reality are supported.</string>
+    <string name="knine_scan_invalid_params">The QR code contains invalid node or configuration parameters.</string>
+    <string name="knine_error_bad_flow">Unsupported VLESS flow. Only xtls-rprx-vision is supported.</string>
 </resources>

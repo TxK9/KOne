@@ -22,6 +22,7 @@ object KoneErrorMessages {
         "Reality public key is missing" to R.string.knine_error_no_pbk,
         "Invalid Reality public key format" to R.string.knine_error_bad_pbk,
         "Invalid Reality short ID format" to R.string.knine_error_bad_sid,
+        "Unsupported VLESS flow" to R.string.knine_error_bad_flow,
         "An actual proxy node is required." to R.string.knine_error_no_node,
         "Invalid configuration format" to R.string.knine_error_bad_config,
         "Tailscale is disabled in this profile. Create a paired Proxy and Home profile first." to R.string.knine_error_no_tailscale,

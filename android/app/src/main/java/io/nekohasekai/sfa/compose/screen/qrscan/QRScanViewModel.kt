@@ -6,6 +6,7 @@ import android.net.Uri
 import android.util.Size
 import android.util.Base64
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -20,6 +21,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import io.nekohasekai.libbox.Libbox
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.selfuse.PairedProfile
 import io.nekohasekai.sfa.qrs.QRSDecoder
 import io.nekohasekai.sfa.qrs.readIntLE
@@ -157,7 +159,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             // would stop analysis while leaving the error dialog invisible.
             Log.w(TAG, "QR analysis paused: ${exception.javaClass.simpleName}")
             _uiState.update {
-                it.copy(errorMessage = "QR scanning was interrupted. Try again or scan an image.", isLoading = false)
+                it.copy(errorMessage = getApplication<Application>().getString(R.string.knine_scan_interrupted), isLoading = false)
             }
         }
     }
@@ -179,7 +181,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
         val cameraProviderFuture = try {
             ProcessCameraProvider.getInstance(context)
         } catch (e: Exception) {
-            showScanError("The camera could not start. Reopen the scanner or scan an image.")
+            showScanError(R.string.knine_scan_camera_start)
             return
         }
 
@@ -216,7 +218,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
 
                 bindCamera(lifecycleOwner)
             } catch (e: Exception) {
-                showScanError("The camera could not start. Reopen the scanner or scan an image.")
+                showScanError(R.string.knine_scan_camera_start)
             }
         }, ContextCompat.getMainExecutor(context))
     }
@@ -248,7 +250,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             }
             Log.d(TAG, "QR camera bound")
         } catch (e: Exception) {
-            showScanError("Cannot connect to the camera. Check camera permissions or scan an image.")
+            showScanError(R.string.knine_scan_camera_connect)
         }
     }
 
@@ -346,7 +348,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
 
     fun imagePickerUnavailable() {
         pickingImage = false
-        showScanError("Cannot open the image picker. Try again later.")
+        showScanError(R.string.knine_scan_picker)
     }
 
     private fun resumeAnalyzer() {
@@ -393,21 +395,22 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             _uiState.update { it.copy(isDecodingImage = false) }
             val content = result.getOrNull()
             when {
-                result.isFailure -> showScanError("Cannot read this image. Choose another image or save it to the device first.")
-                content == null -> showScanError("No QR code found. Choose a clear image of the complete node QR code.")
+                result.isFailure -> showScanError(R.string.knine_scan_image_unreadable)
+                content == null -> showScanError(R.string.knine_scan_no_code)
                 else -> {
                     handleScanSuccess(content)
                     if (_uiState.value.qrsMode && _uiState.value.result == null && !showingError.get()) {
                         resetQRSState()
-                        showScanError("This image contains one frame of an animated QR code. Scan the full animation with the camera.")
+                        showScanError(R.string.knine_scan_animated_frame)
                     }
                 }
             }
         }
     }
 
-    private fun showScanError(message: String) {
+    private fun showScanError(@StringRes messageRes: Int) {
         if (!sessionOpen) return
+        val message = getApplication<Application>().getString(messageRes)
         imageAnalysis?.clearAnalyzer()
         if (showingError.compareAndSet(false, true)) {
             _uiState.update { it.copy(errorMessage = message, isLoading = false) }
@@ -488,7 +491,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             if (progress.error != null) {
                 Log.e(TAG, "QRS validation failed")
                 resetQRSState()
-                showScanError("Animated QR verification failed. Scan the full animation again or export a new configuration QR code.")
+                showScanError(R.string.knine_scan_animated_failed)
             } else if (progress.data != null) {
                 imageAnalysis?.clearAnalyzer()
                 Log.d(TAG, "QRS complete! Data size: ${progress.data.size}")
@@ -537,7 +540,7 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             _uiState.update { it.copy(result = QRScanResult.QRSData(actualData)) }
         } catch (e: Exception) {
             resetQRSState()
-            showScanError("Cannot read the QR configuration. Export a complete sing-box configuration QR code again.")
+            showScanError(R.string.knine_scan_config_unreadable)
         }
     }
 
@@ -551,14 +554,14 @@ class QRScanViewModel(application: Application) : AndroidViewModel(application) 
             }
             val uri = Uri.parse(normalized)
             if (uri.scheme != "sing-box" || uri.host != "import-remote-profile") {
-                showScanError("Unsupported QR code. Use a VLESS TCP TLS/Reality node or a sing-box remote configuration QR code.")
+                showScanError(R.string.knine_scan_unsupported)
                 return false
             }
             Libbox.parseRemoteProfileImportLink(uri.toString())
             _uiState.update { it.copy(result = QRScanResult.RemoteProfile(uri)) }
             return true
         } catch (e: Exception) {
-            showScanError(QRImportErrors.controlledMessage(e))
+            showScanError(QRImportErrors.controlledMessageRes(e))
         }
         return false
     }

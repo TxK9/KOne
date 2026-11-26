@@ -3,6 +3,7 @@ package io.nekohasekai.sfa.compose.screen.qrscan
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import io.nekohasekai.sfa.R
 import io.nekohasekai.sfa.selfuse.PairedProfile
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -53,5 +54,11 @@ class QRImageDecoderTest {
 
     @Test fun unexpectedDecoderErrorsCannotEchoCredentials() {
         assertEquals("The QR code contains invalid node or configuration parameters.", QRImportErrors.controlledMessage(IllegalArgumentException(link)))
+    }
+
+    @Test fun displayResourcesNeverDependOnUnknownExceptionText() {
+        assertEquals(R.string.knine_scan_invalid_params, QRImportErrors.controlledMessageRes(IllegalArgumentException(link)))
+        val transport = runCatching { PairedProfile.fromVlessLink(link.replace("type=tcp", "type=ws")) }.exceptionOrNull() as Exception
+        assertEquals(R.string.knine_scan_transport, QRImportErrors.controlledMessageRes(transport))
     }
 }

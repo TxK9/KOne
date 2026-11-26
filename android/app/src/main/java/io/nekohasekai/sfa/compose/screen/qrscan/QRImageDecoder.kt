@@ -1,5 +1,6 @@
 package io.nekohasekai.sfa.compose.screen.qrscan
 
+import androidx.annotation.StringRes
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.DecodeHintType
 import com.google.zxing.RGBLuminanceSource
@@ -7,6 +8,7 @@ import com.google.zxing.ReaderException
 import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeReader
+import io.nekohasekai.sfa.R
 
 /** Local image pixels only; camera and gallery share the node import path. */
 internal object QRImageDecoder {
@@ -47,12 +49,31 @@ internal object QRImportErrors {
     private val knownParameters = setOf(
         "Invalid connection link", "Invalid connection identifier", "Connection server is missing", "Invalid connection port",
         "Connection contains duplicate parameters", "Reality public key is missing", "Invalid Reality public key format", "Invalid Reality short ID format",
+        "Unsupported VLESS flow",
     )
 
+    /** English diagnostic text; stable for matching and tests. */
     fun controlledMessage(failure: Exception): String = when (val message = failure.message.orEmpty()) {
         "Import this transport using a complete configuration" -> "QR import supports VLESS TCP with TLS or Reality. Import other transports as a complete configuration."
         "The paired configuration requires an encrypted VLESS connection" -> "This VLESS node uses unsupported encryption. TLS and Reality are supported."
         in knownParameters -> message
         else -> "The QR code contains invalid node or configuration parameters."
+    }
+
+    /** Display resource for [controlledMessage]; never exposes unrecognized exception text. */
+    @StringRes
+    fun controlledMessageRes(failure: Exception): Int = when (failure.message.orEmpty()) {
+        "Import this transport using a complete configuration" -> R.string.knine_scan_transport
+        "The paired configuration requires an encrypted VLESS connection" -> R.string.knine_scan_encryption
+        "Invalid connection link" -> R.string.knine_error_invalid_link
+        "Invalid connection identifier" -> R.string.knine_error_invalid_id
+        "Connection server is missing" -> R.string.knine_error_no_server
+        "Invalid connection port" -> R.string.knine_error_invalid_port
+        "Connection contains duplicate parameters" -> R.string.knine_error_dup_param
+        "Reality public key is missing" -> R.string.knine_error_no_pbk
+        "Invalid Reality public key format" -> R.string.knine_error_bad_pbk
+        "Invalid Reality short ID format" -> R.string.knine_error_bad_sid
+        "Unsupported VLESS flow" -> R.string.knine_error_bad_flow
+        else -> R.string.knine_scan_invalid_params
     }
 }

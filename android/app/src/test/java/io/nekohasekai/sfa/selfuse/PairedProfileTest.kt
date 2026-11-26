@@ -75,4 +75,38 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    private fun node(link: String) = JSONObject(PairedProfile.fromVlessLink(link)).getJSONArray("outbounds")
+        .let { outbounds -> (0 until outbounds.length()).map { outbounds.getJSONObject(it) }.first { it.optString("tag") == "node" } }
+
+    @Test
+    fun stripsBracketsFromIpv6Server() {
+        assertEquals("2001:db8::1", node(link.replace("node.invalid", "[2001:db8::1]")).getString("server"))
+    }
+
+    @Test
+    fun blankFingerprintFallsBackToChrome() {
+        val utls = node("$link&fp=").getJSONObject("tls").getJSONObject("utls")
+        assertEquals("chrome", utls.getString("fingerprint"))
+    }
+
+    @Test
+    fun forwardsAlpnList() {
+        val tls = node(link.replace("security=reality", "security=tls") + "&alpn=h2%2Chttp%2F1.1").getJSONObject("tls")
+        assertEquals(JSONArray().put("h2").put("http/1.1").toString(), tls.getJSONArray("alpn").toString())
+        assertEquals(false, node(link).getJSONObject("tls").has("alpn"))
+    }
+
+    @Test
+    fun rejectsUnsupportedFlow() {
+        val failure = runCatching { PairedProfile.fromVlessLink(link.replace("xtls-rprx-vision", "xtls-rprx-direct")) }.exceptionOrNull()
+        assertEquals("Unsupported VLESS flow", failure?.message)
+    }
+
+    @Test
+    fun malformedPercentEncodingIsAControlledError() {
+        val failure = runCatching { PairedProfile.fromVlessLink("$link&spx=%zz") }.exceptionOrNull()
+        assertTrue(failure is IllegalArgumentException)
+        assertEquals("Invalid connection link", failure?.message)
+    }
 }
