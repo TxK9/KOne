@@ -75,4 +75,24 @@ class PairedProfileTest {
         config.put("outbounds", JSONArray().put(JSONObject().put("type", "direct").put("tag", "direct")))
         PairedProfile.requirePaired(config.toString())
     }
+
+    @Test
+    fun stripsBracketsFromIpv6Server() {
+        val config = JSONObject(PairedProfile.fromVlessLink(link.replace("node.invalid", "[2001:db8::1]")))
+        val node = config.getJSONArray("outbounds").getJSONObject(1)
+        assertEquals("2001:db8::1", node.getString("server"))
+        assertEquals("example.org", node.getJSONObject("tls").getString("server_name"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsNonCanonicalIdentifierInsteadOfRewritingIt() {
+        PairedProfile.fromVlessLink(link.replace("00000000-0000-0000-0000-000000000001", "1-1-1-1-1"))
+    }
+
+    @Test
+    fun reportsMalformedPercentEncodingAsInvalidLink() {
+        val error = runCatching { PairedProfile.fromVlessLink("$link&spx=%zz") }.exceptionOrNull()
+        assertTrue(error is IllegalArgumentException)
+        assertEquals("Invalid connection link", error?.message)
+    }
 }

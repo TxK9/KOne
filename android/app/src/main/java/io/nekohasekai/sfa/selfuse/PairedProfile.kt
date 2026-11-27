@@ -13,20 +13,33 @@ object PairedProfile {
     const val PROXY_TAG = "proxy"
     private fun obj(vararg values: Pair<String, Any>) = JSONObject().apply { values.forEach { put(it.first, it.second) } }
     private fun array(vararg values: Any) = JSONArray().apply { values.forEach { put(it) } }
+    private val CANONICAL_UUID = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+
+    private fun decodeComponent(value: String): String = try {
+        URLDecoder.decode(value, "UTF-8")
+    } catch (_: IllegalArgumentException) {
+        throw IllegalArgumentException("Invalid connection link")
+    }
 
     fun fromVlessLink(link: String, rulesDirectory: String = "rules"): String {
         val uri = try { URI(link.trim()) } catch (_: Exception) { throw IllegalArgumentException("Invalid connection link") }
         require(uri.scheme.equals("vless", true)) { "Import a VLESS link; use a complete sing-box configuration for other protocols" }
-        val uuid = try { UUID.fromString(uri.userInfo).toString() } catch (_: Exception) { throw IllegalArgumentException("Invalid connection identifier") }
-        val host = uri.host?.takeIf { it.isNotBlank() } ?: throw IllegalArgumentException("Connection server is missing")
+        // UUID.fromString is lenient ("1-1-1-1-1" parses), so require the canonical form
+        // first; otherwise a malformed identifier would be silently rewritten.
+        val userInfo = uri.userInfo.orEmpty()
+        require(CANONICAL_UUID.matches(userInfo)) { "Invalid connection identifier" }
+        val uuid = UUID.fromString(userInfo).toString()
+        // java.net.URI keeps the brackets of IPv6 literals; sing-box expects a bare address.
+        val host = uri.host?.removeSurrounding("[", "]")?.takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("Connection server is missing")
         val port = if (uri.port == -1) 443 else uri.port
         require(port in 1..65535) { "Invalid connection port" }
         val parameters = mutableMapOf<String, String>()
         uri.rawQuery.orEmpty().split('&').filter { it.isNotBlank() }.forEach {
             val pieces = it.split('=', limit = 2)
-            val key = URLDecoder.decode(pieces[0], "UTF-8")
+            val key = decodeComponent(pieces[0])
             require(!parameters.containsKey(key)) { "Connection contains duplicate parameters" }
-            parameters[key] = URLDecoder.decode(pieces.getOrElse(1) { "" }, "UTF-8")
+            parameters[key] = decodeComponent(pieces.getOrElse(1) { "" })
         }
         require(parameters["type"].orEmpty() in setOf("", "tcp")) { "Import this transport using a complete configuration" }
         require(parameters["security"] in setOf("reality", "tls")) { "The paired configuration requires an encrypted VLESS connection" }
